@@ -2,7 +2,7 @@
 # (when I switched from an AMD card to nvidia) 
 
 # I'm pretty sure my everything is borked so-
-# Running these commands after every reboot makes it work.
+# Running these commands when I get a complaint. 
 # don't question it, I'm not a neckbeard, I'm a linux enjoyer.
 
 # Didn't use the install scripts cause, yeah.
