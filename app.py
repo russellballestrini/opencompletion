@@ -34,6 +34,8 @@ from groq import Groq
 from mistralai import Mistral
 from openai import OpenAI
 
+import ollama
+
 app = Flask(__name__)
 
 app.config["SECRET_KEY"] = "your_secret_key"
@@ -96,7 +98,7 @@ HELP_MESSAGE = """
 - `/s3 load [s3_file_path]`: Load a file from S3.
 - `/s3 save [s3_key_path]`: Save the most recent code block from the chatroom to S3.
 - `/title new`: Generates a new title which reflects conversation content for the current chatroom using gpt-4.
-- `/cancel`: Cancel the most recent chat completion from streaming into the chatroom.
+- `/cancel`: Cancel the most recent chat completion from stllmsreaming into the chatroom.
 - `/help`: Display this help message.
 
 **Available Models:**
@@ -457,7 +459,7 @@ def on_join(data):
 
     message_count = len(previous_messages)
     if room.title is None and message_count >= 6:
-        room.title = gpt_generate_room_title(previous_messages)
+        room.title = ollama_generate_room_title(previous_messages)
         db.session.add(room)
         db.session.commit()
         socketio.emit("update_room_title", {"title": room.title}, room=room.name)
@@ -586,6 +588,7 @@ def handle_message(data):
         or "localhost/" in data["message"]
         or "vllm/" in data["message"]
         or "groq/" in data["message"]
+        or "ollama/" in data["message"]
     ):
         # Emit a temporary message indicating that the llm is processing
         emit(
@@ -770,6 +773,22 @@ def handle_message(data):
                 room.name,
                 model_name="openhermes-2.5-mistral-7b.Q6_K.gguf",
             )
+        if "localhost/thewindmom/hermes-3-llama-3.1-8b" in data["message"]:
+            gevent.spawn(
+                chat_llama,
+                data["username"],
+                room.name,
+                model_name="thewindmom/hermes-3-llama-3.1-8b",
+            )
+
+        if "ollama/thewindmom/hermes-3-llama-3.1-8b" in data["message"]:
+            gevent.spawn(
+                chat_ollama,
+                data["username"],
+                room.name,
+                model_name="thewindmom/hermes-3-llama-3.1-8b",
+            )
+
 
 
 @socketio.on("delete_message")
@@ -975,7 +994,7 @@ def chat_claude(
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
 
-def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B"):
+def get_openai_client_and_model(model_name="thewindmom/hermes-3-llama-3.1-8b"):
     vllm_endpoint = os.environ.get("VLLM_ENDPOINT")
     vllm_api_key = os.environ.get("VLLM_API_KEY", "not-needed")
 
@@ -987,6 +1006,7 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
         openai_client = OpenAI()
 
     return openai_client, model_name
+
 
 
 def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
@@ -1547,6 +1567,117 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
 
+
+def chat_ollama(username, room_name, model_name="thewindmom/hermes-3-llama-3.1-8b"):
+    import llama_cpp
+
+    # https://llama-cpp-python.readthedocs.io/en/latest/api-reference/
+    #model = llama_cpp.Llama(model_name, n_gpu_layers=-1, n_ctx=32000)
+
+    limit = 15
+    with app.app_context():
+        room = get_room(room_name)
+        last_messages = (
+            Message.query.filter_by(room_id=room.id)
+            .order_by(Message.id.desc())
+            .limit(limit)
+            .all()
+        )
+
+        chat_history = [
+            {
+                "role": "system" if msg.username in system_users else "user",
+                "content": f"{msg.username}: {msg.content}",
+            }
+            for msg in reversed(last_messages)
+            if not msg.is_base64_image()
+        ]
+
+    buffer = ""  # Content buffer for accumulating the chunks
+
+    # save empty message, we need the ID when we chunk the response.
+    with app.app_context():
+        new_message = Message(username=model_name, content=buffer, room_id=room.id)
+        db.session.add(new_message)
+        db.session.commit()
+        msg_id = new_message.id
+
+    first_chunk = True
+    
+    
+    try:
+        chunks = ollama.chat(model=model_name,
+            messages=chat_history,
+            stream=True,
+        )
+    except Exception as e:
+        with app.app_context():
+            message_content = f"LLama Error: {e}"
+            new_message = (
+                db.session.query(Message).filter(Message.id == msg_id).one_or_none()
+            )
+            if new_message:
+                new_message.content = message_content
+                new_message.count_tokens()
+                db.session.add(new_message)
+                db.session.commit()
+        socketio.emit(
+            "chat_message",
+            {
+                "id": msg_id,
+                "username": model_name,
+                "content": message_content,
+            },
+            room=room_name,
+        )
+        socketio.emit("delete_processing_message", msg_id, room=room.name)
+        # exit early to avoid clobbering the error message.
+        return None
+
+    for chunk in chunks:
+        # Check if there has been a cancellation request, break if there is.
+        if cancellation_requests.get(msg_id):
+            del cancellation_requests[msg_id]
+            break
+            
+        print(chunk)
+        content = chunk["message"]["content"]
+        
+        if content:
+            buffer += content  # Accumulate content
+
+            if first_chunk:
+                socketio.emit(
+                    "message_chunk",
+                    {
+                        "id": msg_id,
+                        "content": f"**{username} ({model_name}):**\n\n{content}",
+                    },
+                    room=room.name,
+                )
+                first_chunk = False
+            else:
+                socketio.emit(
+                    "message_chunk",
+                    {"id": msg_id, "content": content},
+                    room=room.name,
+                )
+            socketio.sleep(0)  # Force immediate handling
+
+    # Save the entire completion to the database
+    with app.app_context():
+        new_message = (
+            db.session.query(Message).filter(Message.id == msg_id).one_or_none()
+        )
+        if new_message:
+            new_message.content = buffer
+            new_message.count_tokens()
+            db.session.add(new_message)
+            db.session.commit()
+
+    socketio.emit("delete_processing_message", msg_id, room=room.name)
+
+
 def gpt_generate_room_title(messages):
     """
     Generate a title for the room based on a list of messages.
@@ -1579,6 +1710,46 @@ def gpt_generate_room_title(messages):
 
     title = response.choices[0].message.content
     return title.replace('"', "")
+    
+    
+############################################################ C WUZ HERE
+def ollama_generate_room_title(messages):
+    """
+    Generate a title for the room based on a list of messages.
+    """
+    #openai_client, model_name = get_openai_client_and_model()
+    model_name = 'thewindmom/hermes-3-llama-3.1-8b'
+    chat_history = [
+        {
+            "role": "system" if msg.username in system_users else "user",
+            "content": f"{msg.username}: {msg.content}",
+        }
+        for msg in reversed(messages)
+        if not msg.is_base64_image()
+    ]
+
+    chat_history.append(
+        {
+            "role": "system",
+            "content": "return a short title for the title bar of this conversation. Reply with the title only",
+        }
+    )
+
+    # Interaction with LLM to generate summary
+    # For example, using OpenAI's GPT model
+    response = ollama.chat(
+        messages=chat_history,
+        model=model_name,  # or any appropriate model
+        #max_tokens=20,
+    )
+    
+    print(response)
+    content = response["message"]["content"]
+    title = content.strip().replace('"', "")
+
+    return title
+
+#############################################################################
 
 
 def generate_new_title(room_name, username):
@@ -2928,6 +3099,7 @@ if __name__ == "__main__":
         "--local-activities",
         action="store_true",
         help="Use local activity files instead of S3",
+     
     )
     args = parser.parse_args()
 

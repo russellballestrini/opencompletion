@@ -1,0 +1,42 @@
+# I'm hardmoding linux so I've only done a hard-reset once
+# (when I switched from an AMD card to nvidia) 
+
+# I'm pretty sure my everything is borked so-
+# Running these commands after every reboot makes it work.
+# don't question it, I'm not a neckbeard, I'm a linux enjoyer.
+
+# Didn't use the install scripts cause, yeah.
+ 
+### THE COMMANDS BELOW
+
+#Openai error - You don't need a valid API key to run, it just complains
+
+export OPENAI_API_KEY=balls
+
+
+pip uninstall -y httpcore
+pip install httpx==0.24.1
+
+#additionally, I have multiple python packages so I have to specify - 
+#python3.10 app.py
+
+
+# if you do not have s3, use --local-activities like :
+# python3.10 'app.py' --local-activities
+#
+#
+#
+#
+# To add new ollama models, open app.py and duplicate the following :
+ 
+        if "ollama/thewindmom/hermes-3-llama-3.1-8b" in data["message"]:
+            gevent.spawn(
+                chat_ollama,
+                data["username"],
+                room.name,
+                model_name="thewindmom/hermes-3-llama-3.1-8b",
+            )
+# remember it's python so don't f up the tabs.
+# change the model name after ollama/modelnamehere and the variable
+# model_name="changethistoo"
+
