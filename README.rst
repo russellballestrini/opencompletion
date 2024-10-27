@@ -46,8 +46,8 @@ To set up the project, follow these steps:
 
 1. Clone this repository::
 
-    git clone https://github.com/russellballestrini/flask-socketio-llm-completions.git
-    cd flask-socketio-llm-completions
+    git clone https://github.com/russellballestrini/opencompletion.git
+    cd opencompletion
 
 2. Create a virtual environment and activate it::
 
