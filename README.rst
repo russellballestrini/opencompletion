@@ -1,6 +1,8 @@
 Open Completion
 ========================================
 
+`opencompletion.com <https://opencompletion.com>`_
+
 originally named: flask-socketio-llm-completions
 
 This project is a chatroom application that allows users to join different chat rooms, send messages, and interact with multiple language models in real-time. The backend is built with Flask and Flask-SocketIO for real-time web communication, while the frontend uses HTML, CSS, and JavaScript to provide an interactive user interface.
