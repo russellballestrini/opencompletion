@@ -1,7 +1,9 @@
 Open Completion
 ========================================
 
-`opencompletion.com <https://opencompletion.com>`_
+* `opencompletion.com <https://opencompletion.com>`_
+
+* `demo.opencompletion.com running vllm/hermes-llama-3 model <https://demo.opencompletion.com >`_
 
 originally named: flask-socketio-llm-completions
 
