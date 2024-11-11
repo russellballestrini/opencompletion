@@ -28,7 +28,6 @@
       const socket = io.connect(window.location.protocol + "//" + document.domain + ":" + location.port);
     </script>
 
-
     <!-- Link to the favicon -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
@@ -83,20 +82,30 @@
 
     /* Styling for individual message wrappers */
     .message-wrapper {
-        display: flex;
+        display: grid;
+        grid-template-columns: auto 1fr;
         align-items: start;
+        gap: 4px;
+        margin-bottom: 32px;
     }
     
     /* Styling for the delete and edit buttons next to messages */
     .message-wrapper button {
-        margin-top: 16px;
-        margin-right: 8px;
+        margin-right: 4px;
+        margin-bottom: 4px;
+    }
+
+    /* Styling for the button container within each message */
+    .button-container {
+        display: grid;
+        grid-auto-rows: min-content; /* Ensure each button takes up only as much space as it needs */
+        gap: 4px; /* Vertical space between buttons */
     }
 
     /* Styling for paragraphs, used for messages */
     p {
-        margin-top: 8px;
-        margin-bottom: 8px;
+        margin: 0;
+        margin-bottom: 12px;
     }
 
     /* Styling for the main container that holds the rooms list and chat */

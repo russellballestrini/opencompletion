@@ -19,7 +19,9 @@
     </div>
 
 <script>
-// Retrieve username and room name from the URL parameters
+// Constants
+const API_KEY = "dummy-api-key";
+const TTS_API_URL = "https://speech.ai.unturf.com/v1/audio/speech";
 const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get("username");
 const room_name = "{{ room_name }}";
@@ -36,6 +38,8 @@ const dompurify_config = {
 
 // keeping track of scrolling to prevent autoscrolling.
 let userHasScrolledUp = false;
+let currentAudio = null; // To keep track of the currently playing audio
+let audioCache = {}; // Cache to store audio blobs
 
 document.addEventListener('DOMContentLoaded', (event) => {
     const chatContainer = document.getElementById("chat");
@@ -95,6 +99,79 @@ socket.on("connect", () => {
     socket.emit("join", {"username": username, "room_name": room_name});
 });
 
+// Function to read text using TTS
+async function speakText(text, playButton, messageId, voice = 'onyx', rate = 0.9) {
+    try {
+        // Check if the audio is already cached
+        if (audioCache[messageId]) {
+            const audio = audioCache[messageId];
+            toggleAudioPlayback(audio, playButton);
+            return;
+        }
+
+        // Set button to processing state
+        playButton.textContent = "Processing...";
+        playButton.disabled = true;
+
+        const response = await fetch(TTS_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'tts-1',
+                voice: voice,
+                input: text
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        audio.playbackRate = rate;
+
+        // Cache the audio
+        audioCache[messageId] = audio;
+
+        // Enable button and change text to "Pause"
+        playButton.disabled = false;
+        toggleAudioPlayback(audio, playButton);
+    } catch (error) {
+        console.error('Error in TTS:', error);
+        playButton.textContent = "Play"; // Reset button text on error
+        playButton.disabled = false;
+    }
+}
+
+// Function to toggle audio playback
+function toggleAudioPlayback(audio, playButton) {
+    if (currentAudio && currentAudio !== audio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio.playButton.textContent = "Play";
+    }
+
+    if (audio.paused) {
+        audio.play();
+        playButton.textContent = "Pause";
+    } else {
+        audio.pause();
+        playButton.textContent = "Play";
+    }
+
+    currentAudio = audio;
+    currentAudio.playButton = playButton;
+
+    audio.onended = () => {
+        playButton.textContent = "Play";
+    };
+}
+
 // Socket event for receiving a new message
 socket.on("chat_message", (data) => {
     const messageWrapper = document.createElement("div");
@@ -120,18 +197,30 @@ socket.on("chat_message", (data) => {
     if (data.id) {
         newMessage.dataset.rawMarkdown = data.content;
 
+        // Create a container for the buttons
+        const buttonContainer = document.createElement("div");
+        buttonContainer.className = "button-container";
+
         // Create the delete button
         const deleteButton = document.createElement("button");
         deleteButton.innerHTML = "x";
         deleteButton.onclick = () => deleteMessage(data.id, room_name);
-        messageWrapper.appendChild(deleteButton);
+        buttonContainer.appendChild(deleteButton);
 
         // Create the edit button
         const editButton = document.createElement("button");
         editButton.textContent = "Edit";
         editButton.className = "edit-button";
         editButton.onclick = () => editMessage(data.id, newMessage, data.content);
-        messageWrapper.appendChild(editButton);
+        buttonContainer.appendChild(editButton);
+
+        // Create the play button for TTS
+        const playButton = document.createElement("button");
+        playButton.textContent = "Play";
+        playButton.onclick = () => speakText(data.content, playButton, data.id);
+        buttonContainer.appendChild(playButton);
+
+        messageWrapper.appendChild(buttonContainer);
     }
 
     messageWrapper.appendChild(newMessage);
@@ -178,19 +267,30 @@ socket.on("previous_messages", (data) => {
 
     newMessage.dataset.rawMarkdown = data.content;
 
+    // Create a container for the buttons
+    const buttonContainer = document.createElement("div");
+    buttonContainer.className = "button-container";
+
     // Create the delete button
     const deleteButton = document.createElement("button");
     deleteButton.innerHTML = "x";
     deleteButton.onclick = () => deleteMessage(data.id, room_name);
-    messageWrapper.appendChild(deleteButton);
+    buttonContainer.appendChild(deleteButton);
 
     // Create the edit button
     const editButton = document.createElement("button");
     editButton.textContent = "Edit";
     editButton.className = "edit-button";
     editButton.onclick = () => editMessage(data.id, newMessage);
-    messageWrapper.appendChild(editButton);
+    buttonContainer.appendChild(editButton);
 
+    // Create the play button for TTS
+    const playButton = document.createElement("button");
+    playButton.textContent = "Play";
+    playButton.onclick = () => speakText(data.content, playButton, data.id);
+    buttonContainer.appendChild(playButton);
+
+    messageWrapper.appendChild(buttonContainer);
     messageWrapper.appendChild(newMessage);
 
     document.getElementById("chat").appendChild(messageWrapper);
@@ -238,19 +338,30 @@ socket.on("message_chunk", (data) => {
         targetMessageElement = document.createElement("div");
         targetMessageElement.className = "message-content";
 
+        // Create a container for the buttons
+        const buttonContainer = document.createElement("div");
+        buttonContainer.className = "button-container";
+
         // Create the "x" button for deletion
         const deleteButton = document.createElement("button");
         deleteButton.innerHTML = "x";
         deleteButton.onclick = () => deleteMessage(data.id, room_name);
-        messageWrapper.appendChild(deleteButton);
+        buttonContainer.appendChild(deleteButton);
 
         // Create the edit button
         const editButton = document.createElement("button");
         editButton.textContent = "Edit";
         editButton.className = "edit-button";
         editButton.onclick = () => editMessage(data.id, targetMessageElement);
-        messageWrapper.appendChild(editButton);
+        buttonContainer.appendChild(editButton);
 
+        // Create the play button for TTS
+        const playButton = document.createElement("button");
+        playButton.textContent = "Play";
+        playButton.onclick = () => speakText(data.content, playButton, data.id);
+        buttonContainer.appendChild(playButton);
+
+        messageWrapper.appendChild(buttonContainer);
         messageWrapper.appendChild(targetMessageElement);
     } else {
         // If the wrapper already exists, get the message-content div inside it
@@ -373,11 +484,23 @@ function saveEditedMessage(messageId, textarea, messageContentContainer) {
         "room_name": room_name
     });
 
+    // Clear the cached audio for this message to recompute TTS
+    if (audioCache[messageId]) {
+        delete audioCache[messageId];
+    }
+
     // Reset the edit button to its original state
     const messageWrapper = messageContentContainer.closest('.message-wrapper');
     const editButton = messageWrapper.querySelector(".edit-button");
     editButton.textContent = 'Edit';
     editButton.onclick = () => editMessage(messageId, messageContentContainer, updatedMarkdown);
+
+    // Reset the play button to its initial state
+    const playButton = Array.from(messageWrapper.querySelectorAll("button")).find(btn => btn.textContent === 'Pause' || btn.textContent === 'Play');
+    if (playButton) {
+        playButton.textContent = 'Play';
+        playButton.onclick = () => speakText(updatedMarkdown, playButton, messageId); // Ensure it uses the updated content
+    }
 
     // Remove the save button using the 'save-button' class
     const saveButton = messageWrapper.querySelector(".save-button");
