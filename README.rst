@@ -4,6 +4,8 @@ flask-socketio-llm-completions
 Ollama compatible version of flask-socketio-llm-completions. Read Fixes4Carlton.txt on how to add additional models. 
 
 
+[![Open Completion Welcome video](https://img.youtube.com/vi/4YQhgwQfBv0/0.jpg)](https://www.youtube.com/watch?v=4YQhgwQfBv0
+
 
 #######################################
 
