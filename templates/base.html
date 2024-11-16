@@ -41,6 +41,7 @@
         background-color: #f7f7f7;
         display: grid;
         place-items: center;
+        overflow: hidden; /* Prevent scrolling of the main viewport */
     }
     
     /* Styling for the chat container */
@@ -63,7 +64,7 @@
         border-radius: 5px;
         padding: 10px;
         margin-bottom: 10px;
-        min-width: 400px;
+        width: 100%; /* Allow chat window to fill available space */
     }
     
     /* Styling for the message input area */
@@ -123,7 +124,7 @@
     }
 
     /* Styling for the unordered list in the rooms list */
-    #rooms-list ul {
+    #rooms-list ul, #rooms-list-modal-content ul {
         list-style: none; /* Removes default list styling */
         padding: 0; /* Resets default padding */
         margin: 0; /* Resets default margin */
@@ -243,7 +244,7 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Add a shadow for depth */
         transition: background-color 0.3s; /* Smooth transition for hover effect */
     }
-    
+
     #close-modal-button:hover {
         background-color: #555; /* Darken on hover */
     }
