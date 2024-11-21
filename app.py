@@ -74,6 +74,7 @@ system_users = [
     "llama2-70b-4096",
     "llama3-70b-8192",
     "gemma-7b-it",
+    "grok-beta",
     "openchat/openchat-3.5-1210",
     "openchat/openchat-3.5-0106",
     "upstage/SOLAR-10.7B-Instruct-v1.0",
@@ -121,6 +122,7 @@ HELP_MESSAGE = """
 - `groq/llama2`: For Groq Llama-2, send a message with `groq/llama2` and include your prompt.
 - `groq/llama3`: For Groq Llama-3, send a message with `groq/llama3` and include your prompt.
 - `groq/gemma`: For Groq Gemma, send a message with `groq/gemma` and include your prompt.
+- `grok-beta`: For twitter/xai Grok, send a message with `grok-beta` and include your prompt.
 - `vllm/hermes-llama-3`: For vLLM Hermes, send a message with `vllm/hermes-llama-3` and include your prompt.
 - `dall-e-3`: For Dall-e-3, send a message with `dall-e-3` and include your prompt.
 
@@ -586,6 +588,7 @@ def handle_message(data):
         or "localhost/" in data["message"]
         or "vllm/" in data["message"]
         or "groq/" in data["message"]
+        or "grok-beta" in data["message"]
     ):
         # Emit a temporary message indicating that the llm is processing
         emit(
@@ -641,6 +644,13 @@ def handle_message(data):
                 data["username"],
                 room.name,
                 model_name="gpt-4o-mini",
+            )
+        if "grok-beta" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="grok-beta",
             )
         if "mistral-tiny" in data["message"]:
             gevent.spawn(
@@ -978,11 +988,18 @@ def chat_claude(
 def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B"):
     vllm_endpoint = os.environ.get("VLLM_ENDPOINT")
     vllm_api_key = os.environ.get("VLLM_API_KEY", "not-needed")
+    xai_api_key = os.environ.get("XAI_API_KEY")
 
     is_openai_model = "gpt" in model_name.lower() or "o1" in model_name.lower()
+    is_xai_model = "grok-" in model_name.lower()
+    is_vllm_model = True
+    if is_openai_model or is_xai_model:
+        is_vllm_model = False
 
-    if vllm_endpoint and not is_openai_model:
+    if is_vllm_model:
         openai_client = OpenAI(base_url=vllm_endpoint, api_key=vllm_api_key)
+    elif is_xai_model:
+        openai_client = OpenAI(base_url="https://api.x.ai/v1", api_key=xai_api_key)
     else:
         openai_client = OpenAI()
 
