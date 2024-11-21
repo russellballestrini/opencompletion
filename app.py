@@ -122,6 +122,9 @@ HELP_MESSAGE = """
 - `groq/llama2`: For Groq Llama-2, send a message with `groq/llama2` and include your prompt.
 - `groq/llama3`: For Groq Llama-3, send a message with `groq/llama3` and include your prompt.
 - `groq/gemma`: For Groq Gemma, send a message with `groq/gemma` and include your prompt.
+- `gemini-flash`: For Google Gemini Flash, send a message with `gemini-flash` and include your prompt.
+- `gemini-flash-8b`: For Google Gemini Flash 8B, send a message with `gemini-flash-8b` and include your prompt.
+- `gemini-pro`: For Google Gemini Pro, send a message with `gemini-pro` and include your prompt.
 - `grok-beta`: For twitter/xai Grok, send a message with `grok-beta` and include your prompt.
 - `vllm/hermes-llama-3`: For vLLM Hermes, send a message with `vllm/hermes-llama-3` and include your prompt.
 - `dall-e-3`: For Dall-e-3, send a message with `dall-e-3` and include your prompt.
@@ -589,6 +592,7 @@ def handle_message(data):
         or "vllm/" in data["message"]
         or "groq/" in data["message"]
         or "grok-beta" in data["message"]
+        or "gemini-" in data["message"]
     ):
         # Emit a temporary message indicating that the llm is processing
         emit(
@@ -651,6 +655,27 @@ def handle_message(data):
                 data["username"],
                 room.name,
                 model_name="grok-beta",
+            )
+        if "gemini-flash" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="gemini-1.5-flash-002",
+            )
+        if "gemini-flash-8b" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="gemini-1.5-flash-8b",
+            )
+        if "gemini-pro" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="gemini-1.5-pro-002",
             )
         if "mistral-tiny" in data["message"]:
             gevent.spawn(
@@ -989,17 +1014,24 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
     vllm_endpoint = os.environ.get("VLLM_ENDPOINT")
     vllm_api_key = os.environ.get("VLLM_API_KEY", "not-needed")
     xai_api_key = os.environ.get("XAI_API_KEY")
+    google_api_key = os.environ.get("GOOGLE_API_KEY")
 
     is_openai_model = "gpt" in model_name.lower() or "o1" in model_name.lower()
     is_xai_model = "grok-" in model_name.lower()
+    is_google_model = "gemini-" in model_name.lower()
     is_vllm_model = True
-    if is_openai_model or is_xai_model:
+    if is_openai_model or is_xai_model or is_google_model:
         is_vllm_model = False
 
     if is_vllm_model:
         openai_client = OpenAI(base_url=vllm_endpoint, api_key=vllm_api_key)
     elif is_xai_model:
         openai_client = OpenAI(base_url="https://api.x.ai/v1", api_key=xai_api_key)
+    elif is_google_model:
+        openai_client = OpenAI(
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            api_key=google_api_key,
+        )
     else:
         openai_client = OpenAI()
 
@@ -1050,6 +1082,7 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
         chunks = openai_client.chat.completions.create(
             model=model_name,
             messages=chat_history,
+            n=1,
             temperature=temperature,
             stream=True,
         )

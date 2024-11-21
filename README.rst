@@ -81,9 +81,10 @@ Set up optional environment variables for your AWS, OpenAI, MistralAI, or togeth
     export MISTRAL_API_KEY="your_mistralai_api_key"
     export TOGETHER_API_KEY="your_togetherai_api_key"
     export GROQ_API_KEY="your_groq_api_key"
+    export XAI_API_KEY="your_twitter_x_ai_api_key_for_grok"
+    export GOOGLE_API_KEY="your_google_gemini_api_key"
     export VLLM_API_KEY="not-needed"
     export VLLM_ENDPOINT="http://localhost:18888/v1"
-    export XAI_API_KEY="your_twitter_x_ai_api_key_for_grok"
 
 To start the application with socket.io run::
 
@@ -128,6 +129,9 @@ To interact with the various language models, you can use the following commands
 - For Groq Llama-2, send a message with ``groq/llama2`` and include your prompt.
 - For Groq Llama-3, send a message with ``groq/llama3`` and include your prompt.
 - For Groq Gemma, send a message with ``groq/gemma`` and include your prompt.
+- For Google Gemini Flash, send a message with ``gemini-flash`` and include your prompt.
+- For Google Gemini Flash 8B, send a message with ``gemini-flash-8b`` and include your prompt.
+- For Google Gemini Pro, send a message with ``gemini-pro`` and include your prompt.
 - For Twitter/X AI Grok, send a message with ``grok-beta`` and include your prompt.
 - For vLLM Hermes, send a message with ``vllm/hermes-llama-3`` and include your prompt.
 - For Dall-e-3, send a message with ``dall-e-3`` and include your prompt.
