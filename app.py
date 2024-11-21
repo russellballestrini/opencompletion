@@ -1625,6 +1625,7 @@ def gpt_generate_room_title(messages):
         messages=chat_history,
         model=model_name,  # or any appropriate model
         max_tokens=20,
+        n=1,
     )
 
     title = response.choices[0].message.content
@@ -2822,7 +2823,11 @@ def generate_grading(chat_history, rubric):
 
     try:
         completion = openai_client.chat.completions.create(
-            model=model_name, messages=messages, max_tokens=1000, temperature=0.7
+            model=model_name,
+            messages=messages,
+            max_tokens=1000,
+            temperature=0.7,
+            n=1,
         )
         grading = completion.choices[0].message.content.strip()
         return grading
@@ -2869,6 +2874,7 @@ def categorize_response(question, response, buckets, tokens_for_ai):
         completion = openai_client.chat.completions.create(
             model=model_name,
             messages=messages,
+            n=1,
             max_tokens=10,
             temperature=0,
         )
@@ -2904,7 +2910,7 @@ def generate_ai_feedback(
 
     try:
         completion = openai_client.chat.completions.create(
-            model=model_name, messages=messages, max_tokens=1000, temperature=0.7
+            model=model_name, messages=messages, max_tokens=1000, temperature=0.7, n=1
         )
         feedback = completion.choices[0].message.content.strip()
         return feedback
@@ -2961,7 +2967,7 @@ def translate_text(text, target_language):
 
     try:
         completion = openai_client.chat.completions.create(
-            model=model_name, messages=messages, max_tokens=2000, temperature=0.7
+            model=model_name, messages=messages, max_tokens=2000, temperature=0.7, n=1
         )
         translation = completion.choices[0].message.content.strip()
         return translation
