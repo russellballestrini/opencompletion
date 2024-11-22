@@ -81,6 +81,7 @@ system_users = [
     "teknium/OpenHermes-2.5-Mistral-7B",
     "NousResearch/Hermes-2-Pro-Llama-3-8B",
     "NousResearch/Hermes-3-Llama-3.1-8B",
+    "hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0",
     "mistral-7b-instruct-v0.2.Q3_K_L.gguf",
     "mistral-7b-instruct-v0.2-code-ft.Q3_K_L.gguf",
     "openhermes-2.5-mistral-7b.Q6_K.gguf",
@@ -126,7 +127,8 @@ HELP_MESSAGE = """
 - `gemini-flash-8b`: For Google Gemini Flash 8B, send a message with `gemini-flash-8b` and include your prompt.
 - `gemini-pro`: For Google Gemini Pro, send a message with `gemini-pro` and include your prompt.
 - `grok-beta`: For twitter/xai Grok, send a message with `grok-beta` and include your prompt.
-- `vllm/hermes-llama-3`: For vLLM Hermes, send a message with `vllm/hermes-llama-3` and include your prompt.
+- `vllm/hermes-llama-3`: For vLLM Hermes, send a message with `vllm/hermes` and include your prompt.
+- `ollama/hermes-llama-3`: For Ollama Hermes, send a message with `ollama/hermes` and include your prompt.
 - `dall-e-3`: For Dall-e-3, send a message with `dall-e-3` and include your prompt.
 
 **Getting Started:**
@@ -590,6 +592,7 @@ def handle_message(data):
         or "together/" in data["message"]
         or "localhost/" in data["message"]
         or "vllm/" in data["message"]
+        or "ollama/" in data["message"]
         or "groq/" in data["message"]
         or "grok-beta" in data["message"]
         or "gemini-" in data["message"]
@@ -777,12 +780,19 @@ def handle_message(data):
                 room.name,
                 model_name="openchat/openchat-3.5-0106",
             )
-        if "vllm/hermes-llama-3" in data["message"]:
+        if "vllm/hermes" in data["message"]:
             gevent.spawn(
                 chat_gpt,
                 data["username"],
                 room.name,
                 model_name="NousResearch/Hermes-3-Llama-3.1-8B",
+            )
+        if "ollama/hermes" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0",
             )
         if "localhost/mistral" in data["message"]:
             gevent.spawn(
@@ -1019,12 +1029,15 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
     is_openai_model = "gpt" in model_name.lower() or "o1" in model_name.lower()
     is_xai_model = "grok-" in model_name.lower()
     is_google_model = "gemini-" in model_name.lower()
+    is_ollama_model = "hf.co" in model_name.lower()
     is_vllm_model = True
-    if is_openai_model or is_xai_model or is_google_model:
+    if is_openai_model or is_xai_model or is_google_model or is_ollama_model:
         is_vllm_model = False
 
     if is_vllm_model:
         openai_client = OpenAI(base_url=vllm_endpoint, api_key=vllm_api_key)
+    elif is_ollama_model:
+        openai_client = OpenAI(base_url="http://127.0.0.1:11434/v1", api_key=vllm_api_key)
     elif is_xai_model:
         openai_client = OpenAI(base_url="https://api.x.ai/v1", api_key=xai_api_key)
     elif is_google_model:

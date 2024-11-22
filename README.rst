@@ -133,7 +133,8 @@ To interact with the various language models, you can use the following commands
 - For Google Gemini Flash 8B, send a message with ``gemini-flash-8b`` and include your prompt.
 - For Google Gemini Pro, send a message with ``gemini-pro`` and include your prompt.
 - For Twitter/X AI Grok, send a message with ``grok-beta`` and include your prompt.
-- For vLLM Hermes, send a message with ``vllm/hermes-llama-3`` and include your prompt.
+- For vLLM Hermes, send a message with ``vllm/hermes`` and include your prompt.
+- For Ollama Hermes, send a message with ``ollama/hermes`` and include your prompt.
 - For Dall-e-3, send a message with ``dall-e-3`` and include your prompt.
 
 The system will process your message and provide a response from the selected language model.
@@ -203,6 +204,17 @@ The server expects to load the YAML file out of the S3 bucket you specify in you
 
     .. image:: flask-socketio-llm-completions-battleship.png
         :align: center
+
+
+
+Ollama versus vLLM
+-----------------------------
+
+I prefer the ``vllm`` inference server but lot of people like to use ``ollama`` so here is an example::
+
+ ollama run hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0
+
+Then in the app you should be able to talk to `ollama/hermes`
 
 
 Contributing
