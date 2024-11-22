@@ -62,7 +62,7 @@
         overflow-y: auto;
         border: 1px solid #e1e1e1;
         border-radius: 5px;
-        padding: 10px;
+        padding-left: 10px;
         margin-bottom: 10px;
         width: 100%; /* Allow chat window to fill available space */
     }
@@ -112,7 +112,7 @@
     /* Styling for the main container that holds the rooms list and chat */
     .main-container {
         display: grid;
-        grid-template-columns: 20% 80%; /* Adjust the 20% as needed */
+        grid-template-columns: 15% 70% 15%;
         width: 100%;
         height: 90vh;
     }
@@ -174,16 +174,7 @@
         padding-right: 0.8em; /* Adjust the padding as needed */
     }
     .download-links {
-        position: absolute;
-        right: 10px;
-        top: 10px;
-        z-index: 1000;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .download-links a {
-        margin-bottom: 5px;
+        text-align: center;
     }
 
     /* Hamburger button styling */

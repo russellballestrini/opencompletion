@@ -3,11 +3,6 @@
 {% block title %}Chatroom{% endblock %}
 
 {% block content %}
-    <div class="download-links">
-        <div>
-        Chat History: <a href="/download_chat_history?room_name={{ room_name }}" download="{{ room_name }}.json">JSON</a> or <a href="/download_chat_history_md?room_name={{ room_name }}" download="{{ room_name }}.md">Markdown</a>
-        </div>
-    </div>
 
     <div id="chat-container">
         <!-- Chat area where messages will be displayed -->
@@ -16,6 +11,14 @@
         <form id="message-form">
             <textarea id="message" rows="4" placeholder="Type your message..."></textarea>
         </form>
+    </div>
+
+    <div>
+        <div class="download-links">
+            History
+            <a href="/download_chat_history?room_name={{ room_name }}" download="{{ room_name }}.json">JSON</a> or
+            <a href="/download_chat_history_md?room_name={{ room_name }}" download="{{ room_name }}.md">Markdown</a>
+        </div>
     </div>
 
 <script>
