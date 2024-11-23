@@ -3,11 +3,6 @@
 {% block title %}Chatroom{% endblock %}
 
 {% block content %}
-    <div class="download-links">
-        <div>
-        Chat History: <a href="/download_chat_history?room_name={{ room_name }}" download="{{ room_name }}.json">JSON</a> or <a href="/download_chat_history_md?room_name={{ room_name }}" download="{{ room_name }}.md">Markdown</a>
-        </div>
-    </div>
 
     <div id="chat-container">
         <!-- Chat area where messages will be displayed -->
@@ -18,6 +13,50 @@
         </form>
     </div>
 
+    <div class="utility-belt">
+        <div class="download-links">
+            History
+            <a href="/download_chat_history?room_name={{ room_name }}" download="{{ room_name }}.json">JSON</a> or
+            <a href="/download_chat_history_md?room_name={{ room_name }}" download="{{ room_name }}.md">Markdown</a>
+        </div>
+        <br>
+        <div>
+            <label for="model-select">Model</label>
+            <select id="model-select">
+                <option value="None">None</option>
+                <option value="gemini-flash">gemini-flash</option>
+                <option value="gemini-flash-8b">gemini-flash-8b</option>
+                <option value="gemini-pro">gemini-pro</option>
+                <option value="grok-beta">grok-beta</option>
+                <option value="vllm/hermes-llama-3">vllm/hermes-llama-3</option>
+                <option value="gpt-4">gpt-4</option>
+                <option value="gpt-4o-2024-08-06">gpt-4o-2024-08-06</option>
+                <option value="gpt-mini">gpt-mini</option>
+                <option value="gpt-o1-mini">gpt-o1-mini</option>
+                <option value="claude-haiku">claude-haiku</option>
+                <option value="claude-sonnet">claude-sonnet</option>
+                <option value="claude-opus">claude-opus</option>
+            </select>
+        </div>
+        <div>
+            <label for="voice-select">Voice</label>
+            <select id="voice-select">
+                <option value="onyx">Onyx</option>
+                <option value="alloy">Alloy</option>
+                <option value="echo">Echo</option>
+                <option value="fable">Fable</option>
+                <option value="nova">Nova</option>
+                <option value="shimmer">Shimmer</option>
+            </select>
+        </div>
+        <div>
+            <h3>Active Users</h3>
+            <ul id="active-users">
+                <!-- Active users will be dynamically populated here -->
+            </ul>
+        </div>
+    </div>
+
 <script>
 // Constants
 const API_KEY = "dummy-api-key";
@@ -25,6 +64,14 @@ const TTS_API_URL = "https://speech.ai.unturf.com/v1/audio/speech";
 const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get("username");
 const room_name = "{{ room_name }}";
+
+// Global constants for valid voices and models
+const VALID_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+const VALID_MODELS = [
+    'None', 'gemini-flash', 'gemini-flash-8b', 'gemini-pro', 'grok-beta',
+    'vllm/hermes-llama-3', 'gpt-4', 'gpt-4o-2024-08-06', 'gpt-mini',
+    'gpt-o1-mini', 'claude-haiku', 'claude-sonnet', 'claude-opus'
+];
 
 // Configuration for DOMPurify to specify which tags and attributes are allowed
 const dompurify_config = {
@@ -48,13 +95,73 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const distanceFromBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
         userHasScrolledUp = distanceFromBottom > 5;
     });
+
+    // Set initial model and voice from query string
+    const modelSelect = document.getElementById("model-select");
+    const voiceSelect = document.getElementById("voice-select");
+    const initialModel = urlParams.get("model") || "None";
+    const initialVoice = urlParams.get("voice") || "onyx";
+    modelSelect.value = initialModel;
+    voiceSelect.value = initialVoice;
+
+    // Update query string when model or voice changes
+    modelSelect.addEventListener("change", updateQueryString);
+    voiceSelect.addEventListener("change", updateQueryString);
 });
+
+
+// Function to validate and update the query string
+function updateQueryString() {
+    const sanitizedUsername = sanitizeUsername(username);
+    const modelSelect = document.getElementById("model-select");
+    const voiceSelect = document.getElementById("voice-select");
+
+    // Validate model and voice
+    const model = VALID_MODELS.includes(modelSelect.value) ? modelSelect.value : 'None';
+    const voice = VALID_VOICES.includes(voiceSelect.value) ? voiceSelect.value : 'onyx';
+
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("username", sanitizedUsername);
+    newUrl.searchParams.set("model", model);
+    newUrl.searchParams.set("voice", voice);
+    window.history.replaceState({}, '', newUrl);
+}
+
+// Object to keep track of active users
+let activeUsers = {};
+
+// Function to update the active user list in the DOM
+function updateActiveUserList(users) {
+    const userListElement = document.getElementById("active-users");
+    userListElement.innerHTML = ''; // Clear the current list
+
+    // Populate the list with active users
+    users.forEach(username => {
+        const userItem = document.createElement("li");
+        userItem.textContent = username;
+        userListElement.appendChild(userItem);
+    });
+}
+
+
+// Update active users list whenever the event is received
+socket.on("active_users", (data) => {
+    updateActiveUserList(data.users);
+});
+
 
 // Function to handle sending the message
 function sendMessage() {
     const message = document.getElementById("message").value;
-    if (message.trim() !== "") {  // Ensure we're not sending empty messages
-        socket.emit("chat_message", {"username": username, "message": message, "room_name": room_name});
+    const model = document.getElementById("model-select").value;
+    let messageToSend = message.trim();
+
+    if (model !== "None") {
+        messageToSend = `${model} ${messageToSend}`;
+    }
+
+    if (messageToSend !== "") {  // Ensure we're not sending empty messages
+        socket.emit("chat_message", {"username": username, "message": messageToSend, "room_name": room_name});
         document.getElementById("message").value = "";
     }
 }
@@ -94,17 +201,34 @@ socket.on('update_room_list', function(updatedRoom) {
     }
 });
 
+// Function to sanitize the username
+function sanitizeUsername(username) {
+    // Split the username on commas and take the first part.
+    // The backend denormalizes the user list in the room table via csv.
+    return username.split(',')[0].trim();
+}
+
 // Socket event when the user connects
 socket.on("connect", () => {
-    socket.emit("join", {"username": username, "room_name": room_name});
+    // Sanitize the username before joining
+    const sanitizedUsername = sanitizeUsername(username);
+    socket.emit("join", {"username": sanitizedUsername, "room_name": room_name});
+    // Update the query string with the sanitized username
+    updateQueryString();
 });
 
 // Function to read text using TTS
-async function speakText(text, playButton, messageId, voice = 'onyx', rate = 0.9) {
+async function speakText(text, playButton, messageId) {
+    const voice = document.getElementById("voice-select").value;
+    const cacheKey = `${messageId}-${voice}`; // Unique cache key for each message and voice
+
+    // Clean the text to include only alphanumeric characters, spaces, and key punctuation
+    const cleanText = text.replace(/[^a-zA-Z0-9\s.,!?]/g, '');
+
     try {
         // Check if the audio is already cached
-        if (audioCache[messageId]) {
-            const audio = audioCache[messageId];
+        if (audioCache[cacheKey]) {
+            const audio = audioCache[cacheKey];
             toggleAudioPlayback(audio, playButton);
             return;
         }
@@ -122,7 +246,7 @@ async function speakText(text, playButton, messageId, voice = 'onyx', rate = 0.9
             body: JSON.stringify({
                 model: 'tts-1',
                 voice: voice,
-                input: text
+                input: cleanText // Use the cleaned text
             })
         });
 
@@ -133,10 +257,10 @@ async function speakText(text, playButton, messageId, voice = 'onyx', rate = 0.9
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
-        audio.playbackRate = rate;
+        audio.playbackRate = 0.9;
 
-        // Cache the audio
-        audioCache[messageId] = audio;
+        // Cache the audio only after it is successfully created
+        audioCache[cacheKey] = audio;
 
         // Enable button and change text to "Pause"
         playButton.disabled = false;
@@ -327,44 +451,20 @@ socket.on("message_chunk", (data) => {
     let messageWrapper = document.getElementById(wrapperId);
     let targetMessageElement;
 
-    // If the message wrapper doesn't exist, it's an initial chunk
+    // If the message wrapper doesn't exist, create it
     if (!messageWrapper) {
         messageWrapper = document.createElement("div");
         messageWrapper.className = "message-wrapper";
         messageWrapper.id = wrapperId;
         document.getElementById("chat").appendChild(messageWrapper);
+    }
 
-        // Create the div element to hold the message content
+    // If the message-content div doesn't exist, create it
+    if (!messageWrapper.querySelector(".message-content")) {
         targetMessageElement = document.createElement("div");
         targetMessageElement.className = "message-content";
-
-        // Create a container for the buttons
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "button-container";
-
-        // Create the "x" button for deletion
-        const deleteButton = document.createElement("button");
-        deleteButton.innerHTML = "x";
-        deleteButton.onclick = () => deleteMessage(data.id, room_name);
-        buttonContainer.appendChild(deleteButton);
-
-        // Create the edit button
-        const editButton = document.createElement("button");
-        editButton.textContent = "Edit";
-        editButton.className = "edit-button";
-        editButton.onclick = () => editMessage(data.id, targetMessageElement);
-        buttonContainer.appendChild(editButton);
-
-        // Create the play button for TTS
-        const playButton = document.createElement("button");
-        playButton.textContent = "Play";
-        playButton.onclick = () => speakText(data.content, playButton, data.id);
-        buttonContainer.appendChild(playButton);
-
-        messageWrapper.appendChild(buttonContainer);
         messageWrapper.appendChild(targetMessageElement);
     } else {
-        // If the wrapper already exists, get the message-content div inside it
         targetMessageElement = messageWrapper.querySelector(".message-content");
     }
 
@@ -394,6 +494,38 @@ socket.on("message_chunk", (data) => {
     if (!userHasScrolledUp) {
         document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }
+
+    // Check if the message is complete and add buttons if they haven't been added
+    if (data.is_complete && !messageWrapper.querySelector(".button-container")) {
+        // Create a container for the buttons
+        const buttonContainer = document.createElement("div");
+        buttonContainer.className = "button-container";
+
+        // Create the delete button
+        const deleteButton = document.createElement("button");
+        deleteButton.innerHTML = "x";
+        deleteButton.onclick = () => deleteMessage(data.id, room_name);
+        buttonContainer.appendChild(deleteButton);
+
+        // Create the edit button
+        const editButton = document.createElement("button");
+        editButton.textContent = "Edit";
+        editButton.className = "edit-button";
+        editButton.onclick = () => editMessage(data.id, targetMessageElement);
+        buttonContainer.appendChild(editButton);
+
+        // Create the play button for TTS
+        const playButton = document.createElement("button");
+        playButton.textContent = "Play";
+        playButton.onclick = () => {
+            const fullText = targetMessageElement.textContent || targetMessageElement.innerText;
+            speakText(fullText, playButton, data.id);
+        };
+        buttonContainer.appendChild(playButton);
+
+        // Append the button container before the message content
+        messageWrapper.insertBefore(buttonContainer, targetMessageElement);
+    }
 });
 
 
@@ -404,7 +536,6 @@ socket.on("message_deleted", (data) => {
         messageElement.remove();
     }
 });
-
 
 // Socket event for when a message is updated
 socket.on("message_updated", (data) => {

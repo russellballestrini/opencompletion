@@ -25,7 +25,7 @@ from flask import (
     Response,
 )
 
-from flask_socketio import SocketIO, emit, join_room
+from flask_socketio import SocketIO, emit, join_room, leave_room
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import InvalidRequestError
@@ -170,6 +170,29 @@ class Room(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False, unique=True)
     title = db.Column(db.String(128), nullable=True)
+    # Store as a comma-separated string
+    active_users = db.Column(db.Text, default="")
+
+    def add_user(self, username):
+        users = set(self.active_users.split(",")) if self.active_users else set()
+        users.add(username)
+        self.active_users = ",".join(sorted(users))
+
+    def remove_user(self, username):
+        users = set(self.active_users.split(",")) if self.active_users else set()
+        users.discard(username)
+        self.active_users = ",".join(sorted(users))
+
+    def get_active_users(self):
+        return self.active_users.split(",") if self.active_users else []
+
+
+class UserSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(128), unique=True, nullable=False)
+    username = db.Column(db.String(128))
+    room_name = db.Column(db.String(128))
+    room_id = db.Column(db.Integer)
 
 
 class Message(db.Model):
@@ -427,10 +450,30 @@ def search_messages(keywords):
     return search_results_list
 
 
+# Handle user joining a room
 @socketio.on("join")
 def on_join(data):
     room_name = data["room_name"]
+    username = data["username"]
     room = get_room(room_name)
+
+    room.add_user(username)
+
+    # Store session data in the database
+    user_session = UserSession(
+        session_id=request.sid, username=username, room_name=room_name, room_id=room.id
+    )
+    db.session.add(user_session)
+
+    # Emit the active users list to the new joiner
+    emit("active_users", {"users": room.get_active_users()}, room=request.sid)
+    # Emit the active users list to everyone in the room
+    emit(
+        "active_users",
+        {"users": room.get_active_users()},
+        room=room_name,
+        include_self=False,
+    )
 
     # this makes the client start listening for new events for this room.
     join_room(room_name)
@@ -446,9 +489,6 @@ def on_join(data):
     total_token_count = 0
 
     # Send the history of messages only to the newly connected client.
-    # The reason for using `request.sid` here is to target the specific session (or client) that
-    # just connected, so only they receive the backlog of messages, rather than broadcasting
-    # this information to all clients in the room.
     for message in previous_messages:
         if not message.is_base64_image():
             total_token_count += message.token_count
@@ -466,17 +506,18 @@ def on_join(data):
     if room.title is None and message_count >= 6:
         room.title = gpt_generate_room_title(previous_messages)
         db.session.add(room)
-        db.session.commit()
         socketio.emit("update_room_title", {"title": room.title}, room=room.name)
-        # Emit an event to update this rooms title in the sidebar for all users.
+        # Emit an event to update this room's title in the sidebar for all users.
         updated_room_data = {"id": room.id, "name": room.name, "title": room.title}
         socketio.emit("update_room_list", updated_room_data, room=None)
 
+    # commit session & active user list and title to database.
+    db.session.commit()
+
     # Broadcast to all clients in the room that a new user has joined.
-    # Here, `room=room` ensures the message is sent to everyone in that specific room.
     emit(
         "chat_message",
-        {"id": None, "content": f"{data['username']} has joined the room."},
+        {"id": None, "content": f"{username} has joined the room."},
         room=room.name,
     )
     emit(
@@ -487,6 +528,24 @@ def on_join(data):
         },
         room=request.sid,
     )
+
+
+# Handle user leaving a room
+@socketio.on("disconnect")
+def on_disconnect():
+    sid = request.sid
+    user_session = UserSession.query.filter_by(session_id=sid).first()
+
+    if user_session:
+        room_name = user_session.room_name
+        username = user_session.username
+        room = Room.query.filter_by(name=room_name).first()
+        room.remove_user(username)
+        leave_room(room_name)
+        emit("active_users", {"users": room.get_active_users()}, room=room_name)
+        # Remove session data from the database
+        db.session.delete(user_session)
+        db.session.commit()
 
 
 @socketio.on("chat_message")
@@ -1017,6 +1076,12 @@ def chat_claude(
             db.session.add(new_message)
             db.session.commit()
 
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
+
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
 
@@ -1037,7 +1102,9 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
     if is_vllm_model:
         openai_client = OpenAI(base_url=vllm_endpoint, api_key=vllm_api_key)
     elif is_ollama_model:
-        openai_client = OpenAI(base_url="http://127.0.0.1:11434/v1", api_key=vllm_api_key)
+        openai_client = OpenAI(
+            base_url="http://127.0.0.1:11434/v1", api_key=vllm_api_key
+        )
     elif is_xai_model:
         openai_client = OpenAI(base_url="https://api.x.ai/v1", api_key=xai_api_key)
     elif is_google_model:
@@ -1163,6 +1230,12 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
             db.session.add(new_message)
             db.session.commit()
 
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
+
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
 
@@ -1268,6 +1341,12 @@ def chat_mistral(username, room_name, model_name="mistral-tiny"):
             new_message.count_tokens()
             db.session.add(new_message)
             db.session.commit()
+
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
 
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
@@ -1393,6 +1472,12 @@ def chat_together(
             db.session.add(new_message)
             db.session.commit()
 
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
+
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
 
@@ -1498,6 +1583,12 @@ def chat_groq(username, room_name, model_name="mixtral-8x7b-32768"):
             new_message.count_tokens()
             db.session.add(new_message)
             db.session.commit()
+
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
 
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
@@ -1606,6 +1697,12 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
             new_message.count_tokens()
             db.session.add(new_message)
             db.session.commit()
+
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
 
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
