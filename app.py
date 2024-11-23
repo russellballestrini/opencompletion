@@ -176,12 +176,12 @@ class Room(db.Model):
     def add_user(self, username):
         users = set(self.active_users.split(",")) if self.active_users else set()
         users.add(username)
-        self.active_users = ",".join(users)
+        self.active_users = ",".join(sorted(users))
 
     def remove_user(self, username):
         users = set(self.active_users.split(",")) if self.active_users else set()
         users.discard(username)
-        self.active_users = ",".join(users)
+        self.active_users = ",".join(sorted(users))
 
     def get_active_users(self):
         return self.active_users.split(",") if self.active_users else []

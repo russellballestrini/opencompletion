@@ -290,7 +290,7 @@
       <ul id="rooms-list-ul">
           <!-- Loop through rooms and create list items for each room -->
           {% for room in rooms %}
-          <a href="{{ url_for('chat', room_name=room.name) }}?username={{ username }}">
+          <a href="{{ url_for('chat', room_name=room.name) }}?{{ request.query_string.decode('utf-8')|safe }}">
           <li data-room-id="{{ room.id }}">
               <!-- Display the room title if available, otherwise the room name -->
               <b>{{ room.name }}</b> {% if room.title %}<br />{{ room.title }} {% endif %}

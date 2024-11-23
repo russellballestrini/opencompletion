@@ -65,6 +65,14 @@ const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get("username");
 const room_name = "{{ room_name }}";
 
+// Global constants for valid voices and models
+const VALID_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+const VALID_MODELS = [
+    'None', 'gemini-flash', 'gemini-flash-8b', 'gemini-pro', 'grok-beta',
+    'vllm/hermes-llama-3', 'gpt-4', 'gpt-4o-2024-08-06', 'gpt-mini',
+    'gpt-o1-mini', 'claude-haiku', 'claude-sonnet', 'claude-opus'
+];
+
 // Configuration for DOMPurify to specify which tags and attributes are allowed
 const dompurify_config = {
   ADD_TAGS: ["iframe", "img"],
@@ -101,11 +109,19 @@ document.addEventListener('DOMContentLoaded', (event) => {
     voiceSelect.addEventListener("change", updateQueryString);
 });
 
-// Function to update the query string with model and voice
+
+// Function to validate and update the query string
 function updateQueryString() {
-    const model = document.getElementById("model-select").value;
-    const voice = document.getElementById("voice-select").value;
+    const sanitizedUsername = sanitizeUsername(username);
+    const modelSelect = document.getElementById("model-select");
+    const voiceSelect = document.getElementById("voice-select");
+
+    // Validate model and voice
+    const model = VALID_MODELS.includes(modelSelect.value) ? modelSelect.value : 'None';
+    const voice = VALID_VOICES.includes(voiceSelect.value) ? voiceSelect.value : 'onyx';
+
     const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("username", sanitizedUsername);
     newUrl.searchParams.set("model", model);
     newUrl.searchParams.set("voice", voice);
     window.history.replaceState({}, '', newUrl);
@@ -185,9 +201,20 @@ socket.on('update_room_list', function(updatedRoom) {
     }
 });
 
+// Function to sanitize the username
+function sanitizeUsername(username) {
+    // Split the username on commas and take the first part.
+    // The backend denormalizes the user list in the room table via csv.
+    return username.split(',')[0].trim();
+}
+
 // Socket event when the user connects
 socket.on("connect", () => {
-    socket.emit("join", {"username": username, "room_name": room_name});
+    // Sanitize the username before joining
+    const sanitizedUsername = sanitizeUsername(username);
+    socket.emit("join", {"username": sanitizedUsername, "room_name": room_name});
+    // Update the query string with the sanitized username
+    updateQueryString();
 });
 
 // Function to read text using TTS
