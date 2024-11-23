@@ -87,13 +87,42 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const distanceFromBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
         userHasScrolledUp = distanceFromBottom > 5;
     });
+
+    // Set initial model and voice from query string
+    const modelSelect = document.getElementById("model-select");
+    const voiceSelect = document.getElementById("voice-select");
+    const initialModel = urlParams.get("model") || "None";
+    const initialVoice = urlParams.get("voice") || "onyx";
+    modelSelect.value = initialModel;
+    voiceSelect.value = initialVoice;
+
+    // Update query string when model or voice changes
+    modelSelect.addEventListener("change", updateQueryString);
+    voiceSelect.addEventListener("change", updateQueryString);
 });
+
+// Function to update the query string with model and voice
+function updateQueryString() {
+    const model = document.getElementById("model-select").value;
+    const voice = document.getElementById("voice-select").value;
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("model", model);
+    newUrl.searchParams.set("voice", voice);
+    window.history.replaceState({}, '', newUrl);
+}
 
 // Function to handle sending the message
 function sendMessage() {
     const message = document.getElementById("message").value;
-    if (message.trim() !== "") {  // Ensure we're not sending empty messages
-        socket.emit("chat_message", {"username": username, "message": message, "room_name": room_name});
+    const model = document.getElementById("model-select").value;
+    let messageToSend = message.trim();
+
+    if (model !== "None") {
+        messageToSend = `${model} ${messageToSend}`;
+    }
+
+    if (messageToSend !== "") {  // Ensure we're not sending empty messages
+        socket.emit("chat_message", {"username": username, "message": messageToSend, "room_name": room_name});
         document.getElementById("message").value = "";
     }
 }
@@ -139,11 +168,14 @@ socket.on("connect", () => {
 });
 
 // Function to read text using TTS
-async function speakText(text, playButton, messageId, voice = 'onyx', rate = 0.9) {
+async function speakText(text, playButton, messageId) {
+    const voice = document.getElementById("voice-select").value;
+    const cacheKey = `${messageId}-${voice}`; // Include voice in the cache key
+
     try {
         // Check if the audio is already cached
-        if (audioCache[messageId]) {
-            const audio = audioCache[messageId];
+        if (audioCache[cacheKey]) {
+            const audio = audioCache[cacheKey];
             toggleAudioPlayback(audio, playButton);
             return;
         }
@@ -172,10 +204,10 @@ async function speakText(text, playButton, messageId, voice = 'onyx', rate = 0.9
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
-        audio.playbackRate = rate;
+        audio.playbackRate = 0.9;
 
         // Cache the audio
-        audioCache[messageId] = audio;
+        audioCache[cacheKey] = audio;
 
         // Enable button and change text to "Pause"
         playButton.disabled = false;
