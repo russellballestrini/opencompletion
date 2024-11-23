@@ -480,6 +480,11 @@ def on_join(data):
         room=room.name,
     )
     emit(
+        "user_joined",
+        {"username": data["username"]},
+        room=room.name,
+    )
+    emit(
         "chat_message",
         {
             "id": None,
