@@ -115,36 +115,22 @@ function updateQueryString() {
 let activeUsers = {};
 
 // Function to update the active user list in the DOM
-function updateActiveUserList() {
+function updateActiveUserList(users) {
     const userListElement = document.getElementById("active-users");
     userListElement.innerHTML = ''; // Clear the current list
 
     // Populate the list with active users
-    for (const username in activeUsers) {
+    users.forEach(username => {
         const userItem = document.createElement("li");
         userItem.textContent = username;
         userListElement.appendChild(userItem);
-    }
+    });
 }
 
-// Socket event when a user joins
-socket.on("user_joined", (data) => {
-    activeUsers[data.username] = true; // Add user to the active list
-    updateActiveUserList(); // Update the DOM
-});
 
-// Socket event when a user leaves
-socket.on("user_left", (data) => {
-    delete activeUsers[data.username]; // Remove user from the active list
-    updateActiveUserList(); // Update the DOM
-});
-
-// Handle socket disconnection to update the user list
-socket.on("disconnect", () => {
-    // Optionally, clear the active users list or handle specific user disconnection
-    // For example, you might want to remove the current user from the list
-    delete activeUsers[username]; // Remove the current user
-    updateActiveUserList(); // Update the DOM
+// Update active users list whenever the event is received
+socket.on("active_users", (data) => {
+    updateActiveUserList(data.users);
 });
 
 

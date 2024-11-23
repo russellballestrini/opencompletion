@@ -170,6 +170,21 @@ class Room(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False, unique=True)
     title = db.Column(db.String(128), nullable=True)
+    # Store as a comma-separated string
+    active_users = db.Column(db.Text, default="")
+
+    def add_user(self, username):
+        users = set(self.active_users.split(",")) if self.active_users else set()
+        users.add(username)
+        self.active_users = ",".join(users)
+
+    def remove_user(self, username):
+        users = set(self.active_users.split(",")) if self.active_users else set()
+        users.discard(username)
+        self.active_users = ",".join(users)
+
+    def get_active_users(self):
+        return self.active_users.split(",") if self.active_users else []
 
 
 class Message(db.Model):
@@ -432,6 +447,18 @@ def on_join(data):
     room_name = data["room_name"]
     room = get_room(room_name)
 
+    room.add_user(data["username"])
+
+    # Emit the active users list to the new joiner
+    emit("active_users", {"users": room.get_active_users()}, room=request.sid)
+    # Emit the active users list to everyone in the room
+    emit(
+        "active_users",
+        {"users": room.get_active_users()},
+        room=room_name,
+        include_self=False,
+    )
+
     # this makes the client start listening for new events for this room.
     join_room(room_name)
 
@@ -466,22 +493,19 @@ def on_join(data):
     if room.title is None and message_count >= 6:
         room.title = gpt_generate_room_title(previous_messages)
         db.session.add(room)
-        db.session.commit()
         socketio.emit("update_room_title", {"title": room.title}, room=room.name)
         # Emit an event to update this rooms title in the sidebar for all users.
         updated_room_data = {"id": room.id, "name": room.name, "title": room.title}
         socketio.emit("update_room_list", updated_room_data, room=None)
+
+    # commit the active user list and title to database.
+    db.session.commit()
 
     # Broadcast to all clients in the room that a new user has joined.
     # Here, `room=room` ensures the message is sent to everyone in that specific room.
     emit(
         "chat_message",
         {"id": None, "content": f"{data['username']} has joined the room."},
-        room=room.name,
-    )
-    emit(
-        "user_joined",
-        {"username": data["username"]},
         room=room.name,
     )
     emit(
@@ -1048,7 +1072,9 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
     if is_vllm_model:
         openai_client = OpenAI(base_url=vllm_endpoint, api_key=vllm_api_key)
     elif is_ollama_model:
-        openai_client = OpenAI(base_url="http://127.0.0.1:11434/v1", api_key=vllm_api_key)
+        openai_client = OpenAI(
+            base_url="http://127.0.0.1:11434/v1", api_key=vllm_api_key
+        )
     elif is_xai_model:
         openai_client = OpenAI(base_url="https://api.x.ai/v1", api_key=xai_api_key)
     elif is_google_model:
