@@ -1017,6 +1017,12 @@ def chat_claude(
             db.session.add(new_message)
             db.session.commit()
 
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
+
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
 
@@ -1163,6 +1169,12 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
             db.session.add(new_message)
             db.session.commit()
 
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
+
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
 
@@ -1268,6 +1280,12 @@ def chat_mistral(username, room_name, model_name="mistral-tiny"):
             new_message.count_tokens()
             db.session.add(new_message)
             db.session.commit()
+
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
 
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
@@ -1393,6 +1411,12 @@ def chat_together(
             db.session.add(new_message)
             db.session.commit()
 
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
+
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
 
@@ -1498,6 +1522,12 @@ def chat_groq(username, room_name, model_name="mixtral-8x7b-32768"):
             new_message.count_tokens()
             db.session.add(new_message)
             db.session.commit()
+
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
 
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
@@ -1606,6 +1636,12 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
             new_message.count_tokens()
             db.session.add(new_message)
             db.session.commit()
+
+    socketio.emit(
+        "message_chunk",
+        {"id": msg_id, "content": "", "is_complete": True},
+        room=room.name,
+    )
 
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 

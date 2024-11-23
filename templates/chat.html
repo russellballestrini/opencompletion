@@ -170,7 +170,10 @@ socket.on("connect", () => {
 // Function to read text using TTS
 async function speakText(text, playButton, messageId) {
     const voice = document.getElementById("voice-select").value;
-    const cacheKey = `${messageId}-${voice}`; // Include voice in the cache key
+    const cacheKey = `${messageId}-${voice}`; // Unique cache key for each message and voice
+
+    // Clean the text to include only alphanumeric characters, spaces, and key punctuation
+    const cleanText = text.replace(/[^a-zA-Z0-9\s.,!?]/g, '');
 
     try {
         // Check if the audio is already cached
@@ -193,7 +196,7 @@ async function speakText(text, playButton, messageId) {
             body: JSON.stringify({
                 model: 'tts-1',
                 voice: voice,
-                input: text
+                input: cleanText // Use the cleaned text
             })
         });
 
@@ -206,7 +209,7 @@ async function speakText(text, playButton, messageId) {
         const audio = new Audio(audioUrl);
         audio.playbackRate = 0.9;
 
-        // Cache the audio
+        // Cache the audio only after it is successfully created
         audioCache[cacheKey] = audio;
 
         // Enable button and change text to "Pause"
@@ -398,44 +401,20 @@ socket.on("message_chunk", (data) => {
     let messageWrapper = document.getElementById(wrapperId);
     let targetMessageElement;
 
-    // If the message wrapper doesn't exist, it's an initial chunk
+    // If the message wrapper doesn't exist, create it
     if (!messageWrapper) {
         messageWrapper = document.createElement("div");
         messageWrapper.className = "message-wrapper";
         messageWrapper.id = wrapperId;
         document.getElementById("chat").appendChild(messageWrapper);
+    }
 
-        // Create the div element to hold the message content
+    // If the message-content div doesn't exist, create it
+    if (!messageWrapper.querySelector(".message-content")) {
         targetMessageElement = document.createElement("div");
         targetMessageElement.className = "message-content";
-
-        // Create a container for the buttons
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "button-container";
-
-        // Create the "x" button for deletion
-        const deleteButton = document.createElement("button");
-        deleteButton.innerHTML = "x";
-        deleteButton.onclick = () => deleteMessage(data.id, room_name);
-        buttonContainer.appendChild(deleteButton);
-
-        // Create the edit button
-        const editButton = document.createElement("button");
-        editButton.textContent = "Edit";
-        editButton.className = "edit-button";
-        editButton.onclick = () => editMessage(data.id, targetMessageElement);
-        buttonContainer.appendChild(editButton);
-
-        // Create the play button for TTS
-        const playButton = document.createElement("button");
-        playButton.textContent = "Play";
-        playButton.onclick = () => speakText(data.content, playButton, data.id);
-        buttonContainer.appendChild(playButton);
-
-        messageWrapper.appendChild(buttonContainer);
         messageWrapper.appendChild(targetMessageElement);
     } else {
-        // If the wrapper already exists, get the message-content div inside it
         targetMessageElement = messageWrapper.querySelector(".message-content");
     }
 
@@ -465,6 +444,38 @@ socket.on("message_chunk", (data) => {
     if (!userHasScrolledUp) {
         document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }
+
+    // Check if the message is complete and add buttons if they haven't been added
+    if (data.is_complete && !messageWrapper.querySelector(".button-container")) {
+        // Create a container for the buttons
+        const buttonContainer = document.createElement("div");
+        buttonContainer.className = "button-container";
+
+        // Create the delete button
+        const deleteButton = document.createElement("button");
+        deleteButton.innerHTML = "x";
+        deleteButton.onclick = () => deleteMessage(data.id, room_name);
+        buttonContainer.appendChild(deleteButton);
+
+        // Create the edit button
+        const editButton = document.createElement("button");
+        editButton.textContent = "Edit";
+        editButton.className = "edit-button";
+        editButton.onclick = () => editMessage(data.id, targetMessageElement);
+        buttonContainer.appendChild(editButton);
+
+        // Create the play button for TTS
+        const playButton = document.createElement("button");
+        playButton.textContent = "Play";
+        playButton.onclick = () => {
+            const fullText = targetMessageElement.textContent || targetMessageElement.innerText;
+            speakText(fullText, playButton, data.id);
+        };
+        buttonContainer.appendChild(playButton);
+
+        // Append the button container before the message content
+        messageWrapper.insertBefore(buttonContainer, targetMessageElement);
+    }
 });
 
 
@@ -475,7 +486,6 @@ socket.on("message_deleted", (data) => {
         messageElement.remove();
     }
 });
-
 
 // Socket event for when a message is updated
 socket.on("message_updated", (data) => {
