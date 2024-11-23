@@ -13,11 +13,47 @@
         </form>
     </div>
 
-    <div>
+    <div class="utility-belt">
         <div class="download-links">
             History
             <a href="/download_chat_history?room_name={{ room_name }}" download="{{ room_name }}.json">JSON</a> or
             <a href="/download_chat_history_md?room_name={{ room_name }}" download="{{ room_name }}.md">Markdown</a>
+        </div>
+        <br>
+        <div>
+            <label for="model-select">Model</label>
+            <select id="model-select">
+                <option value="None">None</option>
+                <option value="gemini-flash">gemini-flash</option>
+                <option value="gemini-flash-8b">gemini-flash-8b</option>
+                <option value="gemini-pro">gemini-pro</option>
+                <option value="grok-beta">grok-beta</option>
+                <option value="vllm/hermes-llama-3">vllm/hermes-llama-3</option>
+                <option value="gpt-4">gpt-4</option>
+                <option value="gpt-4o-2024-08-06">gpt-4o-2024-08-06</option>
+                <option value="gpt-mini">gpt-mini</option>
+                <option value="gpt-o1-mini">gpt-o1-mini</option>
+                <option value="claude-haiku">claude-haiku</option>
+                <option value="claude-sonnet">claude-sonnet</option>
+                <option value="claude-opus">claude-opus</option>
+            </select>
+        </div>
+        <div>
+            <label for="voice-select">Voice</label>
+            <select id="voice-select">
+                <option value="onyx">Onyx</option>
+                <option value="alloy">Alloy</option>
+                <option value="echo">Echo</option>
+                <option value="fable">Fable</option>
+                <option value="nova">Nova</option>
+                <option value="shimmer">Shimmer</option>
+            </select>
+        </div>
+        <div>
+            <h3>Active Users</h3>
+            <ul id="active-users">
+                <!-- Active users will be dynamically populated here -->
+            </ul>
         </div>
     </div>
 
