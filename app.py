@@ -542,7 +542,13 @@ def on_disconnect():
         room = Room.query.filter_by(name=room_name).first()
         room.remove_user(username)
         leave_room(room_name)
+        # Broadcast to all clients in the room that a user has left the room.
         emit("active_users", {"users": room.get_active_users()}, room=room_name)
+        emit(
+            "chat_message",
+            {"id": None, "content": f"{username} has left the room."},
+            room=room.name,
+        )
         # Remove session data from the database
         db.session.delete(user_session)
         db.session.commit()
