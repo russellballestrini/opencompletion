@@ -170,21 +170,41 @@ class Room(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False, unique=True)
     title = db.Column(db.String(128), nullable=True)
-    # Store as a comma-separated string
-    active_users = db.Column(db.Text, default="")
+    active_users = db.Column(db.Text, default="")  # Store as a comma-separated string
+    inactive_users = db.Column(db.Text, default="")  # Store as a comma-separated string
 
     def add_user(self, username):
-        users = set(self.active_users.split(",")) if self.active_users else set()
-        users.add(username)
-        self.active_users = ",".join(sorted(users))
+        active_users = set(self.active_users.split(",")) if self.active_users else set()
+        inactive_users = (
+            set(self.inactive_users.split(",")) if self.inactive_users else set()
+        )
+
+        # Move from inactive to active if necessary
+        if username in inactive_users:
+            inactive_users.discard(username)
+
+        active_users.add(username)
+        self.active_users = ",".join(sorted(active_users))
+        self.inactive_users = ",".join(sorted(inactive_users))
 
     def remove_user(self, username):
-        users = set(self.active_users.split(",")) if self.active_users else set()
-        users.discard(username)
-        self.active_users = ",".join(sorted(users))
+        active_users = set(self.active_users.split(",")) if self.active_users else set()
+        inactive_users = (
+            set(self.inactive_users.split(",")) if self.inactive_users else set()
+        )
+
+        if username in active_users:
+            active_users.discard(username)
+            inactive_users.add(username)  # Move to inactive users
+
+        self.active_users = ",".join(sorted(active_users))
+        self.inactive_users = ",".join(sorted(inactive_users))
 
     def get_active_users(self):
         return self.active_users.split(",") if self.active_users else []
+
+    def get_inactive_users(self):
+        return self.inactive_users.split(",") if self.inactive_users else []
 
 
 class UserSession(db.Model):
@@ -457,6 +477,7 @@ def on_join(data):
     username = data["username"]
     room = get_room(room_name)
 
+    # Add the user to the active users list
     room.add_user(username)
 
     # Store session data in the database
@@ -464,18 +485,30 @@ def on_join(data):
         session_id=request.sid, username=username, room_name=room_name, room_id=room.id
     )
     db.session.add(user_session)
+    db.session.commit()
 
-    # Emit the active users list to the new joiner
-    emit("active_users", {"users": room.get_active_users()}, room=request.sid)
-    # Emit the active users list to everyone in the room
+    # Emit the active and inactive users list to the new joiner
     emit(
         "active_users",
-        {"users": room.get_active_users()},
+        {
+            "active_users": room.get_active_users(),
+            "inactive_users": room.get_inactive_users(),
+        },
+        room=request.sid,
+    )
+
+    # Emit the active and inactive users list to everyone in the room
+    emit(
+        "active_users",
+        {
+            "active_users": room.get_active_users(),
+            "inactive_users": room.get_inactive_users(),
+        },
         room=room_name,
         include_self=False,
     )
 
-    # this makes the client start listening for new events for this room.
+    # This makes the client start listening for new events for this room.
     join_room(room_name)
 
     # update the title bar with the proper room title, if it exists for just this new client.
@@ -543,11 +576,21 @@ def on_disconnect():
         room.remove_user(username)
         leave_room(room_name)
         # Broadcast to all clients in the room that a user has left the room.
-        emit("active_users", {"users": room.get_active_users()}, room=room_name)
+        # Emit the active and inactive users list to everyone in the room
+        emit(
+            "active_users",
+            {
+                "active_users": room.get_active_users(),
+                "inactive_users": room.get_inactive_users(),
+            },
+            room=room.name,
+            include_self=False,
+        )
         emit(
             "chat_message",
             {"id": None, "content": f"{username} has left the room."},
             room=room.name,
+            include_self=False,
         )
         # Remove session data from the database
         db.session.delete(user_session)
