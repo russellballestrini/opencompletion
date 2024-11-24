@@ -262,7 +262,7 @@
    </style>
 </head>
 <body>
-  <a href="https://github.com/russellballestrini/opencompletion#interacting-with-language-models" target="_blank">🚀 docs for language models & other commands, also try /help</a>
+  <a href="https://github.com/russellballestrini/opencompletion#interacting-with-language-models" target="_blank">🚀 docs for models & other commands, also try /help</a>
   <!-- Search form -->
   <div id="search-form" style="width: 90%;">
       <form action="/search" method="get">
@@ -274,15 +274,62 @@
   <!-- Hamburger button for mobile -->
   <button id="hamburger-button">☰</button>
 
-  <!-- Modal for room list -->
-  <div id="room-list-modal">
-      <div id="room-list-modal-content">
-          <button id="close-modal-button" onclick="closeModal()">×</button>
-          <div id="rooms-list-modal-content">
-              <!-- Room list will be cloned here for mobile view -->
-          </div>
-      </div>
-  </div>
+<!-- Modal for room list and utility belt -->
+<div id="room-list-modal">
+    <div id="room-list-modal-content">
+        <button id="close-modal-button" onclick="closeModal()">×</button>
+        <div id="utility-belt-mobile">
+            <div id="model-chooser-mobile">
+                <label for="model-select-mobile">Choose Model:</label>
+                <select id="model-select-mobile">
+                    <option value="None">None</option>
+                    <option value="gemini-flash">gemini-flash</option>
+                    <option value="gemini-flash-8b">gemini-flash-8b</option>
+                    <option value="gemini-pro">gemini-pro</option>
+                    <option value="grok-beta">grok-beta</option>
+                    <option value="vllm/hermes-llama-3">vllm/hermes-llama-3</option>
+                    <option value="gpt-4">gpt-4</option>
+                    <option value="gpt-4o-2024-08-06">gpt-4o-2024-08-06</option>
+                    <option value="gpt-mini">gpt-mini</option>
+                    <option value="gpt-o1-mini">gpt-o1-mini</option>
+                    <option value="claude-haiku">claude-haiku</option>
+                    <option value="claude-sonnet">claude-sonnet</option>
+                    <option value="claude-opus">claude-opus</option>
+                </select>
+            </div>
+            <div id="voice-chooser-mobile">
+                <label for="voice-select-mobile">Choose Voice:</label>
+                <select id="voice-select-mobile">
+                    <option value="onyx">Onyx</option>
+                    <option value="alloy">Alloy</option>
+                    <option value="echo">Echo</option>
+                    <option value="fable">Fable</option>
+                    <option value="nova">Nova</option>
+                    <option value="shimmer">Shimmer</option>
+                </select>
+            </div>
+            <div id="user-lists-mobile">
+                <div id="active-users-list">
+                    <h3>Active Users</h3>
+                    <ul id="active-users-mobile">
+                        <!-- Active users will be dynamically populated here -->
+                    </ul>
+                </div>
+                <div id="inactive-users-list">
+                    <h3>Inactive Users</h3>
+                    <ul id="inactive-users-mobile">
+                        <!-- Inactive users will be dynamically populated here -->
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+        <div id="rooms-list-modal-content">
+            <!-- Room list will be cloned here for mobile view -->
+        </div>
+    </div>
+</div>
+
 
 <!-- Chatroom list -->
 <div class="main-container">
@@ -293,7 +340,13 @@
           <a href="{{ url_for('chat', room_name=room.name) }}?{{ request.query_string.decode('utf-8')|safe }}">
           <li data-room-id="{{ room.id }}">
               <!-- Display the room title if available, otherwise the room name -->
-              <b>{{ room.name }}</b> {% if room.title %}<br />{{ room.title }} {% endif %}
+              <b>{{ room.name }}</b>
+              {% if room.title %}
+              <br />{{ room.title }}
+              {% endif %}
+              {% if room.get_active_users()|length %}
+              <br /> {{ room.get_active_users()|length }} users
+              {% endif %}
           </li>
           </a>
           {% endfor %}

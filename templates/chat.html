@@ -98,8 +98,48 @@ let userHasScrolledUp = false;
 let currentAudio = null; // To keep track of the currently playing audio
 let audioCache = {}; // Cache to store audio blobs
 
+// Flag to prevent mutual updates on desktop/mobile
+let isSyncingDropdowns = false;
+
+
+// Function to sanitize the username
+function sanitizeUsername(username) {
+    // Split the username on commas and take the first part.
+    // The backend denormalizes the user list in the room table via csv.
+    return username.split(',')[0].trim();
+}
+
+// Function to sync dropdowns and update the query string
+function syncDropdownsAndQueryString() {
+    const sanitizedUsername = sanitizeUsername(username);
+    const modelSelectDesktop = document.getElementById("model-select");
+    const voiceSelectDesktop = document.getElementById("voice-select");
+    const modelSelectMobile = document.getElementById("model-select-mobile");
+    const voiceSelectMobile = document.getElementById("voice-select-mobile");
+
+    // Determine the current model and voice from any dropdown
+    const currentModel = VALID_MODELS.includes(modelSelectDesktop.value) ? modelSelectDesktop.value : 'None';
+    const currentVoice = VALID_VOICES.includes(voiceSelectDesktop.value) ? voiceSelectDesktop.value : 'onyx';
+
+    // Sync both desktop and mobile dropdowns
+    modelSelectDesktop.value = currentModel;
+    voiceSelectDesktop.value = currentVoice;
+    modelSelectMobile.value = currentModel;
+    voiceSelectMobile.value = currentVoice;
+
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("username", sanitizedUsername);
+    newUrl.searchParams.set("model", currentModel);
+    newUrl.searchParams.set("voice", currentVoice);
+    window.history.replaceState({}, '', newUrl);
+}
+
 document.addEventListener('DOMContentLoaded', (event) => {
     const chatContainer = document.getElementById("chat");
+    const modelSelectDesktop = document.getElementById("model-select");
+    const voiceSelectDesktop = document.getElementById("voice-select");
+    const modelSelectMobile = document.getElementById("model-select-mobile");
+    const voiceSelectMobile = document.getElementById("voice-select-mobile");
 
     chatContainer.addEventListener('scroll', () => {
         const distanceFromBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
@@ -107,56 +147,95 @@ document.addEventListener('DOMContentLoaded', (event) => {
     });
 
     // Set initial model and voice from query string
-    const modelSelect = document.getElementById("model-select");
-    const voiceSelect = document.getElementById("voice-select");
     const initialModel = urlParams.get("model") || "None";
     const initialVoice = urlParams.get("voice") || "onyx";
-    modelSelect.value = initialModel;
-    voiceSelect.value = initialVoice;
+    modelSelectDesktop.value = initialModel;
+    voiceSelectDesktop.value = initialVoice;
+    modelSelectMobile.value = initialModel;
+    voiceSelectMobile.value = initialVoice;
 
-    // Update query string when model or voice changes
-    modelSelect.addEventListener("change", updateQueryString);
-    voiceSelect.addEventListener("change", updateQueryString);
+    // Add event listeners for desktop dropdowns
+    modelSelectDesktop.addEventListener("change", () => {
+        if (isSyncingDropdowns) return;
+        isSyncingDropdowns = true;
+        modelSelectMobile.value = modelSelectDesktop.value;
+        syncDropdownsAndQueryString();
+        isSyncingDropdowns = false;
+    });
+
+    voiceSelectDesktop.addEventListener("change", () => {
+        if (isSyncingDropdowns) return;
+        isSyncingDropdowns = true;
+        voiceSelectMobile.value = voiceSelectDesktop.value;
+        syncDropdownsAndQueryString();
+        isSyncingDropdowns = false;
+    });
+
+    // Add event listeners for mobile dropdowns
+    modelSelectMobile.addEventListener("change", () => {
+        if (isSyncingDropdowns) return;
+        isSyncingDropdowns = true;
+        modelSelectDesktop.value = modelSelectMobile.value;
+        syncDropdownsAndQueryString();
+        isSyncingDropdowns = false;
+    });
+
+    voiceSelectMobile.addEventListener("change", () => {
+        if (isSyncingDropdowns) return;
+        isSyncingDropdowns = true;
+        voiceSelectDesktop.value = voiceSelectMobile.value;
+        syncDropdownsAndQueryString();
+        isSyncingDropdowns = false;
+    });
 });
 
-
-// Function to validate and update the query string
-function updateQueryString() {
+// Socket event when the user connects
+socket.on("connect", () => {
+    // Sanitize the username before joining
     const sanitizedUsername = sanitizeUsername(username);
-    const modelSelect = document.getElementById("model-select");
-    const voiceSelect = document.getElementById("voice-select");
-
-    // Validate model and voice
-    const model = VALID_MODELS.includes(modelSelect.value) ? modelSelect.value : 'None';
-    const voice = VALID_VOICES.includes(voiceSelect.value) ? voiceSelect.value : 'onyx';
-
-    const newUrl = new URL(window.location.href);
-    newUrl.searchParams.set("username", sanitizedUsername);
-    newUrl.searchParams.set("model", model);
-    newUrl.searchParams.set("voice", voice);
-    window.history.replaceState({}, '', newUrl);
-}
+    socket.emit("join", {"username": sanitizedUsername, "room_name": room_name});
+    // Sync dropdowns and update the query string
+    syncDropdownsAndQueryString();
+});
 
 // Function to update the active and inactive user lists in the DOM
 function updateUserLists(activeUsers, inactiveUsers) {
     const activeUserListElement = document.getElementById("active-users");
     const inactiveUserListElement = document.getElementById("inactive-users");
+    const activeUserListElementMobile = document.getElementById("active-users-mobile");
+    const inactiveUserListElementMobile = document.getElementById("inactive-users-mobile");
 
     activeUserListElement.innerHTML = ''; // Clear the current list
     inactiveUserListElement.innerHTML = ''; // Clear the current list
+    activeUserListElementMobile.innerHTML = ''; // Clear the current list (mobile)
+    inactiveUserListElementMobile.innerHTML = ''; // Clear the current list (mobile)
 
-    // Populate the list with active users
+    // Populate the list with active users (desktop)
     activeUsers.forEach(username => {
         const userItem = document.createElement("li");
         userItem.textContent = username;
         activeUserListElement.appendChild(userItem);
     });
 
-    // Populate the list with inactive users
+    // Populate the list with inactive users (desktop)
     inactiveUsers.forEach(username => {
         const userItem = document.createElement("li");
         userItem.textContent = username;
         inactiveUserListElement.appendChild(userItem);
+    });
+
+    // Populate the list with active users (mobile)
+    activeUsers.forEach(username => {
+        const userItemMobile = document.createElement("li");
+        userItemMobile.textContent = username;
+        activeUserListElementMobile.appendChild(userItemMobile);
+    });
+
+    // Populate the list with inactive users (mobile)
+    inactiveUsers.forEach(username => {
+        const userItemMobile = document.createElement("li");
+        userItemMobile.textContent = username;
+        inactiveUserListElementMobile.appendChild(userItemMobile);
     });
 }
 
@@ -171,11 +250,10 @@ function sendMessage() {
     const model = document.getElementById("model-select").value;
     let messageToSend = message.trim();
 
-    if (model !== "None") {
-        messageToSend = `${model} ${messageToSend}`;
-    }
-
     if (messageToSend !== "") {  // Ensure we're not sending empty messages
+        if (model !== "None") {
+            messageToSend = `${model} ${messageToSend}`;
+        }
         socket.emit("chat_message", {"username": username, "message": messageToSend, "room_name": room_name});
         document.getElementById("message").value = "";
     }
@@ -214,22 +292,6 @@ socket.on('update_room_list', function(updatedRoom) {
         // Update the room list item's content with the new title
         roomListItem.innerHTML = `<b>${updatedRoom.name}</b> ${updatedRoom.title ? '<br />' + updatedRoom.title : ''}`;
     }
-});
-
-// Function to sanitize the username
-function sanitizeUsername(username) {
-    // Split the username on commas and take the first part.
-    // The backend denormalizes the user list in the room table via csv.
-    return username.split(',')[0].trim();
-}
-
-// Socket event when the user connects
-socket.on("connect", () => {
-    // Sanitize the username before joining
-    const sanitizedUsername = sanitizeUsername(username);
-    socket.emit("join", {"username": sanitizedUsername, "room_name": room_name});
-    // Update the query string with the sanitized username
-    updateQueryString();
 });
 
 // Function to read text using TTS
