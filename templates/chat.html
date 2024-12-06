@@ -252,7 +252,7 @@ function sendMessage() {
 
     if (messageToSend !== "") {  // Ensure we're not sending empty messages
         if (model !== "None") {
-            messageToSend = `${model} ${messageToSend}`;
+            messageToSend = `${model} \n\n ${messageToSend}`;
         }
         socket.emit("chat_message", {"username": username, "message": messageToSend, "room_name": room_name});
         document.getElementById("message").value = "";
