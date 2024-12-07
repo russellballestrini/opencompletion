@@ -231,6 +231,6 @@ This project is public domain. It is free for use and distribution without any r
 Community Growth
 ------------------
 
-![Star History Chart](https://api.star-history.com/svg?repos=russellballestrini/opencompletion&type=Date)
-
+.. figure:: https://api.star-history.com/svg?repos=russellballestrini/opencompletion&type=Date
+   :alt: Star History Chart
 
