@@ -226,3 +226,11 @@ License
 -------
 
 This project is public domain. It is free for use and distribution without any restrictions.
+
+
+Community Growth
+------------------
+
+![Star History Chart](https://api.star-history.com/svg?repos=russellballestrini/opencompletion&type=Date)
+
+
