@@ -82,6 +82,9 @@ system_users = [
     "NousResearch/Hermes-2-Pro-Llama-3-8B",
     "NousResearch/Hermes-3-Llama-3.1-8B",
     "hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0",
+    "hf.co/bartowski/DeepSeek-Coder-V2-Lite-Instruct-GGUF:Q8_0_L",
+    "hf.co/unsloth/Qwen2.5-Coder-14B-Instruct-128K-GGUF:Q8_0",
+    "Qwen/QwQ-32B-Preview",
     "mistral-7b-instruct-v0.2.Q3_K_L.gguf",
     "mistral-7b-instruct-v0.2-code-ft.Q3_K_L.gguf",
     "openhermes-2.5-mistral-7b.Q6_K.gguf",
@@ -127,8 +130,10 @@ HELP_MESSAGE = """
 - `gemini-flash-8b`: For Google Gemini Flash 8B, send a message with `gemini-flash-8b` and include your prompt.
 - `gemini-pro`: For Google Gemini Pro, send a message with `gemini-pro` and include your prompt.
 - `grok-beta`: For twitter/xai Grok, send a message with `grok-beta` and include your prompt.
-- `vllm/hermes-llama-3`: For vLLM Hermes, send a message with `vllm/hermes` and include your prompt.
-- `ollama/hermes-llama-3`: For Ollama Hermes, send a message with `ollama/hermes` and include your prompt.
+- `vllm/hermes`: For vLLM Hermes, send a message with `vllm/hermes` and include your prompt.
+- `ollama/hermes`: For Ollama Hermes, send a message with `ollama/hermes` and include your prompt.
+- `ollama/qwen-coder`: For Ollama qwen2.5-coder , send a message with `ollama/qwen-coder` and include your prompt.
+- `ollama/deepseek-coder`: For Ollama DeepSeek-Coder-V2-Lite-Instruct, send a message with `ollama/deepseek-coder` and include your prompt.
 - `dall-e-3`: For Dall-e-3, send a message with `dall-e-3` and include your prompt.
 
 **Getting Started:**
@@ -895,12 +900,33 @@ def handle_message(data):
                 room.name,
                 model_name="NousResearch/Hermes-3-Llama-3.1-8B",
             )
+        if "vllm/qwq" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="Qwen/QwQ-32B-Preview",
+            )
         if "ollama/hermes" in data["message"]:
             gevent.spawn(
                 chat_gpt,
                 data["username"],
                 room.name,
                 model_name="hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0",
+            )
+        if "ollama/qwen-coder" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="hf.co/unsloth/Qwen2.5-Coder-14B-Instruct-128K-GGUF:Q8_0",
+            )
+        if "ollama/deepseek-coder" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="hf.co/bartowski/DeepSeek-Coder-V2-Lite-Instruct-GGUF:Q8_0_L",
             )
         if "localhost/mistral" in data["message"]:
             gevent.spawn(
@@ -1137,6 +1163,10 @@ def chat_claude(
 def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B"):
     vllm_endpoint = os.environ.get("VLLM_ENDPOINT")
     vllm_api_key = os.environ.get("VLLM_API_KEY", "not-needed")
+    vllm_endpoint2 = os.environ.get("VLLM_ENDPOINT2")
+    vllm_api_key2 = os.environ.get("VLLM_ENDPOINTAPI_KEY2", "not-needed")
+    ollama_endpoint = os.environ.get("OLLAMA_ENDPOINT")
+    ollama_api_key = os.environ.get("OLLAMA_API_KEY", "not-needed")
     xai_api_key = os.environ.get("XAI_API_KEY")
     google_api_key = os.environ.get("GOOGLE_API_KEY")
 
@@ -1144,16 +1174,15 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
     is_xai_model = "grok-" in model_name.lower()
     is_google_model = "gemini-" in model_name.lower()
     is_ollama_model = "hf.co" in model_name.lower()
-    is_vllm_model = True
-    if is_openai_model or is_xai_model or is_google_model or is_ollama_model:
-        is_vllm_model = False
+    is_qwq_model = "qwq" in model_name.lower()
+    is_vllm_model = not (is_openai_model or is_xai_model or is_google_model or is_ollama_model or is_qwq_model)
 
     if is_vllm_model:
         openai_client = OpenAI(base_url=vllm_endpoint, api_key=vllm_api_key)
+    elif is_qwq_model:
+        openai_client = OpenAI(base_url=vllm_endpoint2, api_key=vllm_api_key2)
     elif is_ollama_model:
-        openai_client = OpenAI(
-            base_url="http://127.0.0.1:11434/v1", api_key=vllm_api_key
-        )
+        openai_client = OpenAI(base_url=ollama_endpoint, api_key=ollama_api_key)
     elif is_xai_model:
         openai_client = OpenAI(base_url="https://api.x.ai/v1", api_key=xai_api_key)
     elif is_google_model:
