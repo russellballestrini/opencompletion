@@ -62,6 +62,8 @@ system_users = [
     "gpt-4-turbo-preview",
     "gpt-4-turbo",
     "o1-mini",
+    "o1-preview",
+    "o1",
     "mistral",
     "mistral-tiny",
     "mistral-small",
@@ -110,6 +112,8 @@ HELP_MESSAGE = """
 - `gpt-4o-2024-08-06`: For the cheapest version of GPT-4o, send a message with `gpt-4o-2024-08-06` and include your prompt.
 - `gpt-mini`: For GPT-4o-mini, send a message with `gpt-mini` and include your prompt.
 - `gpt-o1-mini`: For GPT-o1-mini, send a message with `gpt-o1-mini` and include your prompt.
+- `gpt-o1-preview`: For GPT-o1-preview, send a message with `gpt-o1-preview` and include your prompt.
+- `gpt-o1`: For GPT-o1, send a message with `gpt-o1` and include your prompt.
 - `claude-haiku`: For Claude-haiku, send a message with `claude-haiku` and include your prompt.
 - `claude-sonnet`: For Claude-sonnet, send a message with `claude-sonnet` and include your prompt.
 - `claude-opus`: For Claude-opus, send a message with `claude-opus` and include your prompt.
@@ -758,6 +762,20 @@ def handle_message(data):
                 room.name,
                 model_name="o1-mini",
             )
+        elif "gpt-o1-preview" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="o1-preview",
+            )
+        elif "gpt-o1" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="o1",
+            )
         if "gpt-mini" in data["message"]:
             gevent.spawn(
                 chat_gpt,
@@ -1175,7 +1193,13 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
     is_google_model = "gemini-" in model_name.lower()
     is_ollama_model = "hf.co" in model_name.lower()
     is_qwq_model = "qwq" in model_name.lower()
-    is_vllm_model = not (is_openai_model or is_xai_model or is_google_model or is_ollama_model or is_qwq_model)
+    is_vllm_model = not (
+        is_openai_model
+        or is_xai_model
+        or is_google_model
+        or is_ollama_model
+        or is_qwq_model
+    )
 
     if is_vllm_model:
         openai_client = OpenAI(base_url=vllm_endpoint, api_key=vllm_api_key)
