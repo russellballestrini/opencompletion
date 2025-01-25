@@ -53,6 +53,7 @@ system_users = [
     "anthropic.claude-3-sonnet-20240229-v1:0",
     "anthropic.claude-3-5-sonnet-20240620-v1:0",
     "anthropic.claude-3-opus-20240229-v1:0",
+    "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
     "gpt-3.5-turbo",
     "gpt-4",
     "gpt-4o",
@@ -135,6 +136,7 @@ HELP_MESSAGE = """
 - `gemini-pro`: For Google Gemini Pro, send a message with `gemini-pro` and include your prompt.
 - `grok-beta`: For twitter/xai Grok, send a message with `grok-beta` and include your prompt.
 - `vllm/hermes`: For vLLM Hermes, send a message with `vllm/hermes` and include your prompt.
+- `vllm/r1`: For vLLM Deepseek R1 32B, send a message with `vllm/r1` and include your prompt.
 - `ollama/hermes`: For Ollama Hermes, send a message with `ollama/hermes` and include your prompt.
 - `ollama/qwen-coder`: For Ollama qwen2.5-coder , send a message with `ollama/qwen-coder` and include your prompt.
 - `ollama/deepseek-coder`: For Ollama DeepSeek-Coder-V2-Lite-Instruct, send a message with `ollama/deepseek-coder` and include your prompt.
@@ -918,6 +920,13 @@ def handle_message(data):
                 room.name,
                 model_name="NousResearch/Hermes-3-Llama-3.1-8B",
             )
+        if "vllm/r1" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+            )
         if "vllm/qwq" in data["message"]:
             gevent.spawn(
                 chat_gpt,
@@ -1183,6 +1192,8 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
     vllm_api_key = os.environ.get("VLLM_API_KEY", "not-needed")
     vllm_endpoint2 = os.environ.get("VLLM_ENDPOINT2")
     vllm_api_key2 = os.environ.get("VLLM_ENDPOINTAPI_KEY2", "not-needed")
+    vllm_endpoint3 = os.environ.get("VLLM_ENDPOINT3")
+    vllm_api_key3 = os.environ.get("VLLM_ENDPOINTAPI_KEY3", "not-needed")
     ollama_endpoint = os.environ.get("OLLAMA_ENDPOINT")
     ollama_api_key = os.environ.get("OLLAMA_API_KEY", "not-needed")
     xai_api_key = os.environ.get("XAI_API_KEY")
@@ -1193,18 +1204,23 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
     is_google_model = "gemini-" in model_name.lower()
     is_ollama_model = "hf.co" in model_name.lower()
     is_qwq_model = "qwq" in model_name.lower()
+    is_r1_model = "deepseek" in model_name.lower()
     is_vllm_model = not (
         is_openai_model
         or is_xai_model
         or is_google_model
         or is_ollama_model
         or is_qwq_model
+        or is_r1_model
     )
 
+    # clearly this isn't the ideal way to grow our open source endpoints...
     if is_vllm_model:
         openai_client = OpenAI(base_url=vllm_endpoint, api_key=vllm_api_key)
     elif is_qwq_model:
         openai_client = OpenAI(base_url=vllm_endpoint2, api_key=vllm_api_key2)
+    elif is_r1_model:
+        openai_client = OpenAI(base_url=vllm_endpoint3, api_key=vllm_api_key3)
     elif is_ollama_model:
         openai_client = OpenAI(base_url=ollama_endpoint, api_key=ollama_api_key)
     elif is_xai_model:

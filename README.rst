@@ -136,6 +136,7 @@ To interact with the various language models, you can use the following commands
 - For Google Gemini Pro, send a message with ``gemini-pro`` and include your prompt.
 - For Twitter/X AI Grok, send a message with ``grok-beta`` and include your prompt.
 - For vLLM Hermes, send a message with ``vllm/hermes`` and include your prompt.
+- For vLLM Deepseek R1 32B, send a message with ``vllm/r1`` and include your prompt.
 - For Ollama Hermes, send a message with ``ollama/hermes`` and include your prompt.
 - For Dall-e-3, send a message with ``dall-e-3`` and include your prompt.
 
