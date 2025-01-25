@@ -72,6 +72,8 @@ To set up the project, follow these steps:
 Usage
 -----
 
+
+
 Set up optional environment variables for your AWS, OpenAI, MistralAI, or together.ai API keys::
 
     export AWS_ACCESS_KEY_ID="your_access_key"
@@ -85,6 +87,12 @@ Set up optional environment variables for your AWS, OpenAI, MistralAI, or togeth
     export GOOGLE_API_KEY="your_google_gemini_api_key"
     export VLLM_API_KEY="not-needed"
     export VLLM_ENDPOINT="http://localhost:18888/v1"
+
+Here are some free endpoint for research only!::
+
+    export VLLM_ENDPOINT=https://hermes.ai.unturf.com/v1
+    export VLLM_ENDPOINT2=https://qwq.ai.unturf.com/v1
+    export VLLM_ENDPOINT3=https://r1.ai.unturf.com/v1
 
 To start the application with socket.io run::
 
