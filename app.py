@@ -3186,21 +3186,25 @@ def translate_text(text, target_language):
     except Exception as e:
         return f"Error: {e}"
 
-
 if __name__ == "__main__":
     import argparse
-
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Run the SocketIO application with optional configurations.")
     parser.add_argument("--profile", help="AWS profile name", default=None)
     parser.add_argument(
         "--local-activities",
         action="store_true",
         help="Use local activity files instead of S3",
     )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=5001,
+        help="Port number to run the SocketIO server on (default: 5001)",
+    )
     args = parser.parse_args()
-
-    # Set profile_name as a global attribute of the app object
+    # Set profile_name and other configurations as global attributes of the app object
     app.config["PROFILE_NAME"] = args.profile
     app.config["LOCAL_ACTIVITIES"] = args.local_activities
 
-    socketio.run(app, host="0.0.0.0", port=5001, use_reloader=True)
+    # Run the SocketIO server with the specified port
+    socketio.run(app, host="0.0.0.0", port=args.port, use_reloader=True)
