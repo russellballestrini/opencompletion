@@ -123,6 +123,10 @@ To interact with the various language models, you can use the following commands
 - For GPT-o1-mini, send a message with ``gpt-o1-mini`` and include your prompt.
 - For GPT-o1-preview, send a message with ``gpt-o1-preview`` and include your prompt.
 - For GPT-o1, send a message with ``gpt-o1`` and include your prompt.
+- For GPT-o3-mini, send a message with ``gpt-o3-mini`` and include your prompt.
+.. 
+   - For GPT-o3-mini-medium, send a message with ``gpt-o3-mini-medium`` and include your prompt.
+   - For GPT-o3-mini-high, send a message with ``gpt-o3-mini-high`` and include your prompt
 - For Claude-haiku, send a message with ``claude-haiku`` and include your prompt.
 - For Claude-sonnet, send a message with ``claude-sonnet`` and include your prompt.
 - For Claude-opus, send a message with ``claude-opus`` and include your prompt.

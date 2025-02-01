@@ -64,6 +64,9 @@ system_users = [
     "gpt-4-turbo",
     "o1-mini",
     "o1-preview",
+    "o3-mini",
+    "o3-mini-medium",
+    "o3-mini-high",
     "o1",
     "mistral",
     "mistral-tiny",
@@ -84,6 +87,7 @@ system_users = [
     "teknium/OpenHermes-2.5-Mistral-7B",
     "NousResearch/Hermes-2-Pro-Llama-3-8B",
     "NousResearch/Hermes-3-Llama-3.1-8B",
+    "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic",
     "hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0",
     "hf.co/bartowski/DeepSeek-Coder-V2-Lite-Instruct-GGUF:Q8_0_L",
     "hf.co/unsloth/Qwen2.5-Coder-14B-Instruct-128K-GGUF:Q8_0",
@@ -115,6 +119,9 @@ HELP_MESSAGE = """
 - `gpt-o1-mini`: For GPT-o1-mini, send a message with `gpt-o1-mini` and include your prompt.
 - `gpt-o1-preview`: For GPT-o1-preview, send a message with `gpt-o1-preview` and include your prompt.
 - `gpt-o1`: For GPT-o1, send a message with `gpt-o1` and include your prompt.
+- `gpt-o3-mini`: For GPT-o3-mini, send a message with `gpt-o3-mini` and include your prompt.
+- `gpt-o3-mini-medium`: For GPT-o3-mini-medium, send a message with `gpt-o3-mini-medium` and include your prompt.
+- `gpt-o3-mini-high`: For GPT-o3-mini-high, send a message with `gpt-o3-mini-high` and include your prompt.
 - `claude-haiku`: For Claude-haiku, send a message with `claude-haiku` and include your prompt.
 - `claude-sonnet`: For Claude-sonnet, send a message with `claude-sonnet` and include your prompt.
 - `claude-opus`: For Claude-opus, send a message with `claude-opus` and include your prompt.
@@ -785,6 +792,27 @@ def handle_message(data):
                 room.name,
                 model_name="gpt-4o-mini",
             )
+        if "gpt-o3-mini" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="o3-mini",
+            )
+        if "gpt-o3-mini-medium" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="o3-mini-medium",
+            )
+        if "gpt-o3-mini-high" in data["message"]:
+            gevent.spawn(
+                chat_gpt,
+                data["username"],
+                room.name,
+                model_name="o3-mini-high",
+            )
         if "grok-beta" in data["message"]:
             gevent.spawn(
                 chat_gpt,
@@ -918,7 +946,7 @@ def handle_message(data):
                 chat_gpt,
                 data["username"],
                 room.name,
-                model_name="NousResearch/Hermes-3-Llama-3.1-8B",
+                model_name="adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic",
             )
         if "vllm/r1" in data["message"]:
             gevent.spawn(
@@ -1187,7 +1215,7 @@ def chat_claude(
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
 
-def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B"):
+def get_openai_client_and_model(model_name="adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic"):
     vllm_endpoint = os.environ.get("VLLM_ENDPOINT")
     vllm_api_key = os.environ.get("VLLM_API_KEY", "not-needed")
     vllm_endpoint2 = os.environ.get("VLLM_ENDPOINT2")
@@ -1198,8 +1226,9 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
     ollama_api_key = os.environ.get("OLLAMA_API_KEY", "not-needed")
     xai_api_key = os.environ.get("XAI_API_KEY")
     google_api_key = os.environ.get("GOOGLE_API_KEY")
-
-    is_openai_model = "gpt" in model_name.lower() or "o1" in model_name.lower()
+    is_openai_model = (
+        model_name.lower().startswith(('gpt', 'o1', 'o3'))
+    )
     is_xai_model = "grok-" in model_name.lower()
     is_google_model = "gemini-" in model_name.lower()
     is_ollama_model = "hf.co" in model_name.lower()
@@ -1213,7 +1242,6 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
         or is_qwq_model
         or is_r1_model
     )
-
     # clearly this isn't the ideal way to grow our open source endpoints...
     if is_vllm_model:
         openai_client = OpenAI(base_url=vllm_endpoint, api_key=vllm_api_key)
@@ -1232,7 +1260,6 @@ def get_openai_client_and_model(model_name="NousResearch/Hermes-3-Llama-3.1-8B")
         )
     else:
         openai_client = OpenAI()
-
     return openai_client, model_name
 
 
@@ -1277,13 +1304,22 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
     first_chunk = True
 
     try:
-        chunks = openai_client.chat.completions.create(
-            model=model_name,
-            messages=chat_history,
-            n=1,
-            temperature=temperature,
-            stream=True,
-        )
+        if "o3" in model_name:
+            # o3 does not support temperature at all!
+            chunks = openai_client.chat.completions.create(
+                model=model_name,
+                messages=chat_history,
+                n=1,
+                stream=True,
+            )
+        else:
+            chunks = openai_client.chat.completions.create(
+                model=model_name,
+                messages=chat_history,
+                n=1,
+                temperature=temperature,
+                stream=True,
+            )
     except Exception as e:
         with app.app_context():
             message_content = f"{model_name} Error: {e}"
