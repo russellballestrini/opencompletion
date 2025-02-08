@@ -71,7 +71,7 @@ system_users = [
     "mistral",
     "mistral-tiny",
     "mistral-small",
-    "mistral-small-latest,
+    "mistral-small-latest",
     "mistral-medium",
     "mistral-large-latest",
     "codestral-latest"
@@ -130,9 +130,9 @@ HELP_MESSAGE = """
 - `mistral-tiny`: For Mistral-tiny, send a message with `mistral-tiny` and include your prompt.
 - `mistral-small`: For Mistral-small, send a message with `mistral-small` and include your prompt.
 - `mistral-medium`: For Mistral-medium, send a message with `mistral-medium` and include your prompt.
-- `mistral-large`: For Mistral-large, send a message with `mistral-nemo` and include your prompt.
-- `mistral-nemo`: For Mistral-nemo, send a message with `mistral-codestral-latest` and include your prompt.
-- `mistral-codestral-latest`: For Mistral-codestral-latest, send a message with `mistral-nemo` and include your prompt.
+- `mistral-large`: For Mistral-large, send a message with `mistral-large` and include your prompt.
+- `mistral-nemo`: For Mistral-nemo, send a message with `mistral-nemo` and include your prompt.
+- `mistral-codestral`: For Mistral-codestral, send a message with `mistral-codestral` and include your prompt.
 - `together/openchat`: For Together OpenChat, send a message with `together/openchat` and include your prompt.
 - `together/mistral`: For Together Mistral, send a message with `together/mistral` and include your prompt.
 - `together/mixtral`: For Together Mixtral, send a message with `together/mixtral` and include your prompt.
@@ -858,13 +858,6 @@ def handle_message(data):
                 room.name,
                 model_name="mistral-small-latest",
             )
-         if "mistral-codestral-latest" in data["message"]:
-            gevent.spawn(
-                chat_mistral,
-                data["username"],
-                room.name,
-                model_name="codestral-latest",
-            )
         if "mistral-medium" in data["message"]:
             gevent.spawn(
                 chat_mistral,
@@ -885,6 +878,13 @@ def handle_message(data):
                 data["username"],
                 room.name,
                 model_name="mistral-large-latest",
+            )
+        if "mistral-codestral" in data["message"]:
+            gevent.spawn(
+                chat_mistral,
+                data["username"],
+                room.name,
+                model_name="codestral-latest",
             )
         if "together/openchat" in data["message"]:
             gevent.spawn(

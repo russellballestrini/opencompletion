@@ -135,6 +135,7 @@ To interact with the various language models, you can use the following commands
 - For Mistral-medium, send a message with ``mistral-medium`` and include your prompt.
 - For Mistral-large, send a message with ``mistral-large`` and include your prompt.
 - For Mistral-nemo, send a message with ``mistral-nemo`` and include your prompt.
+- For Mistral-codestral, send a message with ``mistral-codestral`` and include your prompt.
 - For Together OpenChat, send a message with ``together/openchat`` and include your prompt.
 - For Together Mistral, send a message with ``together/mistral`` and include your prompt.
 - For Together Mixtral, send a message with ``together/mixtral`` and include your prompt.
