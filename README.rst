@@ -91,8 +91,8 @@ Set up optional environment variables for your AWS, OpenAI, MistralAI, or togeth
 Here are some free endpoint for research only!::
 
     export VLLM_ENDPOINT=https://hermes.ai.unturf.com/v1
-    export VLLM_ENDPOINT2=https://qwq.ai.unturf.com/v1
-    export VLLM_ENDPOINT3=https://r1.ai.unturf.com/v1
+    export VLLM_ENDPOINT2=https://naptha2.ai.unturf.com/v1
+    export VLLM_ENDPOINT3=https://naptha3.ai.unturf.com/v1
 
 To start the application with socket.io run::
 
