@@ -54,18 +54,18 @@ ENDPOINTS = [
     # vLLM clusters
     {
         "name": "vllm1",
-        "base_url": os.environ.get("VLLM_ENDPOINT"),
-        "api_key": os.environ.get("VLLM_API_KEY", "not-needed"),
+        "base_url": os.environ.get("VLLM_ENDPOINT_1"),
+        "api_key": os.environ.get("VLLM_ENDPOINT_API_KEY_1", "not-needed"),
     },
     {
         "name": "vllm2",
-        "base_url": os.environ.get("VLLM_ENDPOINT2"),
-        "api_key": os.environ.get("VLLM_API_KEY2", "not-needed"),
+        "base_url": os.environ.get("VLLM_ENDPOINT_2"),
+        "api_key": os.environ.get("VLLM_ENDPOINT_API_KEY_2", "not-needed"),
     },
     {
         "name": "vllm3",
-        "base_url": os.environ.get("VLLM_ENDPOINT3"),
-        "api_key": os.environ.get("VLLM_API_KEY3", "not-needed"),
+        "base_url": os.environ.get("VLLM_ENDPOINT_3"),
+        "api_key": os.environ.get("VLLM_ENDPOINT_API_KEY_3", "not-needed"),
     },
     # Ollama
     {
