@@ -14,7 +14,6 @@ import os
 import random
 
 import boto3
-import tiktoken
 import together
 from flask import (
     Flask,
@@ -33,13 +32,19 @@ from sqlalchemy.exc import InvalidRequestError
 from groq import Groq
 from mistralai import Mistral
 
+from models import db, Room, UserSession, Message, ActivityState
+
 app = Flask(__name__)
 
 app.config["SECRET_KEY"] = "your_secret_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///chat.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-db = SQLAlchemy(app)
+db.init_app(app)
+
+from flask_migrate import Migrate
+
+migrate = Migrate(app, db)
 
 # socketio = SocketIO(app, async_mode="eventlet")
 socketio = SocketIO(app, async_mode="gevent")
@@ -54,18 +59,18 @@ ENDPOINTS = [
     # vLLM clusters
     {
         "name": "vllm1",
-        "base_url": os.environ.get("VLLM_ENDPOINT_1"),
-        "api_key": os.environ.get("VLLM_ENDPOINT_API_KEY_1", "not-needed"),
+        "base_url": os.environ.get("MODEL_ENDPOINT_1"),
+        "api_key": os.environ.get("MODEL_API_KEY_1", "not-needed"),
     },
     {
         "name": "vllm2",
-        "base_url": os.environ.get("VLLM_ENDPOINT_2"),
-        "api_key": os.environ.get("VLLM_ENDPOINT_API_KEY_2", "not-needed"),
+        "base_url": os.environ.get("MODEL_ENDPOINT_2"),
+        "api_key": os.environ.get("MODEL_API_KEY_1", "not-needed"),
     },
     {
         "name": "vllm3",
-        "base_url": os.environ.get("VLLM_ENDPOINT_3"),
-        "api_key": os.environ.get("VLLM_ENDPOINT_API_KEY_3", "not-needed"),
+        "base_url": os.environ.get("MODEL_ENDPOINT_3"),
+        "api_key": os.environ.get("MODEL_API_KEY_1", "not-needed"),
     },
     # Ollama
     {
@@ -192,6 +197,8 @@ system_users = [
     "open-mistral-nemo",
     "llama2-70b-4096",
     "llama3-70b-8192",
+    "models/gemini-1.5-pro-latest",
+    "models/gemini-2.0-flash",
     "gemma-7b-it",
     "grok-beta",
     "openchat/openchat-3.5-1210",
@@ -298,117 +305,6 @@ Feel free to explore and experiment with different commands and models. Enjoy yo
 """
 
 
-class Room(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(128), nullable=False, unique=True)
-    title = db.Column(db.String(128), nullable=True)
-    active_users = db.Column(db.Text, default="")  # Store as a comma-separated string
-    inactive_users = db.Column(db.Text, default="")  # Store as a comma-separated string
-
-    def add_user(self, username):
-        active_users = set(self.active_users.split(",")) if self.active_users else set()
-        inactive_users = (
-            set(self.inactive_users.split(",")) if self.inactive_users else set()
-        )
-
-        # Move from inactive to active if necessary
-        if username in inactive_users:
-            inactive_users.discard(username)
-
-        active_users.add(username)
-        self.active_users = ",".join(sorted(active_users))
-        self.inactive_users = ",".join(sorted(inactive_users))
-
-    def remove_user(self, username):
-        active_users = set(self.active_users.split(",")) if self.active_users else set()
-        inactive_users = (
-            set(self.inactive_users.split(",")) if self.inactive_users else set()
-        )
-
-        if username in active_users:
-            active_users.discard(username)
-            inactive_users.add(username)  # Move to inactive users
-
-        self.active_users = ",".join(sorted(active_users))
-        self.inactive_users = ",".join(sorted(inactive_users))
-
-    def get_active_users(self):
-        return self.active_users.split(",") if self.active_users else []
-
-    def get_inactive_users(self):
-        return self.inactive_users.split(",") if self.inactive_users else []
-
-
-class UserSession(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.String(128), unique=True, nullable=False)
-    username = db.Column(db.String(128))
-    room_name = db.Column(db.String(128))
-    room_id = db.Column(db.Integer)
-
-
-class Message(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(128), nullable=False)
-    content = db.Column(db.String(1024), nullable=False)
-    token_count = db.Column(db.Integer)
-    room_id = db.Column(db.Integer, db.ForeignKey("room.id"), nullable=False)
-
-    def __init__(self, username, content, room_id):
-        self.username = username
-        self.content = content
-        self.room_id = room_id
-        self.count_tokens()
-
-    def count_tokens(self):
-        if self.token_count is None:
-            if self.is_base64_image():
-                self.token_count = 0
-            else:
-                encoding = tiktoken.encoding_for_model("gpt-4")
-                self.token_count = len(encoding.encode(self.content))
-        return self.token_count
-
-    def is_base64_image(self):
-        return (
-            '<img src="data:image/jpeg;base64,' in self.content
-            or '<img alt="Plot Image" src="data:image/png;base64,' in self.content
-        )
-
-
-class ActivityState(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    room_id = db.Column(db.Integer, db.ForeignKey("room.id"), nullable=False)
-    section_id = db.Column(db.String(128), nullable=False)
-    step_id = db.Column(db.String(128), nullable=False)
-    attempts = db.Column(db.Integer, default=0)
-    max_attempts = db.Column(db.Integer, default=3)
-    s3_file_path = db.Column(db.String(256), nullable=False)
-    json_metadata = db.Column(db.UnicodeText, default="{}")
-
-    @property
-    def dict_metadata(self):
-        return json.loads(self.json_metadata) if self.json_metadata else {}
-
-    @dict_metadata.setter
-    def dict_metadata(self, value):
-        self.json_metadata = json.dumps(value)
-
-    def add_metadata(self, key, value):
-        metadata = self.dict_metadata
-        metadata[key] = value
-        self.dict_metadata = metadata
-
-    def remove_metadata(self, key):
-        metadata = self.dict_metadata
-        if key in metadata:
-            del metadata[key]
-        self.dict_metadata = metadata
-
-    def clear_metadata(self):
-        self.dict_metadata = {}
-
-
 def get_room(room_name):
     """Utility function to get room from room name."""
     room = Room.query.filter_by(name=room_name).first()
@@ -431,11 +327,6 @@ def get_s3_client():
     else:
         s3_client = boto3.client("s3")
     return s3_client
-
-
-from flask_migrate import Migrate
-
-migrate = Migrate(app, db)
 
 
 @app.route("/favicon.ico")
@@ -939,21 +830,21 @@ def handle_message(data):
                 chat_gpt,
                 data["username"],
                 room.name,
-                model_name="gemini-1.5-flash-002",
+                model_name="models/gemini-2.0-flash",
             )
         if "gemini-flash-8b" in data["message"]:
             gevent.spawn(
                 chat_gpt,
                 data["username"],
                 room.name,
-                model_name="gemini-1.5-flash-8b",
+                model_name="models/gemini-1.5-flash-8b",
             )
         if "gemini-pro" in data["message"]:
             gevent.spawn(
                 chat_gpt,
                 data["username"],
                 room.name,
-                model_name="gemini-1.5-pro-002",
+                model_name="models/gemini-1.5-pro-latest",
             )
         if "mistral-tiny" in data["message"]:
             gevent.spawn(
