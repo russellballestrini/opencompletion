@@ -6,3 +6,4 @@ __pycache__/
 .flaskenv-exported
 .aws-sam/
 samconfig.toml
+vars.sh

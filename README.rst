@@ -39,9 +39,6 @@ Requirements
 - eventlet or gevent
 - boto3 (for interacting with AWS Bedrock currently Claude, and S3 access)
 - openai (for interacting with OpenAI's language models)
-- mistralai (for interacting with MistralAI's language models)
-- together (for interacting with together.ai language models)
-- groq (for interacting with very fast groq language models)
 
 Installation
 ------------
@@ -72,27 +69,21 @@ To set up the project, follow these steps:
 Usage
 -----
 
+Set up environment variables for your AWS, OpenAI, MistralAI, together.ai, grok, groq, google, API keys.
 
+* make a copy of ``vars.sh.sample`` and fill in your API keys!
 
-Set up optional environment variables for your AWS, OpenAI, MistralAI, or together.ai API keys::
+Other env vars::
 
     export AWS_ACCESS_KEY_ID="your_access_key"
     export AWS_SECRET_ACCESS_KEY="your_secret_key"
     export S3_BUCKET_NAME="your_s3_bucket_name"
-    export OPENAI_API_KEY="your_openai_api_key"
-    export MISTRAL_API_KEY="your_mistralai_api_key"
-    export TOGETHER_API_KEY="your_togetherai_api_key"
-    export GROQ_API_KEY="your_groq_api_key"
-    export XAI_API_KEY="your_twitter_x_ai_api_key_for_grok"
-    export GOOGLE_API_KEY="your_google_gemini_api_key"
-    export VLLM_API_KEY="not-needed"
-    export VLLM_ENDPOINT="http://localhost:18888/v1"
 
 Here are some free endpoint for research only!::
 
-    export VLLM_ENDPOINT_1=https://hermes.ai.unturf.com/v1
-    export VLLM_ENDPOINT_2=https://node2.naptha.ai/inference
-    export VLLM_ENDPOINT_3=https://node3.naptha.ai/inference
+    export MODEL_ENDPOINT_1=https://hermes.ai.unturf.com/v1
+    export MODEL_ENDPOINT_2=https://node2.naptha.ai/inference
+    export MODEL_ENDPOINT_3=https://node3.naptha.ai/inference
 
 To start the application with socket.io run::
 
@@ -114,44 +105,7 @@ The application will be available at ``http://127.0.0.1:5001`` by default.
 Interacting with Language Models
 --------------------------------
 
-To interact with the various language models, you can use the following commands within the chat:
-
-- For GPT-3, send a message with ``gpt-3`` and include your prompt.
-- For GPT-4o, send a message with ``gpt-4`` and include your prompt.
-- For GPT-4o cheapest version, send a message with ``gpt-4o-2024-08-06`` and include your prompt.
-- For GPT-4o-mini, send a message with ``gpt-mini`` and include your prompt.
-- For GPT-o1-mini, send a message with ``gpt-o1-mini`` and include your prompt.
-- For GPT-o1-preview, send a message with ``gpt-o1-preview`` and include your prompt.
-- For GPT-o1, send a message with ``gpt-o1`` and include your prompt.
-- For GPT-o3-mini, send a message with ``gpt-o3-mini`` and include your prompt.
-.. 
-   - For GPT-o3-mini-medium, send a message with ``gpt-o3-mini-medium`` and include your prompt.
-   - For GPT-o3-mini-high, send a message with ``gpt-o3-mini-high`` and include your prompt
-- For Claude-haiku, send a message with ``claude-haiku`` and include your prompt.
-- For Claude-sonnet, send a message with ``claude-sonnet`` and include your prompt.
-- For Claude-opus, send a message with ``claude-opus`` and include your prompt.
-- For Mistral-tiny, send a message with ``mistral-tiny`` and include your prompt.
-- For Mistral-small, send a message with ``mistral-small`` and include your prompt.
-- For Mistral-medium, send a message with ``mistral-medium`` and include your prompt.
-- For Mistral-large, send a message with ``mistral-large`` and include your prompt.
-- For Mistral-nemo, send a message with ``mistral-nemo`` and include your prompt.
-- For Mistral-codestral, send a message with ``mistral-codestral`` and include your prompt.
-- For Together OpenChat, send a message with ``together/openchat`` and include your prompt.
-- For Together Mistral, send a message with ``together/mistral`` and include your prompt.
-- For Together Mixtral, send a message with ``together/mixtral`` and include your prompt.
-- For Together Solar, send a message with ``together/solar`` and include your prompt.
-- For Groq Mixtral, send a message with ``groq/mixtral`` and include your prompt.
-- For Groq Llama-2, send a message with ``groq/llama2`` and include your prompt.
-- For Groq Llama-3, send a message with ``groq/llama3`` and include your prompt.
-- For Groq Gemma, send a message with ``groq/gemma`` and include your prompt.
-- For Google Gemini Flash, send a message with ``gemini-flash`` and include your prompt.
-- For Google Gemini Flash 8B, send a message with ``gemini-flash-8b`` and include your prompt.
-- For Google Gemini Pro, send a message with ``gemini-pro`` and include your prompt.
-- For Twitter/X AI Grok, send a message with ``grok-beta`` and include your prompt.
-- For vLLM Hermes, send a message with ``vllm/hermes`` and include your prompt.
-- For vLLM Deepseek R1 32B, send a message with ``vllm/r1`` and include your prompt.
-- For Ollama Hermes, send a message with ``ollama/hermes`` and include your prompt.
-- For Dall-e-3, send a message with ``dall-e-3`` and include your prompt.
+To interact with the various language models, choose from the drop down and send a message!
 
 The system will process your message and provide a response from the selected language model.
 
@@ -230,7 +184,11 @@ I prefer the ``vllm`` inference server but lot of people like to use ``ollama`` 
 
  ollama run hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0
 
-Then in the app you should be able to talk to `ollama/hermes`
+then::
+
+ export MODEL_ENDPOINT_1=https://localhost:11434/v1
+
+Then in the app you should be able to talk to ``NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0``
 
 
 Contributing
