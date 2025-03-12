@@ -5,11 +5,9 @@ flask-socketio
 gevent
 gevent-websocket
 
-mistralai
-together
 openai
 openai[datalib]
-groq
+
 tiktoken
 
 #llama-cpp-python[server]
@@ -18,6 +16,7 @@ tiktoken
 Flask-SQLAlchemy
 Flask-Migrate
 
+# used for s3/spaces or aws bedrock (claude)
 boto3
 
 pyyaml
