@@ -1,0 +1,38 @@
+#!/bin/bash
+# vars.sh: Example configuration for dynamic endpoints
+
+# Official OpenAI (hermes) endpoint.
+export MODEL_ENDPOINT_0="https://hermes.ai.unturf.com/v1"
+export MODEL_API_KEY_0="your-hermes-api-key"  # optional; if omitted, "not-needed" is used
+
+# Naptha endpoints.
+export MODEL_ENDPOINT_1="https://node2.naptha.ai/inference"
+export MODEL_API_KEY_1="your-node2-api-key"
+
+export MODEL_ENDPOINT_2="https://node3.naptha.ai/inference"
+export MODEL_API_KEY_2="your-node3-api-key"
+
+# Google Gemini endpoint.
+export MODEL_ENDPOINT_3="https://generativelanguage.googleapis.com/v1beta/openai"
+export MODEL_API_KEY_3="your-google-api-key"
+
+# Grok endpoint.
+export MODEL_ENDPOINT_4="https://api.x.ai/v1"
+export MODEL_API_KEY_4=""
+
+# Groq endpoint.
+export MODEL_ENDPOINT_5="https://api.groq.com/openai/v1"
+export MODEL_API_KEY_5="gone"
+
+# Together endpoint.
+export MODEL_ENDPOINT_6="https://api.together.xyz/v1"
+export MODEL_API_KEY_6="gone"
+
+# OpenAI endpoint.
+export MODEL_ENDPOINT_7="https://api.openai.com/v1"
+export MODEL_API_KEY_7="gone"
+export OPENAI_API_KEY="gone"
+
+# MistralAI La Platform endpoint.
+export MODEL_ENDPOINT_8="https://api.mistral.ai/v1"
+export MODEL_API_KEY_8="gone"

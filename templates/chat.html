@@ -24,37 +24,6 @@
             <label for="model-select">Model</label>
             <select id="model-select">
                 <option value="None">None</option>
-                <option value="vllm/hermes">vllm/hermes</option>
-                <option value="vllm/r1">vllm/r1</option>
-                <option value="vllm/qwq">vllm/qwq</option>
-                <option value="ollama/qwen-coder">ollama/qwen-coder</option>
-                <option value="ollama/deepseek-coder">ollama/deepseek-coder</option>
-
-                <option value="mistral-tiny">mistral-tiny</option>
-                <option value="mistral-small">mistral-small</option>
-                <option value="mistral-medium">mistral-medium</option>
-                <option value="mistral-large">mistral-large</option>
-                <option value="mistral-codestral">mistral-codestral</option>
-
-                <option value="gemini-flash">gemini-flash</option>
-                <option value="gemini-flash-8b">gemini-flash-8b</option>
-                <option value="gemini-pro">gemini-pro</option>
-                <option value="grok-beta">grok-beta</option>
-                <option value="gpt-4">gpt-4</option>
-                <option value="gpt-4o-2024-08-06">gpt-4o-2024-08-06</option>
-                <option value="gpt-mini">gpt-mini</option>
-                <option value="gpt-o1-mini">gpt-o1-mini</option>
-                <option value="gpt-o1-preview">gpt-o1-preview</option>
-                <option value="gpt-o1">gpt-o1</option>
-                <option value="gpt-o3-mini">gpt-o3-mini</option>
-                <!--
-                <option value="gpt-o3-mini-medium">gpt-o3-mini-medium</option>
-                <option value="gpt-o3-mini-high">gpt-o3-mini-high</option>
-                -->
-                <option value="claude-haiku">claude-haiku</option>
-                <option value="claude-sonnet">claude-sonnet</option>
-                <option value="claude-opus">claude-opus</option>
-                <option value="dall-e-3">dall-e-3</option>
             </select>
         </div>
         <div>
@@ -93,16 +62,8 @@ const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get("username");
 const room_name = "{{ room_name }}";
 
-// Global constants for valid voices and models
+// Global constants for valid voices
 const VALID_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
-const VALID_MODELS = [
-    'None', 'gemini-flash', 'gemini-flash-8b', 'gemini-pro', 'grok-beta',
-    'vllm/hermes', 'vllm/r1', 'vllm/qwq', 'ollama/qwen-coder', 'ollama/deepseek-coder',
-    'mistral-tiny', 'mistral-small', 'mistral-medium', 'mistral-large', 'mistral-codestral',
-    'gpt-4', 'gpt-4o-2024-08-06', 'gpt-mini', 'gpt-o1-mini', 'gpt-o1-preview', 'gpt-o1',
-    'gpt-o3-mini', 'gpt-o3-mini-medium', 'gpt-o3-mini-high',
-    'claude-haiku', 'claude-sonnet', 'claude-opus', 'dall-e-3'
-];
 
 // Configuration for DOMPurify to specify which tags and attributes are allowed
 const dompurify_config = {
@@ -122,7 +83,6 @@ let audioCache = {}; // Cache to store audio blobs
 // Flag to prevent mutual updates on desktop/mobile
 let isSyncingDropdowns = false;
 
-
 // Function to sanitize the username
 function sanitizeUsername(username) {
     // Split the username on commas and take the first part.
@@ -139,7 +99,7 @@ function syncDropdownsAndQueryString() {
     const voiceSelectMobile = document.getElementById("voice-select-mobile");
 
     // Determine the current model and voice from any dropdown
-    const currentModel = VALID_MODELS.includes(modelSelectDesktop.value) ? modelSelectDesktop.value : 'None';
+    const currentModel = modelSelectDesktop.value;
     const currentVoice = VALID_VOICES.includes(voiceSelectDesktop.value) ? voiceSelectDesktop.value : 'onyx';
 
     // Sync both desktop and mobile dropdowns
@@ -161,6 +121,51 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const voiceSelectDesktop = document.getElementById("voice-select");
     const modelSelectMobile = document.getElementById("model-select-mobile");
     const voiceSelectMobile = document.getElementById("voice-select-mobile");
+
+    // Function to populate the dropdown
+    function populateModelDropdown(models) {
+        // Clear options starting from index 1 (preserve "None" at index 0)
+        while (modelSelectDesktop.options.length > 1) {
+            modelSelectDesktop.remove(1);
+        }
+        // Append new model options
+        models.forEach(modelId => {
+            const option = document.createElement('option');
+            option.value = modelId;
+            option.textContent = modelId;
+            modelSelectDesktop.appendChild(option);
+        });
+        // Set initial value from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialModel = urlParams.get("model") || "None";
+        modelSelectDesktop.value = initialModel;
+    }
+
+    // Memoization with localStorage (1-minute cache)
+    const cacheKey = 'modelList';
+    const cacheExpirationKey = 'modelListExpiration';
+    const cacheDuration = 60 * 1000; // 1 minute in milliseconds
+
+    const cachedData = localStorage.getItem(cacheKey);
+    const cachedExpiration = localStorage.getItem(cacheExpirationKey);
+
+    if (cachedData && cachedExpiration && Date.now() < parseInt(cachedExpiration)) {
+        // Use cached data if it exists and hasn't expired
+        const models = JSON.parse(cachedData);
+        populateModelDropdown(models);
+    } else {
+        // Fetch from backend and update cache
+        fetch('/models')
+            .then(response => response.json())
+            .then(data => {
+                const models = data.models;
+                populateModelDropdown(models);
+                // Store in localStorage with expiration
+                localStorage.setItem(cacheKey, JSON.stringify(models));
+                localStorage.setItem(cacheExpirationKey, Date.now() + cacheDuration);
+            })
+            .catch(error => console.error("Error fetching models:", error));
+    }
 
     chatContainer.addEventListener('scroll', () => {
         const distanceFromBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
@@ -272,10 +277,12 @@ function sendMessage() {
     let messageToSend = message.trim();
 
     if (messageToSend !== "") {  // Ensure we're not sending empty messages
-        if (model !== "None") {
-            messageToSend = `${model} \n\n ${messageToSend}`;
-        }
-        socket.emit("chat_message", {"username": username, "message": messageToSend, "room_name": room_name});
+        socket.emit("chat_message", {
+            "username": username,
+            "message": messageToSend,
+            "model": model,  // Pass model as a separate attribute
+            "room_name": room_name
+        });
         document.getElementById("message").value = "";
     }
 }

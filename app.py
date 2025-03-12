@@ -29,9 +29,6 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import InvalidRequestError
 
-from groq import Groq
-from mistralai import Mistral
-
 from models import db, Room, UserSession, Message, ActivityState
 
 app = Flask(__name__)
@@ -54,85 +51,59 @@ cancellation_requests = {}
 
 from openai import OpenAI
 
-# Global openai inference compatible client endpoints.
-ENDPOINTS = [
-    # vLLM clusters
-    {
-        "name": "vllm1",
-        "base_url": os.environ.get("MODEL_ENDPOINT_1"),
-        "api_key": os.environ.get("MODEL_API_KEY_1", "not-needed"),
-    },
-    {
-        "name": "vllm2",
-        "base_url": os.environ.get("MODEL_ENDPOINT_2"),
-        "api_key": os.environ.get("MODEL_API_KEY_1", "not-needed"),
-    },
-    {
-        "name": "vllm3",
-        "base_url": os.environ.get("MODEL_ENDPOINT_3"),
-        "api_key": os.environ.get("MODEL_API_KEY_1", "not-needed"),
-    },
-    # Ollama
-    {
-        "name": "ollama",
-        "base_url": os.environ.get("OLLAMA_ENDPOINT"),
-        "api_key": os.environ.get("OLLAMA_API_KEY", "not-needed"),
-    },
-    # x.ai (for grok, etc.)
-    {
-        "name": "xai",
-        "base_url": "https://api.x.ai/v1",
-        "api_key": os.environ.get("XAI_API_KEY", "not-needed"),
-    },
-    # Google generative language (Gemini)
-    {
-        "name": "google",
-        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "api_key": os.environ.get("GOOGLE_API_KEY"),
-    },
-    # Fallback: official OpenAI
-    {
-        "name": "public-openai",
-        "base_url": None,  # Means library defaults to https://api.openai.com/v1
-        "api_key": os.environ.get("OPENAI_API_KEY"),
-    },
-]
+
+# Build a list of endpoints dynamically.
+ENDPOINTS = []
+MAX_ENDPOINTS = 1000
+
+for i in range(MAX_ENDPOINTS):
+    endpoint = os.environ.get(f"MODEL_ENDPOINT_{i}")
+    if not endpoint:
+        continue
+    # API key is optional; if not provided, use a default.
+    api_key = os.environ.get(f"MODEL_API_KEY_{i}", "not-needed")
+    ENDPOINTS.append({
+        "base_url": endpoint,
+        "api_key": api_key,
+    })
+
+if not ENDPOINTS:
+    raise Exception("No MODEL_ENDPOINT_x environment variables found!")
+
+# Build a dynamic model map by querying each endpoint.
+MODEL_CLIENT_MAP = {}
+SYSTEM_USERS = []
 
 
-# 2) Initialization function: Build the map by listing models on each endpoint
+def get_client_for_endpoint(endpoint, api_key):
+    # All providers use the OpenAI client; no endpoint URLs are hardcoded here.
+    return OpenAI(api_key=api_key, base_url=endpoint)
+
+
 def initialize_model_map():
+    global MODEL_CLIENT_MAP, SYSTEM_USERS
     MODEL_CLIENT_MAP.clear()
-
-    for ep in ENDPOINTS:
-        base_url = ep["base_url"]
-        api_key = ep["api_key"]
-        endpoint_name = ep["name"]
-
-        # Create a dedicated client for this endpoint
-        client = OpenAI(base_url=base_url, api_key=api_key)
-
-        # Attempt to list the models from this endpoint
+    for ep_config in ENDPOINTS:
+        base_url = ep_config["base_url"]
+        api_key = ep_config["api_key"]
+        client = get_client_for_endpoint(base_url, api_key)
         try:
             response = client.models.list()
-            # vLLM returns a SyncPage[Model], so 'response.data' is a list of Model() objects
-            model_list = response.data
-            print(f"[DEBUG] {endpoint_name} => {model_list}")
+            model_list = response.data  # Assume each model object has an 'id' attribute
+            print(f"[DEBUG] {base_url} returned models: {[m.id for m in model_list]}")
         except Exception as e:
-            print(f"[WARN] Could not list models for endpoint '{endpoint_name}': {e}")
+            print(f"[WARN] Could not list models for endpoint '{base_url}': {e}")
             continue
 
-        # For each discovered model, store it in the global map
         for m in model_list:
             model_id = m.id
             if model_id and model_id not in MODEL_CLIENT_MAP:
-                MODEL_CLIENT_MAP[model_id] = client
+                MODEL_CLIENT_MAP[model_id] = (client, base_url)
 
-    print("loaded models:")
-    print(MODEL_CLIENT_MAP)
+    # Populate SYSTEM_USERS with dynamically loaded models.
+    SYSTEM_USERS = list(MODEL_CLIENT_MAP.keys())
+    print("Loaded models:", list(MODEL_CLIENT_MAP.keys()))
 
-
-# 3) A global dictionary: model_name -> dedicated OpenAI client
-MODEL_CLIENT_MAP = {}
 
 if MODEL_CLIENT_MAP:
     pass
@@ -144,79 +115,17 @@ else:
 def get_client_for_model(model_name: str):
     """
     If the model name is known, return its dedicated client.
-    Otherwise, fallback to public openai usage.
+    Otherwise, return None and LOL at the user when everything breaks.
     """
-    # Return the matching client if we have it
     if model_name in MODEL_CLIENT_MAP:
-        return MODEL_CLIENT_MAP[model_name]
-    # Otherwise, fallback to official
-    # print(f"[INFO] Unknown model '{model_name}'. Using fallback (public-openai).")
-    fallback_client = OpenAI(
-        base_url=None,  # official openai base
-        api_key=os.environ.get("OPENAI_API_KEY"),
-    )
-    return fallback_client
-
+        print(f"Completion Endpoint Processing: {MODEL_CLIENT_MAP[model_name][1]}")
+        return MODEL_CLIENT_MAP[model_name][0]
 
 def get_openai_client_and_model(
     model_name="adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic",
 ):
     return get_client_for_model(model_name), model_name
 
-
-system_users = [
-    "anthropic.claude-3-haiku-20240307-v1:0",
-    "anthropic.claude-3-sonnet-20240229-v1:0",
-    "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    "anthropic.claude-3-opus-20240229-v1:0",
-    "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
-    "gpt-3.5-turbo",
-    "gpt-4",
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4o-2024-08-06",
-    "gpt-4-1106-preview",
-    "gpt-4-turbo-preview",
-    "gpt-4-turbo",
-    "o1-mini",
-    "o1-preview",
-    "o3-mini",
-    "o3-mini-medium",
-    "o3-mini-high",
-    "o1",
-    "mistral",
-    "mistral-tiny",
-    "mistral-small",
-    "mistral-small-latest",
-    "mistral-medium",
-    "mistral-large-latest",
-    "codestral-latest",
-    "mistralai/Mixtral-8x7B-v0.1",
-    "mistralai/Mistral-7B-Instruct-v0.1",
-    "mixtral-8x7b-32768",
-    "open-mistral-nemo",
-    "llama2-70b-4096",
-    "llama3-70b-8192",
-    "models/gemini-1.5-pro-latest",
-    "models/gemini-2.0-flash",
-    "gemma-7b-it",
-    "grok-beta",
-    "openchat/openchat-3.5-1210",
-    "openchat/openchat-3.5-0106",
-    "upstage/SOLAR-10.7B-Instruct-v1.0",
-    "teknium/OpenHermes-2.5-Mistral-7B",
-    "NousResearch/Hermes-2-Pro-Llama-3-8B",
-    "NousResearch/Hermes-3-Llama-3.1-8B",
-    "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic",
-    "hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0",
-    "hf.co/bartowski/DeepSeek-Coder-V2-Lite-Instruct-GGUF:Q8_0_L",
-    "hf.co/unsloth/Qwen2.5-Coder-14B-Instruct-128K-GGUF:Q8_0",
-    "Qwen/QwQ-32B-Preview",
-    "mistral-7b-instruct-v0.2.Q3_K_L.gguf",
-    "mistral-7b-instruct-v0.2-code-ft.Q3_K_L.gguf",
-    "openhermes-2.5-mistral-7b.Q6_K.gguf",
-    "System",
-]
 
 HELP_MESSAGE = """
 **Available Commands:**
@@ -227,49 +136,24 @@ HELP_MESSAGE = """
 - `/s3 ls [s3_file_path_pattern]`: List files in S3 matching the pattern.
 - `/s3 load [s3_file_path]`: Load a file from S3.
 - `/s3 save [s3_key_path]`: Save the most recent code block from the chatroom to S3.
-- `/title new`: Generates a new title which reflects conversation content for the current chatroom using gpt-4.
+- `/title new`: Generates a new title which reflects conversation content for the current chatroom.
 - `/cancel`: Cancel the most recent chat completion from streaming into the chatroom.
 - `/help`: Display this help message.
 
-**Available Models:**
-- `gpt-3`: For GPT-3, send a message with `gpt-3` and include your prompt.
-- `gpt-4`: For GPT-4, send a message with `gpt-4` and include your prompt.
-- `gpt-4o-2024-08-06`: For the cheapest version of GPT-4o, send a message with `gpt-4o-2024-08-06` and include your prompt.
-- `gpt-mini`: For GPT-4o-mini, send a message with `gpt-mini` and include your prompt.
-- `gpt-o1-mini`: For GPT-o1-mini, send a message with `gpt-o1-mini` and include your prompt.
-- `gpt-o1-preview`: For GPT-o1-preview, send a message with `gpt-o1-preview` and include your prompt.
-- `gpt-o1`: For GPT-o1, send a message with `gpt-o1` and include your prompt.
-- `gpt-o3-mini`: For GPT-o3-mini, send a message with `gpt-o3-mini` and include your prompt.
-- `gpt-o3-mini-medium`: For GPT-o3-mini-medium, send a message with `gpt-o3-mini-medium` and include your prompt.
-- `gpt-o3-mini-high`: For GPT-o3-mini-high, send a message with `gpt-o3-mini-high` and include your prompt.
-- `claude-haiku`: For Claude-haiku, send a message with `claude-haiku` and include your prompt.
-- `claude-sonnet`: For Claude-sonnet, send a message with `claude-sonnet` and include your prompt.
-- `claude-opus`: For Claude-opus, send a message with `claude-opus` and include your prompt.
-- `mistral-tiny`: For Mistral-tiny, send a message with `mistral-tiny` and include your prompt.
-- `mistral-small`: For Mistral-small, send a message with `mistral-small` and include your prompt.
-- `mistral-medium`: For Mistral-medium, send a message with `mistral-medium` and include your prompt.
-- `mistral-large`: For Mistral-large, send a message with `mistral-large` and include your prompt.
-- `mistral-nemo`: For Mistral-nemo, send a message with `mistral-nemo` and include your prompt.
-- `mistral-codestral`: For Mistral-codestral, send a message with `mistral-codestral` and include your prompt.
-- `together/openchat`: For Together OpenChat, send a message with `together/openchat` and include your prompt.
-- `together/mistral`: For Together Mistral, send a message with `together/mistral` and include your prompt.
-- `together/mixtral`: For Together Mixtral, send a message with `together/mixtral` and include your prompt.
-- `together/solar`: For Together Solar, send a message with `together/solar` and include your prompt.
-- `groq/mixtral`: For Groq Mixtral, send a message with `groq/mixtral` and include your prompt.
-- `groq/llama2`: For Groq Llama-2, send a message with `groq/llama2` and include your prompt.
-- `groq/llama3`: For Groq Llama-3, send a message with `groq/llama3` and include your prompt.
-- `groq/gemma`: For Groq Gemma, send a message with `groq/gemma` and include your prompt.
-- `gemini-flash`: For Google Gemini Flash, send a message with `gemini-flash` and include your prompt.
-- `gemini-flash-8b`: For Google Gemini Flash 8B, send a message with `gemini-flash-8b` and include your prompt.
-- `gemini-pro`: For Google Gemini Pro, send a message with `gemini-pro` and include your prompt.
-- `grok-beta`: For twitter/xai Grok, send a message with `grok-beta` and include your prompt.
-- `vllm/hermes`: For vLLM Hermes, send a message with `vllm/hermes` and include your prompt.
-- `vllm/r1`: For vLLM Deepseek R1 32B, send a message with `vllm/r1` and include your prompt.
-- `ollama/hermes`: For Ollama Hermes, send a message with `ollama/hermes` and include your prompt.
-- `ollama/qwen-coder`: For Ollama qwen2.5-coder , send a message with `ollama/qwen-coder` and include your prompt.
-- `ollama/deepseek-coder`: For Ollama DeepSeek-Coder-V2-Lite-Instruct, send a message with `ollama/deepseek-coder` and include your prompt.
-- `dall-e-3`: For Dall-e-3, send a message with `dall-e-3` and include your prompt.
+**Interacting with AI Models:**
+- Select a model from the dropdown menu above the chat input. Available models are dynamically loaded from configured endpoints and include options like `gpt-4o-mini`, `llama3-70b-8192`, `anthropic.claude-3-sonnet-20240229-v1:0`, and `dall-e-3` for image generation.
+- Type your message and send it. The selected model will respond if it's not "None".
+- For image generation, select `dall-e-3` and provide a prompt (e.g., "A futuristic cityscape").
 
+**Getting Started:**
+Welcome to the chatroom! Here, you can explore various AI models and engage in interactive activities. Here's how you can get started:
+
+1. **Explore the Chatroom:**
+   - Join a chatroom by navigating to its unique URL. You can see the list of available chatrooms on the main page.
+   - Once inside, you can start a conversation by typing your message in the chatbox.
+
+2. **Start an Activity:**
+   - To begin an educational activity, use the `/activity` command followed by the path to the activity YAML file. For example:
 **Getting Started:**
 
 Welcome to the chatroom! Here, you can explore various AI models and engage in interactive activities. Here's how you can get started:
@@ -339,6 +223,13 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/models", methods=["GET"])
+def get_models():
+    # Optionally refresh or reinitialize the model map here.
+    # For now we simply return the keys.
+    return jsonify({"models": list(MODEL_CLIENT_MAP.keys())})
+
+
 @app.route("/chat/<room_name>")
 def chat(room_name):
     # Query all rooms so that newest is first.
@@ -368,7 +259,7 @@ def download_chat_history():
 
     chat_history = [
         {
-            "role": "system" if message.username in system_users else "user",
+            "role": "system" if message.username in SYSTEM_USERS else "user",
             "content": message.content,
         }
         for message in messages
@@ -405,7 +296,7 @@ def download_chat_history_md():
     toc = []
     for index, message in enumerate(messages):
         if not message.is_base64_image():  # Correctly call the method
-            role = "System" if message.username in system_users else "User"
+            role = "System" if message.username in SYSTEM_USERS else "User"
             header = f"### {role}: {message.username} (Turn {index + 1})"
             toc.append(
                 f"- [{role}: {message.username} (Turn {index + 1})](#{role.lower()}-{message.username.lower().replace(' ', '-')}-turn-{index + 1})"
@@ -624,11 +515,13 @@ def on_disconnect():
 def handle_message(data):
     room_name = data["room_name"]
     room = get_room(room_name)
+    username = data["username"]
+    message = data["message"].strip()
+    model = data.get("model", "None")
 
-    # Save the message to the database
     new_message = Message(
-        username=data["username"],
-        content=data["message"],
+        username=username,
+        content=message,
         room_id=room.id,
     )
     db.session.add(new_message)
@@ -638,384 +531,66 @@ def handle_message(data):
         "chat_message",
         {
             "id": new_message.id,
-            "username": data["username"],
-            "content": data["message"],
+            "username": username,
+            "content": message,
         },
         room=room.name,
     )
 
-    # detect and process special commands.
-    commands = data["message"].splitlines()
-
+    commands = message.splitlines()
     for command in commands:
         if command.startswith("/help"):
-            # Emit the help message
             socketio.emit(
                 "chat_message",
-                {
-                    "id": "tmp-1",
-                    "username": "System",
-                    "content": HELP_MESSAGE,
-                },
+                {"id": "tmp-1", "username": "System", "content": HELP_MESSAGE},
                 room=room_name,
             )
             return
         if command.startswith("/activity cancel"):
-            gevent.spawn(cancel_activity, room_name, data["username"])
-            # Exit early since we're canceling the activity
+            gevent.spawn(cancel_activity, room_name, username)
             return
         if command.startswith("/activity info"):
-            gevent.spawn(display_activity_info, room_name, data["username"])
-            # Exit early since we're displaying activity info
+            gevent.spawn(display_activity_info, room_name, username)
             return
         if command.startswith("/activity metadata"):
-            gevent.spawn(display_activity_metadata, room_name, data["username"])
-            # Exit early since we're displaying activity metadata
+            gevent.spawn(display_activity_metadata, room_name, username)
             return
         if command.startswith("/activity"):
             s3_file_path = command.split(" ", 1)[1].strip()
-            gevent.spawn(start_activity, room_name, s3_file_path, data["username"])
-            # Exit early since we're starting an activity
+            gevent.spawn(start_activity, room_name, s3_file_path, username)
             return
         if command.startswith("/s3 ls"):
-            # Extract the S3 file path pattern
             s3_file_path_pattern = command.split(" ", 2)[2].strip()
-            # List files from S3 and emit their names
-            gevent.spawn(
-                list_s3_files, room.name, s3_file_path_pattern, data["username"]
-            )
+            gevent.spawn(list_s3_files, room.name, s3_file_path_pattern, username)
         if command.startswith("/s3 load"):
-            # Extract the S3 file path
             s3_file_path = command.split(" ", 2)[2].strip()
-            # Load the file from S3 and emit its content
-            gevent.spawn(load_s3_file, room_name, s3_file_path, data["username"])
+            gevent.spawn(load_s3_file, room_name, s3_file_path, username)
         if command.startswith("/s3 save"):
-            # Extract the S3 key path
             s3_key_path = command.split(" ", 2)[2].strip()
-            # Save the most recent code block to S3
-            gevent.spawn(
-                save_code_block_to_s3, room_name, s3_key_path, data["username"]
-            )
+            gevent.spawn(save_code_block_to_s3, room_name, s3_key_path, username)
         if command.startswith("/title new"):
-            gevent.spawn(generate_new_title, room_name, data["username"])
+            gevent.spawn(generate_new_title, room_name, username)
         if command.startswith("/cancel"):
-            # Cancel the most recent generation request
             gevent.spawn(cancel_generation, room_name)
 
-    # Check if the user is in activity mode
     activity_state = ActivityState.query.filter_by(room_id=room.id).first()
     if activity_state:
-        gevent.spawn(
-            handle_activity_response, room_name, data["message"], data["username"]
-        )
+        gevent.spawn(handle_activity_response, room_name, message, username)
+        return
 
-    if "dall-e-3" in data["message"]:
-        # Use the entire message as the prompt for DALL-E 3
-        # Generate the image and emit its URL
-        gevent.spawn(
-            generate_dalle_image, data["room_name"], data["message"], data["username"]
-        )
-
-    if (
-        "claude-" in data["message"]
-        or "gpt-" in data["message"]
-        or "mistral-" in data["message"]
-        or "together/" in data["message"]
-        or "localhost/" in data["message"]
-        or "vllm/" in data["message"]
-        or "ollama/" in data["message"]
-        or "groq/" in data["message"]
-        or "grok-beta" in data["message"]
-        or "gemini-" in data["message"]
-    ):
-        # Emit a temporary message indicating that the llm is processing
+    if model != "None":
         emit(
             "chat_message",
             {"id": None, "content": "<span id='processing'>Processing...</span>"},
             room=room.name,
         )
-
-        if "claude-haiku" in data["message"]:
-            gevent.spawn(
-                chat_claude,
-                data["username"],
-                room.name,
-                model_name="anthropic.claude-3-haiku-20240307-v1:0",
-            )
-        if "claude-sonnet" in data["message"]:
-            gevent.spawn(chat_claude, data["username"], room.name)
-        if "claude-opus" in data["message"]:
-            gevent.spawn(
-                chat_claude,
-                data["username"],
-                room.name,
-                model_name="anthropic.claude-3-opus-20240229-v1:0",
-            )
-        if "gpt-3" in data["message"]:
-            gevent.spawn(chat_gpt, data["username"], room.name)
-
-        if "gpt-4o-2024-08-06" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="gpt-4o-2024-08-06",
-            )
-        elif "gpt-4" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                # model_name="gpt-4o",
-                model_name="gpt-4o-2024-08-06",
-            )
-        if "gpt-o1-mini" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="o1-mini",
-            )
-        elif "gpt-o1-preview" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="o1-preview",
-            )
-        elif "gpt-o1" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="o1",
-            )
-        if "gpt-mini" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="gpt-4o-mini",
-            )
-        if "gpt-o3-mini" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="o3-mini",
-            )
-        if "gpt-o3-mini-medium" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="o3-mini-medium",
-            )
-        if "gpt-o3-mini-high" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="o3-mini-high",
-            )
-        if "grok-beta" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="grok-beta",
-            )
-        if "gemini-flash" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="models/gemini-2.0-flash",
-            )
-        if "gemini-flash-8b" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="models/gemini-1.5-flash-8b",
-            )
-        if "gemini-pro" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="models/gemini-1.5-pro-latest",
-            )
-        if "mistral-tiny" in data["message"]:
-            gevent.spawn(
-                chat_mistral,
-                data["username"],
-                room.name,
-                model_name="mistral-tiny",
-            )
-        if "mistral-small" in data["message"]:
-            gevent.spawn(
-                chat_mistral,
-                data["username"],
-                room.name,
-                model_name="mistral-small-latest",
-            )
-        if "mistral-medium" in data["message"]:
-            gevent.spawn(
-                chat_mistral,
-                data["username"],
-                room.name,
-                model_name="mistral-medium",
-            )
-        if "mistral-nemo" in data["message"]:
-            gevent.spawn(
-                chat_mistral,
-                data["username"],
-                room.name,
-                model_name="open-mistral-nemo",
-            )
-        if "mistral-large" in data["message"]:
-            gevent.spawn(
-                chat_mistral,
-                data["username"],
-                room.name,
-                model_name="mistral-large-latest",
-            )
-        if "mistral-codestral" in data["message"]:
-            gevent.spawn(
-                chat_mistral,
-                data["username"],
-                room.name,
-                model_name="codestral-latest",
-            )
-        if "together/openchat" in data["message"]:
-            gevent.spawn(
-                chat_together,
-                data["username"],
-                room.name,
-                model_name="openchat/openchat-3.5-1210",
-                stop=["<|end_of_turn|>", "</s>"],
-            )
-        if "together/mixtral" in data["message"]:
-            gevent.spawn(
-                chat_together,
-                data["username"],
-                room.name,
-                model_name="mistralai/Mixtral-8x7B-v0.1",
-            )
-        if "together/mistral" in data["message"]:
-            gevent.spawn(
-                chat_together,
-                data["username"],
-                room.name,
-                model_name="mistralai/Mistral-7B-Instruct-v0.1",
-            )
-        if "together/solar" in data["message"]:
-            gevent.spawn(
-                chat_together,
-                data["username"],
-                room.name,
-                model_name="upstage/SOLAR-10.7B-Instruct-v1.0",
-                stop=["###", "</s>"],
-            )
-        if "groq/mixtral" in data["message"]:
-            gevent.spawn(
-                chat_groq,
-                data["username"],
-                room.name,
-                model_name="mixtral-8x7b-32768",
-            )
-        if "groq/llama2" in data["message"]:
-            gevent.spawn(
-                chat_groq,
-                data["username"],
-                room.name,
-                model_name="llama2-70b-4096",
-            )
-        if "groq/llama3" in data["message"]:
-            gevent.spawn(
-                chat_groq,
-                data["username"],
-                room.name,
-                model_name="llama3-70b-8192",
-            )
-        if "groq/gemma" in data["message"]:
-            gevent.spawn(
-                chat_groq,
-                data["username"],
-                room.name,
-                model_name="gemma-7b-it",
-            )
-        if "vllm/openchat" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="openchat/openchat-3.5-0106",
-            )
-        if "vllm/hermes" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic",
-            )
-        if "vllm/r1" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
-            )
-        if "vllm/qwq" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="Qwen/QwQ-32B-Preview",
-            )
-        if "ollama/hermes" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0",
-            )
-        if "ollama/qwen-coder" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="hf.co/unsloth/Qwen2.5-Coder-14B-Instruct-128K-GGUF:Q8_0",
-            )
-        if "ollama/deepseek-coder" in data["message"]:
-            gevent.spawn(
-                chat_gpt,
-                data["username"],
-                room.name,
-                model_name="hf.co/bartowski/DeepSeek-Coder-V2-Lite-Instruct-GGUF:Q8_0_L",
-            )
-        if "localhost/mistral" in data["message"]:
-            gevent.spawn(
-                chat_llama,
-                data["username"],
-                room.name,
-                model_name="mistral-7b-instruct-v0.2.Q3_K_L.gguf",
-            )
-        if "localhost/mistral-code" in data["message"]:
-            gevent.spawn(
-                chat_llama,
-                data["username"],
-                room.name,
-                model_name="mistral-7b-instruct-v0.2-code-ft.Q3_K_L.gguf",
-            )
-        if "localhost/openhermes" in data["message"]:
-            gevent.spawn(
-                chat_llama,
-                data["username"],
-                room.name,
-                model_name="openhermes-2.5-mistral-7b.Q6_K.gguf",
-            )
+        if "anthropic.claude" in model:
+            gevent.spawn(chat_claude, username, room_name, model_name=model)
+        if "dall-e" in model:
+            gevent.spawn(generate_dalle_image, room_name, message, username)
+        else:
+            # All other models (Groq, Together, Mistral, etc.) use OpenAI client
+            gevent.spawn(chat_gpt, username, room_name, model_name=model)
 
 
 @socketio.on("delete_message")
@@ -1101,7 +676,7 @@ def chat_claude(
     for msg in reversed(all_messages):
         if msg.is_base64_image():
             continue
-        role = "assistant" if msg.username in system_users else "user"
+        role = "assistant" if msg.username in SYSTEM_USERS else "user"
         chat_history.append({"role": role, "content": msg.content})
 
     # only claude cares about this constrant.
@@ -1248,7 +823,7 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
 
         chat_history = [
             {
-                "role": "assistant" if msg.username in system_users else "user",
+                "role": "assistant" if msg.username in SYSTEM_USERS else "user",
                 # "content": f"{msg.username}: {msg.content}",
                 "content": msg.content,
             }
@@ -1357,360 +932,6 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
     socketio.emit("delete_processing_message", msg_id, room=room.name)
 
 
-def chat_mistral(username, room_name, model_name="mistral-tiny"):
-    with app.app_context():
-        room = get_room(room_name)
-        last_messages = (
-            Message.query.filter_by(room_id=room.id)
-            .order_by(Message.id.desc())
-            .limit(50)
-            .all()
-        )
-
-        chat_history = []
-        combined_content = ""
-        last_role = None
-
-        # Iterate over messages to combine consecutive assistant messages
-        for msg in reversed(last_messages):
-            if msg.is_base64_image():
-                continue
-            current_role = "assistant" if msg.username in system_users else "user"
-            formatted_content = f"{msg.username}: {msg.content}"
-
-            chat_history.append({"role": current_role, "content": formatted_content})
-
-    # Initialize the Mistral client
-    mistral_client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
-
-    buffer = ""  # Content buffer for accumulating the chunks
-
-    # Save an empty message to get an ID for the chunks
-    with app.app_context():
-        new_message = Message(username=model_name, content=buffer, room_id=room.id)
-        db.session.add(new_message)
-        db.session.commit()
-        msg_id = new_message.id
-
-    first_chunk = True
-
-    try:
-        # Use the Mistral client to stream the chat completion
-        for chunk in mistral_client.chat.stream(
-            model=model_name, messages=chat_history
-        ):
-            content_chunk = chunk.data.choices[0].delta.content
-
-            # Check if there has been a cancellation request, break if there is.
-            if cancellation_requests.get(msg_id):
-                del cancellation_requests[msg_id]
-                break
-
-            if chunk:
-                buffer += content_chunk  # Accumulate content
-
-                if first_chunk:
-                    socketio.emit(
-                        "message_chunk",
-                        {
-                            "id": msg_id,
-                            "content": f"**{username} ({model_name}):**\n\n{content_chunk}",
-                        },
-                        room=room.name,
-                    )
-                    first_chunk = False
-                else:
-                    socketio.emit(
-                        "message_chunk",
-                        {"id": msg_id, "content": content_chunk},
-                        room=room.name,
-                    )
-                socketio.sleep(0)  # Force immediate handling
-
-    except Exception as e:
-        with app.app_context():
-            message_content = f"Mistral Error: {e}"
-            new_message = (
-                db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-            )
-            if new_message:
-                new_message.content = message_content
-                new_message.count_tokens()
-                db.session.add(new_message)
-                db.session.commit()
-        socketio.emit(
-            "chat_message",
-            {
-                "id": msg_id,
-                "username": model_name,
-                "content": message_content,
-            },
-            room=room.name,
-        )
-        return None
-
-    # Save the entire completion to the database
-    with app.app_context():
-        new_message = (
-            db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-        )
-        if new_message:
-            new_message.content = buffer
-            new_message.count_tokens()
-            db.session.add(new_message)
-            db.session.commit()
-
-    socketio.emit(
-        "message_chunk",
-        {"id": msg_id, "content": "", "is_complete": True},
-        room=room.name,
-    )
-
-    socketio.emit("delete_processing_message", msg_id, room=room.name)
-
-
-def chat_together(
-    username,
-    room_name,
-    message,
-    model_name="mistralai/Mixtral-8x7B-Instruct-v0.1",
-    stop=["[/INST]", "</s>"],
-):
-    together.api_key = os.environ["TOGETHER_API_KEY"]
-
-    with app.app_context():
-        room = get_room(room_name)
-        last_messages = (
-            Message.query.filter_by(room_id=room.id)
-            .order_by(Message.id.desc())
-            .limit(15)
-            .all()
-        )
-
-        chat_history = [
-            f"{msg.username}: {msg.content}"
-            for msg in reversed(last_messages)
-            if not msg.is_base64_image()
-        ]
-        if "mistralai" in model_name:
-            chat_history_str = "\n\n".join(chat_history)
-        elif "solar" in model_name:
-            chat_history_str = "### \n\n".join(chat_history)
-            chat_history_str += "### Assistant:"
-
-        else:
-            chat_history_str = "<|end_of_turn|>\n\n".join(chat_history)
-            chat_history_str += "<|end_of_turn|>Math Correct Assistant:"
-
-    buffer = ""  # Content buffer for accumulating the chunks
-
-    # Save an empty message to get an ID for the chunks
-    with app.app_context():
-        new_message = Message(username=model_name, content=buffer, room_id=room.id)
-        db.session.add(new_message)
-        db.session.commit()
-        msg_id = new_message.id
-
-    first_chunk = True
-
-    try:
-        # Use the Together client to stream the chat completion
-        prompt = f"{chat_history_str}"
-        if "mistralai" in model_name:
-            prompt = f"[INST] {chat_history_str} [/INST]"
-        if "solar" in model_name:
-            prompt = f"<s> {chat_history_str}"
-
-        chunks = together.Complete.create_streaming(
-            prompt,
-            model=model_name,
-            max_tokens=2048,
-            stop=stop,
-            repetition_penalty=1,
-            top_p=0.7,
-            top_k=50,
-        )
-
-        for chunk in chunks:
-            # Check if there has been a cancellation request, break if there is.
-            if cancellation_requests.get(msg_id):
-                del cancellation_requests[msg_id]
-                break
-
-            buffer += chunk  # Accumulate content
-
-            if first_chunk:
-                socketio.emit(
-                    "message_chunk",
-                    {
-                        "id": msg_id,
-                        "content": f"**{username} ({model_name}):**\n\n{chunk}",
-                    },
-                    room=room.name,
-                )
-                first_chunk = False
-            else:
-                socketio.emit(
-                    "message_chunk",
-                    {"id": msg_id, "content": chunk},
-                    room=room.name,
-                )
-            socketio.sleep(0)  # Force immediate handling
-
-    except Exception as e:
-        with app.app_context():
-            message_content = f"Together Error: {e}"
-            new_message = (
-                db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-            )
-            if new_message:
-                new_message.content = message_content
-                new_message.count_tokens()
-                db.session.add(new_message)
-                db.session.commit()
-        socketio.emit(
-            "chat_message",
-            {
-                "id": msg_id,
-                "username": model_name,
-                "content": message_content,
-            },
-            room=room.name,
-        )
-        return None
-
-    # Save the entire completion to the database
-    with app.app_context():
-        new_message = (
-            db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-        )
-        if new_message:
-            new_message.content = buffer
-            new_message.count_tokens()
-            db.session.add(new_message)
-            db.session.commit()
-
-    socketio.emit(
-        "message_chunk",
-        {"id": msg_id, "content": "", "is_complete": True},
-        room=room.name,
-    )
-
-    socketio.emit("delete_processing_message", msg_id, room=room.name)
-
-
-def chat_groq(username, room_name, model_name="mixtral-8x7b-32768"):
-    # https://console.groq.com/docs/models
-    _limit = 15
-    if "mixtral" in model_name:
-        _limit = 50
-
-    with app.app_context():
-        room = get_room(room_name)
-        last_messages = (
-            Message.query.filter_by(room_id=room.id)
-            .order_by(Message.id.desc())
-            .limit(_limit)
-            .all()
-        )
-
-        chat_history = [
-            {
-                "role": "system" if msg.username in system_users else "user",
-                "content": msg.content,
-            }
-            for msg in reversed(last_messages)
-            if not msg.is_base64_image()
-        ]
-
-    # Initialize the Groq client
-    client = Groq()
-
-    buffer = ""  # Content buffer for accumulating the chunks
-
-    # Save an empty message to get an ID for the chunks
-    with app.app_context():
-        new_message = Message(username=model_name, content=buffer, room_id=room.id)
-        db.session.add(new_message)
-        db.session.commit()
-        msg_id = new_message.id
-
-    first_chunk = True
-
-    try:
-        # Use the Groq client to stream the chat completion
-        stream = client.chat.completions.create(
-            messages=chat_history,
-            model=model_name,
-            stream=True,
-        )
-
-        for chunk in stream:
-            content_chunk = chunk.choices[0].delta.content
-
-            if content_chunk:
-                buffer += content_chunk  # Accumulate content
-
-                if first_chunk:
-                    socketio.emit(
-                        "message_chunk",
-                        {
-                            "id": msg_id,
-                            "content": f"**{username} ({model_name}):**\n\n{content_chunk}",
-                        },
-                        room=room.name,
-                    )
-                    first_chunk = False
-                else:
-                    socketio.emit(
-                        "message_chunk",
-                        {"id": msg_id, "content": content_chunk},
-                        room=room.name,
-                    )
-                socketio.sleep(0)  # Force immediate handling
-
-    except Exception as e:
-        with app.app_context():
-            message_content = f"Groq Error: {e}"
-            new_message = (
-                db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-            )
-            if new_message:
-                new_message.content = message_content
-                new_message.count_tokens()
-                db.session.add(new_message)
-                db.session.commit()
-        socketio.emit(
-            "chat_message",
-            {
-                "id": msg_id,
-                "username": model_name,
-                "content": message_content,
-            },
-            room=room.name,
-        )
-        return None
-
-    # Save the entire completion to the database
-    with app.app_context():
-        new_message = (
-            db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-        )
-        if new_message:
-            new_message.content = buffer
-            new_message.count_tokens()
-            db.session.add(new_message)
-            db.session.commit()
-
-    socketio.emit(
-        "message_chunk",
-        {"id": msg_id, "content": "", "is_complete": True},
-        room=room.name,
-    )
-
-    socketio.emit("delete_processing_message", msg_id, room=room.name)
-
-
 def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.gguf"):
     import llama_cpp
 
@@ -1729,7 +950,7 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
 
         chat_history = [
             {
-                "role": "system" if msg.username in system_users else "user",
+                "role": "system" if msg.username in SYSTEM_USERS else "user",
                 "content": f"{msg.username}: {msg.content}",
             }
             for msg in reversed(last_messages)
@@ -1833,7 +1054,7 @@ def gpt_generate_room_title(messages):
 
     chat_history = [
         {
-            "role": "system" if msg.username in system_users else "user",
+            "role": "system" if msg.username in SYSTEM_USERS else "user",
             "content": f"{msg.username}: {msg.content}",
         }
         for msg in reversed(messages)
@@ -2977,7 +2198,7 @@ def display_activity_info(room_name, username):
             )
             chat_history = [
                 {
-                    "role": "system" if msg.username in system_users else "user",
+                    "role": "system" if msg.username in SYSTEM_USERS else "user",
                     "username": msg.username,
                     "content": msg.content,
                 }
