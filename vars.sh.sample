@@ -36,3 +36,7 @@ export OPENAI_API_KEY="gone"
 # MistralAI La Platform endpoint.
 export MODEL_ENDPOINT_8="https://api.mistral.ai/v1"
 export MODEL_API_KEY_8="gone"
+
+# Anthropic Platform
+export MODEL_ENDPOINT_9="https://api.anthropic.com/v1"
+export MODEL_API_KEY_9="gone"
