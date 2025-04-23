@@ -2,6 +2,8 @@ from flask_sqlalchemy import SQLAlchemy
 
 import tiktoken
 
+import json
+
 db = SQLAlchemy()
 
 class Room(db.Model):
