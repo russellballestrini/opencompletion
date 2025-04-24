@@ -137,10 +137,17 @@ sections:
         title: "Take a Shot"
         question: "Choose a position to fire at (0-99)."
         tokens_for_ai: |
+          1) If the user reply is *only* digits, and corresponds to a grid cell (0–99),
+             treat it as a valid move:
+          If the response matches the regex /^\d+$/ and 0 ≤ int(response) < 100, categorize as 'valid_move'.
+    
+          2) Otherwise fall back to the usual buckets:
           If the user wants to restart or play again, categorize as 'restart'.
           If the user wants to exit, categorize as 'exit'.
-          If the move is valid, categorize as 'valid_move'.
-          If the move is invalid, categorize as 'invalid_move'.
+          Otherwise, categorize as 'invalid_move'.
+    
+          Note: by ordering the digit-check *first*, you guarantee that “1”, “42”, etc.
+          always lands in 'valid_move' no matter what the LLM would otherwise decide.
         feedback_tokens_for_ai: |
           Important: Use the metadata to fill in the brackets and provide a conversational tone.
 
