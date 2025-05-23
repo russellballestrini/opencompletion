@@ -2,15 +2,10 @@
 # vars.sh: Example configuration for dynamic endpoints
 
 # Official OpenAI (hermes) endpoint.
-export MODEL_ENDPOINT_0="https://hermes.ai.unturf.com/v1"
-export MODEL_API_KEY_0="your-hermes-api-key"  # optional; if omitted, "not-needed" is used
-
-# Naptha endpoints.
-export MODEL_ENDPOINT_1="https://node2.naptha.ai/inference"
-export MODEL_API_KEY_1="your-node2-api-key"
-
-export MODEL_ENDPOINT_2="https://node3.naptha.ai/inference"
-export MODEL_API_KEY_2="your-node3-api-key"
+export MODEL_ENDPOINT_1="https://hermes.ai.unturf.com/v1"
+export MODEL_API_KEY_1="your-hermes-api-key"
+export MODEL_ENDPOINT_2="https://hermes2.ai.unturf.com/v1"
+export MODEL_API_KEY_2="your-hermes-api-key"
 
 # Google Gemini endpoint.
 export MODEL_ENDPOINT_3="https://generativelanguage.googleapis.com/v1beta/openai"

@@ -82,8 +82,7 @@ Other env vars::
 Here are some free endpoint for research only!::
 
     export MODEL_ENDPOINT_1=https://hermes.ai.unturf.com/v1
-    export MODEL_ENDPOINT_2=https://node2.naptha.ai/inference
-    export MODEL_ENDPOINT_3=https://node3.naptha.ai/inference
+    export MODEL_ENDPOINT_2=https://hermes2.ai.unturf.com/v1
 
 To start the application with socket.io run::
 
