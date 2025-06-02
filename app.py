@@ -809,8 +809,13 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
     limit = 20
     if "gpt-4" in model_name:
         limit = 1000
-    if "o1" in model_name:
+    if "o1-" in model_name:
         temperature = 1
+    if "o3-" in model_name:
+        temperature = 1
+    if "o4-" in model_name:
+        temperature = 1
+
 
     with app.app_context():
         room = get_room(room_name)
