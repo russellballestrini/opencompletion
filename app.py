@@ -33,7 +33,7 @@ from models import db, Room, UserSession, Message, ActivityState
 
 app = Flask(__name__)
 
-app.config["SECRET_KEY"] = "your_secret_key"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-in-production")
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///chat.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -351,12 +351,23 @@ def search_page():
 def search_messages(keywords):
     search_results = {}
 
-    # Split the keywords by spaces
+    # Split the keywords by spaces and sanitize
     keyword_list = keywords.lower().split()
+    
+    # Sanitize keywords to prevent SQL injection
+    sanitized_keywords = []
+    for keyword in keyword_list:
+        # Remove potentially dangerous characters and limit length
+        sanitized_keyword = ''.join(c for c in keyword if c.isalnum() or c.isspace() or c in '-_')[:50]
+        if sanitized_keyword.strip():  # Only add non-empty keywords
+            sanitized_keywords.append(sanitized_keyword.strip())
+    
+    if not sanitized_keywords:
+        return {}
 
-    # Search for messages containing any of the keywords
+    # Search for messages containing any of the sanitized keywords using parameterized query
     messages = Message.query.filter(
-        db.or_(*[Message.content.ilike(f"%{keyword}%") for keyword in keyword_list])
+        db.or_(*[Message.content.ilike(f"%{keyword}%") for keyword in sanitized_keywords])
     ).all()
 
     for message in messages:
@@ -1155,8 +1166,11 @@ def generate_dalle_image(room_name, message, username):
         image_data = response.data[0].b64_json
         revised_prompt = response.data[0].revised_prompt
 
-        # Create an HTML img tag with the base64 data
-        content = f'<img src="data:image/jpeg;base64,{image_data}" alt="{message}"><p>{revised_prompt}</p>'
+        # Create an HTML img tag with the base64 data (escape user input for XSS protection)
+        import html
+        escaped_message = html.escape(message)
+        escaped_prompt = html.escape(revised_prompt)
+        content = f'<img src="data:image/jpeg;base64,{image_data}" alt="{escaped_message}"><p>{escaped_prompt}</p>'
 
     except Exception as e:
         # Set the content to an error message
@@ -1433,8 +1447,27 @@ def get_activity_content(file_path):
     Load the activity content from either S3 or the local filesystem based on the configuration.
     """
     if app.config["LOCAL_ACTIVITIES"]:
-        # Load the activity YAML from a local file
-        with open(file_path, "r") as file:
+        # Load the activity YAML from a local file with path traversal protection
+        import os.path
+        
+        # Normalize the path and ensure it's within the research directory
+        normalized_path = os.path.normpath(file_path)
+        
+        # Ensure path doesn't contain dangerous patterns
+        if '..' in normalized_path or normalized_path.startswith('/'):
+            raise ValueError(f"Invalid file path: {file_path}")
+        
+        # Ensure file is within research directory and has .yaml extension
+        if not normalized_path.startswith('research/') or not normalized_path.endswith('.yaml'):
+            raise ValueError(f"File must be in research/ directory and end with .yaml: {file_path}")
+        
+        # Additional safety check - ensure resolved path is still in research dir
+        full_path = os.path.abspath(normalized_path)
+        research_dir = os.path.abspath('research/')
+        if not full_path.startswith(research_dir):
+            raise ValueError(f"Path traversal attempt detected: {file_path}")
+            
+        with open(normalized_path, "r") as file:
             activity_yaml = file.read()
     else:
         # Load the activity YAML from S3
