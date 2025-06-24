@@ -41,47 +41,128 @@ sections:
           import io
           import base64
           import re
+          import sympy as sp
         
           # Get the user's function input from metadata
           user_function = metadata.get("user_function", "x")
+          original_function = user_function
         
-          # Preprocess the function to ensure valid syntax
-          # Replace '^' with '**' for exponentiation
-          user_function = user_function.replace('^', '**')
-        
-          # Add asterisks for implied multiplication (e.g., '4x' -> '4*x')
-          user_function = re.sub(r'(?<=\d)(?=[a-zA-Z])', '*', user_function)
-          user_function = re.sub(r'(?<=[a-zA-Z])(?=\d)', '*', user_function)
-        
-          # Replace common math functions with their math module equivalents
-          math_functions = [
-              'sin', 'cos', 'tan', 'exp', 'log', 'sqrt', 'abs', 'pi', 'e', 'inf',
-              'sinh', 'cosh', 'tanh', 'arctan',
-          ]
-          for func in math_functions:
-              user_function = re.sub(r'\b' + func + r'\b', f'numpy.{func}', user_function)
-        
-          # Prepare the x values
-          x = numpy.linspace(-10, 10, 400)
-        
-          # Evaluate the function using eval with math module
-          y = eval(user_function, {"numpy": numpy, "x": x})
-        
-          # Plot the function
-          matplotlib.pyplot.figure()
-          matplotlib.pyplot.plot(x, y, label=f'y = {user_function}')
-          matplotlib.pyplot.title(f'Plot of y = {user_function}')
-          matplotlib.pyplot.xlabel('x')
-          matplotlib.pyplot.ylabel('y')
-          matplotlib.pyplot.grid(True)
-          matplotlib.pyplot.legend()
-          buf = io.BytesIO()
-          matplotlib.pyplot.savefig(buf, format='png')
-          matplotlib.pyplot.close()
-          buf.seek(0)
-          plot_image = base64.b64encode(buf.getvalue()).decode('utf-8')
-        
-          script_result = {"plot_image": plot_image}
+          try:
+              # Support multiple functions separated by semicolon or comma
+              function_list = re.split(r'[;,]', user_function)
+              function_list = [f.strip() for f in function_list if f.strip()]
+              
+              # Colors for multiple functions
+              colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink', 'gray']
+              
+              matplotlib.pyplot.figure(figsize=(10, 6))
+              
+              all_y_values = []
+              function_info = []
+              
+              for i, func_str in enumerate(function_list):
+                  # Preprocess each function
+                  processed_func = func_str.replace('^', '**')
+                  processed_func = re.sub(r'(?<=\d)(?=[a-zA-Z])', '*', processed_func)
+                  processed_func = re.sub(r'(?<=[a-zA-Z])(?=\d)', '*', processed_func)
+                  
+                  # Enhanced function preprocessing
+                  enhanced_replacements = {
+                      'arctan': 'atan',
+                      'arcsin': 'asin', 
+                      'arccos': 'acos',
+                      'log': 'ln',
+                      'ln': 'log',  # Allow both ln and log
+                      'abs': 'Abs'
+                  }
+                  
+                  parsed_function = processed_func
+                  for old, new in enhanced_replacements.items():
+                      parsed_function = re.sub(r'\b' + old + r'\b', new, parsed_function)
+                  
+                  # Create sympy symbol and parse expression
+                  x_sym = sp.Symbol('x')
+                  expr = sp.sympify(parsed_function, locals={'x': x_sym})
+                  
+                  # Analyze function characteristics for dynamic range
+                  func_type = analyze_function_type(expr, x_sym)
+                  x_range = determine_optimal_range(expr, x_sym, func_type)
+                  
+                  # Prepare x values with dynamic range
+                  x_vals = numpy.linspace(x_range[0], x_range[1], 400)
+                  
+                  # Convert to numpy function and evaluate
+                  func = sp.lambdify(x_sym, expr, 'numpy')
+                  y = func(x_vals)
+                  
+                  # Handle complex results
+                  if numpy.iscomplexobj(y):
+                      y = numpy.real(y)
+                  
+                  # Filter out infinite/NaN values for better plotting
+                  valid_mask = numpy.isfinite(y)
+                  x_vals_clean = x_vals[valid_mask]
+                  y_clean = y[valid_mask]
+                  
+                  if len(y_clean) > 0:
+                      all_y_values.extend(y_clean)
+                      color = colors[i % len(colors)]
+                      matplotlib.pyplot.plot(x_vals_clean, y_clean, 
+                                           label=f'y = {func_str}', 
+                                           color=color, linewidth=2)
+                  
+                  # Store function analysis info
+                  function_info.append({
+                      'function': func_str,
+                      'type': func_type,
+                      'range': x_range
+                  })
+              
+              # Dynamic y-axis limits based on all functions
+              if all_y_values:
+                  y_min, y_max = numpy.percentile(all_y_values, [5, 95])
+                  y_range = y_max - y_min
+                  matplotlib.pyplot.ylim(y_min - 0.1*y_range, y_max + 0.1*y_range)
+              
+              # Enhanced plot styling
+              matplotlib.pyplot.title(f'Plot of: {original_function}', fontsize=14, fontweight='bold')
+              matplotlib.pyplot.xlabel('x', fontsize=12)
+              matplotlib.pyplot.ylabel('y', fontsize=12)
+              matplotlib.pyplot.grid(True, alpha=0.3)
+              matplotlib.pyplot.legend(fontsize=10)
+              
+              # Add function analysis as text
+              analysis_text = generate_function_analysis(function_info)
+              
+              buf = io.BytesIO()
+              matplotlib.pyplot.tight_layout()
+              matplotlib.pyplot.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+              matplotlib.pyplot.close()
+              buf.seek(0)
+              plot_image = base64.b64encode(buf.getvalue()).decode('utf-8')
+              
+              script_result = {
+                  "plot_image": plot_image,
+                  "function_analysis": analysis_text,
+                  "function_info": function_info
+              }
+              
+          except Exception as e:
+              # Handle errors gracefully with error message plot
+              matplotlib.pyplot.figure()
+              matplotlib.pyplot.text(0.5, 0.5, f'Error: Invalid function\n"{original_function}"\n\n{str(e)[:100]}...', 
+                                   horizontalalignment='center', verticalalignment='center',
+                                   transform=matplotlib.pyplot.gca().transAxes, fontsize=12,
+                                   bbox=dict(boxstyle="round,pad=0.3", facecolor="lightcoral"))
+              matplotlib.pyplot.title('Function Error')
+              matplotlib.pyplot.axis('off')
+              buf = io.BytesIO()
+              matplotlib.pyplot.savefig(buf, format='png')
+              matplotlib.pyplot.close()
+              buf.seek(0)
+              plot_image = base64.b64encode(buf.getvalue()).decode('utf-8')
+              
+              script_result = {"plot_image": plot_image, "error": str(e)}
 
         buckets:
           - correct
