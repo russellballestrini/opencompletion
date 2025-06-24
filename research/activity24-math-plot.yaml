@@ -1,4 +1,182 @@
 default_max_attempts_per_step: 3
+
+# Common processing script for all plotting steps
+common_processing_script: &plotting_script |
+  import matplotlib.pyplot
+  import numpy
+  import io
+  import base64
+  import re
+  import sympy as sp
+  
+  # Get the user's function input from metadata
+  user_function = metadata.get("user_function", "x")
+  original_function = user_function
+
+  try:
+      # Support multiple functions separated by semicolon or comma
+      function_list = re.split(r'[;,]', user_function)
+      function_list = [f.strip() for f in function_list if f.strip()]
+      
+      # Colors for multiple functions
+      colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink', 'gray']
+      
+      matplotlib.pyplot.figure(figsize=(10, 6))
+      
+      all_y_values = []
+      function_info = []
+      
+      for i, func_str in enumerate(function_list):
+          # Preprocess each function
+          processed_func = func_str.replace('^', '**')
+          processed_func = re.sub(r'(?<=\d)(?=[a-zA-Z])', '*', processed_func)
+          processed_func = re.sub(r'(?<=[a-zA-Z])(?=\d)', '*', processed_func)
+          
+          # Enhanced function preprocessing
+          enhanced_replacements = {
+              'arctan': 'atan',
+              'arcsin': 'asin', 
+              'arccos': 'acos',
+              'log': 'ln',
+              'ln': 'log',  # Allow both ln and log
+              'abs': 'Abs'
+          }
+          
+          parsed_function = processed_func
+          for old, new in enhanced_replacements.items():
+              parsed_function = re.sub(r'\b' + old + r'\b', new, parsed_function)
+          
+          # Create sympy symbol and parse expression
+          x_sym = sp.Symbol('x')
+          expr = sp.sympify(parsed_function, locals={'x': x_sym})
+          
+          # Analyze function characteristics for dynamic range (inline)
+          func_type = "other"
+          if expr.has(sp.sin) or expr.has(sp.cos) or expr.has(sp.tan):
+              func_type = "trigonometric"
+          elif expr.has(sp.exp):
+              func_type = "exponential"
+          elif expr.has(sp.log):
+              func_type = "logarithmic"
+          elif expr.is_polynomial(x_sym):
+              degree = sp.degree(expr, x_sym)
+              if degree == 1:
+                  func_type = "linear"
+              elif degree == 2:
+                  func_type = "quadratic"
+              elif degree == 3:
+                  func_type = "cubic"
+          elif expr.has(sp.sqrt):
+              func_type = "radical"
+          elif expr.has(1/x_sym):
+              func_type = "rational"
+          
+          # Determine optimal range inline
+          if func_type == "trigonometric":
+              x_range = (-2*numpy.pi, 2*numpy.pi)
+          elif func_type == "exponential":
+              x_range = (-3, 3)
+          elif func_type == "logarithmic":
+              x_range = (0.1, 10)
+          elif func_type in ["linear", "quadratic", "cubic"]:
+              x_range = (-10, 10)
+          elif func_type == "rational":
+              x_range = (-10, 10)
+          else:
+              x_range = (-5, 5)
+          
+          # Prepare x values with dynamic range
+          x_vals = numpy.linspace(x_range[0], x_range[1], 400)
+          
+          # Convert to numpy function and evaluate
+          func = sp.lambdify(x_sym, expr, 'numpy')
+          y = func(x_vals)
+          
+          # Handle complex results
+          if numpy.iscomplexobj(y):
+              y = numpy.real(y)
+          
+          # Filter out infinite/NaN values for better plotting
+          valid_mask = numpy.isfinite(y)
+          x_vals_clean = x_vals[valid_mask]
+          y_clean = y[valid_mask]
+          
+          if len(y_clean) > 0:
+              all_y_values.extend(y_clean)
+              color = colors[i % len(colors)]
+              matplotlib.pyplot.plot(x_vals_clean, y_clean, 
+                                   label=f'y = {func_str}', 
+                                   color=color, linewidth=2)
+          
+          # Store function analysis info
+          function_info.append({
+              'function': func_str,
+              'type': func_type,
+              'range': x_range
+          })
+      
+      # Dynamic y-axis limits based on all functions
+      if all_y_values:
+          y_min, y_max = numpy.percentile(all_y_values, [5, 95])
+          y_range = y_max - y_min
+          matplotlib.pyplot.ylim(y_min - 0.1*y_range, y_max + 0.1*y_range)
+      
+      # Enhanced plot styling
+      matplotlib.pyplot.title(f'Plot of: {original_function}', fontsize=14, fontweight='bold')
+      matplotlib.pyplot.xlabel('x', fontsize=12)
+      matplotlib.pyplot.ylabel('y', fontsize=12)
+      matplotlib.pyplot.grid(True, alpha=0.3)
+      matplotlib.pyplot.legend(fontsize=10)
+      
+      # Generate function analysis inline
+      analysis_parts = []
+      for info in function_info:
+          func_type = info['type']
+          if func_type == "quadratic":
+              analysis_parts.append(f"'{info['function']}' is a parabola (quadratic function)")
+          elif func_type == "linear":
+              analysis_parts.append(f"'{info['function']}' is a straight line (linear function)")
+          elif func_type == "trigonometric":
+              analysis_parts.append(f"'{info['function']}' shows periodic behavior (trigonometric)")
+          elif func_type == "exponential":
+              analysis_parts.append(f"'{info['function']}' shows exponential growth/decay")
+          elif func_type == "logarithmic":
+              analysis_parts.append(f"'{info['function']}' is a logarithmic curve")
+          else:
+              analysis_parts.append(f"'{info['function']}' is a {func_type} function")
+      
+      analysis_text = "; ".join(analysis_parts)
+      
+      buf = io.BytesIO()
+      matplotlib.pyplot.tight_layout()
+      matplotlib.pyplot.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+      matplotlib.pyplot.close()
+      buf.seek(0)
+      plot_image = base64.b64encode(buf.getvalue()).decode('utf-8')
+      
+      script_result = {
+          "plot_image": plot_image,
+          "function_analysis": analysis_text,
+          "function_info": function_info
+      }
+      
+  except Exception as e:
+      # Handle errors gracefully with error message plot
+      matplotlib.pyplot.figure()
+      matplotlib.pyplot.text(0.5, 0.5, f'Error: Invalid function\n"{original_function}"\n\n{str(e)[:100]}...', 
+                           horizontalalignment='center', verticalalignment='center',
+                           transform=matplotlib.pyplot.gca().transAxes, fontsize=12,
+                           bbox=dict(boxstyle="round,pad=0.3", facecolor="lightcoral"))
+      matplotlib.pyplot.title('Function Error')
+      matplotlib.pyplot.axis('off')
+      buf = io.BytesIO()
+      matplotlib.pyplot.savefig(buf, format='png')
+      matplotlib.pyplot.close()
+      buf.seek(0)
+      plot_image = base64.b64encode(buf.getvalue()).decode('utf-8')
+      
+      script_result = {"plot_image": plot_image, "error": str(e)}
+
 sections:
   - section_id: "section_1"
     title: "Math Plotter: Visualizing Functions"
@@ -27,165 +205,28 @@ sections:
             next_section_and_step: "section_1:step_1"
 
       - step_id: "step_2"
-        title: "Plotting Any Function"
+        title: "First Plot - Linear Function"
         content_blocks:
-          - "Now, you can plot any function you like!"
-          - "Enter a function of x (e.g., 'x**2 - 4*x + 3') to visualize it."
-        question: "Enter a function of x to plot and describe what you see."
+          - "Let's start by plotting a specific linear function! 📏"
+          - "We'll plot: y = 2*x + 1"
+        question: "Ready to plot y = 2*x + 1? Type 'yes' to see the graph."
         tokens_for_ai: |
-          Check if the user describes the plot correctly based on the function they provided.
+          Check if the user entered a valid linear function. Accept any linear function like 'mx + b' format.
+          Don't require analysis at this step - just check if it's a valid function.
           If the user wants to change the language, categorize as 'set_language'.
-        processing_script: |
-          import matplotlib.pyplot
-          import numpy
-          import io
-          import base64
-          import re
-          import sympy as sp
-        
-          # Get the user's function input from metadata
-          user_function = metadata.get("user_function", "x")
-          original_function = user_function
-        
-          try:
-              # Support multiple functions separated by semicolon or comma
-              function_list = re.split(r'[;,]', user_function)
-              function_list = [f.strip() for f in function_list if f.strip()]
-              
-              # Colors for multiple functions
-              colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink', 'gray']
-              
-              matplotlib.pyplot.figure(figsize=(10, 6))
-              
-              all_y_values = []
-              function_info = []
-              
-              for i, func_str in enumerate(function_list):
-                  # Preprocess each function
-                  processed_func = func_str.replace('^', '**')
-                  processed_func = re.sub(r'(?<=\d)(?=[a-zA-Z])', '*', processed_func)
-                  processed_func = re.sub(r'(?<=[a-zA-Z])(?=\d)', '*', processed_func)
-                  
-                  # Enhanced function preprocessing
-                  enhanced_replacements = {
-                      'arctan': 'atan',
-                      'arcsin': 'asin', 
-                      'arccos': 'acos',
-                      'log': 'ln',
-                      'ln': 'log',  # Allow both ln and log
-                      'abs': 'Abs'
-                  }
-                  
-                  parsed_function = processed_func
-                  for old, new in enhanced_replacements.items():
-                      parsed_function = re.sub(r'\b' + old + r'\b', new, parsed_function)
-                  
-                  # Create sympy symbol and parse expression
-                  x_sym = sp.Symbol('x')
-                  expr = sp.sympify(parsed_function, locals={'x': x_sym})
-                  
-                  # Analyze function characteristics for dynamic range
-                  func_type = analyze_function_type(expr, x_sym)
-                  x_range = determine_optimal_range(expr, x_sym, func_type)
-                  
-                  # Prepare x values with dynamic range
-                  x_vals = numpy.linspace(x_range[0], x_range[1], 400)
-                  
-                  # Convert to numpy function and evaluate
-                  func = sp.lambdify(x_sym, expr, 'numpy')
-                  y = func(x_vals)
-                  
-                  # Handle complex results
-                  if numpy.iscomplexobj(y):
-                      y = numpy.real(y)
-                  
-                  # Filter out infinite/NaN values for better plotting
-                  valid_mask = numpy.isfinite(y)
-                  x_vals_clean = x_vals[valid_mask]
-                  y_clean = y[valid_mask]
-                  
-                  if len(y_clean) > 0:
-                      all_y_values.extend(y_clean)
-                      color = colors[i % len(colors)]
-                      matplotlib.pyplot.plot(x_vals_clean, y_clean, 
-                                           label=f'y = {func_str}', 
-                                           color=color, linewidth=2)
-                  
-                  # Store function analysis info
-                  function_info.append({
-                      'function': func_str,
-                      'type': func_type,
-                      'range': x_range
-                  })
-              
-              # Dynamic y-axis limits based on all functions
-              if all_y_values:
-                  y_min, y_max = numpy.percentile(all_y_values, [5, 95])
-                  y_range = y_max - y_min
-                  matplotlib.pyplot.ylim(y_min - 0.1*y_range, y_max + 0.1*y_range)
-              
-              # Enhanced plot styling
-              matplotlib.pyplot.title(f'Plot of: {original_function}', fontsize=14, fontweight='bold')
-              matplotlib.pyplot.xlabel('x', fontsize=12)
-              matplotlib.pyplot.ylabel('y', fontsize=12)
-              matplotlib.pyplot.grid(True, alpha=0.3)
-              matplotlib.pyplot.legend(fontsize=10)
-              
-              # Add function analysis as text
-              analysis_text = generate_function_analysis(function_info)
-              
-              buf = io.BytesIO()
-              matplotlib.pyplot.tight_layout()
-              matplotlib.pyplot.savefig(buf, format='png', dpi=100, bbox_inches='tight')
-              matplotlib.pyplot.close()
-              buf.seek(0)
-              plot_image = base64.b64encode(buf.getvalue()).decode('utf-8')
-              
-              script_result = {
-                  "plot_image": plot_image,
-                  "function_analysis": analysis_text,
-                  "function_info": function_info
-              }
-              
-          except Exception as e:
-              # Handle errors gracefully with error message plot
-              matplotlib.pyplot.figure()
-              matplotlib.pyplot.text(0.5, 0.5, f'Error: Invalid function\n"{original_function}"\n\n{str(e)[:100]}...', 
-                                   horizontalalignment='center', verticalalignment='center',
-                                   transform=matplotlib.pyplot.gca().transAxes, fontsize=12,
-                                   bbox=dict(boxstyle="round,pad=0.3", facecolor="lightcoral"))
-              matplotlib.pyplot.title('Function Error')
-              matplotlib.pyplot.axis('off')
-              buf = io.BytesIO()
-              matplotlib.pyplot.savefig(buf, format='png')
-              matplotlib.pyplot.close()
-              buf.seek(0)
-              plot_image = base64.b64encode(buf.getvalue()).decode('utf-8')
-              
-              script_result = {"plot_image": plot_image, "error": str(e)}
+        processing_script: *plotting_script
 
         buckets:
-          - correct
-          - incorrect
+          - proceed
           - set_language
-          - exit
         transitions:
-          correct:
+          proceed:
             run_processing_script: True
             ai_feedback:
-              tokens_for_ai: "Great job! You correctly described the plot of your function."
+              tokens_for_ai: "Perfect! Here's the linear function y = 2*x + 1 plotted for you. Now you can explore plotting any functions you want!"
             metadata_add:
-              score: "n+1"
-              attempts: "n+1"
-              user_function: "the-users-response"
-            next_section_and_step: "section_1:step_2"
-          incorrect:
-            ai_feedback:
-              tokens_for_ai: "The description is not quite right. Try to describe the shape and behavior of the plot."
-            metadata_add:
-              attempts: "n+1"
-              user_function: "the-users-response"
-            next_section_and_step: "section_1:step_2"
+              user_function: "2*x + 1"
+            next_section_and_step: "section_1:step_3"
           set_language:
             content_blocks:
               - "Language preference updated. Please continue in your preferred language."
@@ -193,8 +234,56 @@ sections:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "section_1:step_2"
-          exit:
+
+      - step_id: "step_3"
+        title: "Free Exploration - Plot Anything!"
+        content_blocks:
+          - "🎨 Time to explore! You can plot any function(s) you want."
+          - "Try single functions: x**2, sin(x), exp(x), log(x), sqrt(x)"
+          - "Try multiple functions: sin(x), cos(x) or x**2, 2*x + 1"
+          - "Mix different types: sin(x), x**2, exp(-x)"
+          - "Type 'done' when you're ready to finish."
+        question: "Enter any function(s) to plot (or 'done' to complete):"
+        tokens_for_ai: |
+          This is a free exploration step. Accept any valid mathematical function(s).
+          If user says 'done', 'finished', 'complete', etc., categorize as 'done'.
+          If the user wants to change the language, categorize as 'set_language'.
+          Otherwise, if it looks like a valid function, categorize as 'valid_function'.
+        processing_script: *plotting_script
+
+        buckets:
+          - valid_function
+          - done
+          - invalid_function
+          - set_language
+        transitions:
+          valid_function:
+            run_processing_script: True
+            ai_feedback:
+              tokens_for_ai: "Great exploration! Here's your plot. Try another function or type 'done' to finish."
+            metadata_add:
+              user_function: "the-users-response"
+              exploration_count: "n+1"
+            counts_as_attempt: false
+            next_section_and_step: "section_1:step_3"
+          done:
+            ai_feedback:
+              tokens_for_ai: "Excellent exploration! You've completed the math plotting activity."
+            metadata_add:
+              score: "n+1"
             next_section_and_step: "section_2:step_1"
+          invalid_function:
+            ai_feedback:
+              tokens_for_ai: "That doesn't look like a valid function. Try mathematical expressions like 'x**2' or 'sin(x)'."
+            counts_as_attempt: false
+            next_section_and_step: "section_1:step_3"
+          set_language:
+            content_blocks:
+              - "Language preference updated. Please continue in your preferred language."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "section_1:step_3"
 
   - section_id: "section_2"
     title: "Plotting Complete"
