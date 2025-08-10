@@ -72,34 +72,12 @@ sections:
               global random
               # Define ship sizes and names
               ships = {
-                  "Carrier": 5,
-                  "Battleship": 4,
-                  "Cruiser": 3,
-                  "Submarine": 3,
-                  "Destroyer": 2
+                  "Testship": 1
               }
 
               board = [-1] * 100
-              for ship, size in ships.items():
-                  placed = False
-                  while not placed:
-                      orientation = random.choice(['horizontal', 'vertical'])
-                      if orientation == 'horizontal':
-                          row = random.randint(0, 9)
-                          col = random.randint(0, 9 - size)
-                          start = row * 10 + col
-                          if all(board[start + i] == -1 for i in range(size)):
-                              for i in range(size):
-                                  board[start + i] = ship
-                              placed = True
-                      else:
-                          row = random.randint(0, 9 - size)
-                          col = random.randint(0, 9)
-                          start = row * 10 + col
-                          if all(board[start + i * 10] == -1 for i in range(size)):
-                              for i in range(size):
-                                  board[start + i * 10] = ship
-                              placed = True
+              # Place testship at position 21 for easy testing
+              board[21] = "Testship"
               return board
 
           user_board = place_ships()
@@ -213,20 +191,12 @@ sections:
 
           # Define ship sizes
           ship_sizes = {
-              "Carrier": 5,
-              "Battleship": 4,
-              "Cruiser": 3,
-              "Submarine": 3,
-              "Destroyer": 2
+              "Testship": 1
           }
 
           # Define colors for ships
           ship_colors = {
-              "Carrier": "blue",
-              "Battleship": "green",
-              "Cruiser": "orange",
-              "Submarine": "purple",
-              "Destroyer": "pink"
+              "Testship": "red"
           }
 
           # Retrieve the game state

@@ -1736,11 +1736,14 @@ def handle_activity_response(room_name, user_response, username):
 
             # Check if the step has a question
             if "question" in step:
-                # Execute pre-script if it exists (runs before categorization)
+                # Execute pre-script if it exists (runs before categorization, with user_response available)
                 if "pre_script" in step:
                     print(f"DEBUG: Executing pre-script")
+                    # Add user_response to a temporary copy of metadata for pre_script
+                    temp_metadata = activity_state.dict_metadata.copy()
+                    temp_metadata["user_response"] = user_response
                     pre_result = execute_processing_script(
-                        activity_state.dict_metadata, step["pre_script"]
+                        temp_metadata, step["pre_script"]
                     )
                     # Update metadata with pre-script results
                     for key, value in pre_result.get("metadata", {}).items():
@@ -2080,6 +2083,17 @@ def handle_activity_response(room_name, user_response, username):
 
                 # if "correct" or max_attempts reached.
                 # Provide feedback based on the category
+
+                # Filter metadata for feedback if metadata_feedback_filter is specified
+                feedback_metadata = activity_state.dict_metadata
+                if "metadata_feedback_filter" in transition:
+                    filter_keys = transition["metadata_feedback_filter"]
+                    feedback_metadata = {
+                        k: v
+                        for k, v in activity_state.dict_metadata.items()
+                        if k in filter_keys
+                    }
+
                 feedback = provide_feedback(
                     transition,
                     category,
@@ -2088,7 +2102,7 @@ def handle_activity_response(room_name, user_response, username):
                     user_response,
                     user_language,
                     username,
-                    activity_state.json_metadata,
+                    json.dumps(feedback_metadata),
                     json.dumps(new_metadata),
                 )
 
