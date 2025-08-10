@@ -205,6 +205,8 @@ sections:
 
         processing_script: |
           import random
+          import matplotlib
+          matplotlib.use("Agg")
           import matplotlib.pyplot as plt
           import io
           import base64
@@ -564,19 +566,20 @@ sections:
                   max_prob = 0
                   candidates = []
                   for i in range(100):
-                      x, y = i % 10, i // 10
-                      if probability_matrix[y][x] > max_prob:
-                          max_prob = probability_matrix[y][x]
-                          candidates = [i]
-                      elif probability_matrix[y][x] == max_prob:
-                          candidates.append(i)
+                      if i not in ai_shots:  # Exclude already-fired cells
+                          x, y = i % 10, i // 10
+                          if probability_matrix[y][x] > max_prob:
+                              max_prob = probability_matrix[y][x]
+                              candidates = [i]
+                          elif probability_matrix[y][x] == max_prob:
+                              candidates.append(i)
                   ai_shot = random.choice(candidates)
               elif ai_mode == "hunter":
                   # Simple hunter mode logic
                   if hits:
                       # Target adjacent cells of the last hit
                       last_hit = hits[-1]
-                      hunt_targets = generate_hunt_targets(last_hit, ai_hits)
+                      hunt_targets = generate_hunt_targets(last_hit, ai_shots)
                       if hunt_targets:
                           ai_shot = hunt_targets.pop(0)
                       else:
@@ -609,7 +612,7 @@ sections:
               return random.choice(available_positions)
 
           # Function to generate hunt targets around a hit
-          def generate_hunt_targets(hit_position, ai_hits):
+          def generate_hunt_targets(hit_position, ai_shots):
               potential_targets = []
               row, col = divmod(hit_position, 10)
 
@@ -626,10 +629,10 @@ sections:
               if col < 9:
                   potential_targets.append(hit_position + 1)
 
-              # Filter out already hit positions
+              # Filter out already fired positions
               filtered_targets = []
               for pos in potential_targets:
-                  if pos not in ai_hits:
+                  if pos not in ai_shots:
                       filtered_targets.append(pos)
               return filtered_targets
 

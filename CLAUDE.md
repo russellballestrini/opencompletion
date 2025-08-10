@@ -20,3 +20,6 @@
 - Update relevant documentation when making significant changes
 - Keep README files current with new features or setup changes
 - Document any new environment variables or configuration options
+
+## Python/Matplotlib Best Practices
+- Always add `matplotlib.use("Agg")` before importing matplotlib.pyplot to prevent runtime errors in headless environments

@@ -111,6 +111,8 @@ sections:
           If game_over = True, suggest: "Would you like to restart and play again, or would you prefer to exit?"
         processing_script: |
           import random
+          import matplotlib
+          matplotlib.use("Agg")
           import matplotlib.pyplot as plt
           import io
           import base64

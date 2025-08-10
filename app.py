@@ -1744,7 +1744,7 @@ def handle_activity_response(room_name, user_response, username):
                     temp_metadata["user_response"] = user_response
                     pre_result = execute_processing_script(
                         temp_metadata, step["pre_script"]
-                    )
+                    ) or {}
                     # Update metadata with pre-script results
                     for key, value in pre_result.get("metadata", {}).items():
                         activity_state.add_metadata(key, value)
@@ -1990,7 +1990,7 @@ def handle_activity_response(room_name, user_response, username):
                     print(f"DEBUG: Executing post-script")
                     result = execute_processing_script(
                         activity_state.dict_metadata, post_script
-                    )
+                    ) or {}
 
                     plot_image_base64 = result.pop("plot_image", None)
 
