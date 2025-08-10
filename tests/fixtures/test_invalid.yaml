@@ -1,0 +1,90 @@
+default_max_attempts_per_step: "invalid"  # Should be integer
+tokens_for_ai_rubric: 123  # Should be string
+
+sections:
+  - section_id: "section_1"
+    title: "Test Section"
+    steps:
+      - step_id: "step_1"
+        title: "Valid Step"
+        content_blocks:
+          - "This is a valid step."
+        
+      - step_id: "step_2" 
+        title: "Question Step"
+        question: "What do you want to do?"
+        tokens_for_ai: |
+          Categorize the response.
+        feedback_tokens_for_ai: |
+          Provide feedback.
+        buckets:
+          - valid_response
+          - invalid_response
+        transitions:
+          valid_response:
+            content_blocks:
+              - "Good response!"
+            metadata_add:
+              test_key: "value"
+            metadata_feedback_filter:
+              - user_response
+              - result
+            next_section_and_step: "section_1:step_3"
+          invalid_response:
+            content_blocks:
+              - "Try again."
+            metadata_remove: ["temp_data", "old_value"]
+            next_section_and_step: "section_1:step_2"
+          unused_bucket:  # This should trigger a warning
+            content_blocks:
+              - "This transition is unused"
+            
+      - step_id: "step_3"
+        title: "Final Step With Question"  # This should be an ERROR - final steps can't have questions
+        question: "This is invalid for a final step"
+        buckets:
+          - some_bucket  # This should be an ERROR - final steps shouldn't have buckets
+        transitions:
+          some_bucket:
+            content_blocks:
+              - "Done"
+            # No next_section_and_step - this makes it a terminal step
+      
+      - step_4  # Missing step_id field - ERROR
+        title: "Invalid Step Structure"
+        # Missing either content_blocks or question - ERROR
+        
+      - step_id: "step_5"
+        title: "Python Syntax Error Step"
+        question: "Test question"
+        pre_script: |
+          # This has a syntax error
+          if True
+              print("missing colon")
+        processing_script: |
+          # This has an empty else block
+          if condition:
+              do_something()
+          else:
+              # This will trigger a warning about empty else block
+        buckets:
+          - test_bucket
+        transitions:
+          test_bucket:
+            run_processing_script: "not_boolean"  # Should be boolean
+            metadata_clear: "not_boolean"  # Should be boolean  
+            metadata_feedback_filter: "not_list"  # Should be list
+            metadata_remove: 123  # Should be string or list
+            next_section_and_step: "invalid_format"  # Should be section:step format
+            
+  - section_id: "section_1"  # Duplicate section_id - ERROR
+    title: "Duplicate Section"
+    steps:
+      - step_id: "duplicate_step"
+        title: "Test"
+        content_blocks: "not_a_list"  # Should be list
+        
+      - step_id: "duplicate_step"  # Duplicate step_id - ERROR
+        title: "Another Duplicate"
+        content_blocks:
+          - 123  # Should be string
