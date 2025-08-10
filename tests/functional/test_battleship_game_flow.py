@@ -17,22 +17,25 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Mock external dependencies
-with patch.dict('sys.modules', {
-    'gevent': MagicMock(),
-    'flask_socketio': MagicMock(),
-    'boto3': MagicMock(),
-    'openai': MagicMock(),
-    'together': MagicMock(),
-    'models': MagicMock(),
-    'matplotlib': MagicMock(),
-    'matplotlib.pyplot': MagicMock(),
-}):
+with patch.dict(
+    "sys.modules",
+    {
+        "gevent": MagicMock(),
+        "flask_socketio": MagicMock(),
+        "boto3": MagicMock(),
+        "openai": MagicMock(),
+        "together": MagicMock(),
+        "models": MagicMock(),
+        "matplotlib": MagicMock(),
+        "matplotlib.pyplot": MagicMock(),
+    },
+):
     import app
 
 
 class MockBattleshipState:
     """Mock battleship activity state for testing"""
-    
+
     def __init__(self):
         self.section_id = "section_1"
         self.step_id = "step_2"  # Game step
@@ -41,26 +44,28 @@ class MockBattleshipState:
         self.dict_metadata = {}
         self.json_metadata = "{}"
         self.s3_file_path = "activity29-battleship.yaml"
-        
+
         # Initialize with typical battleship metadata
-        self.dict_metadata.update({
-            "ai_mode": "random",
-            "user_shots": [],
-            "ai_shots": [],
-            "user_hits": [],
-            "ai_hits": [],
-            "game_over": False,
-            "user_wins": False,
-            "ai_wins": False,
-            "user_sunk_ships": [],
-            "ai_sunk_ships": []
-        })
+        self.dict_metadata.update(
+            {
+                "ai_mode": "random",
+                "user_shots": [],
+                "ai_shots": [],
+                "user_hits": [],
+                "ai_hits": [],
+                "game_over": False,
+                "user_wins": False,
+                "ai_wins": False,
+                "user_sunk_ships": [],
+                "ai_sunk_ships": [],
+            }
+        )
         self.json_metadata = json.dumps(self.dict_metadata)
-    
+
     def add_metadata(self, key, value):
         self.dict_metadata[key] = value
         self.json_metadata = json.dumps(self.dict_metadata)
-    
+
     def remove_metadata(self, key):
         if key in self.dict_metadata:
             del self.dict_metadata[key]
@@ -69,26 +74,26 @@ class MockBattleshipState:
 
 class TestBattleshipGameFlow(unittest.TestCase):
     """Test complete battleship game scenarios"""
-    
+
     def setUp(self):
         """Set up battleship test fixtures"""
         # Sample board with ships placed
         self.user_board = [-1] * 100  # Empty board
-        self.ai_board = [-1] * 100    # Empty board
-        
+        self.ai_board = [-1] * 100  # Empty board
+
         # Place a destroyer (size 2) at positions 0, 1
         self.ai_board[0] = "Destroyer"
         self.ai_board[1] = "Destroyer"
-        
+
         # Place a cruiser (size 3) at positions 10, 20, 30 (vertical)
         self.user_board[10] = "Cruiser"
-        self.user_board[20] = "Cruiser" 
+        self.user_board[20] = "Cruiser"
         self.user_board[30] = "Cruiser"
-        
+
         self.battleship_state = MockBattleshipState()
         self.battleship_state.add_metadata("user_board", self.user_board)
         self.battleship_state.add_metadata("ai_board", self.ai_board)
-    
+
     def test_battleship_setup_and_board_generation(self):
         """Test battleship game setup and board generation"""
         setup_script = """
@@ -139,51 +144,50 @@ script_result = {
     }
 }
 """
-        
+
         # Mock the script execution since it involves complex ship placement
-        mock_metadata = {
-            "user_board": [-1] * 100,
-            "ai_board": [-1] * 100
-        }
-        
+        mock_metadata = {"user_board": [-1] * 100, "ai_board": [-1] * 100}
+
         # Place some ships for testing
         mock_metadata["user_board"][0:5] = ["Carrier"] * 5  # Carrier
         mock_metadata["user_board"][10:14] = ["Battleship"] * 4  # Battleship
         mock_metadata["user_board"][20:23] = ["Cruiser"] * 3  # Cruiser
         mock_metadata["user_board"][30:33] = ["Submarine"] * 3  # Submarine
         mock_metadata["user_board"][40:42] = ["Destroyer"] * 2  # Destroyer
-        
+
         mock_metadata["ai_board"][50:55] = ["Carrier"] * 5  # Carrier
         mock_metadata["ai_board"][60:64] = ["Battleship"] * 4  # Battleship
         mock_metadata["ai_board"][70:73] = ["Cruiser"] * 3  # Cruiser
         mock_metadata["ai_board"][80:83] = ["Submarine"] * 3  # Submarine
         mock_metadata["ai_board"][90:92] = ["Destroyer"] * 2  # Destroyer
-        
-        with patch.object(app, 'execute_processing_script', return_value={"metadata": mock_metadata}) as mock_exec:
+
+        with patch.object(
+            app, "execute_processing_script", return_value={"metadata": mock_metadata}
+        ) as mock_exec:
             metadata = {}
             result = app.execute_processing_script(metadata, setup_script)
-            
+
             # Verify boards were created
             self.assertIn("user_board", result["metadata"])
             self.assertIn("ai_board", result["metadata"])
-            
+
             user_board = result["metadata"]["user_board"]
             ai_board = result["metadata"]["ai_board"]
-            
+
             # Verify boards are correct size
             self.assertEqual(len(user_board), 100)
             self.assertEqual(len(ai_board), 100)
-            
+
             # Count ship cells
             user_ship_cells = sum(1 for cell in user_board if cell != -1)
             ai_ship_cells = sum(1 for cell in ai_board if cell != -1)
-            
+
             # Should have exactly 17 ship cells (5+4+3+3+2)
             self.assertEqual(user_ship_cells, 17)
             self.assertEqual(ai_ship_cells, 17)
-            
+
             mock_exec.assert_called_once()
-    
+
     def test_battleship_shot_processing(self):
         """Test processing a shot in battleship"""
         shot_script = """
@@ -226,7 +230,7 @@ if 0 <= user_shot < 100 and user_shot not in user_shots:
         }
     }
 """
-        
+
         # Set up metadata for the shot
         metadata = {
             "user_shot": "0",  # Hit the destroyer
@@ -235,24 +239,24 @@ if 0 <= user_shot < 100 and user_shot not in user_shots:
             "user_shots": [],
             "ai_shots": [],
             "user_hits": [],
-            "ai_hits": []
+            "ai_hits": [],
         }
-        
+
         result = app.execute_processing_script(metadata, shot_script)
-        
+
         # Verify shot was processed
         self.assertIn("user_shots", result["metadata"])
         self.assertIn("user_hit_result", result["metadata"])
         self.assertIn("ai_shot", result["metadata"])
-        
+
         # Verify user hit the destroyer
         self.assertEqual(result["metadata"]["user_hit_result"], "hit")
         self.assertIn(0, result["metadata"]["user_hits"])
-        
+
         # Verify AI took a shot
         self.assertIsInstance(result["metadata"]["ai_shot"], int)
         self.assertIn(result["metadata"]["ai_shot"], result["metadata"]["ai_shots"])
-    
+
     def test_battleship_ship_sinking_logic(self):
         """Test ship sinking detection"""
         sinking_script = """
@@ -306,39 +310,43 @@ script_result = {
     }
 }
 """
-        
+
         # Set up metadata where destroyer is completely hit
         metadata = {
             "user_board": self.user_board,
             "ai_board": self.ai_board,
             "user_hits": [0, 1],  # Both destroyer positions
-            "ai_hits": [10],      # One cruiser position
+            "ai_hits": [10],  # One cruiser position
             "user_sunk_ships": [],
-            "ai_sunk_ships": []
+            "ai_sunk_ships": [],
         }
-        
+
         mock_result = {
             "metadata": {
                 "user_sunk_ships": ["Destroyer"],
                 "ai_sunk_ships": [],
                 "user_sunk_ship_this_round": "Destroyer",
-                "ai_sunk_ship_this_round": None
+                "ai_sunk_ship_this_round": None,
             }
         }
-        
-        with patch.object(app, 'execute_processing_script', return_value=mock_result) as mock_exec:
+
+        with patch.object(
+            app, "execute_processing_script", return_value=mock_result
+        ) as mock_exec:
             result = app.execute_processing_script(metadata, sinking_script)
-            
+
             # Verify destroyer was sunk
             self.assertIn("Destroyer", result["metadata"]["user_sunk_ships"])
-            self.assertEqual(result["metadata"]["user_sunk_ship_this_round"], "Destroyer")
-            
+            self.assertEqual(
+                result["metadata"]["user_sunk_ship_this_round"], "Destroyer"
+            )
+
             # Verify cruiser was not sunk (only 1 of 3 positions hit)
             self.assertNotIn("Cruiser", result["metadata"]["ai_sunk_ships"])
             self.assertIsNone(result["metadata"]["ai_sunk_ship_this_round"])
-            
+
             mock_exec.assert_called_once()
-    
+
     def test_battleship_win_condition(self):
         """Test win condition detection"""
         win_script = """
@@ -380,35 +388,35 @@ script_result = {
     }
 }
 """
-        
+
         # Test user wins scenario
         metadata_user_wins = {
             "user_board": self.user_board,
             "ai_board": self.ai_board,
             "user_hits": [0, 1],  # Hit all AI ships (only destroyer)
-            "ai_hits": [10]       # Partial hit on user ships
+            "ai_hits": [10],  # Partial hit on user ships
         }
-        
+
         result = app.execute_processing_script(metadata_user_wins, win_script)
-        
+
         self.assertTrue(result["metadata"]["game_over"])
         self.assertTrue(result["metadata"]["user_wins"])
         self.assertFalse(result["metadata"]["ai_wins"])
-        
+
         # Test AI wins scenario
         metadata_ai_wins = {
             "user_board": self.user_board,
             "ai_board": self.ai_board,
-            "user_hits": [0],           # Partial hit on AI ships
-            "ai_hits": [10, 20, 30]     # Hit all user ships (complete cruiser)
+            "user_hits": [0],  # Partial hit on AI ships
+            "ai_hits": [10, 20, 30],  # Hit all user ships (complete cruiser)
         }
-        
+
         result = app.execute_processing_script(metadata_ai_wins, win_script)
-        
+
         self.assertTrue(result["metadata"]["game_over"])
         self.assertFalse(result["metadata"]["user_wins"])
         self.assertTrue(result["metadata"]["ai_wins"])
-    
+
     def test_battleship_ai_modes(self):
         """Test different AI difficulty modes"""
         # Test random AI mode
@@ -431,15 +439,15 @@ script_result = {
     }
 }
 """
-        
+
         metadata = {"ai_shots": [0, 1, 2, 3, 4]}
-        
-        with patch('random.choice', return_value=50):  # Mock random choice
+
+        with patch("random.choice", return_value=50):  # Mock random choice
             result = app.execute_processing_script(metadata, random_ai_script)
-            
+
             self.assertEqual(result["metadata"]["ai_shot"], 50)
             self.assertEqual(result["metadata"]["ai_mode"], "random")
-        
+
         # Test hunter AI mode
         hunter_ai_script = """
 ai_mode = "hunter"
@@ -480,20 +488,24 @@ script_result = {
     }
 }
 """
-        
+
         # Test hunter mode with a hit
         metadata_with_hit = {
             "ai_shots": [45, 46],
-            "ai_hits": [45]  # Hit at position 45
+            "ai_hits": [45],  # Hit at position 45
         }
-        
+
         result = app.execute_processing_script(metadata_with_hit, hunter_ai_script)
-        
+
         # Should target adjacent to the hit (35, 55, 44, or 46, but 46 already shot)
-        expected_targets = [35, 55, 44]  # Adjacent to 45, excluding already shot positions
+        expected_targets = [
+            35,
+            55,
+            44,
+        ]  # Adjacent to 45, excluding already shot positions
         self.assertIn(result["metadata"]["ai_shot"], expected_targets)
         self.assertEqual(result["metadata"]["ai_mode"], "hunter")
-    
+
     def test_battleship_game_state_validation(self):
         """Test battleship game state validation"""
         validation_script = """
@@ -533,41 +545,41 @@ script_result = {
     }
 }
 """
-        
+
         # Test valid state
         valid_metadata = {
             "user_shots": [0, 1, 2],
             "ai_shots": [10, 20, 30],
             "user_hits": [0, 1],
-            "ai_hits": [10]
+            "ai_hits": [10],
         }
-        
+
         result = app.execute_processing_script(valid_metadata, validation_script)
-        
+
         self.assertTrue(result["metadata"]["is_valid_state"])
         self.assertEqual(len(result["metadata"]["validation_errors"]), 0)
-        
+
         # Test invalid state
         invalid_metadata = {
             "user_shots": [0, 1],
             "ai_shots": [10, 20, 105],  # Out of bounds shot
-            "user_hits": [0, 1, 2],     # Hit not in shots
-            "ai_hits": [10]
+            "user_hits": [0, 1, 2],  # Hit not in shots
+            "ai_hits": [10],
         }
-        
+
         result = app.execute_processing_script(invalid_metadata, validation_script)
-        
+
         self.assertFalse(result["metadata"]["is_valid_state"])
         self.assertGreater(len(result["metadata"]["validation_errors"]), 0)
 
 
 class TestBattleshipEdgeCases(unittest.TestCase):
     """Test battleship edge cases and error handling"""
-    
+
     def test_invalid_shot_handling(self):
         """Test handling of invalid shots"""
         invalid_shots = [-1, 100, 999, "invalid", None]
-        
+
         for invalid_shot in invalid_shots:
             validation_script = f"""
 user_shot_input = {repr(invalid_shot)}
@@ -586,10 +598,10 @@ script_result = {{
     }}
 }}
 """
-            
+
             result = app.execute_processing_script({}, validation_script)
             self.assertFalse(result["metadata"]["is_valid_shot"])
-    
+
     def test_duplicate_shot_handling(self):
         """Test handling of duplicate shots"""
         duplicate_shot_script = """
@@ -607,20 +619,20 @@ script_result = {
     }
 }
 """
-        
+
         # First shot - should not be duplicate
         metadata = {"user_shots": [1, 2, 3]}
         result = app.execute_processing_script(metadata, duplicate_shot_script)
-        
+
         self.assertFalse(result["metadata"]["is_duplicate"])
         self.assertIn(42, result["metadata"]["user_shots"])
-        
+
         # Second shot - should be duplicate
         metadata = {"user_shots": [1, 2, 3, 42]}
         result = app.execute_processing_script(metadata, duplicate_shot_script)
-        
+
         self.assertTrue(result["metadata"]["is_duplicate"])
-    
+
     def test_game_end_edge_cases(self):
         """Test edge cases in game ending"""
         # Test simultaneous win condition (both players hit all ships in same turn)
@@ -654,26 +666,28 @@ script_result = {
     }
 }
 """
-        
+
         mock_result = {
             "metadata": {
                 "game_over": True,
                 "user_wins": True,
                 "ai_wins": False,
                 "all_ai_ships_hit": True,
-                "all_user_ships_hit": True
+                "all_user_ships_hit": True,
             }
         }
-        
-        with patch.object(app, 'execute_processing_script', return_value=mock_result) as mock_exec:
+
+        with patch.object(
+            app, "execute_processing_script", return_value=mock_result
+        ) as mock_exec:
             result = app.execute_processing_script({}, simultaneous_win_script)
-            
+
             self.assertTrue(result["metadata"]["game_over"])
             self.assertTrue(result["metadata"]["user_wins"])
             self.assertFalse(result["metadata"]["ai_wins"])
-            
+
             mock_exec.assert_called_once()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main(verbosity=2)

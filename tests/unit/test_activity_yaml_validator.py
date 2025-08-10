@@ -4,7 +4,7 @@ Unit tests for the activity_yaml_validator.py module.
 
 Tests all validation features including:
 - YAML syntax validation
-- Structure validation  
+- Structure validation
 - Metadata operations validation
 - Python code validation
 - Logic flow validation
@@ -24,22 +24,22 @@ from activity_yaml_validator import ActivityYAMLValidator, ValidationError
 
 class TestActivityYAMLValidator(unittest.TestCase):
     """Test cases for ActivityYAMLValidator"""
-    
+
     def setUp(self):
         """Set up test fixtures"""
         self.validator = ActivityYAMLValidator()
-    
+
     def create_temp_yaml(self, content: str) -> str:
         """Create a temporary YAML file with given content"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write(content)
             return f.name
-    
+
     def tearDown(self):
         """Clean up any temporary files"""
         # Clean up is handled by tempfile
         pass
-    
+
     def test_valid_yaml_passes(self):
         """Test that a valid YAML file passes validation"""
         valid_yaml = """
@@ -80,7 +80,7 @@ sections:
             self.assertEqual(len(errors), 0)
         finally:
             os.unlink(temp_file)
-    
+
     def test_yaml_syntax_error(self):
         """Test that YAML syntax errors are caught"""
         invalid_yaml = """
@@ -102,7 +102,7 @@ sections:
             self.assertIn("YAML syntax error", errors[0])
         finally:
             os.unlink(temp_file)
-    
+
     def test_missing_required_fields(self):
         """Test that missing required fields are caught"""
         missing_sections = """
@@ -115,7 +115,7 @@ default_max_attempts_per_step: 3
             self.assertIn("Missing required field: sections", errors)
         finally:
             os.unlink(temp_file)
-    
+
     def test_invalid_field_types(self):
         """Test that invalid field types are caught"""
         invalid_types = """
@@ -131,11 +131,13 @@ sections:
         try:
             is_valid, errors, warnings = self.validator.validate_file(temp_file)
             self.assertFalse(is_valid)
-            self.assertTrue(any("must be a positive integer" in error for error in errors))
+            self.assertTrue(
+                any("must be a positive integer" in error for error in errors)
+            )
             self.assertTrue(any("must be a string" in error for error in errors))
         finally:
             os.unlink(temp_file)
-    
+
     def test_duplicate_ids(self):
         """Test that duplicate section and step IDs are caught"""
         duplicate_ids = """
@@ -168,16 +170,40 @@ sections:
             self.assertTrue(any("Duplicate step_id" in error for error in errors))
         finally:
             os.unlink(temp_file)
-    
+
     def test_terminal_step_validation(self):
         """Test that terminal steps cannot have questions or buckets"""
         terminal_with_question = """
 sections:
   - section_id: "section_1"
-    title: "Test"
+    title: "First Section"
     steps:
-      - step_id: "terminal_step"
-        title: "Final Step"
+      - step_id: "step_1"
+        title: "First Step"
+        content_blocks:
+          - "This step is fine"
+      - step_id: "step_2"
+        title: "Also fine"
+        question: "Questions are OK in non-terminal steps"
+        buckets: ["yes", "no"]
+        transitions:
+          yes:
+            content_blocks: ["Good"]
+            next_section_and_step: "section_2:step_1"
+          no:
+            content_blocks: ["Try again"]
+  - section_id: "section_2"
+    title: "Last Section"
+    steps:
+      - step_id: "step_1"
+        title: "Not terminal - has another step after"
+        question: "This is OK"
+        buckets: ["answer"]
+        transitions:
+          answer:
+            content_blocks: ["Continue"]
+      - step_id: "step_2"
+        title: "This is the real terminal step"
         question: "This is invalid"
         buckets:
           - some_bucket
@@ -185,17 +211,24 @@ sections:
           some_bucket:
             content_blocks:
               - "Done"
-            # No next_section_and_step makes this terminal
+            # No next_section_and_step and last step of last section = terminal
 """
         temp_file = self.create_temp_yaml(terminal_with_question)
         try:
             is_valid, errors, warnings = self.validator.validate_file(temp_file)
             self.assertFalse(is_valid)
-            self.assertTrue(any("Final/terminal steps cannot have questions" in error for error in errors))
-            self.assertTrue(any("Final/terminal steps should not have buckets" in error for error in errors))
+            # Should only flag the last step of the last section
+            terminal_errors = [e for e in errors if "Final/terminal" in e]
+            self.assertEqual(len(terminal_errors), 2)  # One for question, one for buckets
+            self.assertTrue(
+                any(
+                    "section_2" in error and "step_2" in error
+                    for error in terminal_errors
+                )
+            )
         finally:
             os.unlink(temp_file)
-    
+
     def test_metadata_operations_validation(self):
         """Test validation of metadata operations"""
         metadata_test = """
@@ -225,13 +258,27 @@ sections:
         try:
             is_valid, errors, warnings = self.validator.validate_file(temp_file)
             self.assertFalse(is_valid)
-            self.assertTrue(any("metadata_clear' must be boolean" in error for error in errors))
-            self.assertTrue(any("metadata_feedback_filter' must be a list" in error for error in errors))
-            self.assertTrue(any("metadata_remove' must be a string or list of strings" in error for error in errors))
-            self.assertTrue(any("metadata_add' must be a dictionary" in error for error in errors))
+            self.assertTrue(
+                any("metadata_clear' must be boolean" in error for error in errors)
+            )
+            self.assertTrue(
+                any(
+                    "metadata_feedback_filter' must be a list" in error
+                    for error in errors
+                )
+            )
+            self.assertTrue(
+                any(
+                    "metadata_remove' must be a string or list of strings" in error
+                    for error in errors
+                )
+            )
+            self.assertTrue(
+                any("metadata_add' must be a dictionary" in error for error in errors)
+            )
         finally:
             os.unlink(temp_file)
-    
+
     def test_valid_metadata_operations(self):
         """Test that valid metadata operations pass"""
         valid_metadata = """
@@ -280,7 +327,7 @@ sections:
             self.assertEqual(len(errors), 0)
         finally:
             os.unlink(temp_file)
-    
+
     def test_python_syntax_validation(self):
         """Test that Python syntax errors in scripts are caught"""
         python_syntax_error = """
@@ -316,7 +363,7 @@ sections:
             self.assertTrue(any("Python syntax error" in error for error in errors))
         finally:
             os.unlink(temp_file)
-    
+
     def test_invalid_transitions(self):
         """Test validation of transition references"""
         invalid_transitions = """
@@ -344,13 +391,20 @@ sections:
             is_valid, errors, warnings = self.validator.validate_file(temp_file)
             self.assertFalse(is_valid)
             # Should have errors for invalid transition targets and missing transitions
-            self.assertTrue(any("Invalid transition target" in error for error in errors))
-            self.assertTrue(any("must be in format 'section_id:step_id'" in error for error in errors))
+            self.assertTrue(
+                any("Invalid transition target" in error for error in errors)
+            )
+            self.assertTrue(
+                any(
+                    "must be in format 'section_id:step_id'" in error
+                    for error in errors
+                )
+            )
             # Should have warnings for unused transitions
             self.assertTrue(any("Unused transition" in warning for warning in warnings))
         finally:
             os.unlink(temp_file)
-    
+
     def test_metadata_feedback_filter_warning(self):
         """Test warning when metadata_feedback_filter used without feedback_tokens_for_ai"""
         metadata_filter_no_feedback = """
@@ -378,10 +432,16 @@ sections:
         try:
             is_valid, errors, warnings = self.validator.validate_file(temp_file)
             self.assertTrue(is_valid)  # Should be valid but with warning
-            self.assertTrue(any("metadata_feedback_filter used but no feedback_tokens_for_ai" in warning for warning in warnings))
+            self.assertTrue(
+                any(
+                    "metadata_feedback_filter used but no feedback_tokens_for_ai"
+                    in warning
+                    for warning in warnings
+                )
+            )
         finally:
             os.unlink(temp_file)
-    
+
     def test_pre_script_warning(self):
         """Test warning when pre_script used without question"""
         pre_script_no_question = """
@@ -400,10 +460,15 @@ sections:
         try:
             is_valid, errors, warnings = self.validator.validate_file(temp_file)
             self.assertTrue(is_valid)  # Should be valid but with warning
-            self.assertTrue(any("pre_script typically used with question steps" in warning for warning in warnings))
+            self.assertTrue(
+                any(
+                    "pre_script typically used with question steps" in warning
+                    for warning in warnings
+                )
+            )
         finally:
             os.unlink(temp_file)
-    
+
     def test_empty_else_block_detection(self):
         """Test detection of empty else blocks in Python code"""
         empty_else_block = """
@@ -434,10 +499,12 @@ sections:
         try:
             is_valid, errors, warnings = self.validator.validate_file(temp_file)
             # This should detect the empty else block
-            self.assertTrue(any("'else:' block contains only comments" in error for error in errors))
+            self.assertTrue(
+                any("'else:' block contains only comments" in error for error in errors)
+            )
         finally:
             os.unlink(temp_file)
-    
+
     def test_content_blocks_validation(self):
         """Test validation of content_blocks structure"""
         invalid_content_blocks = """
@@ -460,11 +527,13 @@ sections:
         try:
             is_valid, errors, warnings = self.validator.validate_file(temp_file)
             self.assertFalse(is_valid)
-            self.assertTrue(any("content_blocks must be a list" in error for error in errors))
+            self.assertTrue(
+                any("content_blocks must be a list" in error for error in errors)
+            )
             self.assertTrue(any("must be a string" in error for error in errors))
         finally:
             os.unlink(temp_file)
-    
+
     def test_transition_fields_validation(self):
         """Test validation of various transition fields"""
         invalid_transition_fields = """
@@ -507,13 +576,24 @@ sections:
         try:
             is_valid, errors, warnings = self.validator.validate_file(temp_file)
             self.assertFalse(is_valid)
-            self.assertTrue(any("run_processing_script' must be boolean" in error for error in errors))
-            self.assertTrue(any("ai_feedback' must be a dictionary" in error for error in errors))
-            self.assertTrue(any("tokens_for_ai must be a string" in error for error in errors))
-            self.assertTrue(any("content_blocks' must be a list" in error for error in errors))
+            self.assertTrue(
+                any(
+                    "run_processing_script' must be boolean" in error
+                    for error in errors
+                )
+            )
+            self.assertTrue(
+                any("ai_feedback' must be a dictionary" in error for error in errors)
+            )
+            self.assertTrue(
+                any("tokens_for_ai must be a string" in error for error in errors)
+            )
+            self.assertTrue(
+                any("content_blocks' must be a list" in error for error in errors)
+            )
         finally:
             os.unlink(temp_file)
-    
+
     def test_using_existing_failing_fixture(self):
         """Test using the existing failing fixture we created"""
         fixture_path = "tests/fixtures/test_invalid.yaml"
@@ -523,32 +603,45 @@ sections:
             self.assertGreater(len(errors), 0)
             # Should catch the YAML syntax error we know is in there
             self.assertTrue(any("YAML syntax error" in error for error in errors))
-    
+
     def test_cli_integration(self):
         """Test the command line interface"""
         import subprocess
         import sys
-        
+
         # Test with valid battleship YAML
-        result = subprocess.run([
-            sys.executable, "activity_yaml_validator.py", 
-            "research/activity29-battleship.yaml"
-        ], capture_output=True, text=True, cwd=".")
-        
+        result = subprocess.run(
+            [
+                sys.executable,
+                "activity_yaml_validator.py",
+                "research/activity29-battleship.yaml",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=".",
+        )
+
         # Should succeed (exit code 0) despite warnings
         self.assertEqual(result.returncode, 0)
         self.assertIn("valid", result.stdout.lower())
-        
+
         # Test with --strict flag (warnings become errors)
-        result = subprocess.run([
-            sys.executable, "activity_yaml_validator.py", 
-            "research/activity29-battleship.yaml", "--strict"
-        ], capture_output=True, text=True, cwd=".")
-        
+        result = subprocess.run(
+            [
+                sys.executable,
+                "activity_yaml_validator.py",
+                "research/activity29-battleship.yaml",
+                "--strict",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=".",
+        )
+
         # Should fail (exit code 1) because warnings become errors in strict mode
         self.assertEqual(result.returncode, 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Run the tests
     unittest.main(verbosity=2)

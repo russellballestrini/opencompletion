@@ -832,14 +832,12 @@ sections:
               user_shot: "the-users-response"
             next_section_and_step: "section_1:step_2"
           exit:
-            next_section_and_step: "section_1:step_3"
+            next_section_and_step: "section_1:step_4"
           restart:
             content_blocks:
               - "Restarting the game. Let's start fresh!"
             metadata_clear: True
             next_section_and_step: "section_1:step_0"
-          game_end:
-            next_section_and_step: "section_1:step_3"
 
       - step_id: "step_3"
         title: "Game Over"

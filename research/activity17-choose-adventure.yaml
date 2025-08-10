@@ -86,7 +86,7 @@ sections:
             metadata_add:
               mystical_amulet: true
             metadata_remove:
-              golden_keychain: true
+              - golden_keychain
           offer_mysterious_amulet:
             metadata_conditions:
               mysterious_amulet: true
@@ -97,7 +97,7 @@ sections:
             metadata_add:
               rare_gemstone: true
             metadata_remove:
-              mysterious_amulet: true
+              - mysterious_amulet
           offer_rare_gemstone:
             metadata_conditions:
               rare_gemstone: true
@@ -108,7 +108,7 @@ sections:
             metadata_add:
               ancient_scroll: true
             metadata_remove:
-              rare_gemstone: true
+              - rare_gemstone
           offer_ancient_scroll:
             metadata_conditions:
               ancient_scroll: true
@@ -119,7 +119,7 @@ sections:
             metadata_add:
               magical_wand: true
             metadata_remove:
-              ancient_scroll: true
+              - ancient_scroll
           offer_magical_wand:
             metadata_conditions:
               magical_wand: true
@@ -130,7 +130,7 @@ sections:
             metadata_add:
               treasure_map: true
             metadata_remove:
-              magical_wand: true
+              - magical_wand
           offer_treasure_map:
             metadata_conditions:
               treasure_map: true
@@ -141,7 +141,7 @@ sections:
             metadata_add:
               silver_coin: true
             metadata_remove:
-              treasure_map: true
+              - treasure_map
           offer_silver_coin:
             metadata_conditions:
               silver_coin: true
@@ -152,7 +152,7 @@ sections:
             metadata_add:
               mystical_ring: true
             metadata_remove:
-              silver_coin: true
+              - silver_coin
           offer_mystical_ring:
             metadata_conditions:
               mystical_ring: true
@@ -163,7 +163,7 @@ sections:
             metadata_add:
               rare_book: true
             metadata_remove:
-              mystical_ring: true
+              - mystical_ring
           offer_rare_book:
             metadata_conditions:
               rare_book: true
@@ -174,7 +174,7 @@ sections:
             metadata_add:
               magical_potion: true
             metadata_remove:
-              rare_book: true
+              - rare_book
           offer_magical_potion:
             metadata_conditions:
               magical_potion: true
@@ -185,12 +185,12 @@ sections:
             metadata_add:
               golden_keychain: true
             metadata_remove:
-              magical_potion: true
+              - magical_potion
           offer_shadow_charm:
             metadata_conditions:
               shadow_charm: true
             metadata_remove:
-              shadow_charm: true
+              - shadow_charm
             content_blocks:
               - "You offered the Shadow Charm to the god. 🖤"
               - "The god summons the Shadow Beast! Prepare for battle!"
@@ -199,7 +199,7 @@ sections:
             metadata_conditions:
               flame_charm: true
             metadata_remove:
-              flame_charm: true
+              - flame_charm
             content_blocks:
               - "You offered the Flame Charm to the god. 🔥"
               - "The god summons the Fire Drake! Prepare for battle!"

@@ -3,4 +3,4 @@ pytest-cov
 pytest-mock
 pytest-flask
 pytest-asyncio
-together
+black
