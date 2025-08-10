@@ -2,6 +2,8 @@ default_max_attempts_per_step: 3
 
 # Common processing script for all plotting steps
 common_processing_script: &plotting_script |
+  import matplotlib
+  matplotlib.use("Agg")
   import matplotlib.pyplot
   import numpy
   import io

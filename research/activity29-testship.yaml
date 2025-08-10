@@ -72,34 +72,12 @@ sections:
               global random
               # Define ship sizes and names
               ships = {
-                  "Carrier": 5,
-                  "Battleship": 4,
-                  "Cruiser": 3,
-                  "Submarine": 3,
-                  "Destroyer": 2
+                  "Testship": 1
               }
 
               board = [-1] * 100
-              for ship, size in ships.items():
-                  placed = False
-                  while not placed:
-                      orientation = random.choice(['horizontal', 'vertical'])
-                      if orientation == 'horizontal':
-                          row = random.randint(0, 9)
-                          col = random.randint(0, 9 - size)
-                          start = row * 10 + col
-                          if all(board[start + i] == -1 for i in range(size)):
-                              for i in range(size):
-                                  board[start + i] = ship
-                              placed = True
-                      else:
-                          row = random.randint(0, 9 - size)
-                          col = random.randint(0, 9)
-                          start = row * 10 + col
-                          if all(board[start + i * 10] == -1 for i in range(size)):
-                              for i in range(size):
-                                  board[start + i * 10] = ship
-                              placed = True
+              # Place testship at position 21 for easy testing
+              board[21] = "Testship"
               return board
 
           user_board = place_ships()
@@ -155,7 +133,7 @@ sections:
           user_winning_move = metadata.get("user_winning_move")
           ai_winning_move = metadata.get("ai_winning_move")
           user_shot_input = metadata.get("user_response", "")
-          # print(f"PRE-SCRIPT DEBUG: user_shot_input = '{user_shot_input}', user_winning_move = {user_winning_move}, ai_winning_move = {ai_winning_move}")
+          print(f"PRE-SCRIPT DEBUG: user_shot_input = '{user_shot_input}', user_winning_move = {user_winning_move}, ai_winning_move = {ai_winning_move}")
           ai_shot = metadata.get("ai_shot")
           
           is_game_ending_move = False
@@ -165,12 +143,12 @@ sections:
               user_move = int(user_shot_input)
               if user_winning_move is not None and user_move == user_winning_move:
                   is_game_ending_move = True
-                  # print(f"PRE-SCRIPT: User winning move detected! user_move={user_move} matches user_winning_move={user_winning_move}")
+                  print(f"PRE-SCRIPT: User winning move detected! user_move={user_move} matches user_winning_move={user_winning_move}")
           
           # Check if AI move wins (from previous turn)
           if ai_shot is not None and ai_winning_move is not None and ai_shot == ai_winning_move:
               is_game_ending_move = True
-              # print(f"PRE-SCRIPT: AI winning move detected! ai_shot={ai_shot} matches ai_winning_move={ai_winning_move}")
+              print(f"PRE-SCRIPT: AI winning move detected! ai_shot={ai_shot} matches ai_winning_move={ai_winning_move}")
           
           script_result = {
               "metadata": {
@@ -215,20 +193,12 @@ sections:
 
           # Define ship sizes
           ship_sizes = {
-              "Carrier": 5,
-              "Battleship": 4,
-              "Cruiser": 3,
-              "Submarine": 3,
-              "Destroyer": 2
+              "Testship": 1
           }
 
           # Define colors for ships
           ship_colors = {
-              "Carrier": "blue",
-              "Battleship": "green",
-              "Cruiser": "orange",
-              "Submarine": "purple",
-              "Destroyer": "pink"
+              "Testship": "red"
           }
 
           # Retrieve the game state
@@ -269,14 +239,14 @@ sections:
                           for start_y in range(max(0, y - ship_len + 1), min(y + 1, 10 - ship_len + 1)):
                               count += 1
                       probability_matrix[y][x] = count
-              # print("DEBUG: Initial probability matrix created")
+              print("DEBUG: Initial probability matrix created")
               # Debug print the initial grid
-              # print("DEBUG: Initial grid:")
-              # for row in probability_matrix:
-              #     print(f"  {' '.join(f'{x:2d}' for x in row)}")
+              print("DEBUG: Initial grid:")
+              for row in probability_matrix:
+                  print(f"  {' '.join(f'{x:2d}' for x in row)}")
           else:
               probability_matrix = metadata.get("probability_matrix")
-              # print("DEBUG: Using existing probability matrix")
+              print("DEBUG: Using existing probability matrix")
           hits = metadata.get("hits", [])
           misses = metadata.get("misses", [])
           sunk_ships = metadata.get("sunk_ships", [])
@@ -407,19 +377,19 @@ sections:
                   response = requests.post(f'{hermes_endpoint}/chat/completions',
                                          headers=headers, json=data, timeout=10)
 
-                  # print(f"DEBUG: API Status: {response.status_code}")
+                  print(f"DEBUG: API Status: {response.status_code}")
                   if response.status_code == 200:
                       result = response.json()
                       reasoning = result['choices'][0]['message']['content'].strip()
-                      # print(f"DEBUG: Real API response: {reasoning}")
+                      print(f"DEBUG: Real API response: {reasoning}")
                       return reasoning
                   else:
-                      # print(f"DEBUG: API failed with status {response.status_code}: {response.text[:200]}")
+                      print(f"DEBUG: API failed with status {response.status_code}: {response.text[:200]}")
                       fallback_move = top_candidates[0] if top_candidates else random.choice([i for i in range(100) if i not in ai_shots])
                       return f"ANALYSIS: Turn {turn_number} suggests targeting high-probability zones based on mathematical analysis. The current hit pattern indicates potential ship orientations that guide strategic decisions. Focusing on adjacent unexplored cells maximizes discovery potential.\n\nMOVE: {fallback_move}"
 
               except Exception as e:
-                  # print(f"DEBUG: API exception: {str(e)}")
+                  print(f"DEBUG: API exception: {str(e)}")
                   fallback_move = top_candidates[0] if top_candidates else random.choice([i for i in range(100) if i not in ai_shots])
                   return f"ANALYSIS: After {turn_number} turns, probability analysis guides optimal targeting strategies. Current data suggests focusing on clustered high-value positions for maximum efficiency. Strategic patience combined with mathematical precision will yield victory.\n\nMOVE: {fallback_move}"
 
@@ -433,8 +403,8 @@ sections:
                   # Update probability matrix based on shots
                   remaining_ships = [ship for ship in ship_sizes.keys() if ship not in ai_sunk_ships]
                   remaining_ship_sizes = [ship_sizes[ship] for ship in remaining_ships]
-                  # print(f"DEBUG: Remaining ships: {remaining_ships}")
-                  # print(f"DEBUG: Total shots: {len(ai_shots)}, Hits: {len(ai_hits)}, Misses: {len(ai_shots) - len(ai_hits)}")
+                  print(f"DEBUG: Remaining ships: {remaining_ships}")
+                  print(f"DEBUG: Total shots: {len(ai_shots)}, Hits: {len(ai_hits)}, Misses: {len(ai_shots) - len(ai_hits)}")
 
                   # Recalculate entire probability matrix
                   new_probability_matrix = [[0] * 10 for _ in range(10)]
@@ -524,12 +494,12 @@ sections:
 
                   # Debug: Log what we're working with
                   turn_number = len(ai_shots) + 1
-                  # print(f"DEBUG: Turn {turn_number}, Max prob: {max_prob}")
-                  # print("DEBUG: Probability grid:")
-                  # for y in range(10):
-                  #     row = [f"{probability_matrix[y][x]:2d}" for x in range(10)]
-                  #     print(f"  {' '.join(row)}")
-                  # print(f"DEBUG: Top candidates: {candidates[:10]}")
+                  print(f"DEBUG: Turn {turn_number}, Max prob: {max_prob}")
+                  print("DEBUG: Probability grid:")
+                  for y in range(10):
+                      row = [f"{probability_matrix[y][x]:2d}" for x in range(10)]
+                      print(f"  {' '.join(row)}")
+                  print(f"DEBUG: Top candidates: {candidates[:10]}")
 
                   reasoning_response = hermes_reason_move("battleship", turn_number, candidates)
 
@@ -540,7 +510,7 @@ sections:
                       if "MOVE:" in reasoning_response:
                           move_part = reasoning_response.split("MOVE:")[1].strip()
                           ai_shot = int(move_part.split()[0])
-                          # print(f"DEBUG: Hermes Move: {ai_shot} (from 'MOVE: {move_part.split()[0]}')")
+                          print(f"DEBUG: Hermes Move: {ai_shot} (from 'MOVE: {move_part.split()[0]}')")
                       else:
                           # Fallback: extract any number from the response that's in candidates
                           import re
@@ -548,18 +518,18 @@ sections:
                           valid_moves = [int(n) for n in numbers if int(n) in candidates and int(n) not in ai_shots]
                           if valid_moves:
                               ai_shot = valid_moves[0]
-                              # print(f"DEBUG: Hermes Move (parsed): {ai_shot} from numbers {numbers}")
+                              print(f"DEBUG: Hermes Move (parsed): {ai_shot} from numbers {numbers}")
                           else:
                               raise Exception(f"ERROR: Hermes response had no valid moves! Response: {reasoning_response}, Candidates: {candidates}")
 
                       # Validate the shot is legal
                       if ai_shot in ai_shots or ai_shot < 0 or ai_shot > 99:
                           ai_shot = random.choice(candidates)
-                          # print(f"DEBUG: Invalid shot, using fallback: {ai_shot}")
+                          print(f"DEBUG: Invalid shot, using fallback: {ai_shot}")
 
                   except Exception as e:
                       ai_shot = random.choice(candidates)
-                      # print(f"DEBUG: Parse error: {e}, using fallback: {ai_shot}")
+                      print(f"DEBUG: Parse error: {e}, using fallback: {ai_shot}")
 
               elif ai_mode == "super_hunter":
                   # Use probabilistic grid algorithm
@@ -650,7 +620,7 @@ sections:
                       "ai_wins": ai_wins
                   }
               }
-              # print(f"DEBUG: Game over detected! User wins: {user_wins}, AI wins: {ai_wins}")
+              print(f"DEBUG: Game over detected! User wins: {user_wins}, AI wins: {ai_wins}")
           elif 0 <= user_shot < 100 and user_shot not in user_shots:
               # The move is valid
               user_shots.append(user_shot)
@@ -668,14 +638,14 @@ sections:
                   if check_sunk(ai_board, user_hits, ship_name) and ship_name not in user_sunk_ships:
                       user_sunk_ships.append(ship_name)
                       user_sunk_ship_this_round = ship_name
-                      # print(f"DEBUG: USER SUNK AI SHIP: {ship_name}")
+                      print(f"DEBUG: USER SUNK AI SHIP: {ship_name}")
 
               # Check if any User ship is sunk
               for ship_name in ship_sizes.keys():
                   if check_sunk(user_board, ai_hits, ship_name) and ship_name not in ai_sunk_ships:
                       ai_sunk_ships.append(ship_name)
                       ai_sunk_ship_this_round = ship_name
-                      # print(f"DEBUG: AI SUNK USER SHIP: {ship_name}")
+                      print(f"DEBUG: AI SUNK USER SHIP: {ship_name}")
 
               # Check if all AI ships are hit
               all_ai_ships_hit = True
@@ -695,12 +665,12 @@ sections:
                   game_over = True
                   user_wins = True
                   ai_wins = False
-                  # print(f"DEBUG: USER WINS! All AI ships destroyed. Game over.")
+                  print(f"DEBUG: USER WINS! All AI ships destroyed. Game over.")
               elif all_user_ships_hit:
                   game_over = True
                   user_wins = False
                   ai_wins = True
-                  # print(f"DEBUG: AI WINS! All user ships destroyed. Game over.")
+                  print(f"DEBUG: AI WINS! All user ships destroyed. Game over.")
               
               # Only track winning move if there's exactly 1 position left (for next turn's categorization)
               user_winning_move = None
@@ -710,19 +680,17 @@ sections:
               ai_ship_positions_left = [pos for pos in range(100) if ai_board[pos] != -1 and pos not in user_hits]
               if len(ai_ship_positions_left) == 1:
                   user_winning_move = ai_ship_positions_left[0]
-                  # print(f"DEBUG: User has exactly 1 winning move at position {user_winning_move}")
+                  print(f"DEBUG: User has exactly 1 winning move at position {user_winning_move}")
               else:
-                  # print(f"DEBUG: User has {len(ai_ship_positions_left)} AI positions left - no winning move")
-                  pass
+                  print(f"DEBUG: User has {len(ai_ship_positions_left)} AI positions left - no winning move")
               
               # Check which AI move would win the game (user ship positions left)  
               user_ship_positions_left = [pos for pos in range(100) if user_board[pos] != -1 and pos not in ai_hits]
               if len(user_ship_positions_left) == 1:
                   ai_winning_move = user_ship_positions_left[0]
-                  # print(f"DEBUG: AI has exactly 1 winning move at position {ai_winning_move}")
+                  print(f"DEBUG: AI has exactly 1 winning move at position {ai_winning_move}")
               else:
-                  # print(f"DEBUG: AI has {len(user_ship_positions_left)} user positions left - no winning move")
-                  pass
+                  print(f"DEBUG: AI has {len(user_ship_positions_left)} user positions left - no winning move")
 
               # Plot the boards
               fig, axs = plt.subplots(1, 2, figsize=(12, 6))
@@ -790,7 +758,7 @@ sections:
               plot_image = base64.b64encode(buf.getvalue()).decode('utf-8')
 
               # gpt-4: If "plot_image" is in the result, set it as the background image
-              # print(f"DEBUG: Setting metadata for feedback - user_sunk_ship_this_round: {user_sunk_ship_this_round}, ai_sunk_ship_this_round: {ai_sunk_ship_this_round}")
+              print(f"DEBUG: Setting metadata for feedback - user_sunk_ship_this_round: {user_sunk_ship_this_round}, ai_sunk_ship_this_round: {ai_sunk_ship_this_round}")
               
               script_result = {
                   "plot_image": plot_image,
@@ -826,7 +794,7 @@ sections:
               # Check if this was a winning move and override transition  
               if game_over:
                   script_result["next_section_and_step"] = "section_1:step_3"
-                  # print(f"POST-SCRIPT: Game over detected, overriding transition to step_3")
+                  print(f"POST-SCRIPT: Game over detected, overriding transition to step_3")
           else:
               script_result = {
               "error": f"Invalid shot: {metadata.get('user_shot')}",

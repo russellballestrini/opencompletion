@@ -62,10 +62,12 @@ for i in range(MAX_ENDPOINTS):
         continue
     # API key is optional; if not provided, use a default.
     api_key = os.environ.get(f"MODEL_API_KEY_{i}", "not-needed")
-    ENDPOINTS.append({
-        "base_url": endpoint,
-        "api_key": api_key,
-    })
+    ENDPOINTS.append(
+        {
+            "base_url": endpoint,
+            "api_key": api_key,
+        }
+    )
 
 if not ENDPOINTS:
     raise Exception("No MODEL_ENDPOINT_x environment variables found!")
@@ -120,6 +122,7 @@ def get_client_for_model(model_name: str):
     if model_name in MODEL_CLIENT_MAP:
         print(f"Completion Endpoint Processing: {MODEL_CLIENT_MAP[model_name][1]}")
         return MODEL_CLIENT_MAP[model_name][0]
+
 
 def get_openai_client_and_model(
     model_name="adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic",
@@ -353,21 +356,25 @@ def search_messages(keywords):
 
     # Split the keywords by spaces and sanitize
     keyword_list = keywords.lower().split()
-    
+
     # Sanitize keywords to prevent SQL injection
     sanitized_keywords = []
     for keyword in keyword_list:
         # Remove potentially dangerous characters and limit length
-        sanitized_keyword = ''.join(c for c in keyword if c.isalnum() or c.isspace() or c in '-_')[:50]
+        sanitized_keyword = "".join(
+            c for c in keyword if c.isalnum() or c.isspace() or c in "-_"
+        )[:50]
         if sanitized_keyword.strip():  # Only add non-empty keywords
             sanitized_keywords.append(sanitized_keyword.strip())
-    
+
     if not sanitized_keywords:
         return {}
 
     # Search for messages containing any of the sanitized keywords using parameterized query
     messages = Message.query.filter(
-        db.or_(*[Message.content.ilike(f"%{keyword}%") for keyword in sanitized_keywords])
+        db.or_(
+            *[Message.content.ilike(f"%{keyword}%") for keyword in sanitized_keywords]
+        )
     ).all()
 
     for message in messages:
@@ -827,7 +834,6 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
     if "o4-" in model_name:
         temperature = 1
 
-
     with app.app_context():
         room = get_room(room_name)
         last_messages = (
@@ -1168,6 +1174,7 @@ def generate_dalle_image(room_name, message, username):
 
         # Create an HTML img tag with the base64 data (escape user input for XSS protection)
         import html
+
         escaped_message = html.escape(message)
         escaped_prompt = html.escape(revised_prompt)
         content = f'<img src="data:image/jpeg;base64,{image_data}" alt="{escaped_message}"><p>{escaped_prompt}</p>'
@@ -1449,24 +1456,28 @@ def get_activity_content(file_path):
     if app.config["LOCAL_ACTIVITIES"]:
         # Load the activity YAML from a local file with path traversal protection
         import os.path
-        
+
         # Normalize the path and ensure it's within the research directory
         normalized_path = os.path.normpath(file_path)
-        
+
         # Ensure path doesn't contain dangerous patterns
-        if '..' in normalized_path or normalized_path.startswith('/'):
+        if ".." in normalized_path or normalized_path.startswith("/"):
             raise ValueError(f"Invalid file path: {file_path}")
-        
+
         # Ensure file is within research directory and has .yaml extension
-        if not normalized_path.startswith('research/') or not normalized_path.endswith('.yaml'):
-            raise ValueError(f"File must be in research/ directory and end with .yaml: {file_path}")
-        
+        if not normalized_path.startswith("research/") or not normalized_path.endswith(
+            ".yaml"
+        ):
+            raise ValueError(
+                f"File must be in research/ directory and end with .yaml: {file_path}"
+            )
+
         # Additional safety check - ensure resolved path is still in research dir
         full_path = os.path.abspath(normalized_path)
-        research_dir = os.path.abspath('research/')
+        research_dir = os.path.abspath("research/")
         if not full_path.startswith(research_dir):
             raise ValueError(f"Path traversal attempt detected: {file_path}")
-            
+
         with open(normalized_path, "r") as file:
             activity_yaml = file.read()
     else:
@@ -1725,6 +1736,20 @@ def handle_activity_response(room_name, user_response, username):
 
             # Check if the step has a question
             if "question" in step:
+                # Execute pre-script if it exists (runs before categorization, with user_response available)
+                if "pre_script" in step:
+                    print(f"DEBUG: Executing pre-script")
+                    # Add user_response to a temporary copy of metadata for pre_script
+                    temp_metadata = activity_state.dict_metadata.copy()
+                    temp_metadata["user_response"] = user_response
+                    pre_result = execute_processing_script(
+                        temp_metadata, step["pre_script"]
+                    ) or {}
+                    # Update metadata with pre-script results
+                    for key, value in pre_result.get("metadata", {}).items():
+                        activity_state.add_metadata(key, value)
+                    print(f"DEBUG: Pre-script completed, updated metadata")
+
                 # Categorize the user's response
                 category = categorize_response(
                     step["question"],
@@ -1956,13 +1981,16 @@ def handle_activity_response(room_name, user_response, username):
                     metadata_tmp_keys.append(random_key)
                     activity_state.add_metadata(random_key, random_value)
 
-                # Execute the processing script if it exists
-                if "processing_script" in step and transition.get(
-                    "run_processing_script", False
+                # Execute the post-script if it exists (supports both old and new naming)
+                post_script = step.get("post_script") or step.get("processing_script")
+                if post_script and (
+                    transition.get("run_post_script", False)
+                    or transition.get("run_processing_script", False)
                 ):
+                    print(f"DEBUG: Executing post-script")
                     result = execute_processing_script(
-                        activity_state.dict_metadata, step["processing_script"]
-                    )
+                        activity_state.dict_metadata, post_script
+                    ) or {}
 
                     plot_image_base64 = result.pop("plot_image", None)
 
@@ -1973,6 +2001,13 @@ def handle_activity_response(room_name, user_response, username):
                     # Update metadata with results from the processing script
                     for key, value in result.get("metadata", {}).items():
                         activity_state.add_metadata(key, value)
+
+                    # Check if processing script wants to override the transition
+                    if "next_section_and_step" in result:
+                        next_section_and_step = result["next_section_and_step"]
+                        print(
+                            f"DEBUG: Processing script overriding transition to: {next_section_and_step}"
+                        )
 
                     # Check if the result contains a plot image
                     if plot_image_base64:
@@ -2048,6 +2083,17 @@ def handle_activity_response(room_name, user_response, username):
 
                 # if "correct" or max_attempts reached.
                 # Provide feedback based on the category
+
+                # Filter metadata for feedback if metadata_feedback_filter is specified
+                feedback_metadata = activity_state.dict_metadata
+                if "metadata_feedback_filter" in transition:
+                    filter_keys = transition["metadata_feedback_filter"]
+                    feedback_metadata = {
+                        k: v
+                        for k, v in activity_state.dict_metadata.items()
+                        if k in filter_keys
+                    }
+
                 feedback = provide_feedback(
                     transition,
                     category,
@@ -2056,7 +2102,7 @@ def handle_activity_response(room_name, user_response, username):
                     user_response,
                     user_language,
                     username,
-                    activity_state.json_metadata,
+                    json.dumps(feedback_metadata),
                     json.dumps(new_metadata),
                 )
 
@@ -2106,6 +2152,7 @@ def handle_activity_response(room_name, user_response, username):
                         "off_topic",
                     ]
                     or activity_state.attempts >= activity_state.max_attempts
+                    or next_section_and_step  # Processing script override takes precedence
                 ):
                     if next_section_and_step:
                         (
@@ -2346,14 +2393,24 @@ def get_next_step(activity_content, current_section_id, current_step_id):
 def categorize_response(question, response, buckets, tokens_for_ai):
     openai_client, model_name = get_openai_client_and_model()
     bucket_list = ", ".join([str(bucket) for bucket in buckets])
+    # Check if tokens_for_ai already includes format instructions (ANALYSIS/BUCKET format)
+    if "ANALYSIS:" in tokens_for_ai and "BUCKET:" in tokens_for_ai:
+        # YAML already specifies output format, don't override
+        system_content = f"{tokens_for_ai}"
+        user_content = f"Question: {question}\nResponse: {response}"
+    else:
+        # Use old simple format for backwards compatibility
+        system_content = f"{tokens_for_ai} Categorize the following response into one of the following buckets: {bucket_list}. Return ONLY a bucket label."
+        user_content = f"Question: {question}\nResponse: {response}\n\nCategory:"
+
     messages = [
         {
             "role": "system",
-            "content": f"{tokens_for_ai} Categorize the following response into one of the following buckets: {bucket_list}. Return ONLY a bucket label.",
+            "content": system_content,
         },
         {
             "role": "user",
-            "content": f"Question: {question}\nResponse: {response}\n\nCategory:",
+            "content": user_content,
         },
     ]
 
@@ -2362,12 +2419,40 @@ def categorize_response(question, response, buckets, tokens_for_ai):
             model=model_name,
             messages=messages,
             n=1,
-            max_tokens=10,
+            max_tokens=150,  # Increased for ANALYSIS + BUCKET format
             temperature=0,
         )
-        category = (
-            completion.choices[0].message.content.strip().lower().replace(" ", "_")
-        )
+        full_response = completion.choices[0].message.content.strip()
+        print(f"DEBUG BUCKET CATEGORIZATION: Full Hermes response: {full_response}")
+
+        # Handle both ANALYSIS/BUCKET format and simple bucket response
+        if "BUCKET:" in full_response:
+            # New ANALYSIS/BUCKET format
+            bucket_lines = [
+                line for line in full_response.split("\n") if "BUCKET:" in line
+            ]
+            if bucket_lines:
+                category = (
+                    bucket_lines[0]
+                    .split("BUCKET:")[1]
+                    .strip()
+                    .lower()
+                    .replace(" ", "_")
+                )
+            else:
+                category = full_response.lower().replace(" ", "_")
+        elif "ANALYSIS:" in full_response:
+            # Has analysis but no explicit BUCKET: line, try to extract from end
+            lines = [line.strip() for line in full_response.split("\n") if line.strip()]
+            if lines:
+                category = lines[-1].lower().replace(" ", "_")
+            else:
+                category = full_response.lower().replace(" ", "_")
+        else:
+            # Simple bucket response (old format)
+            category = full_response.lower().replace(" ", "_")
+
+        print(f"DEBUG BUCKET CATEGORIZATION: Extracted category: {category}")
         return category
     except Exception as e:
         return f"Error: {e}"
