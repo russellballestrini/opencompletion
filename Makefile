@@ -5,81 +5,195 @@ help:
 	@echo "OpenCompletion Testing Framework"
 	@echo "================================"
 	@echo ""
-	@echo "Available targets:"
-	@echo "  venv       - Create virtual environment and install dependencies"
-	@echo "  test       - Run all tests"
-	@echo "  test-unit  - Run only unit tests"
-	@echo "  test-integration - Run only integration tests"
-	@echo "  test-functional - Run only functional tests"
-	@echo "  test-validator - Run only YAML validator tests"
-	@echo "  validate-yaml - Validate all YAML files in research/"
-	@echo "  lint       - Run code linting"
-	@echo "  clean      - Clean up generated files"
-	@echo "  clean-all  - Remove virtual environment"
+	@echo "🧪 Test Commands:"
+	@echo "  test                  - Run all tests (unit, integration, functional)"
+	@echo "  test-unit            - Run only unit tests"
+	@echo "  test-integration     - Run only integration tests"  
+	@echo "  test-functional      - Run only functional tests"
+	@echo "  test-validator       - Run YAML validator tests"
+	@echo "  test-yaml-loading    - Run YAML loading/parsing tests"
+	@echo "  test-activity-flows  - Run activity flow tests"
+	@echo "  test-battleship      - Run battleship game tests"
+	@echo "  test-guarded-ai      - Run guarded_ai.py functionality tests"
+	@echo "  test-multiple-files  - Run integration tests across all activity files"
+	@echo ""
+	@echo "📋 Validation Commands:"
+	@echo "  validate-yaml        - Validate all YAML files in research/"
+	@echo ""
+	@echo "🛠️ Development Commands:"
+	@echo "  venv                 - Create virtual environment and install dependencies"
+	@echo "  dev-setup           - Install development dependencies"
+	@echo "  lint                - Run code linting and formatting"
+	@echo "  clean               - Clean up generated files"
+	@echo "  clean-all           - Remove virtual environment"
 
 # Setup virtual environment
 .PHONY: venv
 venv:
-	@echo "🚀 Creating virtual environment..."
-	python3 -m venv venv
-	@echo "📦 Installing dependencies..."
-	venv/bin/pip install --upgrade pip
-	venv/bin/pip install -r requirements.txt
-	venv/bin/pip install -r requirements-test.txt
-	@echo "✅ Virtual environment ready!"
+	@if [ ! -d "venv" ]; then \
+		echo "🚀 Creating virtual environment..."; \
+		python3 -m venv venv; \
+		echo "📦 Installing basic dependencies..."; \
+		venv/bin/pip install --upgrade pip; \
+		venv/bin/pip install pyyaml openai || echo "⚠️ Failed to install basic dependencies"; \
+		echo "✅ Virtual environment ready!"; \
+	else \
+		echo "✅ Virtual environment already exists"; \
+	fi
+
+# ============================================================================
+# MAIN TEST COMMANDS
+# ============================================================================
 
 # Run all tests
 .PHONY: test
-test: venv
-	@echo "🧪 Running all tests..."
-	venv/bin/python -m pytest tests/ -v --tb=short
-	@echo "📋 Validating YAML files..."
-	venv/bin/python activity_yaml_validator.py research/*.yaml || true
+test: test-unit test-integration test-functional validate-yaml
+	@echo ""
+	@echo "🎉 All tests completed!"
+	@echo "📊 Test Summary:"
+	@echo "   ✅ Unit tests - Core functionality"
+	@echo "   ✅ Integration tests - Cross-component testing"  
+	@echo "   ✅ Functional tests - End-to-end workflows"
+	@echo "   ✅ YAML validation - All activity files"
 
-# Run unit tests only
+# Run unit tests only  
 .PHONY: test-unit
-test-unit:
+test-unit: venv
 	@echo "🔬 Running unit tests..."
-	venv/bin/python -m pytest tests/unit/ -v --tb=short
+	@if command -v pytest >/dev/null 2>&1; then \
+		python -m pytest tests/unit/ -v --tb=short; \
+	else \
+		echo "📝 Running unit tests directly..."; \
+		python tests/unit/test_yaml_loading.py; \
+		python tests/unit/test_activity_yaml_validator.py; \
+	fi
 
 # Run integration tests only
-.PHONY: test-integration
-test-integration:
+.PHONY: test-integration  
+test-integration: venv
 	@echo "🔗 Running integration tests..."
-	venv/bin/python -m pytest tests/integration/ -v --tb=short
+	@if command -v pytest >/dev/null 2>&1; then \
+		python -m pytest tests/integration/ -v --tb=short; \
+	else \
+		echo "📝 Running integration tests directly..."; \
+		python tests/integration/test_multiple_activities.py; \
+	fi
 
 # Run functional tests only
 .PHONY: test-functional
-test-functional:
+test-functional: venv
 	@echo "⚡ Running functional tests..."
-	venv/bin/python -m pytest tests/functional/ -v --tb=short
+	@if command -v pytest >/dev/null 2>&1; then \
+		python -m pytest tests/functional/ -v --tb=short; \
+	else \
+		echo "📝 Running functional tests directly..."; \
+		python tests/functional/test_activity_flows.py; \
+		python tests/functional/test_battleship_pre_script.py; \
+	fi
+
+# ============================================================================
+# SPECIFIC TEST COMMANDS
+# ============================================================================
 
 # Run YAML validator tests only
 .PHONY: test-validator
-test-validator:
+test-validator: venv
 	@echo "📋 Running YAML validator tests..."
-	venv/bin/python -m pytest tests/unit/test_activity_yaml_validator.py -v --tb=short
+	python tests/unit/test_activity_yaml_validator.py
 
-# Validate YAML files
+# Run YAML loading tests only
+.PHONY: test-yaml-loading
+test-yaml-loading: venv
+	@echo "📄 Running YAML loading/parsing tests..."
+	python tests/unit/test_yaml_loading.py
+
+# Run activity flow tests
+.PHONY: test-activity-flows
+test-activity-flows: venv
+	@echo "🔄 Running activity flow tests..."
+	python tests/functional/test_activity_flows.py
+
+# Run battleship game tests
+.PHONY: test-battleship
+test-battleship: venv
+	@echo "🚢 Running battleship game tests..."
+	python tests/functional/test_battleship_pre_script.py
+
+# Run guarded_ai functionality tests  
+.PHONY: test-guarded-ai
+test-guarded-ai: venv
+	@echo "🛡️ Running guarded_ai.py functionality tests..."
+	python tests/integration/test_regression_fixes.py
+
+# Run integration tests across all activity files
+.PHONY: test-multiple-files
+test-multiple-files: venv
+	@echo "📁 Running integration tests across all activity files..."
+	python tests/integration/test_multiple_activities.py
+
+# ============================================================================
+# VALIDATION COMMANDS
+# ============================================================================
+
+# Validate all YAML files
 .PHONY: validate-yaml
-validate-yaml:
-	@echo "📋 Validating YAML files..."
-	venv/bin/python activity_yaml_validator.py research/*.yaml
+validate-yaml: venv
+	@echo "📋 Validating all YAML files..."
+	python activity_yaml_validator.py research/*.yaml
 
-# Run tests with coverage
+# ============================================================================
+# DEVELOPMENT AND CI/CD COMMANDS
+# ============================================================================
+
+# Run tests with coverage (requires pytest and coverage)
 .PHONY: test-cov
-test-cov:
-	@echo "🧪 Running tests with coverage..."
+test-cov: dev-setup
+	@echo "📊 Running tests with coverage..."
+	venv/bin/pip install pytest-cov
 	venv/bin/python -m pytest tests/ --cov=. --cov-report=html --cov-report=term-missing -v
 
-# Format and lint code (combined target)
+
+# Format and lint code  
 .PHONY: format lint
-format lint:
+format lint: dev-setup
 	@echo "🎨 Formatting and linting code..."
-	venv/bin/pip install black isort flake8 || true
-	venv/bin/black .
-	venv/bin/isort .
+	venv/bin/black . || echo "⚠️  black formatting failed"
+	venv/bin/isort . || echo "⚠️  isort import sorting failed" 
 	venv/bin/flake8 . || echo "⚠️  Linting issues found"
+
+# Install development dependencies
+.PHONY: dev-setup
+dev-setup: venv
+	@echo "🛠️  Installing development dependencies..."
+	venv/bin/pip install black flake8 isort pytest coverage
+	@echo "✅ Development environment ready!"
+
+# ============================================================================
+# CI/CD AND AUTOMATION COMMANDS
+# ============================================================================
+
+# Full CI pipeline
+.PHONY: ci
+ci: clean test validate-yaml lint
+	@echo ""
+	@echo "🎯 CI Pipeline Results:"
+	@echo "   ✅ Tests passed"
+	@echo "   ✅ YAML validation passed" 
+	@echo "   ✅ Code linting completed"
+	@echo "🚀 Ready for deployment!"
+
+# Pre-commit hook simulation  
+.PHONY: pre-commit
+pre-commit:
+	@echo "🔒 Running pre-commit checks..."
+	$(MAKE) test-yaml-loading
+	$(MAKE) validate-yaml
+	$(MAKE) lint
+	@echo "✅ Pre-commit checks passed!"
+
+# ============================================================================
+# UTILITY COMMANDS
+# ============================================================================
 
 # Clean generated files
 .PHONY: clean
@@ -92,6 +206,7 @@ clean:
 	rm -rf .pytest_cache/ 2>/dev/null || true
 	rm -rf htmlcov/ 2>/dev/null || true
 	rm -rf .coverage 2>/dev/null || true
+	rm -rf *.tmp 2>/dev/null || true
 
 # Remove virtual environment
 .PHONY: clean-all
@@ -99,15 +214,21 @@ clean-all: clean
 	@echo "💣 Removing virtual environment..."
 	rm -rf venv
 
-# Quick test run (for development)
-.PHONY: quick
-quick:
-	@echo "⚡ Quick test run..."
-	venv/bin/python -m pytest tests/unit/test_activity_yaml_validator.py -v -x
-
-# Install development dependencies
-.PHONY: dev-setup
-dev-setup: venv
-	@echo "🛠️  Installing development dependencies..."
-	venv/bin/pip install black flake8 isort mypy pre-commit
-	@echo "✅ Development environment ready!"
+# Show test structure
+.PHONY: test-info
+test-info:
+	@echo "📁 Test Structure:"
+	@echo "   tests/"
+	@echo "   ├── unit/                    - Unit tests for individual components"
+	@echo "   │   ├── test_yaml_loading.py           - YAML loading/parsing tests"
+	@echo "   │   └── test_activity_yaml_validator.py - Validator functionality tests"
+	@echo "   ├── integration/             - Integration tests across components"
+	@echo "   │   ├── test_multiple_activities.py    - Tests across all activity files"
+	@echo "   │   └── test_regression_fixes.py       - Regression and fix validation"
+	@echo "   └── functional/              - End-to-end functional tests"
+	@echo "       ├── test_activity_flows.py         - Complete activity workflows"
+	@echo "       └── test_battleship_pre_script.py  - Battleship game functionality"
+	@echo ""
+	@echo "🎯 Key Test Commands:"
+	@echo "   make test           - Run all tests"
+	@echo "   make validate-yaml  - Validate all YAML files"

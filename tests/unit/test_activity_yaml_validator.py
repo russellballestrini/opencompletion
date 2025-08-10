@@ -219,7 +219,9 @@ sections:
             self.assertFalse(is_valid)
             # Should only flag the last step of the last section
             terminal_errors = [e for e in errors if "Final/terminal" in e]
-            self.assertEqual(len(terminal_errors), 2)  # One for question, one for buckets
+            self.assertEqual(
+                len(terminal_errors), 2
+            )  # One for question, one for buckets
             self.assertTrue(
                 any(
                     "section_2" in error and "step_2" in error
@@ -625,21 +627,49 @@ sections:
         self.assertEqual(result.returncode, 0)
         self.assertIn("valid", result.stdout.lower())
 
-        # Test with --strict flag (warnings become errors)
-        result = subprocess.run(
-            [
-                sys.executable,
-                "activity_yaml_validator.py",
-                "research/activity29-battleship.yaml",
-                "--strict",
-            ],
-            capture_output=True,
-            text=True,
-            cwd=".",
-        )
+        # Create a YAML file that will have warnings (pre_script without question)
+        warning_yaml = """
+sections:
+  - section_id: "test_section"
+    title: "Test Section"
+    steps:
+      - step_id: "step1"
+        title: "Step with pre_script but no question"
+        content_blocks:
+          - "This step has pre_script but no question - should generate warning"
+        pre_script: |
+          # This pre_script without a question should generate a warning
+          metadata['test'] = 'value'
+          script_result = {'metadata': {}}
+"""
 
-        # Should fail (exit code 1) because warnings become errors in strict mode
-        self.assertEqual(result.returncode, 1)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(warning_yaml)
+            warning_file = f.name
+
+        try:
+            # Test with --strict flag (warnings become errors)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "activity_yaml_validator.py",
+                    warning_file,
+                    "--strict",
+                ],
+                capture_output=True,
+                text=True,
+                cwd=".",
+            )
+
+            # Should fail (exit code 1) because warnings become errors in strict mode
+            self.assertEqual(
+                result.returncode,
+                1,
+                f"Expected strict mode to fail with warnings. Output: {result.stdout}",
+            )
+
+        finally:
+            os.unlink(warning_file)
 
 
 if __name__ == "__main__":

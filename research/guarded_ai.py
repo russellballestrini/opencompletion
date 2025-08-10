@@ -2,9 +2,64 @@ import argparse
 import yaml
 import json
 import random
+import os
 from openai import OpenAI
 
-client = OpenAI()
+# Global model-client mapping
+MODEL_CLIENT_MAP = {}
+
+
+def get_client_for_endpoint(endpoint, api_key):
+    """Create OpenAI client for any endpoint"""
+    return OpenAI(api_key=api_key, base_url=endpoint)
+
+
+def initialize_model_map():
+    """Initialize the model-client mapping from environment variables"""
+    global MODEL_CLIENT_MAP
+
+    # Load endpoints from environment variables
+    for i in range(1000):  # Support up to 1000 endpoints
+        endpoint_key = f"MODEL_ENDPOINT_{i}"
+        api_key_key = f"MODEL_API_KEY_{i}"
+
+        endpoint = os.getenv(endpoint_key)
+        api_key = os.getenv(api_key_key)
+
+        if endpoint and api_key:
+            try:
+                client = get_client_for_endpoint(endpoint, api_key)
+                # Try to get models (simplified - just register endpoint)
+                MODEL_CLIENT_MAP[f"endpoint_{i}"] = (client, endpoint)
+            except Exception as e:
+                print(f"Warning: Failed to initialize endpoint {endpoint}: {e}")
+
+
+def get_openai_client_and_model(model_name=None):
+    """Get OpenAI client and model name"""
+    if not model_name:
+        model_name = "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic"
+
+    # Try to find client for specific model
+    for stored_model, (client, base_url) in MODEL_CLIENT_MAP.items():
+        if model_name in stored_model or stored_model == model_name:
+            return client, model_name
+
+    # Fallback to first available client
+    if MODEL_CLIENT_MAP:
+        client, _ = next(iter(MODEL_CLIENT_MAP.values()))
+        return client, model_name
+
+    # Final fallback to environment or default OpenAI
+    api_key = os.getenv("OPENAI_API_KEY", "dummy-key")
+    endpoint = os.getenv("MODEL_ENDPOINT_0", "https://api.openai.com/v1")
+
+    client = get_client_for_endpoint(endpoint, api_key)
+    return client, model_name
+
+
+# Initialize the model mapping on startup
+initialize_model_map()
 
 
 # Load the YAML activity file
@@ -15,7 +70,7 @@ def load_yaml_activity(file_path):
 
 # Categorize the user's response using gpt-4o-mini
 def categorize_response(question, response, buckets, tokens_for_ai):
-    bucket_list = ", ".join(buckets)
+    bucket_list = ", ".join([str(bucket) for bucket in buckets])
     messages = [
         {
             "role": "system",
@@ -28,8 +83,9 @@ def categorize_response(question, response, buckets, tokens_for_ai):
     ]
 
     try:
+        client, model_name = get_openai_client_and_model()
         completion = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model_name,
             messages=messages,
             max_tokens=5,
             temperature=0,
@@ -56,8 +112,9 @@ def generate_ai_feedback(category, question, user_response, tokens_for_ai, metad
     ]
 
     try:
+        client, model_name = get_openai_client_and_model()
         completion = client.chat.completions.create(
-            model="gpt-4o-mini", messages=messages, max_tokens=250, temperature=0.7
+            model=model_name, messages=messages, max_tokens=250, temperature=0.7
         )
         feedback = completion.choices[0].message.content.strip()
         return feedback
@@ -78,8 +135,15 @@ def provide_feedback(
     feedback = ""
     if "ai_feedback" in transition:
         tokens_for_ai += f" Provide the feedback in {user_language}. {transition['ai_feedback'].get('tokens_for_ai', '')}."
+
+        # Filter metadata for feedback if metadata_feedback_filter is specified
+        feedback_metadata = metadata
+        if "metadata_feedback_filter" in transition:
+            filter_keys = transition["metadata_feedback_filter"]
+            feedback_metadata = {k: v for k, v in metadata.items() if k in filter_keys}
+
         ai_feedback = generate_ai_feedback(
-            category, question, user_response, tokens_for_ai, metadata
+            category, question, user_response, tokens_for_ai, feedback_metadata
         )
         feedback += f"\n\nAI Feedback: {ai_feedback}"
 
@@ -196,14 +260,44 @@ def simulate_activity(yaml_file_path):
         while attempts < max_attempts:
             user_response = input("\nYour Response: ")
 
+            # Execute pre-script if it exists (runs before categorization, with user_response available)
+            if "pre_script" in step:
+                print(f"DEBUG: Executing pre-script")
+                # Add user_response to a temporary copy of metadata for pre_script
+                temp_metadata = metadata.copy()
+                temp_metadata["user_response"] = user_response
+                pre_result = execute_processing_script(
+                    temp_metadata, step["pre_script"]
+                )
+
+                # Update metadata with pre-script results
+                for key, value in pre_result.get("metadata", {}).items():
+                    metadata[key] = value
+                print(f"DEBUG: Pre-script completed, updated metadata")
+
             category = categorize_response(
                 question, user_response, step["buckets"], step["tokens_for_ai"]
             )
             print(f"\nCategory: {category}")
 
-            transition = step["transitions"].get(category, None)
+            # Determine the transition based on the category (with integer/boolean matching)
+            transition = None
+            if category in step["transitions"]:
+                transition = step["transitions"][category]
+            elif category.isdigit() and int(category) in step["transitions"]:
+                transition = step["transitions"][int(category)]
+            else:
+                if category.lower() in ["yes", "true"]:
+                    category = True
+                elif category.lower() in ["no", "false"]:
+                    category = False
+                if category in step["transitions"]:
+                    transition = step["transitions"][category]
+
             if not transition:
-                print("\nError: No valid transition found. Please try again.")
+                print(
+                    f"\nError: No valid transition found for category '{category}'. Please try again."
+                )
                 continue
 
             # Check metadata conditions
@@ -275,6 +369,10 @@ def simulate_activity(yaml_file_path):
                     if key in metadata:
                         del metadata[key]
 
+            # Handle metadata_clear - clear all metadata if set to True
+            if "metadata_clear" in transition and transition["metadata_clear"] == True:
+                metadata.clear()
+
             # Handle metadata_random
             if "metadata_random" in transition:
                 random_key = random.choice(list(transition["metadata_random"].keys()))
@@ -290,8 +388,21 @@ def simulate_activity(yaml_file_path):
                 metadata_tmp_keys.append(random_key)  # Track temporary keys
 
             # Execute the processing script if it exists
-            if "processing_script" in step and transition.get("run_processing_script", False):
-                result = execute_processing_script(metadata, step["processing_script"])
+            if "processing_script" in step and transition.get(
+                "run_processing_script", False
+            ):
+                # Add user_response to metadata temporarily for processing script
+                temp_metadata = metadata.copy()
+                temp_metadata["user_response"] = user_response
+
+                result = execute_processing_script(
+                    temp_metadata, step["processing_script"]
+                )
+
+                # Copy any changes back to main metadata (except user_response)
+                for key, value in temp_metadata.items():
+                    if key != "user_response":
+                        metadata[key] = value
                 metadata["processing_script_result"] = result
                 metadata_tmp_keys.append("processing_script_result")
 
