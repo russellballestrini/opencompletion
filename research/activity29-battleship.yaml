@@ -1,18 +1,18 @@
 default_max_attempts_per_step: 9
 tokens_for_ai_rubric: |
   based on the game without knowing where each ship was, score the process each player used to target ships.
-  
+
   be sure to look for moves or strategies in the game play that where _not_ smart given the obvious information uncovered.
-  
+
   use chain-of-thought to reason about the progression of the game and the winner.
- 
+
   first summarize the game, we don't need the turn by turn plays.
-  
-  the game was battleship. the moves were done 1 by 1. 
+
+  the game was battleship. the moves were done 1 by 1.
   the grid is 0-99.
-  
+
   did any player blunder as the information was learned?
-  
+
   There was a user and an AI playing.
 
   Depending on the game mode the player chooses they are going up against a different algo,
@@ -27,10 +27,14 @@ tokens_for_ai_rubric: |
 
   * super human hunter
 
-    * keeps track of hits and uses a probability grid normalized to 100 and always picks the max or random of any 100. 
+    * keeps track of hits and uses a probability grid normalized to 100 and always picks the max or random of any 100.
+
+  * hermes reasoner
+
+    * uses the probability algorithm paired with hermes to reason for 3 sentences about what the next 0-99 move should be given the current game state and turn number
 
   Did any player miss sinking a ship that was found? was it due to end game or a blunder?
-  
+
   Do not mix up ships, keep careful track of the order they were found and sunk.
 
 sections:
@@ -50,15 +54,17 @@ sections:
 
       - step_id: "step_1"
         title: "Choose AI Mode"
-        question: "Choose the AI mode: Random, Hunter, or Super Human Hunter?"
+        question: "Choose the AI mode: Random, Hunter, Super Human Hunter, or Hermes Reasoner?"
         tokens_for_ai: |
           If the user chooses Random, categorize as 'random_mode'.
           If the user chooses Hunter, categorize as 'hunter_mode'.
           If the user chooses Super Human Hunter, categorize as 'super_hunter_mode'.
+          If the user chooses Hermes Reasoner, categorize as 'hermes_reasoner_mode'.
         feedback_tokens_for_ai: |
-          If the user chooses Random, acknowledge the choice.
-          If the user chooses Hunter, acknowledge the choice.
-          If the user chooses Super Human Hunter, acknowledge the choice.
+          If the user chooses Random, say: "Random mode selected! The AI will make completely random moves."
+          If the user chooses Hunter, say: "Hunter mode selected! The AI will systematically hunt around hits."
+          If the user chooses Super Human Hunter, say: "Super Human Hunter mode selected! The AI will use advanced probability analysis."
+          If the user chooses Hermes Reasoner, say: "Hermes Reasoner mode selected! The AI will use probability analysis combined with reasoning to make strategic decisions."
         processing_script: |
           import random
 
@@ -97,7 +103,7 @@ sections:
               return board
 
           user_board = place_ships()
-          ai_board = place_ships()
+          ai_board = place_ships()  # AI also gets randomly placed ships
 
           script_result = {
               "metadata": {
@@ -110,6 +116,7 @@ sections:
           - random_mode
           - hunter_mode
           - super_hunter_mode
+          - hermes_reasoner_mode
         transitions:
           random_mode:
             run_processing_script: True
@@ -132,22 +139,53 @@ sections:
             metadata_add:
               ai_mode: "super_hunter"
             next_section_and_step: "section_1:step_2"
+          hermes_reasoner_mode:
+            run_processing_script: True
+            ai_feedback:
+              tokens_for_ai: "Hermes Reasoner Mode enabled for the AI. The AI will use probability analysis combined with reasoning to make strategic decisions."
+            metadata_add:
+              ai_mode: "hermes_reasoner"
+            next_section_and_step: "section_1:step_2"
 
       - step_id: "step_2"
         title: "Take a Shot"
         question: "Choose a position to fire at (0-99)."
+        pre_script: |
+          # Check if moves match winning moves from previous turn
+          user_winning_move = metadata.get("user_winning_move")
+          ai_winning_move = metadata.get("ai_winning_move")
+          user_shot_input = metadata.get("user_shot", "")
+          print(f"PRE-SCRIPT DEBUG: user_shot_input = '{user_shot_input}', user_winning_move = {user_winning_move}, ai_winning_move = {ai_winning_move}")
+          ai_shot = metadata.get("ai_shot")
+          
+          is_game_ending_move = False
+          
+          # Check if user move wins
+          if user_shot_input and user_shot_input.isdigit():
+              user_move = int(user_shot_input)
+              if user_winning_move is not None and user_move == user_winning_move:
+                  is_game_ending_move = True
+                  print(f"PRE-SCRIPT: User winning move detected! user_move={user_move} matches user_winning_move={user_winning_move}")
+          
+          # Check if AI move wins (from previous turn)
+          if ai_shot is not None and ai_winning_move is not None and ai_shot == ai_winning_move:
+              is_game_ending_move = True
+              print(f"PRE-SCRIPT: AI winning move detected! ai_shot={ai_shot} matches ai_winning_move={ai_winning_move}")
+          
+          script_result = {
+              "metadata": {
+                  "is_game_ending_move": is_game_ending_move
+              }
+          }
         tokens_for_ai: |
           1) If the user reply is *only* digits, and corresponds to a grid cell (0–99),
              treat it as a valid move:
           If the response matches the regex /^\d+$/ and 0 ≤ int(response) < 100, categorize as 'valid_move'.
-    
+
           2) Otherwise fall back to the usual buckets:
           If the user wants to restart or play again, categorize as 'restart'.
           If the user wants to exit, categorize as 'exit'.
           Otherwise, categorize as 'invalid_move'.
-    
-          Note: by ordering the digit-check *first*, you guarantee that “1”, “42”, etc.
-          always lands in 'valid_move' no matter what the LLM would otherwise decide.
         feedback_tokens_for_ai: |
           Important: Use the metadata to fill in the brackets and provide a conversational tone.
 
@@ -156,22 +194,22 @@ sections:
           The user's latest shot was [user_hit_result]:
           - If user_hit_result is "hit", consider saying: "Great shot! [user_name] hit an AI ship!"
           - If user_hit_result is "miss", consider saying: "Oh no, [user_name] missed the shot. Better luck next time!"
-        
+
           On a new line, announce the AI's move: "The AI fired at position [ai_shot] and it was a [ai_hit_result]."
 
           The AI's latest shot was a [ai_hit_result]:
           - If ai_hit_result is "hit", consider saying: "The AI hit one of [user_name]'s ships!"
           - If ai_hit_result is "miss", consider saying: "The AI missed [user_name]'s ships this time."
-        
+
           If either [user_sunk_ship_this_round] or [ai_sunk_ship_this_round] is not None,
           announce the destruction in a LOT of detail, use many sentences:
           - If user_sunk_ship_this_round is not None, consider saying: "The user has sunk the AI's [user_sunk_ship_this_round]!"
           - If ai_sunk_ship_this_round is not None, consider saying: "The AI has sunk the [user_name]'s [ai_sunk_ship_this_round]!"
-        
+
           If game_over = True, determine the winner:
             - If user_wins = True, consider saying: "Congratulations! The [user_name] has sunk all AI ships and won the game!"
             - If ai_wins = True, consider saying: "The AI has sunk all [user_name] ships and won the game!"
-        
+
           If game_over = True, suggest: "Would you like to restart and play again, or would you prefer to exit?"
 
         processing_script: |
@@ -179,6 +217,8 @@ sections:
           import matplotlib.pyplot as plt
           import io
           import base64
+          import requests
+          import json
 
           # Define ship sizes
           ship_sizes = {
@@ -201,6 +241,8 @@ sections:
           # Retrieve the game state
           user_board = metadata.get("user_board")
           ai_board = metadata.get("ai_board")
+          
+          # Normal processing code
           user_shots = metadata.get("user_shots", [])
           ai_shots = metadata.get("ai_shots", [])
           user_hits = metadata.get("user_hits", [])
@@ -217,7 +259,31 @@ sections:
 
           # AI state variables
           ai_mode = metadata.get("ai_mode", "random")
-          probability_matrix = metadata.get("probability_matrix", [[1] * 10 for _ in range(10)])
+
+          # Initialize probability matrix with realistic ship placement probabilities
+          if "probability_matrix" not in metadata:
+              probability_matrix = [[0] * 10 for _ in range(10)]
+              # Calculate how many ship placements use each cell
+              ship_lengths = [5, 4, 3, 3, 2]
+              for y in range(10):
+                  for x in range(10):
+                      count = 0
+                      for ship_len in ship_lengths:
+                          # Horizontal ships that would cover this cell
+                          for start_x in range(max(0, x - ship_len + 1), min(x + 1, 10 - ship_len + 1)):
+                              count += 1
+                          # Vertical ships that would cover this cell
+                          for start_y in range(max(0, y - ship_len + 1), min(y + 1, 10 - ship_len + 1)):
+                              count += 1
+                      probability_matrix[y][x] = count
+              print("DEBUG: Initial probability matrix created")
+              # Debug print the initial grid
+              print("DEBUG: Initial grid:")
+              for row in probability_matrix:
+                  print(f"  {' '.join(f'{x:2d}' for x in row)}")
+          else:
+              probability_matrix = metadata.get("probability_matrix")
+              print("DEBUG: Using existing probability matrix")
           hits = metadata.get("hits", [])
           misses = metadata.get("misses", [])
           sunk_ships = metadata.get("sunk_ships", [])
@@ -299,11 +365,210 @@ sections:
                       return True
               return False
 
+          # Function to generate Hermes reasoning
+          def hermes_reason_move(game_state, turn_number, top_candidates):
+              global ai_hits, ai_shots, ai_sunk_ships, probability_matrix
+              import os
+              import requests
+              import json
+
+              # Get Hermes endpoint from environment
+              hermes_endpoint = os.environ.get('MODEL_ENDPOINT_1', 'https://hermes.ai.unturf.com/v1')
+              hermes_api_key = os.environ.get('MODEL_API_KEY_1', '')
+
+              # Prepare game state summary
+              hits_summary = f"AI hits so far: {len(ai_hits)} positions hit"
+              misses_summary = f"AI misses so far: {len(ai_shots) - len(ai_hits)} positions missed"
+              sunk_ships_summary = f"Ships sunk: {len(ai_sunk_ships)} out of 5"
+              available_positions = [i for i in range(100) if i not in ai_shots]
+              top_six_candidates = top_candidates[0:6] if len(top_candidates) >= 6 else top_candidates
+
+              # Create reasoning prompt
+              prompt = (
+                  f"You are an expert Battleship AI. Turn {turn_number}.\n\n"
+                  f"CRITICAL: You MUST choose from these TOP probability positions: {top_six_candidates}\n\n"
+                  f"Game Data:\n"
+                  f"- {hits_summary}\n"
+                  f"- {misses_summary}\n"
+                  f"- {sunk_ships_summary}\n\n"
+                  f"INSTRUCTIONS: Pick ONE number from {top_six_candidates} - these are the mathematically optimal targets.\n\n"
+                  f"Format your response EXACTLY like this:\n\n"
+                  f"ANALYSIS: [3 sentences explaining why you chose from the top probability positions]\n\n"
+                  f"MOVE: [ONE number from this list: {top_six_candidates}]\n\n"
+                  f"You MUST pick from {top_six_candidates} - do not pick any other number."
+              )
+
+              try:
+                  headers = {
+                      'Authorization': f'Bearer {hermes_api_key}',
+                      'Content-Type': 'application/json'
+                  }
+
+                  data = {
+                      'model': 'adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic',
+                      'messages': [{'role': 'user', 'content': prompt}],
+                      'max_tokens': 300,
+                      'temperature': 0.5
+                  }
+
+                  response = requests.post(f'{hermes_endpoint}/chat/completions',
+                                         headers=headers, json=data, timeout=10)
+
+                  print(f"DEBUG: API Status: {response.status_code}")
+                  if response.status_code == 200:
+                      result = response.json()
+                      reasoning = result['choices'][0]['message']['content'].strip()
+                      print(f"DEBUG: Real API response: {reasoning}")
+                      return reasoning
+                  else:
+                      print(f"DEBUG: API failed with status {response.status_code}: {response.text[:200]}")
+                      fallback_move = top_candidates[0] if top_candidates else random.choice([i for i in range(100) if i not in ai_shots])
+                      return f"ANALYSIS: Turn {turn_number} suggests targeting high-probability zones based on mathematical analysis. The current hit pattern indicates potential ship orientations that guide strategic decisions. Focusing on adjacent unexplored cells maximizes discovery potential.\n\nMOVE: {fallback_move}"
+
+              except Exception as e:
+                  print(f"DEBUG: API exception: {str(e)}")
+                  fallback_move = top_candidates[0] if top_candidates else random.choice([i for i in range(100) if i not in ai_shots])
+                  return f"ANALYSIS: After {turn_number} turns, probability analysis guides optimal targeting strategies. Current data suggests focusing on clustered high-value positions for maximum efficiency. Strategic patience combined with mathematical precision will yield victory.\n\nMOVE: {fallback_move}"
+
           # AI chooses a shot
           def choose_ai_shot():
-              global can_fit_ship, update_probability, generate_hunt_targets, random_search, probability_matrix, ai_mode, ai_shots, random, user_board, ai_hits, ai_hit_result
+              global can_fit_ship, update_probability, generate_hunt_targets, random_search, probability_matrix, ai_mode, ai_shots, random, user_board, ai_hits, ai_hit_result, hermes_reason_move, ship_sizes, ai_sunk_ships
 
-              if ai_mode == "super_hunter":
+              if ai_mode == "hermes_reasoner":
+                  # Use probability algorithm + Hermes reasoning
+
+                  # Update probability matrix based on shots
+                  remaining_ships = [ship for ship in ship_sizes.keys() if ship not in ai_sunk_ships]
+                  remaining_ship_sizes = [ship_sizes[ship] for ship in remaining_ships]
+                  print(f"DEBUG: Remaining ships: {remaining_ships}")
+                  print(f"DEBUG: Total shots: {len(ai_shots)}, Hits: {len(ai_hits)}, Misses: {len(ai_shots) - len(ai_hits)}")
+
+                  # Recalculate entire probability matrix
+                  new_probability_matrix = [[0] * 10 for _ in range(10)]
+
+                  for y in range(10):
+                      for x in range(10):
+                          pos = y * 10 + x
+                          if pos in ai_shots:
+                              new_probability_matrix[y][x] = 0  # Already shot
+                          else:
+                              # Count how many ship placements could use this cell
+                              for ship_size in remaining_ship_sizes:
+                                  # Check horizontal placements
+                                  for start_x in range(max(0, x - ship_size + 1), min(x + 1, 10 - ship_size + 1)):
+                                      valid = True
+                                      includes_hit = False
+                                      for dx in range(ship_size):
+                                          check_pos = y * 10 + (start_x + dx)
+                                          if check_pos in ai_shots and check_pos not in ai_hits:
+                                              valid = False  # Ship can't go through a miss
+                                              break
+                                          if check_pos in ai_hits:
+                                              includes_hit = True
+                                      if valid:
+                                          # Base probability for valid placement
+                                          new_probability_matrix[y][x] += 1
+                                          # Bonus if it includes a hit
+                                          if includes_hit:
+                                              new_probability_matrix[y][x] += 10
+
+                                  # Check vertical placements
+                                  for start_y in range(max(0, y - ship_size + 1), min(y + 1, 10 - ship_size + 1)):
+                                      valid = True
+                                      includes_hit = False
+                                      for dy in range(ship_size):
+                                          check_pos = (start_y + dy) * 10 + x
+                                          if check_pos in ai_shots and check_pos not in ai_hits:
+                                              valid = False  # Ship can't go through a miss
+                                              break
+                                          if check_pos in ai_hits:
+                                              includes_hit = True
+                                      if valid:
+                                          # Base probability for valid placement
+                                          new_probability_matrix[y][x] += 1
+                                          # Bonus if it includes a hit
+                                          if includes_hit:
+                                              new_probability_matrix[y][x] += 10
+
+                  # Replace the old matrix with the new one
+                  probability_matrix = new_probability_matrix
+
+                  # Boost probabilities around unsunk hits
+                  for hit_pos in ai_hits:
+                      hit_x, hit_y = hit_pos % 10, hit_pos // 10
+                      # Check if this hit is part of a sunk ship
+                      hit_is_sunk = False
+                      for ship_name in ai_sunk_ships:
+                          # This would need ship position tracking to work properly
+                          pass  # Skip for now, assume all hits need chasing
+
+                      if not hit_is_sunk:
+                          # Boost adjacent cells
+                          for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                              adj_x, adj_y = hit_x + dx, hit_y + dy
+                              if 0 <= adj_x < 10 and 0 <= adj_y < 10:
+                                  adj_pos = adj_y * 10 + adj_x
+                                  if adj_pos not in ai_shots:
+                                      # Only boost if not already boosted
+                                      if probability_matrix[adj_y][adj_x] < 50:
+                                          probability_matrix[adj_y][adj_x] = 50  # Set to fixed high value instead of adding
+
+                  # Find top 6 highest probability positions
+                  position_probs = []
+                  for i in range(100):
+                      if i not in ai_shots:  # Only consider unshot positions
+                          x, y = i % 10, i // 10
+                          position_probs.append((probability_matrix[y][x], i))
+
+                  # Sort by probability (descending) and take top positions
+                  position_probs.sort(reverse=True)
+                  candidates = [pos for prob, pos in position_probs[:20]]  # Take top 20 for variety
+                  max_prob = position_probs[0][0] if position_probs else 0
+
+                  # Fallback if no candidates found
+                  if not candidates:
+                      candidates = [i for i in range(100) if i not in ai_shots]
+
+                  # Debug: Log what we're working with
+                  turn_number = len(ai_shots) + 1
+                  print(f"DEBUG: Turn {turn_number}, Max prob: {max_prob}")
+                  print("DEBUG: Probability grid:")
+                  for y in range(10):
+                      row = [f"{probability_matrix[y][x]:2d}" for x in range(10)]
+                      print(f"  {' '.join(row)}")
+                  print(f"DEBUG: Top candidates: {candidates[:10]}")
+
+                  reasoning_response = hermes_reason_move("battleship", turn_number, candidates)
+
+                  # Analysis already logged in hermes_reason_move function
+
+                  # Extract move from response - try multiple parsing methods
+                  try:
+                      if "MOVE:" in reasoning_response:
+                          move_part = reasoning_response.split("MOVE:")[1].strip()
+                          ai_shot = int(move_part.split()[0])
+                          print(f"DEBUG: Hermes Move: {ai_shot} (from 'MOVE: {move_part.split()[0]}')")
+                      else:
+                          # Fallback: extract any number from the response that's in candidates
+                          import re
+                          numbers = re.findall(r'\b(\d+)\b', reasoning_response)
+                          valid_moves = [int(n) for n in numbers if int(n) in candidates and int(n) not in ai_shots]
+                          if valid_moves:
+                              ai_shot = valid_moves[0]
+                              print(f"DEBUG: Hermes Move (parsed): {ai_shot} from numbers {numbers}")
+                          else:
+                              raise Exception(f"ERROR: Hermes response had no valid moves! Response: {reasoning_response}, Candidates: {candidates}")
+
+                      # Validate the shot is legal
+                      if ai_shot in ai_shots or ai_shot < 0 or ai_shot > 99:
+                          ai_shot = random.choice(candidates)
+                          print(f"DEBUG: Invalid shot, using fallback: {ai_shot}")
+
+                  except Exception as e:
+                      ai_shot = random.choice(candidates)
+                      print(f"DEBUG: Parse error: {e}, using fallback: {ai_shot}")
+
+              elif ai_mode == "super_hunter":
                   # Use probabilistic grid algorithm
                   max_prob = 0
                   candidates = []
@@ -335,11 +600,11 @@ sections:
               if user_board[ai_shot] != -1:
                   ai_hits.append(ai_shot)
                   ai_hit_result = "hit"
-                  if ai_mode == "super_hunter":
+                  if ai_mode == "super_hunter" or ai_mode == "hermes_reasoner":
                       update_probability(ai_shot % 10, ai_shot // 10, True)
               else:
                   ai_hit_result = "miss"
-                  if ai_mode == "super_hunter":
+                  if ai_mode == "super_hunter" or ai_mode == "hermes_reasoner":
                       update_probability(ai_shot % 10, ai_shot // 10, False)
 
               return ai_shot
@@ -384,7 +649,14 @@ sections:
               user_shot = -1
 
           if game_over:
-              script_result = {}
+              script_result = {
+                  "metadata": {
+                      "game_over": True,
+                      "user_wins": user_wins,
+                      "ai_wins": ai_wins
+                  }
+              }
+              print(f"DEBUG: Game over detected! User wins: {user_wins}, AI wins: {ai_wins}")
           elif 0 <= user_shot < 100 and user_shot not in user_shots:
               # The move is valid
               user_shots.append(user_shot)
@@ -415,10 +687,6 @@ sections:
                   if ai_board[pos] != -1 and pos not in user_hits:
                       all_ai_ships_hit = False
                       break
-              if all_ai_ships_hit:
-                  game_over = True
-                  user_wins = True
-                  ai_wins = False
 
               # Check if all User ships are hit
               all_user_ships_hit = True
@@ -426,10 +694,37 @@ sections:
                   if user_board[pos] != -1 and pos not in ai_hits:
                       all_user_ships_hit = False
                       break
-              if all_user_ships_hit:
+
+              if all_ai_ships_hit:
+                  game_over = True
+                  user_wins = True
+                  ai_wins = False
+                  print(f"DEBUG: USER WINS! All AI ships destroyed. Game over.")
+              elif all_user_ships_hit:
                   game_over = True
                   user_wins = False
                   ai_wins = True
+                  print(f"DEBUG: AI WINS! All user ships destroyed. Game over.")
+              
+              # Only track winning move if there's exactly 1 position left (for next turn's categorization)
+              user_winning_move = None
+              ai_winning_move = None
+              
+              # Check which user move would win the game (AI ship positions left)
+              ai_ship_positions_left = [pos for pos in range(100) if ai_board[pos] != -1 and pos not in user_hits]
+              if len(ai_ship_positions_left) == 1:
+                  user_winning_move = ai_ship_positions_left[0]
+                  print(f"DEBUG: User has exactly 1 winning move at position {user_winning_move}")
+              else:
+                  print(f"DEBUG: User has {len(ai_ship_positions_left)} AI positions left - no winning move")
+              
+              # Check which AI move would win the game (user ship positions left)  
+              user_ship_positions_left = [pos for pos in range(100) if user_board[pos] != -1 and pos not in ai_hits]
+              if len(user_ship_positions_left) == 1:
+                  ai_winning_move = user_ship_positions_left[0]
+                  print(f"DEBUG: AI has exactly 1 winning move at position {ai_winning_move}")
+              else:
+                  print(f"DEBUG: AI has {len(user_ship_positions_left)} user positions left - no winning move")
 
               # Plot the boards
               fig, axs = plt.subplots(1, 2, figsize=(12, 6))
@@ -522,13 +817,20 @@ sections:
                       "probability_matrix": probability_matrix,
                       "hits": hits,
                       "misses": misses,
-                      "sunk_ships": sunk_ships
+                      "sunk_ships": sunk_ships,
+                      "user_winning_move": user_winning_move,
+                      "ai_winning_move": ai_winning_move
                   }
               }
+              
+              # Check if this was a winning move and override transition  
+              if game_over:
+                  script_result["next_section_and_step"] = "section_1:step_3"
+                  print(f"POST-SCRIPT: Game over detected, overriding transition to step_3")
           else:
               script_result = {
-                  "error": f"Invalid shot: {metadata.get('user_shot')}",
-                  "metadata": {}
+              "error": f"Invalid shot: {metadata.get('user_shot')}",
+              "metadata": {}
               }
 
         buckets:
@@ -558,9 +860,27 @@ sections:
               - "Restarting the game. Let's start fresh!"
             metadata_clear: True
             next_section_and_step: "section_1:step_0"
+          game_end:
+            next_section_and_step: "section_1:step_3"
 
       - step_id: "step_3"
-        title: "Goodbye"
-        content_blocks:
-          - "Thank you for playing Battleship! 🎉"
-          - "Feel free to come back anytime for another game."
+        title: "Game Over"
+        question: "Would you like to restart and play again, or would you prefer to exit?"
+        tokens_for_ai: |
+          If the user wants to restart or play again, categorize as 'restart'.
+          If the user wants to exit, categorize as 'exit'.
+        feedback_tokens_for_ai: |
+          Acknowledge the user's choice appropriately.
+        buckets:
+          - restart
+          - exit
+        transitions:
+          restart:
+            content_blocks:
+              - "Restarting the game. Let's start fresh!"
+            metadata_clear: True
+            next_section_and_step: "section_1:step_0"
+          exit:
+            content_blocks:
+              - "Thank you for playing Battleship! 🎉"
+              - "Feel free to come back anytime for another game."
