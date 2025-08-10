@@ -23,3 +23,7 @@
 
 ## Python/Matplotlib Best Practices
 - Always add `matplotlib.use("Agg")` before importing matplotlib.pyplot to prevent runtime errors in headless environments
+
+## Makefile Best Practices
+- Avoid variable substitutions - don't be afraid to be unDRY in the Makefile so engineers can copy and paste
+- Use tabs not spaces, and for fuck sake be happy about it
