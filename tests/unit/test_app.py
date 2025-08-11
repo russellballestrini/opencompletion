@@ -520,7 +520,7 @@ And some more text after.
 
         result = "\n".join(code_block_lines)
         expected = """def test_function():
-    return "Hello, World!""""
+    return "Hello, World!\""""
 
         self.assertEqual(result, expected)
 
