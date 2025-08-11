@@ -101,6 +101,7 @@ const dompurify_config = {
 // keeping track of scrolling to prevent autoscrolling.
 let userHasScrolledUp = false;
 let currentAudio = null; // To keep track of the currently playing audio
+let currentQueuedAudio = null; // To keep track of currently playing queued TTS audio
 let audioCache = {}; // Cache to store audio blobs
 
 // Flag to prevent mutual updates on desktop/mobile
@@ -417,12 +418,15 @@ async function speakTextQueued(text, playButton, messageId) {
         const cleanText = text.replace(/[^a-zA-Z0-9\s.,!?]/g, '');
 
         const playAudio = (audio) => {
+            currentQueuedAudio = audio; // Track the currently playing queued audio
             audio.onended = () => {
                 console.log("TTS finished for:", messageId);
+                currentQueuedAudio = null; // Clear when finished
                 resolve();
             };
             audio.onerror = () => {
                 console.error("TTS audio error for:", messageId);
+                currentQueuedAudio = null; // Clear on error
                 reject(new Error("Audio playback failed"));
             };
             audio.play().catch(reject);
@@ -539,6 +543,13 @@ function toggleAutoPlayTTS() {
                 currentAudio.playButton.textContent = "Play";
             }
             currentAudio = null;
+        }
+        
+        // Stop any currently playing queued TTS audio
+        if (currentQueuedAudio) {
+            currentQueuedAudio.pause();
+            currentQueuedAudio.currentTime = 0;
+            currentQueuedAudio = null;
         }
     }
     
@@ -725,12 +736,15 @@ socket.on("delete_processing_message", (msg_id) => {
     tempMessages.forEach((tempMessage) => {
         tempMessage.remove();
     });
-    // Clear the message buffer for the corresponding message ID
+    // Clear the message buffer and header for the corresponding message ID
     delete messageBuffers[msg_id];
+    delete messageHeaders[msg_id];
 });
 
 // A dictionary to hold buffers for each message ID
 const messageBuffers = {};
+// A dictionary to track message headers (username/model) for each message ID
+const messageHeaders = {};
 
 // Socket event for receiving chunks of a message
 socket.on("message_chunk", (data) => {
@@ -748,9 +762,20 @@ socket.on("message_chunk", (data) => {
 
     // If the message-content div doesn't exist, create it
     if (!messageWrapper.querySelector(".message-content")) {
+        // Create a message body wrapper to contain both header and content
+        const messageBodyWrapper = document.createElement("div");
+        messageBodyWrapper.className = "message-body";
+        messageWrapper.appendChild(messageBodyWrapper);
+        
+        // Create header element for username/model
+        const headerElement = document.createElement("div");
+        headerElement.className = "message-header";
+        messageBodyWrapper.appendChild(headerElement);
+        
+        // Create content element for actual message content
         targetMessageElement = document.createElement("div");
         targetMessageElement.className = "message-content";
-        messageWrapper.appendChild(targetMessageElement);
+        messageBodyWrapper.appendChild(targetMessageElement);
     } else {
         targetMessageElement = messageWrapper.querySelector(".message-content");
     }
@@ -760,17 +785,26 @@ socket.on("message_chunk", (data) => {
         messageBuffers[data.id] = "";
     }
 
+    // Store header info on first chunk and update header element
+    if (data.is_first_chunk && data.username && data.model_name) {
+        messageHeaders[data.id] = {
+            username: data.username,
+            model_name: data.model_name
+        };
+        
+        // Update header element
+        const headerElement = messageWrapper.querySelector(".message-header");
+        if (headerElement) {
+            const headerContent = `**${data.username} (${data.model_name}):**`;
+            headerElement.innerHTML = DOMPurify.sanitize(marked.marked(headerContent), dompurify_config);
+        }
+    }
+
     // Append the chunk to the buffer
     messageBuffers[data.id] += data.content;
     
-    // Build the content for display (includes header for first chunk)
-    let displayContent = messageBuffers[data.id];
-    if (data.is_first_chunk && data.username && data.model_name) {
-        displayContent = `**${data.username} (${data.model_name}):**\n\n${displayContent}`;
-    }
-    
-    // Process the display content with marked and set it as the content of the target element
-    const sanitizedContent = DOMPurify.sanitize(marked.marked(displayContent), dompurify_config);
+    // Process just the content and set it in the content element
+    const sanitizedContent = DOMPurify.sanitize(marked.marked(messageBuffers[data.id]), dompurify_config);
     targetMessageElement.innerHTML = sanitizedContent;
 
     // Store the raw markdown in a data attribute for later use in editing (without header for clean editing)
@@ -811,13 +845,14 @@ socket.on("message_chunk", (data) => {
         const playButton = document.createElement("button");
         playButton.textContent = "Play";
         playButton.onclick = () => {
-            const fullText = targetMessageElement.textContent || targetMessageElement.innerText;
-            speakText(fullText, playButton, data.id);
+            // Use content from the content element (clean text without header)
+            const cleanText = targetMessageElement.textContent || targetMessageElement.innerText || "";
+            speakText(cleanText, playButton, data.id);
         };
         buttonContainer.appendChild(playButton);
 
-        // Append the button container before the message content
-        messageWrapper.insertBefore(buttonContainer, targetMessageElement);
+        // Insert the button container at the beginning of the message wrapper (before header and content)
+        messageWrapper.insertBefore(buttonContainer, messageWrapper.firstChild);
         
         // Auto-play TTS if enabled and message is complete (only when streaming finishes)
         console.log("DEBUG: Streaming complete check:", {
@@ -832,9 +867,10 @@ socket.on("message_chunk", (data) => {
             console.log("DEBUG: Found play button for streaming TTS:", playButton ? "YES" : "NO", playButton?.textContent);
             if (playButton) {
                 setTimeout(() => {
-                    const fullText = targetMessageElement.textContent || targetMessageElement.innerText;
-                    console.log("DEBUG: Queueing streaming TTS:", data.id, fullText.substring(0, 50) + "...");
-                    queueTTS(fullText, playButton, data.id);
+                    // Use content from the content element (clean text without header)
+                    const cleanText = targetMessageElement.textContent || targetMessageElement.innerText || "";
+                    console.log("DEBUG: Queueing streaming TTS:", data.id, cleanText.substring(0, 50) + "...");
+                    queueTTS(cleanText, playButton, data.id);
                 }, 50); // Small delay to let the message render
             }
         }
