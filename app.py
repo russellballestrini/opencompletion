@@ -811,7 +811,10 @@ def chat_claude(
                         "message_chunk",
                         {
                             "id": msg_id,
-                            "content": f"**{username} ({model_name}):**\n\n{content}",
+                            "content": content,
+                            "username": username,
+                            "model_name": model_name,
+                            "is_first_chunk": True,
                         },
                         room=room.name,
                     )
@@ -969,7 +972,10 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
                     "message_chunk",
                     {
                         "id": msg_id,
-                        "content": f"**{username} ({model_name}):**\n\n{content}",
+                        "content": content,
+                        "username": username,
+                        "model_name": model_name,
+                        "is_first_chunk": True,
                     },
                     room=room.name,
                 )
@@ -1083,7 +1089,10 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
                     "message_chunk",
                     {
                         "id": msg_id,
-                        "content": f"**{username} ({model_name}):**\n\n{content}",
+                        "content": content,
+                        "username": username,
+                        "model_name": model_name,
+                        "is_first_chunk": True,
                     },
                     room=room.name,
                 )

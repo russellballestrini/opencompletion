@@ -762,12 +762,18 @@ socket.on("message_chunk", (data) => {
 
     // Append the chunk to the buffer
     messageBuffers[data.id] += data.content;
-
-    // Process the entire buffer with marked and set it as the content of the target element
-    const sanitizedContent = DOMPurify.sanitize(marked.marked(messageBuffers[data.id]), dompurify_config);
+    
+    // Build the content for display (includes header for first chunk)
+    let displayContent = messageBuffers[data.id];
+    if (data.is_first_chunk && data.username && data.model_name) {
+        displayContent = `**${data.username} (${data.model_name}):**\n\n${displayContent}`;
+    }
+    
+    // Process the display content with marked and set it as the content of the target element
+    const sanitizedContent = DOMPurify.sanitize(marked.marked(displayContent), dompurify_config);
     targetMessageElement.innerHTML = sanitizedContent;
 
-    // Store the raw markdown in a data attribute for later use in editing
+    // Store the raw markdown in a data attribute for later use in editing (without header for clean editing)
     targetMessageElement.dataset.rawMarkdown = messageBuffers[data.id];
 
     // Apply syntax highlighting to code blocks within the content
