@@ -910,8 +910,6 @@ sections:
         tokens_for_ai: |
           If the user wants to restart or play again, categorize as 'restart'.
           If the user wants to exit, categorize as 'exit'.
-        feedback_tokens_for_ai: |
-          Acknowledge the user's choice appropriately.
         buckets:
           - restart
           - exit
