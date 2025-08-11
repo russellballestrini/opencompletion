@@ -22,6 +22,9 @@
 
     <!-- Include DOMPurify to sanitize HTML and prevent XSS attacks -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@2/dist/purify.min.js"></script>
+    
+    <!-- Include utility functions -->
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
 
     <script>
       // Connect to the server using socket.io
@@ -76,6 +79,19 @@
         display: block;
     }
 
+    /* Styling for the message body wrapper that contains header and content */
+    .message-body {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Styling for the message header (username/model) */
+    .message-header {
+        width: 100%;
+        margin-bottom: 0;
+    }
+
     /* Styling for the message div holding html/markdown content  */
     .message-content {
         width: 100%;
@@ -121,6 +137,85 @@
     #rooms-list {
         border-right: 1px solid #e1e1e1;
         overflow-y: auto;
+        padding: 10px;
+    }
+    
+    /* Styling for site header */
+    #site-header {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    #opencompletion-btn {
+        width: 100%;
+        padding: 10px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    
+    #opencompletion-btn:hover {
+        background-color: #0056b3;
+    }
+    
+    /* Styling for new room creation section */
+    #new-room-section {
+        margin-bottom: 20px;
+        padding: 10px;
+        border: 1px solid #e1e1e1;
+        border-radius: 5px;
+        background-color: #f8f9fa;
+    }
+    
+    #new-room-section h4 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        color: #495057;
+    }
+    
+    #new-room-name {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ced4da;
+        border-radius: 3px;
+        font-size: 12px;
+        resize: vertical;
+        margin-bottom: 10px;
+        box-sizing: border-box;
+    }
+    
+    #create-room-btn {
+        width: 100%;
+        padding: 8px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    
+    #create-room-btn:hover {
+        background-color: #218838;
+    }
+    
+    /* Styling for public rooms header */
+    #public-rooms-header {
+        margin-bottom: 10px;
+    }
+    
+    #public-rooms-header h4 {
+        margin: 0;
+        font-size: 14px;
+        color: #495057;
+        border-bottom: 1px solid #e1e1e1;
+        padding-bottom: 5px;
     }
 
     /* Styling for the unordered list in the rooms list */
@@ -243,6 +338,78 @@
     .utility-belt {
         padding: 10px;
     }
+    
+    /* Activity controls styling */
+    #activity-controls {
+        margin-top: 20px;
+        padding: 10px;
+        border-top: 1px solid #e1e1e1;
+    }
+    
+    #activity-controls h3 {
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+    
+    #current-activity-info {
+        background-color: #f0f0f0;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+    
+    #current-activity-info p {
+        margin: 0 0 10px 0;
+    }
+    
+    #activity-controls button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 14px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+    
+    #cancel-activity-btn {
+        background-color: #f44336;
+    }
+    
+    #activity-controls button:hover {
+        opacity: 0.8;
+    }
+    
+    #activity-select {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 5px;
+        border: 1px solid #e1e1e1;
+        border-radius: 4px;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    /* Model and voice select dropdowns styling */
+    #model-select, #voice-select, #model-select-mobile, #voice-select-mobile {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 5px;
+        border: 1px solid #e1e1e1;
+        border-radius: 4px;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 
     /* Media query for mobile devices */
     @media (max-width: 768px) {
@@ -262,7 +429,6 @@
    </style>
 </head>
 <body>
-  <a href="https://github.com/russellballestrini/opencompletion#interacting-with-language-models" target="_blank">🚀 docs for models & other commands, also try /help</a>
   <!-- Search form -->
   <div id="search-form" style="width: 90%;">
       <form action="/search" method="get">
@@ -279,6 +445,10 @@
     <div id="room-list-modal-content">
         <button id="close-modal-button" onclick="closeModal()">×</button>
         <div id="utility-belt-mobile">
+            <div id="username-chooser-mobile">
+                <label for="username-input-mobile">Username:</label>
+                <input type="text" id="username-input-mobile" placeholder="guest" maxlength="50" style="width: 100%; padding: 4px; margin-top: 2px; border: 1px solid #ccc; border-radius: 3px;">
+            </div>
             <div id="model-chooser-mobile">
                 <label for="model-select-mobile">Choose Model:</label>
                 <select id="model-select-mobile">
@@ -296,6 +466,28 @@
                     <option value="shimmer">Shimmer</option>
                 </select>
             </div>
+            <div id="auto-play-tts-mobile">
+                <button id="auto-play-tts-btn-mobile" onclick="toggleAutoPlayTTS()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
+                    Auto-Play TTS: OFF
+                </button>
+            </div>
+            <div id="activity-controls-mobile">
+                <h3>Activities</h3>
+                <div id="current-activity-info-mobile" style="display: none;">
+                    <p>Current Activity: <span id="current-activity-name-mobile"></span></p>
+                    <button id="cancel-activity-btn-mobile" onclick="cancelActivity()">Cancel Activity</button>
+                </div>
+                <div id="activity-list-section-mobile">
+                    <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 5px; margin-bottom: 5px;">
+                        <select id="activity-select-mobile" style="width: 100%; max-width: 100%; box-sizing: border-box;">
+                            <option value="">-- Select an Activity --</option>
+                        </select>
+                        <button id="refresh-activities-btn-mobile" onclick="refreshActivityList()">🔄</button>
+                    </div>
+                    <button id="load-activity-btn-mobile" onclick="loadSelectedActivityMobile()" style="margin-top: 5px;">Load Activity</button>
+                </div>
+            </div>
+
             <div id="user-lists-mobile">
                 <div id="active-users-list">
                     <h3>Active Users</h3>
@@ -321,6 +513,24 @@
 <!-- Chatroom list -->
 <div class="main-container">
   <div id="rooms-list">
+      <!-- opencompletion.com button -->
+      <div id="site-header">
+          <button id="opencompletion-btn" onclick="window.open('https://opencompletion.com', '_blank')">
+              opencompletion.com
+          </button>
+      </div>
+      
+      <!-- New room creation section -->
+      <div id="new-room-section">
+          <textarea id="new-room-name" placeholder="Enter room name..." rows="2" maxlength="100"></textarea>
+          <button id="create-room-btn" onclick="createNewRoom()">Create Room</button>
+      </div>
+      
+      <!-- Public rooms header -->
+      <div id="public-rooms-header">
+          <h4>Public Rooms</h4>
+      </div>
+      
       <ul id="rooms-list-ul">
           <!-- Loop through rooms and create list items for each room -->
           {% for room in rooms %}
@@ -370,9 +580,20 @@
         const modal = document.getElementById("room-list-modal");
         const modalContent = document.getElementById("room-list-modal-content");
         const closeButton = document.getElementById("close-modal-button");
+        
+        // Clone the site header, new room section, public rooms header, and rooms list
+        const siteHeader = document.getElementById("site-header").cloneNode(true);
+        const newRoomSection = document.getElementById("new-room-section").cloneNode(true);
+        const publicRoomsHeader = document.getElementById("public-rooms-header").cloneNode(true);
         const roomsList = document.getElementById("rooms-list-ul").cloneNode(true);
-        document.getElementById("rooms-list-modal-content").innerHTML = ''; // Clear previous content
+        
+        // Clear previous content and add all sections
+        document.getElementById("rooms-list-modal-content").innerHTML = '';
+        document.getElementById("rooms-list-modal-content").appendChild(siteHeader);
+        document.getElementById("rooms-list-modal-content").appendChild(newRoomSection);
+        document.getElementById("rooms-list-modal-content").appendChild(publicRoomsHeader);
         document.getElementById("rooms-list-modal-content").appendChild(roomsList);
+        
         modal.style.display = "flex";
         modalContent.style.display = "block";
         closeButton.style.display = "block";
@@ -387,6 +608,65 @@
         modalContent.style.display = "none";
         closeButton.style.display = "none";
     }
+    
+    // Function to update all room links with current URL parameters
+    function updateRoomLinksWithCurrentParams() {
+        const currentParams = new URLSearchParams(window.location.search).toString();
+        
+        // Update desktop room links
+        const roomLinks = document.querySelectorAll('#rooms-list-ul a[href*="/chat/"]');
+        roomLinks.forEach(link => {
+            const url = new URL(link.href, window.location.origin);
+            const roomPath = url.pathname; // e.g., "/chat/room-name"
+            link.href = roomPath + (currentParams ? '?' + currentParams : '');
+        });
+        
+        // Update mobile room links (if they exist)
+        const mobileRoomLinks = document.querySelectorAll('#rooms-list-modal-content a[href*="/chat/"]');
+        mobileRoomLinks.forEach(link => {
+            const url = new URL(link.href, window.location.origin);
+            const roomPath = url.pathname; // e.g., "/chat/room-name"
+            link.href = roomPath + (currentParams ? '?' + currentParams : '');
+        });
+    }
+    
+    // Function to create a new room
+    function createNewRoom() {
+        const roomName = document.getElementById("new-room-name").value.trim();
+        
+        if (!roomName) {
+            alert("Please enter a room name.");
+            return;
+        }
+        
+        // Slugify the room name to make it URL-friendly
+        const slugifiedRoomName = slugify(roomName);
+        
+        if (!slugifiedRoomName) {
+            alert("Please enter a valid room name with at least some letters or numbers.");
+            return;
+        }
+        
+        // Get current URL parameters to maintain username, model, voice, etc.
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentParams = urlParams.toString();
+        
+        // Navigate to the new room using the slugified name
+        window.location.href = `/chat/${slugifiedRoomName}${currentParams ? '?' + currentParams : ''}`;
+    }
+    
+    // Add event listener for Enter key in the new room textarea
+    document.addEventListener('DOMContentLoaded', function() {
+        const newRoomTextarea = document.getElementById("new-room-name");
+        if (newRoomTextarea) {
+            newRoomTextarea.addEventListener("keydown", function(event) {
+                if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    createNewRoom();
+                }
+            });
+        }
+    });
 
     // Add event listener to the hamburger button
     document.getElementById("hamburger-button").addEventListener("click", openModal);

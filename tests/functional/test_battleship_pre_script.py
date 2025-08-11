@@ -28,7 +28,9 @@ class TestBattleshipPreScript(unittest.TestCase):
     def test_battleship_yaml_has_pre_script(self):
         """Test that battleship YAML loads and has pre_script"""
         activity_file = (
-            Path(__file__).parent.parent.parent / "research" / "activity29-battleship.yaml"
+            Path(__file__).parent.parent.parent
+            / "research"
+            / "activity29-battleship.yaml"
         )
         activity = guarded_ai.load_yaml_activity(str(activity_file))
 
@@ -57,7 +59,9 @@ class TestBattleshipPreScript(unittest.TestCase):
     def test_battleship_pre_script_execution_simulation(self):
         """Test simulated battleship pre_script execution"""
         activity_file = (
-            Path(__file__).parent.parent.parent / "research" / "activity29-battleship.yaml"
+            Path(__file__).parent.parent.parent
+            / "research"
+            / "activity29-battleship.yaml"
         )
         activity = guarded_ai.load_yaml_activity(str(activity_file))
 
@@ -96,7 +100,11 @@ class TestBattleshipPreScript(unittest.TestCase):
 
     def test_testship_yaml_has_pre_script(self):
         """Test that testship YAML also has pre_script"""
-        activity_file = Path(__file__).parent.parent.parent / "research" / "activity29-testship.yaml"
+        activity_file = (
+            Path(__file__).parent.parent.parent
+            / "research"
+            / "activity29-testship.yaml"
+        )
         activity = guarded_ai.load_yaml_activity(str(activity_file))
 
         # Should also have pre_script (same structure as battleship)

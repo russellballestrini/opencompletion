@@ -22,6 +22,8 @@ from flask import (
     send_from_directory,
     jsonify,
     Response,
+    redirect,
+    url_for,
 )
 
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -31,10 +33,12 @@ from sqlalchemy.exc import InvalidRequestError
 
 from models import db, Room, UserSession, Message, ActivityState
 
-app = Flask(__name__)
+app = Flask(__name__, instance_relative_config=True)
 
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-in-production")
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///chat.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    f"sqlite:///{os.path.join(app.instance_path, 'chat.db')}"
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
@@ -233,6 +237,28 @@ def get_models():
     return jsonify({"models": list(MODEL_CLIENT_MAP.keys())})
 
 
+@app.route("/api/activities", methods=["GET"])
+def get_activities():
+    """Return the list of available activities."""
+    activities = []
+
+    if app.config.get("LOCAL_ACTIVITIES"):
+        # List local activity files from research directory
+        import os
+
+        research_dir = "research"
+        if os.path.exists(research_dir):
+            for filename in sorted(os.listdir(research_dir)):
+                if filename.endswith((".yaml", ".yml")):
+                    activities.append(f"research/{filename}")
+    else:
+        # For S3 activities, you would list from S3
+        # This is a placeholder - you'd need to implement S3 listing
+        pass
+
+    return jsonify({"activities": activities})
+
+
 @app.route("/chat/<room_name>")
 def chat(room_name):
     # Query all rooms so that newest is first.
@@ -340,6 +366,25 @@ def search_page():
 
     # Call the function to search messages
     search_results = search_messages(keywords)
+
+    # If there's exactly one search result, redirect directly to that room
+    if len(search_results) == 1:
+        room_result = search_results[0]
+        room_name = room_result["room_name"]
+
+        # Build the redirect URL with current parameters
+        redirect_params = {}
+        if username and username != "guest":
+            redirect_params["username"] = username
+
+        # Preserve other URL parameters like model, voice, etc.
+        for param in ["model", "voice"]:
+            value = request.args.get(param)
+            if value:
+                redirect_params[param] = value
+
+        redirect_url = url_for("chat", room_name=room_name, **redirect_params)
+        return redirect(redirect_url)
 
     return render_template(
         "search.html",
@@ -651,6 +696,30 @@ def handle_update_message(data):
         )
 
 
+@socketio.on("get_activity_status")
+def handle_get_activity_status(data):
+    """Get the current activity status for a room."""
+    room_name = data["room_name"]
+    room = get_room(room_name)
+
+    if room:
+        activity_state = ActivityState.query.filter_by(room_id=room.id).first()
+
+        if activity_state:
+            emit(
+                "activity_status",
+                {
+                    "active": True,
+                    "activity_name": activity_state.s3_file_path,
+                    "section_id": activity_state.section_id,
+                    "step_id": activity_state.step_id,
+                },
+                room=request.sid,
+            )
+        else:
+            emit("activity_status", {"active": False}, room=request.sid)
+
+
 def group_consecutive_roles(messages):
     if not messages:
         return []
@@ -763,7 +832,10 @@ def chat_claude(
                         "message_chunk",
                         {
                             "id": msg_id,
-                            "content": f"**{username} ({model_name}):**\n\n{content}",
+                            "content": content,
+                            "username": username,
+                            "model_name": model_name,
+                            "is_first_chunk": True,
                         },
                         room=room.name,
                     )
@@ -921,7 +993,10 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
                     "message_chunk",
                     {
                         "id": msg_id,
-                        "content": f"**{username} ({model_name}):**\n\n{content}",
+                        "content": content,
+                        "username": username,
+                        "model_name": model_name,
+                        "is_first_chunk": True,
                     },
                     room=room.name,
                 )
@@ -1035,7 +1110,10 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
                     "message_chunk",
                     {
                         "id": msg_id,
-                        "content": f"**{username} ({model_name}):**\n\n{content}",
+                        "content": content,
+                        "username": username,
+                        "model_name": model_name,
+                        "is_first_chunk": True,
                     },
                     room=room.name,
                 )
@@ -1542,12 +1620,14 @@ def loop_through_steps_until_question(
 
         # Check if the current step has a question
         if "question" in step:
-            question_content = f"Question: {step['question']}"
+            question_content = step["question"]
             translated_question_content = translate_text(
                 question_content, user_language
             )
             new_message = Message(
-                username="System", content=translated_question_content, room_id=room.id
+                username="System (Question)",
+                content=translated_question_content,
+                room_id=room.id,
             )
             db.session.add(new_message)
             db.session.commit()
@@ -1596,6 +1676,8 @@ def loop_through_steps_until_question(
                 },
                 room=room_name,
             )
+            # Return to activity chooser
+            socketio.emit("activity_status", {"active": False}, room=room_name)
             break
 
 
@@ -1621,6 +1703,18 @@ def start_activity(room_name, s3_file_path, username):
         # Loop through steps until a question is found or the end is reached
         loop_through_steps_until_question(
             activity_content, activity_state, room_name, username
+        )
+
+        # Emit activity status update
+        socketio.emit(
+            "activity_status",
+            {
+                "active": True,
+                "activity_name": s3_file_path,
+                "section_id": initial_section["section_id"],
+                "step_id": initial_step["step_id"],
+            },
+            room=room_name,
         )
 
 
@@ -1655,6 +1749,9 @@ def cancel_activity(room_name, username):
             },
             room=room_name,
         )
+
+        # Emit activity status update
+        socketio.emit("activity_status", {"active": False}, room=room_name)
 
 
 def display_activity_metadata(room_name, username):
@@ -2088,33 +2185,57 @@ def handle_activity_response(room_name, user_response, username):
                 # if "correct" or max_attempts reached.
                 # Provide feedback based on the category
 
-                # Filter metadata for feedback if metadata_feedback_filter is specified
-                feedback_metadata = activity_state.dict_metadata
-                if "metadata_feedback_filter" in transition:
-                    filter_keys = transition["metadata_feedback_filter"]
-                    feedback_metadata = {
-                        k: v
-                        for k, v in activity_state.dict_metadata.items()
-                        if k in filter_keys
-                    }
+                # Handle feedback systems
+                feedback_messages = []
 
-                feedback = provide_feedback(
-                    transition,
-                    category,
-                    step["question"],
-                    feedback_tokens_for_ai,
-                    user_response,
-                    user_language,
-                    username,
-                    json.dumps(feedback_metadata),
-                    json.dumps(new_metadata),
-                )
+                if "feedback_prompts" in step:
+                    # New multi-prompt system - pass full metadata, let each prompt filter
+                    multi_feedback_messages = provide_feedback_prompts(
+                        transition,
+                        category,
+                        step["question"],
+                        step["feedback_prompts"],
+                        user_response,
+                        user_language,
+                        username,
+                        json.dumps(activity_state.dict_metadata),  # Pass full metadata
+                        json.dumps(new_metadata),
+                        feedback_tokens_for_ai,  # Pass legacy tokens to be combined
+                    )
+                    feedback_messages.extend(multi_feedback_messages)
+                elif feedback_tokens_for_ai:
+                    # Legacy single feedback system - use transition-level filtering
+                    feedback_metadata = activity_state.dict_metadata
+                    if "metadata_feedback_filter" in transition:
+                        filter_keys = transition["metadata_feedback_filter"]
+                        feedback_metadata = {
+                            k: v
+                            for k, v in activity_state.dict_metadata.items()
+                            if k in filter_keys
+                        }
 
-                # Store and emit the feedback
-                if feedback:
-                    # feedback is metadata language aware, doesn't need to be translated.
+                    feedback = provide_feedback(
+                        transition,
+                        category,
+                        step["question"],
+                        feedback_tokens_for_ai,
+                        user_response,
+                        user_language,
+                        username,
+                        json.dumps(feedback_metadata),
+                        json.dumps(new_metadata),
+                    )
+                    if feedback and feedback.strip():
+                        feedback_messages.append(
+                            {"name": "Feedback", "content": feedback}
+                        )
+
+                # Store and emit all feedback messages
+                for feedback_msg in feedback_messages:
                     new_message = Message(
-                        username="System", content=feedback, room_id=room.id
+                        username=f"System ({feedback_msg['name'].title()})",
+                        content=feedback_msg["content"],
+                        room_id=room.id,
                     )
                     db.session.add(new_message)
                     db.session.commit()
@@ -2123,8 +2244,8 @@ def handle_activity_response(room_name, user_response, username):
                         "chat_message",
                         {
                             "id": new_message.id,
-                            "username": "System",
-                            "content": feedback,
+                            "username": f"System ({feedback_msg['name'].title()})",
+                            "content": feedback_msg["content"],
                         },
                         room=room_name,
                     )
@@ -2199,12 +2320,12 @@ def handle_activity_response(room_name, user_response, username):
                         db.session.commit()
 
                     # Emit the question again
-                    question_content = f"Question: {step['question']}"
+                    question_content = step["question"]
                     translated_question_content = translate_text(
                         question_content, user_language
                     )
                     new_message = Message(
-                        username="System",
+                        username="System (Question)",
                         content=translated_question_content,
                         room_id=room.id,
                     )
@@ -2517,9 +2638,129 @@ def provide_feedback(
             json_metadata,
             json_new_metadata,
         )
-        feedback += f"\n\nAI Feedback: {ai_feedback}"
+        feedback += f"\n\n{ai_feedback}"
 
     return feedback
+
+
+def provide_feedback_prompts(
+    transition,
+    category,
+    question,
+    feedback_prompts,
+    user_response,
+    user_language,
+    username,
+    json_metadata,
+    json_new_metadata,
+    legacy_tokens_for_ai="",
+):
+    """Generate feedback from multiple prompts"""
+    feedback_messages = []
+
+    # Parse full metadata once for filtering
+    full_metadata = json.loads(json_metadata)
+
+    # Add user_response to metadata for filtering purposes
+    full_metadata["user_response"] = user_response
+
+    for prompt in feedback_prompts:
+        prompt_name = prompt.get("name", "unnamed")
+        tokens_for_ai = prompt.get("tokens_for_ai", "")
+
+        # Apply per-prompt metadata filtering if specified
+        prompt_metadata = full_metadata
+        if "metadata_filter" in prompt:
+            filter_keys = prompt["metadata_filter"]
+            prompt_metadata = {
+                k: v for k, v in full_metadata.items() if k in filter_keys
+            }
+            
+            # Check skip condition if specified
+            skip_condition = prompt.get("skip_condition")
+            if skip_condition:
+                should_skip = False
+                values = list(prompt_metadata.values())
+                
+                if skip_condition == "all_null":
+                    should_skip = all(value is None or value == "" or value == "None" for value in values)
+                elif skip_condition == "all_false":
+                    should_skip = all(value is False or value == "False" for value in values)
+                elif skip_condition == "all_true":
+                    should_skip = all(value is True or value == "True" for value in values)
+                
+                if should_skip:
+                    print(f"DEBUG: Skipping prompt '{prompt_name}' - skip_condition '{skip_condition}' met")
+                    continue
+
+            # Special debug for Ship Status and Game Over
+            if prompt_name == "Ship Status":
+                print(f"DEBUG SHIP STATUS - filter_keys: {filter_keys}")
+                print(f"DEBUG SHIP STATUS - filtered metadata: {prompt_metadata}")
+                print(
+                    f"DEBUG SHIP STATUS - user_sunk_ship_this_round = '{prompt_metadata.get('user_sunk_ship_this_round')}'"
+                )
+                print(
+                    f"DEBUG SHIP STATUS - ai_sunk_ship_this_round = '{prompt_metadata.get('ai_sunk_ship_this_round')}'"
+                )
+            elif prompt_name == "Game Over":
+                print(f"DEBUG GAME OVER - filter_keys: {filter_keys}")
+                print(f"DEBUG GAME OVER - filtered metadata: {prompt_metadata}")
+                print(
+                    f"DEBUG GAME OVER - game_over = '{prompt_metadata.get('game_over')}'"
+                )
+                print(
+                    f"DEBUG GAME OVER - user_wins = '{prompt_metadata.get('user_wins')}'"
+                )
+                print(f"DEBUG GAME OVER - ai_wins = '{prompt_metadata.get('ai_wins')}'")
+        else:
+            if prompt_name == "Ship Status":
+                print(
+                    f"DEBUG SHIP STATUS - NO metadata_filter, full metadata: {prompt_metadata}"
+                )
+            elif prompt_name == "Game Over":
+                print(
+                    f"DEBUG GAME OVER - NO metadata_filter, full metadata: {prompt_metadata}"
+                )
+
+        # Combine legacy tokens with prompt-specific tokens
+        if legacy_tokens_for_ai:
+            tokens_for_ai = legacy_tokens_for_ai + " " + tokens_for_ai
+
+        # Add language instruction
+        tokens_for_ai += (
+            f" You must provide the feedback in the user's language: {user_language}."
+        )
+
+        # Add transition-specific AI feedback if present
+        if "ai_feedback" in transition:
+            tokens_for_ai += f" {transition['ai_feedback'].get('tokens_for_ai', '')}"
+
+        # Determine user_response for this prompt based on metadata filtering
+        filtered_user_response = user_response
+        if (
+            "metadata_filter" in prompt
+            and "user_response" not in prompt["metadata_filter"]
+        ):
+            filtered_user_response = ""  # Remove user response if not in filter
+
+        ai_feedback = generate_ai_feedback(
+            category,
+            question,
+            filtered_user_response,
+            tokens_for_ai,
+            username,
+            json.dumps(prompt_metadata),  # Use filtered metadata for this prompt
+            json_new_metadata,
+        )
+
+        # Only add feedback if it has content
+        if ai_feedback and ai_feedback.strip():
+            feedback_messages.append(
+                {"name": prompt_name, "content": ai_feedback.strip()}
+            )
+
+    return feedback_messages
 
 
 def translate_text(text, target_language):

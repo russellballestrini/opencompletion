@@ -2,6 +2,7 @@
 
 ## Commit Messages
 - NEVER add Claude attributions like "🤖 Generated with Claude Code" to commit messages
+- NEVER add "Co-Authored-By: Claude <noreply@anthropic.com>" to commit messages
 - Keep commit messages focused on the actual changes and their purpose
 - Use conventional commit format when appropriate
 - Be concise but descriptive about what was changed and why

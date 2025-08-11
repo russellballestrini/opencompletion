@@ -187,21 +187,57 @@ sections:
           If the user wants to exit, categorize as 'exit'.
           Otherwise, categorize as 'invalid_move'.
         feedback_tokens_for_ai: |
-          Write battleship feedback from the game's perspective that covers:
-
-          1. User's shot result - check user_hit_result in metadata: 
-             - If "hit": Describe the impact and explosion 
-             - If "miss": Describe the splash and fog of war
-          2. AI's shot result - report where the AI fired:
-             - If hit: Describe the damage to the player's ship
-             - If miss: Describe the near miss and ocean spray
-          3. CRITICAL: If ai_sunk_ship_this_round contains a ship name, express dismay that the AI destroyed the player's ship in 2 sentences describing the carnage at sea
-          4. CRITICAL: If user_sunk_ship_this_round contains a ship name, celebrate the player destroying the AI ship in 2 sentences describing the carnage at sea
-          5. CRITICAL: If game_over is true, announce the victory:
-             - If user_wins is true: Celebrate the player's total victory with excitement!
-             - If ai_wins is true: Express dismay at the player's defeat!
-
-          Describe the sights and sounds of naval warfare! You are the game system rooting for the player!
+          You are a battleship narrator. Each prompt has its own specific role - follow the individual prompt instructions precisely.
+        feedback_prompts:
+          - name: "Shot Report"
+            tokens_for_ai: |
+              🎯 Report ONLY the hit/miss results for both shots this turn. DO NOT report ship sinking or game over.
+              
+              Check metadata:
+              - user_shot: Player's target position
+              - user_hit_result: "hit" or "miss"
+              - ai_shot: AI's target position  
+              - ai_hit_result: "hit" or "miss"
+              
+              Format: "🎯 Your shot at position [user_shot]: [user_hit_result]! 🤖 Enemy shot at position [ai_shot]: [ai_hit_result]!"
+            metadata_filter:
+              - user_shot
+              - ai_shot  
+              - user_hit_result
+              - ai_hit_result
+              - user_response
+              
+          - name: "Ship Status"
+            tokens_for_ai: |
+              A ship has been destroyed! Generate a dramatic 2-3 sentence description.
+              
+              Metadata tells you which ship(s) were sunk:
+              - user_sunk_ship_this_round: The ship YOU destroyed (your victory)
+              - ai_sunk_ship_this_round: The ship that was destroyed by the enemy (your loss)
+              
+              Format:
+              - If user destroyed a ship: "💥 You've sunk their [ship]! [2-3 dramatic sentences imagining how this warship meets its doom]"
+              - If AI destroyed your ship: "🔥 Your [ship] has been destroyed! [2-3 dramatic sentences about its destruction]"
+              - If both: Include both messages
+            metadata_filter:
+              - user_sunk_ship_this_round
+              - ai_sunk_ship_this_round
+            skip_condition: "all_null"
+              
+          - name: "Game Over"
+            tokens_for_ai: |
+              The naval battle has ended! Generate an epic conclusion.
+              
+              Based on the metadata:
+              - If user_wins is true: "🎉 TOTAL VICTORY! You have destroyed all enemy ships! The seas belong to you, Admiral. Your tactical brilliance has secured complete naval supremacy."
+              - If ai_wins is true: "💀 DEFEAT! All your ships have been destroyed. Your fleet lies scattered across the ocean floor. The enemy's superior strategy has prevailed."
+              
+              Make it dramatic and final - this is the end of the battle!
+            metadata_filter:
+              - game_over
+              - user_wins
+              - ai_wins
+            skip_condition: "all_false"
 
         processing_script: |
           import random
@@ -846,16 +882,6 @@ sections:
                 The user shot seems valid.
             metadata_tmp_add:
               user_shot: "the-users-response"
-            metadata_feedback_filter:
-              - user_hit_result
-              - ai_hit_result
-              - ai_shot
-              - user_shot
-              - user_sunk_ship_this_round
-              - ai_sunk_ship_this_round
-              - game_over
-              - user_wins
-              - ai_wins
             next_section_and_step: "section_1:step_2"
           invalid_move:
             content_blocks:
@@ -877,8 +903,6 @@ sections:
         tokens_for_ai: |
           If the user wants to restart or play again, categorize as 'restart'.
           If the user wants to exit, categorize as 'exit'.
-        feedback_tokens_for_ai: |
-          Acknowledge the user's choice appropriately.
         buckets:
           - restart
           - exit
