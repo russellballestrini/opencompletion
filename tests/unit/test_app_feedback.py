@@ -300,20 +300,20 @@ class TestAppFeedback(unittest.TestCase):
         self.assertIn("Error", feedback)
 
     @patch("app.get_openai_client_and_model")
-    def test_provide_feedback_prompts_filter_empty_and_stfu(self, mock_get_client):
-        """Test feedback_prompts with empty results and STFU tokens filtered out"""
+    def test_provide_feedback_prompts_filter_empty(self, mock_get_client):
+        """Test feedback_prompts with empty results filtered out"""
         try:
             from app import provide_feedback_prompts
         except ImportError:
             self.skipTest("app module not available for testing")
 
-        # Setup mock to return mixed results including STFU token
+        # Setup mock to return mixed results including empty
         mock_client = MagicMock()
         mock_completion_1 = MagicMock()
         mock_completion_1.choices[0].message.content = ""  # Empty result
         mock_completion_2 = MagicMock()
         mock_completion_2.choices[0].message.content = (
-            "STFU"  # STFU token (should be filtered)
+            "   "  # Whitespace only (should be filtered)
         )
         mock_completion_3 = MagicMock()
         mock_completion_3.choices[0].message.content = "Valid feedback"  # Valid result
@@ -328,7 +328,7 @@ class TestAppFeedback(unittest.TestCase):
         # Test data
         feedback_prompts = [
             {"name": "empty", "tokens_for_ai": "Empty prompt"},
-            {"name": "stfu", "tokens_for_ai": "STFU prompt"},
+            {"name": "whitespace", "tokens_for_ai": "Whitespace prompt"},
             {"name": "valid", "tokens_for_ai": "Valid prompt"},
         ]
 
@@ -345,65 +345,10 @@ class TestAppFeedback(unittest.TestCase):
             "",
         )
 
-        # Should only return valid feedback (empty and STFU both filtered out the same way)
+        # Should only return valid feedback (empty and whitespace filtered out)
         self.assertEqual(len(feedback_messages), 1)
         self.assertEqual(feedback_messages[0]["name"], "valid")
         self.assertEqual(feedback_messages[0]["content"], "Valid feedback")
-
-    @patch("app.get_openai_client_and_model")
-    def test_provide_feedback_prompts_stfu_partial_not_filtered(self, mock_get_client):
-        """Test that messages containing STFU as part of larger text are NOT filtered"""
-        try:
-            from app import provide_feedback_prompts
-        except ImportError:
-            self.skipTest("app module not available for testing")
-
-        # Setup mock to return STFU as part of larger message
-        mock_client = MagicMock()
-        mock_completion_1 = MagicMock()
-        mock_completion_1.choices[0].message.content = (
-            "STFU you rascal."  # Should NOT be filtered
-        )
-        mock_completion_2 = MagicMock()
-        mock_completion_2.choices[0].message.content = (
-            "Go STFU yourself!"  # Should NOT be filtered
-        )
-        mock_completion_3 = MagicMock()
-        mock_completion_3.choices[0].message.content = "STFU"  # Should be filtered
-
-        mock_client.chat.completions.create.side_effect = [
-            mock_completion_1,
-            mock_completion_2,
-            mock_completion_3,
-        ]
-        mock_get_client.return_value = (mock_client, "test-model")
-
-        # Test data
-        feedback_prompts = [
-            {"name": "partial1", "tokens_for_ai": "Partial STFU 1"},
-            {"name": "partial2", "tokens_for_ai": "Partial STFU 2"},
-            {"name": "exact", "tokens_for_ai": "Exact STFU"},
-        ]
-
-        feedback_messages = provide_feedback_prompts(
-            {},
-            "test",
-            "Question?",
-            feedback_prompts,
-            "response",
-            "English",
-            "user",
-            json.dumps({}),
-            json.dumps({}),
-            "",
-        )
-
-        # Should return the two partial STFU messages, but not the exact "STFU"
-        self.assertEqual(len(feedback_messages), 2)
-        self.assertEqual(feedback_messages[0]["name"], "partial1")
-        self.assertEqual(feedback_messages[0]["content"], "STFU you rascal.")
-        self.assertEqual(feedback_messages[1]["name"], "partial2")
-        self.assertEqual(feedback_messages[1]["content"], "Go STFU yourself!")
 
     @patch("app.get_openai_client_and_model")
     def test_provide_feedback_prompts_per_prompt_metadata_filtering(

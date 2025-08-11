@@ -2754,8 +2754,8 @@ def provide_feedback_prompts(
             json_new_metadata,
         )
 
-        # Only add feedback if it has content and isn't exactly the STFU token
-        if ai_feedback and ai_feedback.strip() and ai_feedback.strip() != "STFU":
+        # Only add feedback if it has content
+        if ai_feedback and ai_feedback.strip():
             feedback_messages.append(
                 {"name": prompt_name, "content": ai_feedback.strip()}
             )
