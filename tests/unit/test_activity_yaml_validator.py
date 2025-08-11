@@ -606,6 +606,139 @@ sections:
             # Should catch the YAML syntax error we know is in there
             self.assertTrue(any("YAML syntax error" in error for error in errors))
 
+    def test_feedback_prompts_validation(self):
+        """Test validation of feedback_prompts structure"""
+        valid_feedback_prompts = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test Step"
+        question: "Test?"
+        feedback_prompts:
+          - name: "hit_miss"
+            tokens_for_ai: "Report hit/miss for both players"
+          - name: "ship_sinking"
+            tokens_for_ai: "Report any ship sinking events"
+        buckets:
+          - test
+        transitions:
+          test:
+            next_section_and_step: "section_1:step_2"
+      
+      - step_id: "step_2"
+        title: "Final"
+        content_blocks:
+          - "Done"
+"""
+        temp_file = self.create_temp_yaml(valid_feedback_prompts)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertTrue(is_valid)
+            self.assertEqual(len(errors), 0)
+        finally:
+            os.unlink(temp_file)
+
+    def test_invalid_feedback_prompts(self):
+        """Test validation of invalid feedback_prompts structure"""
+        invalid_feedback_prompts = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test Step"
+        question: "Test?"
+        feedback_prompts: "should_be_list"
+        buckets:
+          - test
+        transitions:
+          test:
+            next_section_and_step: "section_1:step_2"
+      
+      - step_id: "step_2"
+        title: "Test Step 2"
+        question: "Another test?"
+        feedback_prompts: []  # Empty list should error
+        buckets:
+          - test2
+        transitions:
+          test2:
+            next_section_and_step: "section_1:step_3"
+      
+      - step_id: "step_3"
+        title: "Test Step 3"
+        question: "Third test?"
+        feedback_prompts:
+          - "should_be_dict"
+          - name: "valid_name"
+            # Missing tokens_for_ai
+          - name: "duplicate"
+            tokens_for_ai: "First prompt"
+          - name: "duplicate"  # Duplicate name
+            tokens_for_ai: "Second prompt"
+          - name: 123  # Invalid name type
+            tokens_for_ai: "Valid tokens"
+          - name: "valid_name2"
+            tokens_for_ai: 456  # Invalid tokens type
+        buckets:
+          - test3
+        transitions:
+          test3:
+            content_blocks: ["Done"]
+"""
+        temp_file = self.create_temp_yaml(invalid_feedback_prompts)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertFalse(is_valid)
+            
+            # Check for specific error types
+            self.assertTrue(any("feedback_prompts' must be a list" in error for error in errors))
+            self.assertTrue(any("feedback_prompts' cannot be empty" in error for error in errors))
+            self.assertTrue(any("must be a dictionary" in error for error in errors))
+            self.assertTrue(any("missing required field" in error for error in errors))
+            self.assertTrue(any("duplicate feedback prompt name" in error for error in errors))
+            self.assertTrue(any("name must be a string" in error for error in errors))
+            self.assertTrue(any("tokens_for_ai must be a string" in error for error in errors))
+        finally:
+            os.unlink(temp_file)
+
+    def test_both_feedback_systems(self):
+        """Test that both feedback_tokens_for_ai and feedback_prompts can be used together"""
+        both_feedback_systems = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test Step"
+        question: "Test?"
+        feedback_tokens_for_ai: "Legacy feedback system"
+        feedback_prompts:
+          - name: "new_system_1"
+            tokens_for_ai: "New system prompt 1"
+          - name: "new_system_2"
+            tokens_for_ai: "New system prompt 2"
+        buckets:
+          - test
+        transitions:
+          test:
+            next_section_and_step: "section_1:step_2"
+      
+      - step_id: "step_2"
+        title: "Final"
+        content_blocks:
+          - "Done"
+"""
+        temp_file = self.create_temp_yaml(both_feedback_systems)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertTrue(is_valid, f"Should be valid but got errors: {errors}")
+            self.assertEqual(len(errors), 0)
+        finally:
+            os.unlink(temp_file)
+
     def test_cli_integration(self):
         """Test the command line interface"""
         import subprocess

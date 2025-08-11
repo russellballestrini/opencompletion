@@ -242,6 +242,10 @@ class ActivityYAMLValidator:
                     f"Section {section_id}, step {step_id}: 'feedback_tokens_for_ai' must be a string"
                 )
 
+        # Validate feedback_prompts (new multi-prompt system)
+        if "feedback_prompts" in step:
+            self._validate_feedback_prompts(step["feedback_prompts"], section_id, step_id)
+
         # Validate buckets and transitions
         if "buckets" in step:
             self._validate_buckets(step["buckets"], section_id, step_id)
@@ -250,6 +254,73 @@ class ActivityYAMLValidator:
             self._validate_transitions(
                 step["transitions"], step.get("buckets", []), section_id, step_id
             )
+
+    def _validate_feedback_prompts(self, feedback_prompts: List[Dict[str, Any]], section_id: str, step_id: str):
+        """Validate feedback_prompts structure"""
+        if not isinstance(feedback_prompts, list):
+            self.errors.append(
+                f"Section {section_id}, step {step_id}: 'feedback_prompts' must be a list"
+            )
+            return
+
+        if len(feedback_prompts) == 0:
+            self.errors.append(
+                f"Section {section_id}, step {step_id}: 'feedback_prompts' cannot be empty"
+            )
+            return
+
+        prompt_names = set()
+        for i, prompt in enumerate(feedback_prompts):
+            if not isinstance(prompt, dict):
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: feedback_prompts[{i}] must be a dictionary"
+                )
+                continue
+
+            # Required fields for each prompt
+            required_fields = ["name", "tokens_for_ai"]
+            for field in required_fields:
+                if field not in prompt:
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}: feedback_prompts[{i}] missing required field '{field}'"
+                    )
+
+            # Validate name uniqueness
+            if "name" in prompt:
+                if not isinstance(prompt["name"], str):
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}: feedback_prompts[{i}].name must be a string"
+                    )
+                else:
+                    if prompt["name"] in prompt_names:
+                        self.errors.append(
+                            f"Section {section_id}, step {step_id}: duplicate feedback prompt name '{prompt['name']}'"
+                        )
+                    prompt_names.add(prompt["name"])
+
+            # Validate tokens_for_ai
+            if "tokens_for_ai" in prompt:
+                if not isinstance(prompt["tokens_for_ai"], str):
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}: feedback_prompts[{i}].tokens_for_ai must be a string"
+                    )
+                # Check for STFU token usage (informational)
+                elif "STFU" in prompt["tokens_for_ai"]:
+                    # This is valid - STFU token is used to suppress empty feedback messages
+                    pass
+            
+            # Validate metadata_filter (optional)
+            if "metadata_filter" in prompt:
+                if not isinstance(prompt["metadata_filter"], list):
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}: feedback_prompts[{i}].metadata_filter must be a list"
+                    )
+                else:
+                    for j, filter_key in enumerate(prompt["metadata_filter"]):
+                        if not isinstance(filter_key, str):
+                            self.errors.append(
+                                f"Section {section_id}, step {step_id}: feedback_prompts[{i}].metadata_filter[{j}] must be a string"
+                            )
 
     def _validate_buckets(self, buckets: List[str], section_id: str, step_id: str):
         """Validate buckets list"""

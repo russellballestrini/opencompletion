@@ -2153,33 +2153,58 @@ def handle_activity_response(room_name, user_response, username):
                 # if "correct" or max_attempts reached.
                 # Provide feedback based on the category
 
-                # Filter metadata for feedback if metadata_feedback_filter is specified
-                feedback_metadata = activity_state.dict_metadata
-                if "metadata_feedback_filter" in transition:
-                    filter_keys = transition["metadata_feedback_filter"]
-                    feedback_metadata = {
-                        k: v
-                        for k, v in activity_state.dict_metadata.items()
-                        if k in filter_keys
-                    }
-
-                feedback = provide_feedback(
-                    transition,
-                    category,
-                    step["question"],
-                    feedback_tokens_for_ai,
-                    user_response,
-                    user_language,
-                    username,
-                    json.dumps(feedback_metadata),
-                    json.dumps(new_metadata),
-                )
-
-                # Store and emit the feedback
-                if feedback:
-                    # feedback is metadata language aware, doesn't need to be translated.
+                # Handle feedback systems
+                feedback_messages = []
+                
+                if "feedback_prompts" in step:
+                    # New multi-prompt system - pass full metadata, let each prompt filter
+                    multi_feedback_messages = provide_feedback_prompts(
+                        transition,
+                        category,
+                        step["question"],
+                        step["feedback_prompts"],
+                        user_response,
+                        user_language,
+                        username,
+                        json.dumps(activity_state.dict_metadata),  # Pass full metadata
+                        json.dumps(new_metadata),
+                        feedback_tokens_for_ai  # Pass legacy tokens to be combined
+                    )
+                    feedback_messages.extend(multi_feedback_messages)
+                elif feedback_tokens_for_ai:
+                    # Legacy single feedback system - use transition-level filtering
+                    feedback_metadata = activity_state.dict_metadata
+                    if "metadata_feedback_filter" in transition:
+                        filter_keys = transition["metadata_feedback_filter"]
+                        feedback_metadata = {
+                            k: v
+                            for k, v in activity_state.dict_metadata.items()
+                            if k in filter_keys
+                        }
+                    
+                    feedback = provide_feedback(
+                        transition,
+                        category,
+                        step["question"],
+                        feedback_tokens_for_ai,
+                        user_response,
+                        user_language,
+                        username,
+                        json.dumps(feedback_metadata),
+                        json.dumps(new_metadata),
+                    )
+                    if feedback and feedback.strip():
+                        feedback_messages.append({
+                            "name": "Feedback",
+                            "content": feedback
+                        })
+                
+                # Store and emit all feedback messages
+                for feedback_msg in feedback_messages:
                     new_message = Message(
-                        username="System (Feedback)", content=feedback, room_id=room.id
+                        username=f"System ({feedback_msg['name'].title()})",
+                        content=feedback_msg['content'],
+                        room_id=room.id
                     )
                     db.session.add(new_message)
                     db.session.commit()
@@ -2188,8 +2213,8 @@ def handle_activity_response(room_name, user_response, username):
                         "chat_message",
                         {
                             "id": new_message.id,
-                            "username": "System (Feedback)",
-                            "content": feedback,
+                            "username": f"System ({feedback_msg['name'].title()})",
+                            "content": feedback_msg['content'],
                         },
                         room=room_name,
                     )
@@ -2585,6 +2610,70 @@ def provide_feedback(
         feedback += f"\n\n{ai_feedback}"
 
     return feedback
+
+
+def provide_feedback_prompts(
+    transition,
+    category,
+    question,
+    feedback_prompts,
+    user_response,
+    user_language,
+    username,
+    json_metadata,
+    json_new_metadata,
+    legacy_tokens_for_ai="",
+):
+    """Generate feedback from multiple prompts"""
+    feedback_messages = []
+    
+    # Parse full metadata once for filtering
+    full_metadata = json.loads(json_metadata)
+    
+    for prompt in feedback_prompts:
+        prompt_name = prompt.get("name", "unnamed")
+        tokens_for_ai = prompt.get("tokens_for_ai", "")
+        
+        # Apply per-prompt metadata filtering if specified
+        prompt_metadata = full_metadata
+        if "metadata_filter" in prompt:
+            filter_keys = prompt["metadata_filter"]
+            prompt_metadata = {k: v for k, v in full_metadata.items() if k in filter_keys}
+            print(f"DEBUG: Prompt '{prompt_name}' filter_keys: {filter_keys}")
+            print(f"DEBUG: Prompt '{prompt_name}' filtered metadata: {prompt_metadata}")
+        else:
+            print(f"DEBUG: Prompt '{prompt_name}' has NO metadata_filter, using full metadata")
+            print(f"DEBUG: Prompt '{prompt_name}' full metadata: {prompt_metadata}")
+        
+        # Combine legacy tokens with prompt-specific tokens
+        if legacy_tokens_for_ai:
+            tokens_for_ai = legacy_tokens_for_ai + " " + tokens_for_ai
+        
+        # Add language instruction
+        tokens_for_ai += f" You must provide the feedback in the user's language: {user_language}."
+        
+        # Add transition-specific AI feedback if present
+        if "ai_feedback" in transition:
+            tokens_for_ai += f" {transition['ai_feedback'].get('tokens_for_ai', '')}"
+        
+        ai_feedback = generate_ai_feedback(
+            category,
+            question,
+            user_response,
+            tokens_for_ai,
+            username,
+            json.dumps(prompt_metadata),  # Use filtered metadata for this prompt
+            json_new_metadata,
+        )
+        
+        # Only add feedback if it has content and isn't exactly the STFU token
+        if ai_feedback and ai_feedback.strip() and ai_feedback.strip() != "STFU":
+            feedback_messages.append({
+                "name": prompt_name,
+                "content": ai_feedback.strip()
+            })
+    
+    return feedback_messages
 
 
 def translate_text(text, target_language):

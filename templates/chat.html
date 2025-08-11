@@ -472,7 +472,7 @@ function queueTTS(text, playButton, messageId) {
 }
 
 // Function to process the next TTS in queue
-async function processNextTTS() {
+function processNextTTS() {
     if (isPlayingTTS || ttsQueue.length === 0) {
         return;
     }
@@ -481,15 +481,19 @@ async function processNextTTS() {
     const { text, playButton, messageId } = ttsQueue.shift();
     console.log("Processing TTS from queue:", messageId);
     
-    try {
-        await speakTextQueued(text, playButton, messageId);
-    } catch (error) {
-        console.error("TTS error:", error);
-    }
-    
-    isPlayingTTS = false;
-    // Process next item in queue
-    setTimeout(processNextTTS, 100);
+    // Use non-blocking async processing
+    speakTextQueued(text, playButton, messageId)
+        .then(() => {
+            console.log("TTS completed successfully for:", messageId);
+        })
+        .catch((error) => {
+            console.error("TTS error:", error);
+        })
+        .finally(() => {
+            isPlayingTTS = false;
+            // Schedule next item with minimal delay to prevent blocking
+            setTimeout(processNextTTS, 10);
+        });
 }
 
 // Function to update auto-play TTS button display
@@ -520,6 +524,23 @@ function toggleAutoPlayTTS() {
     
     // Save to localStorage
     localStorage.setItem('autoPlayTTS', autoPlayTTS.toString());
+    
+    // If turning off, clear the queue and stop current audio
+    if (!autoPlayTTS) {
+        console.log("Clearing TTS queue, had", ttsQueue.length, "items");
+        ttsQueue = [];
+        isPlayingTTS = false;
+        
+        // Stop any currently playing audio
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            if (currentAudio.playButton) {
+                currentAudio.playButton.textContent = "Play";
+            }
+            currentAudio = null;
+        }
+    }
     
     updateAutoPlayTTSDisplay();
 }
@@ -626,7 +647,7 @@ socket.on("chat_message", (data) => {
                     console.log("Queueing TTS for message:", data.id);
                     queueTTS(data.content, playButton, data.id);
                 }
-            }, 100); // Short delay to let buttons be created
+            }, 10); // Very short delay to let buttons be created
         }
     }
 });
@@ -799,7 +820,7 @@ socket.on("message_chunk", (data) => {
                 setTimeout(() => {
                     const fullText = targetMessageElement.textContent || targetMessageElement.innerText;
                     queueTTS(fullText, playButton, data.id);
-                }, 500); // Small delay to let the message render
+                }, 50); // Small delay to let the message render
             }
         }
     }
@@ -1018,11 +1039,15 @@ function addLineNumbers(block) {
 
 // Socket event for setting the chat background
 socket.on("set_background", (data) => {
-    const chat = document.getElementById("chat");
-    chat.style.backgroundImage = `url('data:image/png;base64,${data.image_data}')`;
-    chat.style.backgroundRepeat = "no-repeat";
-    chat.style.backgroundPosition = "right center";
-    chat.style.backgroundSize = "auto"; // Ensures the image is not stretched
+    // Use setTimeout to ensure background updates don't get blocked by TTS
+    setTimeout(() => {
+        const chat = document.getElementById("chat");
+        chat.style.backgroundImage = `url('data:image/png;base64,${data.image_data}')`;
+        chat.style.backgroundRepeat = "no-repeat";
+        chat.style.backgroundPosition = "right center";
+        chat.style.backgroundSize = "auto"; // Ensures the image is not stretched
+        console.log("Background image updated");
+    }, 0);
 });
 
 // Activity management functions

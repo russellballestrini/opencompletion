@@ -122,7 +122,7 @@ def generate_ai_feedback(category, question, user_response, tokens_for_ai, metad
         return f"Error: {e}"
 
 
-# Provide feedback based on the category
+# Provide feedback based on the category (legacy single feedback system)
 def provide_feedback(
     transition,
     category,
@@ -148,6 +148,55 @@ def provide_feedback(
         feedback += f"\n\nAI Feedback: {ai_feedback}"
 
     return feedback
+
+
+# Provide feedback using multiple prompts (new system)
+def provide_feedback_prompts(
+    transition,
+    category,
+    question,
+    feedback_prompts,
+    user_response,
+    user_language,
+    metadata,
+    legacy_tokens_for_ai="",
+):
+    """Generate feedback from multiple prompts"""
+    feedback_messages = []
+    
+    for prompt in feedback_prompts:
+        prompt_name = prompt.get("name", "unnamed")
+        tokens_for_ai = prompt.get("tokens_for_ai", "")
+        
+        # Apply per-prompt metadata filtering if specified
+        prompt_metadata = metadata
+        if "metadata_filter" in prompt:
+            filter_keys = prompt["metadata_filter"]
+            prompt_metadata = {k: v for k, v in metadata.items() if k in filter_keys}
+        
+        # Combine legacy tokens with prompt-specific tokens
+        if legacy_tokens_for_ai:
+            tokens_for_ai = legacy_tokens_for_ai + " " + tokens_for_ai
+        
+        # Add language instruction
+        tokens_for_ai += f" Provide the feedback in {user_language}."
+        
+        # Add transition-specific AI feedback if present
+        if "ai_feedback" in transition:
+            tokens_for_ai += f" {transition['ai_feedback'].get('tokens_for_ai', '')}"
+        
+        ai_feedback = generate_ai_feedback(
+            category, question, user_response, tokens_for_ai, prompt_metadata
+        )
+        
+        # Only add feedback if it has content and isn't exactly the STFU token
+        if ai_feedback and ai_feedback.strip() and ai_feedback.strip() != "STFU":
+            feedback_messages.append({
+                "name": prompt_name,
+                "content": ai_feedback.strip()
+            })
+    
+    return feedback_messages
 
 
 def execute_processing_script(metadata, script):
@@ -413,16 +462,41 @@ def simulate_activity(yaml_file_path):
             print(f"\nMetadata: {json.dumps(metadata, indent=2)}")
 
             # Provide feedback based on the category
-            feedback = provide_feedback(
-                transition,
-                category,
-                question,
-                user_response,
-                user_language,
-                step.get("feedback_tokens_for_ai", ""),
-                metadata,
-            )
-            print(f"\nFeedback: {feedback}")
+            feedback_messages = []
+            
+            if "feedback_prompts" in step:
+                # New multi-prompt system - legacy tokens get combined with each prompt
+                multi_feedback_messages = provide_feedback_prompts(
+                    transition,
+                    category,
+                    question,
+                    step["feedback_prompts"],
+                    user_response,
+                    user_language,
+                    metadata,
+                    step.get("feedback_tokens_for_ai", "")  # Pass legacy tokens to be combined
+                )
+                feedback_messages.extend(multi_feedback_messages)
+            elif step.get("feedback_tokens_for_ai"):
+                # Legacy single feedback system - only if no feedback_prompts
+                feedback = provide_feedback(
+                    transition,
+                    category,
+                    question,
+                    user_response,
+                    user_language,
+                    step.get("feedback_tokens_for_ai", ""),
+                    metadata,
+                )
+                if feedback and feedback.strip():
+                    feedback_messages.append({
+                        "name": "Feedback",
+                        "content": feedback
+                    })
+            
+            # Display all feedback messages
+            for feedback_msg in feedback_messages:
+                print(f"\n{feedback_msg['name']}: {feedback_msg['content']}")
 
             if category not in [
                 "partial_understanding",

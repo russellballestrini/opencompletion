@@ -187,22 +187,58 @@ sections:
           If the user wants to exit, categorize as 'exit'.
           Otherwise, categorize as 'invalid_move'.
         feedback_tokens_for_ai: |
-          You are the naval battle narrator. Look at the metadata provided and report what happened.
-
-          STEP 1 - CHECK SHIP DESTRUCTION (MANDATORY):
-          Look in the metadata for these exact fields:
-          - user_sunk_ship_this_round: If this contains a ship name like "Carrier" or "Battleship", say: "💥 SHIP DESTROYED! You have sunk the enemy's [ship name]! The enemy vessel explodes and sinks! Victory!"
-          - ai_sunk_ship_this_round: If this contains a ship name, say: "🔥 YOUR SHIP SUNK! The enemy destroyed your [ship name]! Your vessel burns and sinks!"
-
-          STEP 2 - REPORT SHOTS:
-          - Your shot result (user_hit_result): "hit" or "miss" 
-          - Enemy shot result (ai_hit_result): "hit" or "miss"
-
-          EXAMPLE RESPONSE FORMAT:
-          If user_sunk_ship_this_round = "Carrier": "💥 SHIP DESTROYED! You have sunk the enemy's Carrier! [shot details]"
-          If ai_sunk_ship_this_round = "Destroyer": "🔥 YOUR SHIP SUNK! The enemy destroyed your Destroyer! [shot details]"
-
-          Always check the metadata for user_sunk_ship_this_round and ai_sunk_ship_this_round first. These are the most important events to report.
+          You are a battleship narrator. Each prompt has its own specific role - follow the individual prompt instructions precisely.
+        feedback_prompts:
+          - name: "Shot Report"
+            tokens_for_ai: |
+              🎯 Report ONLY the hit/miss results for both shots this turn. DO NOT report ship sinking or game over.
+              
+              Check metadata:
+              - user_shot: Player's target position
+              - user_hit_result: "hit" or "miss"
+              - ai_shot: AI's target position  
+              - ai_hit_result: "hit" or "miss"
+              
+              Format: "🎯 Your shot at position [user_shot]: [user_hit_result]! 🤖 Enemy shot at position [ai_shot]: [ai_hit_result]!"
+            metadata_filter:
+              - user_shot
+              - ai_shot  
+              - user_hit_result
+              - ai_hit_result
+              
+          - name: "Ship Status"
+            tokens_for_ai: |
+              You are the Ship Destruction Oracle. Report ship destruction EXACTLY as the metadata shows:
+              
+              CRITICAL - Read these metadata fields carefully:
+              - user_sunk_ship_this_round: If this contains a ship name like "Cruiser", it means THE USER destroyed an ENEMY ship
+              - ai_sunk_ship_this_round: If this contains a ship name like "Destroyer", it means THE ENEMY destroyed a USER ship
+              
+              Your responses:
+              - If user_sunk_ship_this_round has a ship name: "💥 You have destroyed the enemy's [ship name]! It sinks beneath the waves!"
+              - If ai_sunk_ship_this_round has a ship name: "🔥 The enemy has destroyed your [ship name]! It has been claimed by the sea!"
+              - If both have ship names: combine both messages above
+              - If both are null/empty: "STFU"
+              
+              Do NOT confuse who destroyed what. user_sunk_ship_this_round = USER victory. ai_sunk_ship_this_round = USER loss.
+            metadata_filter:
+              - user_sunk_ship_this_round
+              - ai_sunk_ship_this_round
+              
+          - name: "Game Over"
+            tokens_for_ai: |
+              🏁 Check ONLY the game_over metadata field.
+              
+              RESPOND WITH EXACTLY ONE OF THESE:
+              1. If game_over is false, null, or missing: "STFU"
+              2. If game_over is true AND user_wins is true: "🎉 TOTAL VICTORY! You have destroyed all enemy ships and won the battle! The seas are yours, Admiral!"
+              3. If game_over is true AND ai_wins is true: "💀 DEFEAT! The enemy has destroyed all your ships. Your fleet lies at the bottom of the ocean!"
+              
+              CRITICAL: If game is not over, respond with exactly "STFU" and nothing else.
+            metadata_filter:
+              - game_over
+              - user_wins
+              - ai_wins
 
         processing_script: |
           import random
@@ -847,16 +883,6 @@ sections:
                 The user shot seems valid.
             metadata_tmp_add:
               user_shot: "the-users-response"
-            metadata_feedback_filter:
-              - user_hit_result
-              - ai_hit_result
-              - ai_shot
-              - user_shot
-              - user_sunk_ship_this_round
-              - ai_sunk_ship_this_round
-              - game_over
-              - user_wins
-              - ai_wins
             next_section_and_step: "section_1:step_2"
           invalid_move:
             content_blocks:
