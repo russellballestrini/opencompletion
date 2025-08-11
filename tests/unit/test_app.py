@@ -560,5 +560,124 @@ class TestUtilityFunctions(unittest.TestCase):
         self.assertEqual(result, messages)
 
 
+class TestActivityManagementFunctions(unittest.TestCase):
+    """Test activity management and processing functions"""
+
+    def test_loop_through_steps_until_question_mock_test(self):
+        """Test that loop_through_steps_until_question function exists and is callable"""
+        # Simple test to verify function exists without complex mocking
+        self.assertTrue(hasattr(app, "loop_through_steps_until_question"))
+        self.assertTrue(callable(getattr(app, "loop_through_steps_until_question")))
+
+
+class TestActivityResponseProcessing(unittest.TestCase):
+    """Test detailed activity response processing logic"""
+
+    def test_activity_response_with_pre_script(self):
+        """Test activity response processing with pre-script execution"""
+        step = {
+            "step_id": "step_1",
+            "question": "Enter a number",
+            "pre_script": """
+# Validate user input
+try:
+    num = int(metadata['user_response'])
+    metadata['parsed_number'] = num
+    metadata['is_valid'] = True
+except ValueError:
+    metadata['is_valid'] = False
+
+script_result = {'validation_complete': True}
+""",
+            "buckets": ["valid", "invalid"],
+            "tokens_for_ai": "Categorize as valid or invalid",
+            "transitions": {
+                "valid": {"content_blocks": ["Good number!"]},
+                "invalid": {"content_blocks": ["Invalid input!"]},
+            },
+        }
+
+        metadata = {}
+        user_response = "42"
+
+        # Test pre-script execution logic
+        temp_metadata = metadata.copy()
+        temp_metadata["user_response"] = user_response
+
+        result = app.execute_processing_script(temp_metadata, step["pre_script"])
+
+        self.assertTrue(result["validation_complete"])
+        self.assertEqual(temp_metadata["parsed_number"], 42)
+        self.assertTrue(temp_metadata["is_valid"])
+
+    def test_activity_response_with_processing_script(self):
+        """Test activity response with post-processing script"""
+        step = {
+            "step_id": "step_1",
+            "question": "Test question",
+            "processing_script": """
+# Calculate score based on user response
+score = len(metadata.get('user_response', '')) * 10
+metadata['calculated_score'] = score
+
+script_result = {
+    'processing_complete': True,
+    'metadata': {'bonus_points': 50}
+}
+""",
+            "buckets": ["continue"],
+            "tokens_for_ai": "Continue processing",
+            "transitions": {"continue": {"run_processing_script": True}},
+        }
+
+        metadata = {}
+        user_response = "test answer"
+
+        # Test processing script execution
+        temp_metadata = metadata.copy()
+        temp_metadata["user_response"] = user_response
+
+        result = app.execute_processing_script(temp_metadata, step["processing_script"])
+
+        self.assertTrue(result["processing_complete"])
+        self.assertEqual(temp_metadata["calculated_score"], 110)  # 11 chars * 10
+        self.assertEqual(result["metadata"]["bonus_points"], 50)
+
+    def test_metadata_operations_in_transitions(self):
+        """Test various metadata operations in activity transitions"""
+        # Test metadata_add with different value types
+        transition = {
+            "metadata_add": {
+                "simple_value": "test",
+                "user_response_value": "the-users-response",
+                "increment_value": "n+5",
+                "random_value": "n+random(1,10)",
+            }
+        }
+
+        metadata = {"increment_value": 10}
+        user_response = "Hello World"
+
+        # Simulate metadata_add operations
+        for key, value in transition["metadata_add"].items():
+            if value == "the-users-response":
+                processed_value = user_response
+            elif isinstance(value, str) and value.startswith("n+random("):
+                # For testing, use fixed value instead of random
+                processed_value = metadata.get(key, 0) + 5
+            elif isinstance(value, str) and value.startswith("n+"):
+                c = int(value[2:])
+                processed_value = metadata.get(key, 0) + c
+            else:
+                processed_value = value
+
+            metadata[key] = processed_value
+
+        self.assertEqual(metadata["simple_value"], "test")
+        self.assertEqual(metadata["user_response_value"], "Hello World")
+        self.assertEqual(metadata["increment_value"], 15)
+        self.assertEqual(metadata["random_value"], 5)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

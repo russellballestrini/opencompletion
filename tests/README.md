@@ -16,6 +16,11 @@ make test-unit
 make test-integration 
 make test-functional
 make test-validator
+make test-yaml-loading
+make test-activity-flows
+make test-battleship
+make test-guarded-ai
+make test-multiple-files
 
 # Validate YAML files
 make validate-yaml
@@ -118,6 +123,11 @@ make test-unit          # Unit tests only
 make test-integration   # Integration tests only  
 make test-functional    # Functional tests only
 make test-validator     # YAML validator tests only
+make test-yaml-loading  # YAML loading/parsing tests
+make test-activity-flows # Activity flow tests
+make test-battleship    # Battleship game tests
+make test-guarded-ai    # Guarded AI functionality tests
+make test-multiple-files # Integration tests across all activity files
 ```
 
 ### YAML Validation

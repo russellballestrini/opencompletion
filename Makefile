@@ -35,7 +35,7 @@ venv:
 		python3 -m venv venv; \
 		echo "📦 Installing basic dependencies..."; \
 		venv/bin/pip install --upgrade pip; \
-		venv/bin/pip install pyyaml openai || echo "⚠️ Failed to install basic dependencies"; \
+		venv/bin/pip install -r requirements.txt || echo "⚠️ Failed to install basic dependencies"; \
 		echo "✅ Virtual environment ready!"; \
 	else \
 		echo "✅ Virtual environment already exists"; \
@@ -47,7 +47,7 @@ venv:
 
 # Run all tests
 .PHONY: test
-test: test-unit test-integration test-functional validate-yaml
+test: test-unit test-integration test-functional test-validator test-yaml-loading test-activity-flows test-battleship test-guarded-ai test-multiple-files validate-yaml
 	@echo ""
 	@echo "🎉 All tests completed!"
 	@echo "📊 Test Summary:"
@@ -55,6 +55,7 @@ test: test-unit test-integration test-functional validate-yaml
 	@echo "   ✅ Integration tests - Cross-component testing"  
 	@echo "   ✅ Functional tests - End-to-end workflows"
 	@echo "   ✅ YAML validation - All activity files"
+	@echo "   ✅ All specific test targets completed"
 
 # Run unit tests only  
 .PHONY: test-unit
@@ -182,14 +183,6 @@ ci: clean test validate-yaml lint
 	@echo "   ✅ Code linting completed"
 	@echo "🚀 Ready for deployment!"
 
-# Pre-commit hook simulation  
-.PHONY: pre-commit
-pre-commit:
-	@echo "🔒 Running pre-commit checks..."
-	$(MAKE) test-yaml-loading
-	$(MAKE) validate-yaml
-	$(MAKE) lint
-	@echo "✅ Pre-commit checks passed!"
 
 # ============================================================================
 # UTILITY COMMANDS
