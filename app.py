@@ -2155,7 +2155,7 @@ def handle_activity_response(room_name, user_response, username):
 
                 # Handle feedback systems
                 feedback_messages = []
-                
+
                 if "feedback_prompts" in step:
                     # New multi-prompt system - pass full metadata, let each prompt filter
                     multi_feedback_messages = provide_feedback_prompts(
@@ -2168,7 +2168,7 @@ def handle_activity_response(room_name, user_response, username):
                         username,
                         json.dumps(activity_state.dict_metadata),  # Pass full metadata
                         json.dumps(new_metadata),
-                        feedback_tokens_for_ai  # Pass legacy tokens to be combined
+                        feedback_tokens_for_ai,  # Pass legacy tokens to be combined
                     )
                     feedback_messages.extend(multi_feedback_messages)
                 elif feedback_tokens_for_ai:
@@ -2181,7 +2181,7 @@ def handle_activity_response(room_name, user_response, username):
                             for k, v in activity_state.dict_metadata.items()
                             if k in filter_keys
                         }
-                    
+
                     feedback = provide_feedback(
                         transition,
                         category,
@@ -2194,17 +2194,16 @@ def handle_activity_response(room_name, user_response, username):
                         json.dumps(new_metadata),
                     )
                     if feedback and feedback.strip():
-                        feedback_messages.append({
-                            "name": "Feedback",
-                            "content": feedback
-                        })
-                
+                        feedback_messages.append(
+                            {"name": "Feedback", "content": feedback}
+                        )
+
                 # Store and emit all feedback messages
                 for feedback_msg in feedback_messages:
                     new_message = Message(
                         username=f"System ({feedback_msg['name'].title()})",
-                        content=feedback_msg['content'],
-                        room_id=room.id
+                        content=feedback_msg["content"],
+                        room_id=room.id,
                     )
                     db.session.add(new_message)
                     db.session.commit()
@@ -2214,7 +2213,7 @@ def handle_activity_response(room_name, user_response, username):
                         {
                             "id": new_message.id,
                             "username": f"System ({feedback_msg['name'].title()})",
-                            "content": feedback_msg['content'],
+                            "content": feedback_msg["content"],
                         },
                         room=room_name,
                     )
@@ -2626,53 +2625,78 @@ def provide_feedback_prompts(
 ):
     """Generate feedback from multiple prompts"""
     feedback_messages = []
-    
+
     # Parse full metadata once for filtering
     full_metadata = json.loads(json_metadata)
-    
+
+    # Add user_response to metadata for filtering purposes
+    full_metadata["user_response"] = user_response
+
     for prompt in feedback_prompts:
         prompt_name = prompt.get("name", "unnamed")
         tokens_for_ai = prompt.get("tokens_for_ai", "")
-        
+
         # Apply per-prompt metadata filtering if specified
         prompt_metadata = full_metadata
         if "metadata_filter" in prompt:
             filter_keys = prompt["metadata_filter"]
-            prompt_metadata = {k: v for k, v in full_metadata.items() if k in filter_keys}
-            print(f"DEBUG: Prompt '{prompt_name}' filter_keys: {filter_keys}")
-            print(f"DEBUG: Prompt '{prompt_name}' filtered metadata: {prompt_metadata}")
+            prompt_metadata = {
+                k: v for k, v in full_metadata.items() if k in filter_keys
+            }
+
+            # Special debug for Ship Status
+            if prompt_name == "Ship Status":
+                print(f"DEBUG SHIP STATUS - filter_keys: {filter_keys}")
+                print(f"DEBUG SHIP STATUS - filtered metadata: {prompt_metadata}")
+                print(
+                    f"DEBUG SHIP STATUS - user_sunk_ship_this_round = '{prompt_metadata.get('user_sunk_ship_this_round')}'"
+                )
+                print(
+                    f"DEBUG SHIP STATUS - ai_sunk_ship_this_round = '{prompt_metadata.get('ai_sunk_ship_this_round')}'"
+                )
         else:
-            print(f"DEBUG: Prompt '{prompt_name}' has NO metadata_filter, using full metadata")
-            print(f"DEBUG: Prompt '{prompt_name}' full metadata: {prompt_metadata}")
-        
+            if prompt_name == "Ship Status":
+                print(
+                    f"DEBUG SHIP STATUS - NO metadata_filter, full metadata: {prompt_metadata}"
+                )
+
         # Combine legacy tokens with prompt-specific tokens
         if legacy_tokens_for_ai:
             tokens_for_ai = legacy_tokens_for_ai + " " + tokens_for_ai
-        
+
         # Add language instruction
-        tokens_for_ai += f" You must provide the feedback in the user's language: {user_language}."
-        
+        tokens_for_ai += (
+            f" You must provide the feedback in the user's language: {user_language}."
+        )
+
         # Add transition-specific AI feedback if present
         if "ai_feedback" in transition:
             tokens_for_ai += f" {transition['ai_feedback'].get('tokens_for_ai', '')}"
-        
+
+        # Determine user_response for this prompt based on metadata filtering
+        filtered_user_response = user_response
+        if (
+            "metadata_filter" in prompt
+            and "user_response" not in prompt["metadata_filter"]
+        ):
+            filtered_user_response = ""  # Remove user response if not in filter
+
         ai_feedback = generate_ai_feedback(
             category,
             question,
-            user_response,
+            filtered_user_response,
             tokens_for_ai,
             username,
             json.dumps(prompt_metadata),  # Use filtered metadata for this prompt
             json_new_metadata,
         )
-        
+
         # Only add feedback if it has content and isn't exactly the STFU token
         if ai_feedback and ai_feedback.strip() and ai_feedback.strip() != "STFU":
-            feedback_messages.append({
-                "name": prompt_name,
-                "content": ai_feedback.strip()
-            })
-    
+            feedback_messages.append(
+                {"name": prompt_name, "content": ai_feedback.strip()}
+            )
+
     return feedback_messages
 
 

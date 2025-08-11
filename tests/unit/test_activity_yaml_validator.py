@@ -692,15 +692,23 @@ sections:
         try:
             is_valid, errors, warnings = self.validator.validate_file(temp_file)
             self.assertFalse(is_valid)
-            
+
             # Check for specific error types
-            self.assertTrue(any("feedback_prompts' must be a list" in error for error in errors))
-            self.assertTrue(any("feedback_prompts' cannot be empty" in error for error in errors))
+            self.assertTrue(
+                any("feedback_prompts' must be a list" in error for error in errors)
+            )
+            self.assertTrue(
+                any("feedback_prompts' cannot be empty" in error for error in errors)
+            )
             self.assertTrue(any("must be a dictionary" in error for error in errors))
             self.assertTrue(any("missing required field" in error for error in errors))
-            self.assertTrue(any("duplicate feedback prompt name" in error for error in errors))
+            self.assertTrue(
+                any("duplicate feedback prompt name" in error for error in errors)
+            )
             self.assertTrue(any("name must be a string" in error for error in errors))
-            self.assertTrue(any("tokens_for_ai must be a string" in error for error in errors))
+            self.assertTrue(
+                any("tokens_for_ai must be a string" in error for error in errors)
+            )
         finally:
             os.unlink(temp_file)
 

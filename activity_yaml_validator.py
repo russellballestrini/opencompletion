@@ -244,7 +244,9 @@ class ActivityYAMLValidator:
 
         # Validate feedback_prompts (new multi-prompt system)
         if "feedback_prompts" in step:
-            self._validate_feedback_prompts(step["feedback_prompts"], section_id, step_id)
+            self._validate_feedback_prompts(
+                step["feedback_prompts"], section_id, step_id
+            )
 
         # Validate buckets and transitions
         if "buckets" in step:
@@ -255,7 +257,9 @@ class ActivityYAMLValidator:
                 step["transitions"], step.get("buckets", []), section_id, step_id
             )
 
-    def _validate_feedback_prompts(self, feedback_prompts: List[Dict[str, Any]], section_id: str, step_id: str):
+    def _validate_feedback_prompts(
+        self, feedback_prompts: List[Dict[str, Any]], section_id: str, step_id: str
+    ):
         """Validate feedback_prompts structure"""
         if not isinstance(feedback_prompts, list):
             self.errors.append(
@@ -308,7 +312,7 @@ class ActivityYAMLValidator:
                 elif "STFU" in prompt["tokens_for_ai"]:
                     # This is valid - STFU token is used to suppress empty feedback messages
                     pass
-            
+
             # Validate metadata_filter (optional)
             if "metadata_filter" in prompt:
                 if not isinstance(prompt["metadata_filter"], list):

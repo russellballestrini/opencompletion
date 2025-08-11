@@ -163,39 +163,52 @@ def provide_feedback_prompts(
 ):
     """Generate feedback from multiple prompts"""
     feedback_messages = []
-    
+
+    # Add user_response to metadata for filtering purposes
+    full_metadata = metadata.copy()
+    full_metadata["user_response"] = user_response
+
     for prompt in feedback_prompts:
         prompt_name = prompt.get("name", "unnamed")
         tokens_for_ai = prompt.get("tokens_for_ai", "")
-        
+
         # Apply per-prompt metadata filtering if specified
-        prompt_metadata = metadata
+        prompt_metadata = full_metadata
         if "metadata_filter" in prompt:
             filter_keys = prompt["metadata_filter"]
-            prompt_metadata = {k: v for k, v in metadata.items() if k in filter_keys}
-        
+            prompt_metadata = {
+                k: v for k, v in full_metadata.items() if k in filter_keys
+            }
+
         # Combine legacy tokens with prompt-specific tokens
         if legacy_tokens_for_ai:
             tokens_for_ai = legacy_tokens_for_ai + " " + tokens_for_ai
-        
+
         # Add language instruction
         tokens_for_ai += f" Provide the feedback in {user_language}."
-        
+
         # Add transition-specific AI feedback if present
         if "ai_feedback" in transition:
             tokens_for_ai += f" {transition['ai_feedback'].get('tokens_for_ai', '')}"
-        
+
+        # Determine user_response for this prompt based on metadata filtering
+        filtered_user_response = user_response
+        if (
+            "metadata_filter" in prompt
+            and "user_response" not in prompt["metadata_filter"]
+        ):
+            filtered_user_response = ""  # Remove user response if not in filter
+
         ai_feedback = generate_ai_feedback(
-            category, question, user_response, tokens_for_ai, prompt_metadata
+            category, question, filtered_user_response, tokens_for_ai, prompt_metadata
         )
-        
+
         # Only add feedback if it has content and isn't exactly the STFU token
         if ai_feedback and ai_feedback.strip() and ai_feedback.strip() != "STFU":
-            feedback_messages.append({
-                "name": prompt_name,
-                "content": ai_feedback.strip()
-            })
-    
+            feedback_messages.append(
+                {"name": prompt_name, "content": ai_feedback.strip()}
+            )
+
     return feedback_messages
 
 
@@ -463,7 +476,7 @@ def simulate_activity(yaml_file_path):
 
             # Provide feedback based on the category
             feedback_messages = []
-            
+
             if "feedback_prompts" in step:
                 # New multi-prompt system - legacy tokens get combined with each prompt
                 multi_feedback_messages = provide_feedback_prompts(
@@ -474,7 +487,9 @@ def simulate_activity(yaml_file_path):
                     user_response,
                     user_language,
                     metadata,
-                    step.get("feedback_tokens_for_ai", "")  # Pass legacy tokens to be combined
+                    step.get(
+                        "feedback_tokens_for_ai", ""
+                    ),  # Pass legacy tokens to be combined
                 )
                 feedback_messages.extend(multi_feedback_messages)
             elif step.get("feedback_tokens_for_ai"):
@@ -489,11 +504,8 @@ def simulate_activity(yaml_file_path):
                     metadata,
                 )
                 if feedback and feedback.strip():
-                    feedback_messages.append({
-                        "name": "Feedback",
-                        "content": feedback
-                    })
-            
+                    feedback_messages.append({"name": "Feedback", "content": feedback})
+
             # Display all feedback messages
             for feedback_msg in feedback_messages:
                 print(f"\n{feedback_msg['name']}: {feedback_msg['content']}")

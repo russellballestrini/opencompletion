@@ -320,7 +320,9 @@ class TestActivityYAMLChanges(unittest.TestCase):
         """Test that activity3's new terminal section loads correctly"""
         import guarded_ai as guarded_ai
 
-        activity_file = Path(__file__).parent.parent.parent / "research" / "activity3.yaml"
+        activity_file = (
+            Path(__file__).parent.parent.parent / "research" / "activity3.yaml"
+        )
         activity = guarded_ai.load_yaml_activity(str(activity_file))
 
         # Should have section_5 now
@@ -348,7 +350,9 @@ class TestActivityYAMLChanges(unittest.TestCase):
         import guarded_ai as guarded_ai
 
         activity_file = (
-            Path(__file__).parent.parent.parent / "research" / "activity17-choose-adventure.yaml"
+            Path(__file__).parent.parent.parent
+            / "research"
+            / "activity17-choose-adventure.yaml"
         )
         activity = guarded_ai.load_yaml_activity(str(activity_file))
 
@@ -375,7 +379,9 @@ class TestActivityYAMLChanges(unittest.TestCase):
             "activity29-battleship.yaml",
             "activity29-testship.yaml",
         ]:
-            activity_file = Path(__file__).parent.parent.parent / "research" / battleship_file
+            activity_file = (
+                Path(__file__).parent.parent.parent / "research" / battleship_file
+            )
             activity = guarded_ai.load_yaml_activity(str(activity_file))
 
             # Find exit transitions and verify they go to step_4

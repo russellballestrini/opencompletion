@@ -183,6 +183,7 @@ sections:
               - ai_shot  
               - user_hit_result
               - ai_hit_result
+              - user_response
               
           - name: "Ship Status"
             tokens_for_ai: |
@@ -192,12 +193,17 @@ sections:
               - user_sunk_ship_this_round: If this contains a ship name like "Cruiser", it means THE USER destroyed an ENEMY ship
               - ai_sunk_ship_this_round: If this contains a ship name like "Destroyer", it means THE ENEMY destroyed a USER ship
               
-              Your responses:
-              - If user_sunk_ship_this_round has a ship name: "💥 You have destroyed the enemy's [ship name]! It sinks beneath the waves!"
-              - If ai_sunk_ship_this_round has a ship name: "🔥 The enemy has destroyed your [ship name]! It has been claimed by the sea!"
-              - If both have ship names: combine both messages above
-              - If both are null/empty: "STFU"
+              Examples of when to respond:
+              - If ai_sunk_ship_this_round = "Submarine": Generate submarine destruction story
+              - If ai_sunk_ship_this_round = "Carrier": Generate carrier destruction story
+              - If user_sunk_ship_this_round = "Destroyer": Generate destroyer victory story
+              - If both = "None": Respond with "STFU"
               
+              Your responses:
+              - If user_sunk_ship_this_round equals "Carrier", "Battleship", "Cruiser", "Submarine", or "Destroyer": "💥 You have destroyed the enemy's [ship name]! Write 3 dramatic sentences describing how this specific type of warship meets its end - does it explode? Break apart? Burn? Implode? Make it cinematic!"
+              - If ai_sunk_ship_this_round equals "Carrier", "Battleship", "Cruiser", "Submarine", or "Destroyer": "🔥 The enemy has destroyed your [ship name]! Write 3 dramatic sentences describing how this specific type of warship is destroyed - the fire, water, explosions, or structural failure. Make it epic!"
+              - If both equal ship names: combine both messages above
+              - If both equal "None" or null: "STFU"
               Do NOT confuse who destroyed what. user_sunk_ship_this_round = USER victory. ai_sunk_ship_this_round = USER loss.
             metadata_filter:
               - user_sunk_ship_this_round
