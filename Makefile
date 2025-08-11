@@ -155,13 +155,18 @@ test-cov: dev-setup
 
 
 # Format and lint code  
-.PHONY: format lint
-format lint: dev-setup
-	@echo "🎨 Formatting and linting code..."
-	venv/bin/black . || echo "⚠️  black formatting failed"
-	venv/bin/isort . || echo "⚠️  isort import sorting failed" 
-	venv/bin/flake8 . || echo "⚠️  Linting issues found"
+.PHONY: format
+format: dev-setup
+	@echo "🎨 Formatting code..."
+	venv/bin/black .
+	venv/bin/isort .
 
+.PHONY: lint
+lint: dev-setup
+	@echo "🔍 Linting code..."
+	venv/bin/black --check .
+	venv/bin/isort --check-only .
+	venv/bin/flake8 .
 # Install development dependencies
 .PHONY: dev-setup
 dev-setup: venv
