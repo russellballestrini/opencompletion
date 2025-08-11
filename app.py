@@ -2644,7 +2644,7 @@ def provide_feedback_prompts(
                 k: v for k, v in full_metadata.items() if k in filter_keys
             }
 
-            # Special debug for Ship Status
+            # Special debug for Ship Status and Game Over
             if prompt_name == "Ship Status":
                 print(f"DEBUG SHIP STATUS - filter_keys: {filter_keys}")
                 print(f"DEBUG SHIP STATUS - filtered metadata: {prompt_metadata}")
@@ -2654,10 +2654,20 @@ def provide_feedback_prompts(
                 print(
                     f"DEBUG SHIP STATUS - ai_sunk_ship_this_round = '{prompt_metadata.get('ai_sunk_ship_this_round')}'"
                 )
+            elif prompt_name == "Game Over":
+                print(f"DEBUG GAME OVER - filter_keys: {filter_keys}")
+                print(f"DEBUG GAME OVER - filtered metadata: {prompt_metadata}")
+                print(f"DEBUG GAME OVER - game_over = '{prompt_metadata.get('game_over')}'")
+                print(f"DEBUG GAME OVER - user_wins = '{prompt_metadata.get('user_wins')}'")
+                print(f"DEBUG GAME OVER - ai_wins = '{prompt_metadata.get('ai_wins')}'")
         else:
             if prompt_name == "Ship Status":
                 print(
                     f"DEBUG SHIP STATUS - NO metadata_filter, full metadata: {prompt_metadata}"
+                )
+            elif prompt_name == "Game Over":
+                print(
+                    f"DEBUG GAME OVER - NO metadata_filter, full metadata: {prompt_metadata}"
                 )
 
         # Combine legacy tokens with prompt-specific tokens
