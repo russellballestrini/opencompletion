@@ -822,9 +822,9 @@ socket.on("message_chunk", (data) => {
             messageId: data.id
         });
         if (autoPlayTTS && data.is_complete && messageBuffers[data.id] && messageBuffers[data.id].trim() !== "") {
-            const playButton = buttonContainer.querySelector("button");
-            console.log("DEBUG: Found play button for streaming TTS:", playButton ? "YES" : "NO");
-            if (playButton && playButton.textContent === "Play") {
+            const playButton = Array.from(buttonContainer.querySelectorAll("button")).find(btn => btn.textContent === "Play");
+            console.log("DEBUG: Found play button for streaming TTS:", playButton ? "YES" : "NO", playButton?.textContent);
+            if (playButton) {
                 setTimeout(() => {
                     const fullText = targetMessageElement.textContent || targetMessageElement.innerText;
                     console.log("DEBUG: Queueing streaming TTS:", data.id, fullText.substring(0, 50) + "...");
