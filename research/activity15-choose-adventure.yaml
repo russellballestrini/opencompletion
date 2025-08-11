@@ -56,8 +56,7 @@ sections:
       - step_id: "step_1"
         title: "Found the Key"
         content_blocks:
-          - "You chose to look under the rug. 🧺"
-          - "You find a key hidden under the rug."
+          - "You find a key hidden under the rug. 🔑"
         tokens_for_ai: "Guide the user to make a choice between taking the key or continuing to explore the room. Be flexible to classify actions that lead to finding hidden items. Use off_topic sparingly if the response choice doesn't fit any other topic. Provide feedback based on their choice."
         question: "What do you choose? Take the key or Continue exploring? 🤔"
         buckets:
@@ -105,8 +104,7 @@ sections:
       - step_id: "step_1"
         title: "Found the Password"
         content_blocks:
-          - "You chose to examine the book. 📖"
-          - "The book contains a note with a password: 'ESCAPE123'."
+          - "The book contains a note with a password: 'ESCAPE123'. 🔐"
         tokens_for_ai: "Guide the user to make a choice between taking note of the password or continuing to explore the room. Be flexible to classify actions that lead to finding hidden items. Use off_topic sparingly if the response choice doesn't fit any other topic. Provide feedback based on their choice."
         question: "What do you choose? Take note of the password or Continue exploring? 🤔"
         buckets:
@@ -152,8 +150,7 @@ sections:
       - step_id: "step_1"
         title: "Opening the Safe"
         content_blocks:
-          - "You chose to try to open the safe. 🔒"
-          - "The safe is locked and requires both a key and a password to open."
+          - "The safe is locked and requires both a key and a password to open. 🔒"
         tokens_for_ai: "Guide the user to make a choice between using the key and entering the password to open the safe or continuing to explore the room. Be flexible to classify actions that lead to finding hidden items. Use off_topic sparingly if the response choice doesn't fit any other topic. Provide feedback based on their choice."
         question: "What do you do? Use the key and enter the password or Continue exploring? 🤔"
         buckets:
@@ -161,7 +158,6 @@ sections:
           - continue_exploring
           - go_back
           - asking_clarifying_questions
-          - use_coin
           - off_topic
         transitions:
           use_key_and_password:
@@ -172,7 +168,7 @@ sections:
               - "You chose to use the key and enter the password to open the safe. 🔑"
               - "The safe opens, revealing a hidden treasure and the exit key. 🎉"
               - "There is also a slot for a coin, but that is likely not important..."
-            next_section_and_step: "section_4:step_1"
+            next_section_and_step: "section_4:step_2"
             ai_feedback:
               tokens_for_ai: "Provide positive reinforcement and guide the user to the final encounter. Be flexible to classify actions that lead to finding hidden items. Use emojis like 👍 and 🌟."
             metadata_add:
@@ -184,6 +180,28 @@ sections:
             next_section_and_step: "section_3:step_1"
             ai_feedback:
               tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Be flexible to classify actions that lead to finding hidden items. Use emojis like 👍 and 🌟."
+          off_topic:
+            ai_feedback:
+              tokens_for_ai: "Gently guide the user back to the story in a supportive manner. Use emojis like 🔄 and 🧭."
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner. Use emojis like ❓ and 💬."
+
+      - step_id: "step_2"
+        title: "Safe is Open"
+        content_blocks:
+          - "The safe is now open, revealing treasure and an exit key. 🎉"
+          - "There is a coin slot in the safe that looks intriguing. 🪙"
+        tokens_for_ai: "Guide the user to make a choice: If they mention 'use coin', 'coin slot', or 'insert coin' categorize as 'use_coin'. If they want to continue exploring or leave, categorize accordingly."
+        question: "What do you do? Use the coin in the slot, Try to leave the room, or Continue exploring? 🤔"
+        buckets:
+          - use_coin
+          - try_leave_room
+          - continue_exploring
+          - go_back
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
           use_coin:
             metadata_conditions:
               coin: true
@@ -193,6 +211,22 @@ sections:
             next_section_and_step: "section_5:step_1"
             ai_feedback:
               tokens_for_ai: "Provide positive reinforcement and guide the user to the final encounter. Be flexible to classify actions that lead to finding hidden items. Use emojis like 👍 and 🌟."
+          try_leave_room:
+            metadata_conditions:
+              exit_key: true
+            content_blocks:
+              - "You chose to try to leave the room. 🚪"
+              - "The exit door opens, revealing a way out."
+              - "Congratulations! You have found the way out and successfully completed the escape room. 🎉"
+            next_section_and_step: "section_6:step_1"
+            ai_feedback:
+              tokens_for_ai: "The user has exited with the exit_key! The game is over, Use emojis like 👍 and 🌟."
+          continue_exploring:
+            next_section_and_step: "section_1:step_1"
+          go_back:
+            next_section_and_step: "section_4:step_1"
+            ai_feedback:
+              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
           off_topic:
             ai_feedback:
               tokens_for_ai: "Gently guide the user back to the story in a supportive manner. Use emojis like 🔄 and 🧭."
@@ -206,8 +240,7 @@ sections:
       - step_id: "step_1"
         title: "The Hidden Compartment"
         content_blocks:
-          - "You chose to use the coin to open the compartment. 🪙"
-          - "The compartment opens, revealing a second, smaller safe."
+          - "The compartment opens, revealing a second, smaller safe. 🪙"
           - "This safe requires a combination to open."
         tokens_for_ai: "Guide the user to make a choice between solving the combination to open the second safe or leaving it alone. Be flexible to classify actions that lead to finding hidden items. Use off_topic sparingly if the response choice doesn't fit any other topic. Provide feedback based on their choice."
         question: "Do you try to solve the combination or leave it alone? 🤔"
