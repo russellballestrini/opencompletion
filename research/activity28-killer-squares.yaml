@@ -84,6 +84,11 @@ sections:
             next_section_and_step: "section_1:step_1"
           exit:
             next_section_and_step: "section_1:step_3"
+          restart:
+            ai_feedback:
+              tokens_for_ai: "Restarting the game. Let's start fresh!"
+            metadata_clear: True
+            next_section_and_step: "section_1:step_0"
 
       - step_id: "step_2"
         title: "Kill a Square"
@@ -242,6 +247,7 @@ sections:
           - valid_move
           - invalid_move
           - exit
+          - restart
         transitions:
           valid_move:
             run_processing_script: True

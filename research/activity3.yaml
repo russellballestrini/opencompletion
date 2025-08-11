@@ -284,3 +284,19 @@ sections:
               - "I see you have some questions. Let's answer them."
             ai_feedback:
               tokens_for_ai: "Answer the child's clarifying questions and provide additional information in a friendly and engaging manner."
+
+  - section_id: "section_5"
+    title: "Congratulations!"
+    steps:
+      - step_id: "step_1"
+        title: "You're an Elephant Expert!"
+        content_blocks:
+          - "🎉 Congratulations! You've learned so much about elephants today!"
+          - "You now know:"
+          - "✅ What elephants look like and how big they are"
+          - "✅ What elephants eat with their trunks"
+          - "✅ How elephants communicate with each other"
+          - "✅ Why elephants need our help"
+          - "✅ Ways we can help protect elephants"
+          - "You're now an elephant expert! Keep learning and caring about animals! 🐘🌟"
+          - "Thank you for taking this journey with us!"

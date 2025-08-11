@@ -1,0 +1,7 @@
+pytest
+pytest-cov
+pytest-mock
+pytest-flask
+pytest-asyncio
+black
+flake8
