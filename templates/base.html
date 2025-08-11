@@ -609,6 +609,27 @@
         closeButton.style.display = "none";
     }
     
+    // Function to update all room links with current URL parameters
+    function updateRoomLinksWithCurrentParams() {
+        const currentParams = new URLSearchParams(window.location.search).toString();
+        
+        // Update desktop room links
+        const roomLinks = document.querySelectorAll('#rooms-list-ul a[href*="/chat/"]');
+        roomLinks.forEach(link => {
+            const url = new URL(link.href, window.location.origin);
+            const roomPath = url.pathname; // e.g., "/chat/room-name"
+            link.href = roomPath + (currentParams ? '?' + currentParams : '');
+        });
+        
+        // Update mobile room links (if they exist)
+        const mobileRoomLinks = document.querySelectorAll('#rooms-list-modal-content a[href*="/chat/"]');
+        mobileRoomLinks.forEach(link => {
+            const url = new URL(link.href, window.location.origin);
+            const roomPath = url.pathname; // e.g., "/chat/room-name"
+            link.href = roomPath + (currentParams ? '?' + currentParams : '');
+        });
+    }
+    
     // Function to create a new room
     function createNewRoom() {
         const roomName = document.getElementById("new-room-name").value.trim();

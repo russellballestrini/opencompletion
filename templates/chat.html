@@ -158,12 +158,21 @@ function syncInputsAndQueryString() {
     if (modelSelectMobile) modelSelectMobile.value = currentModel;
     if (voiceSelectMobile) voiceSelectMobile.value = currentVoice;
 
+    // Save to localStorage for persistence
+    localStorage.setItem('selectedModel', currentModel);
+    localStorage.setItem('selectedVoice', currentVoice);
+    
     // Update URL
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.set("username", sanitizedUsername);
     newUrl.searchParams.set("model", currentModel);
     newUrl.searchParams.set("voice", currentVoice);
     window.history.replaceState({}, '', newUrl);
+    
+    // Update room links with new parameters
+    if (typeof updateRoomLinksWithCurrentParams === 'function') {
+        updateRoomLinksWithCurrentParams();
+    }
 }
 
 // Backward compatibility
@@ -231,9 +240,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
         userHasScrolledUp = distanceFromBottom > 5;
     });
 
-    // Set initial model, voice, and username from query string
-    const initialModel = urlParams.get("model") || "None";
-    const initialVoice = urlParams.get("voice") || "onyx";
+    // Set initial model, voice, and username from URL, localStorage, or defaults
+    const initialModel = urlParams.get("model") || localStorage.getItem('selectedModel') || "None";
+    const initialVoice = urlParams.get("voice") || localStorage.getItem('selectedVoice') || "onyx";
     const initialUsername = username; // Already set to URL param or "guest"
     
     modelSelectDesktop.value = initialModel;
@@ -246,6 +255,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const usernameInputMobile = document.getElementById("username-input-mobile");
     if (usernameInputDesktop) usernameInputDesktop.value = initialUsername;
     if (usernameInputMobile) usernameInputMobile.value = initialUsername;
+    
+    // Initial sync to ensure localStorage and URL are updated with current values
+    syncInputsAndQueryString();
 
     // Add event listeners for desktop dropdowns
     modelSelectDesktop.addEventListener("change", () => {
