@@ -209,24 +209,16 @@ sections:
               
           - name: "Ship Status"
             tokens_for_ai: |
-              You are the Ship Destruction Oracle. Report ship destruction EXACTLY as the metadata shows:
+              A ship has been destroyed! Generate a dramatic 2-3 sentence description.
               
-              CRITICAL - Read these metadata fields carefully:
-              - user_sunk_ship_this_round: If this contains a ship name like "Cruiser", it means THE USER destroyed an ENEMY ship
-              - ai_sunk_ship_this_round: If this contains a ship name like "Destroyer", it means THE ENEMY destroyed a USER ship
+              Metadata tells you which ship(s) were sunk:
+              - user_sunk_ship_this_round: The ship YOU destroyed (your victory)
+              - ai_sunk_ship_this_round: The ship that was destroyed by the enemy (your loss)
               
-              Examples of when to respond:
-              - If ai_sunk_ship_this_round = "Submarine": Generate submarine destruction story
-              - If ai_sunk_ship_this_round = "Carrier": Generate carrier destruction story
-              - If user_sunk_ship_this_round = "Destroyer": Generate destroyer victory story
-              - If both = "None": Respond with "STFU"
-              
-              Your responses:
-              - If user_sunk_ship_this_round equals "Carrier", "Battleship", "Cruiser", "Submarine", or "Destroyer": "💥 You have destroyed the enemy's [ship name]! Write 3 dramatic sentences describing how this specific type of warship meets its end - does it explode? Break apart? Burn? Implode? Make it cinematic!"
-              - If ai_sunk_ship_this_round equals "Carrier", "Battleship", "Cruiser", "Submarine", or "Destroyer": "🔥 The enemy has destroyed your [ship name]! Write 3 dramatic sentences describing how this specific type of warship is destroyed - the fire, water, explosions, or structural failure. Make it epic!"
-              - If both equal ship names: combine both messages above
-              - If both equal "None" or null: "STFU"
-              Do NOT confuse who destroyed what. user_sunk_ship_this_round = USER victory. ai_sunk_ship_this_round = USER loss.
+              Format:
+              - If user destroyed a ship: "💥 You've sunk their [ship]! [2-3 dramatic sentences imagining how this warship meets its doom]"
+              - If AI destroyed your ship: "🔥 Your [ship] has been destroyed! [2-3 dramatic sentences about its destruction]"
+              - If both: Include both messages
             metadata_filter:
               - user_sunk_ship_this_round
               - ai_sunk_ship_this_round
@@ -234,14 +226,13 @@ sections:
               
           - name: "Game Over"
             tokens_for_ai: |
-              🏁 Check ONLY the game_over metadata field.
+              The naval battle has ended! Generate an epic conclusion.
               
-              RESPOND WITH EXACTLY ONE OF THESE:
-              1. If game_over is false, null, or missing: "STFU"
-              2. If game_over is true AND user_wins is true: "🎉 TOTAL VICTORY! You have destroyed all enemy ships and won the battle! The seas are yours, Admiral!"
-              3. If game_over is true AND ai_wins is true: "💀 DEFEAT! The enemy has destroyed all your ships. Your fleet lies at the bottom of the ocean!"
+              Based on the metadata:
+              - If user_wins is true: "🎉 TOTAL VICTORY! You have destroyed all enemy ships! The seas belong to you, Admiral. Your tactical brilliance has secured complete naval supremacy."
+              - If ai_wins is true: "💀 DEFEAT! All your ships have been destroyed. Your fleet lies scattered across the ocean floor. The enemy's superior strategy has prevailed."
               
-              CRITICAL: If game is not over, respond with exactly "STFU" and nothing else.
+              Make it dramatic and final - this is the end of the battle!
             metadata_filter:
               - game_over
               - user_wins
