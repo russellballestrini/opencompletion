@@ -814,11 +814,20 @@ socket.on("message_chunk", (data) => {
         messageWrapper.insertBefore(buttonContainer, targetMessageElement);
         
         // Auto-play TTS if enabled and message is complete (only when streaming finishes)
+        console.log("DEBUG: Streaming complete check:", {
+            autoPlayTTS: autoPlayTTS,
+            is_complete: data.is_complete,
+            hasBuffer: !!messageBuffers[data.id],
+            bufferContent: messageBuffers[data.id] ? messageBuffers[data.id].substring(0, 50) + "..." : "none",
+            messageId: data.id
+        });
         if (autoPlayTTS && data.is_complete && messageBuffers[data.id] && messageBuffers[data.id].trim() !== "") {
             const playButton = buttonContainer.querySelector("button");
+            console.log("DEBUG: Found play button for streaming TTS:", playButton ? "YES" : "NO");
             if (playButton && playButton.textContent === "Play") {
                 setTimeout(() => {
                     const fullText = targetMessageElement.textContent || targetMessageElement.innerText;
+                    console.log("DEBUG: Queueing streaming TTS:", data.id, fullText.substring(0, 50) + "...");
                     queueTTS(fullText, playButton, data.id);
                 }, 50); // Small delay to let the message render
             }
