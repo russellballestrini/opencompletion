@@ -1646,6 +1646,8 @@ def loop_through_steps_until_question(
                 },
                 room=room_name,
             )
+            # Return to activity chooser
+            socketio.emit("activity_status", {"active": False}, room=room_name)
             break
 
 
