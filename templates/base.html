@@ -243,6 +243,78 @@
     .utility-belt {
         padding: 10px;
     }
+    
+    /* Activity controls styling */
+    #activity-controls {
+        margin-top: 20px;
+        padding: 10px;
+        border-top: 1px solid #e1e1e1;
+    }
+    
+    #activity-controls h3 {
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+    
+    #current-activity-info {
+        background-color: #f0f0f0;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+    
+    #current-activity-info p {
+        margin: 0 0 10px 0;
+    }
+    
+    #activity-controls button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 14px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+    
+    #cancel-activity-btn {
+        background-color: #f44336;
+    }
+    
+    #activity-controls button:hover {
+        opacity: 0.8;
+    }
+    
+    #activity-select {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 5px;
+        border: 1px solid #e1e1e1;
+        border-radius: 4px;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    /* Model and voice select dropdowns styling */
+    #model-select, #voice-select, #model-select-mobile, #voice-select-mobile {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 5px;
+        border: 1px solid #e1e1e1;
+        border-radius: 4px;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 
     /* Media query for mobile devices */
     @media (max-width: 768px) {
@@ -296,6 +368,28 @@
                     <option value="shimmer">Shimmer</option>
                 </select>
             </div>
+            <div id="auto-play-tts-mobile">
+                <button id="auto-play-tts-btn-mobile" onclick="toggleAutoPlayTTS()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
+                    Auto-Play TTS: OFF
+                </button>
+            </div>
+            <div id="activity-controls-mobile">
+                <h3>Activities</h3>
+                <div id="current-activity-info-mobile" style="display: none;">
+                    <p>Current Activity: <span id="current-activity-name-mobile"></span></p>
+                    <button id="cancel-activity-btn-mobile" onclick="cancelActivity()">Cancel Activity</button>
+                </div>
+                <div id="activity-list-section-mobile">
+                    <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 5px; margin-bottom: 5px;">
+                        <select id="activity-select-mobile" style="width: 100%; max-width: 100%; box-sizing: border-box;">
+                            <option value="">-- Select an Activity --</option>
+                        </select>
+                        <button id="refresh-activities-btn-mobile" onclick="refreshActivityList()">🔄</button>
+                    </div>
+                    <button id="load-activity-btn-mobile" onclick="loadSelectedActivityMobile()" style="margin-top: 5px;">Load Activity</button>
+                </div>
+            </div>
+
             <div id="user-lists-mobile">
                 <div id="active-users-list">
                     <h3>Active Users</h3>

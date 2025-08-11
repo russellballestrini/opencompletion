@@ -31,10 +31,12 @@ from sqlalchemy.exc import InvalidRequestError
 
 from models import db, Room, UserSession, Message, ActivityState
 
-app = Flask(__name__)
+app = Flask(__name__, instance_relative_config=True)
 
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-in-production")
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///chat.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    f"sqlite:///{os.path.join(app.instance_path, 'chat.db')}"
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
@@ -231,6 +233,28 @@ def get_models():
     # Optionally refresh or reinitialize the model map here.
     # For now we simply return the keys.
     return jsonify({"models": list(MODEL_CLIENT_MAP.keys())})
+
+
+@app.route("/api/activities", methods=["GET"])
+def get_activities():
+    """Return the list of available activities."""
+    activities = []
+
+    if app.config.get("LOCAL_ACTIVITIES"):
+        # List local activity files from research directory
+        import os
+
+        research_dir = "research"
+        if os.path.exists(research_dir):
+            for filename in sorted(os.listdir(research_dir)):
+                if filename.endswith((".yaml", ".yml")):
+                    activities.append(f"research/{filename}")
+    else:
+        # For S3 activities, you would list from S3
+        # This is a placeholder - you'd need to implement S3 listing
+        pass
+
+    return jsonify({"activities": activities})
 
 
 @app.route("/chat/<room_name>")
@@ -649,6 +673,30 @@ def handle_update_message(data):
             },
             room=room_name,
         )
+
+
+@socketio.on("get_activity_status")
+def handle_get_activity_status(data):
+    """Get the current activity status for a room."""
+    room_name = data["room_name"]
+    room = get_room(room_name)
+
+    if room:
+        activity_state = ActivityState.query.filter_by(room_id=room.id).first()
+
+        if activity_state:
+            emit(
+                "activity_status",
+                {
+                    "active": True,
+                    "activity_name": activity_state.s3_file_path,
+                    "section_id": activity_state.section_id,
+                    "step_id": activity_state.step_id,
+                },
+                room=request.sid,
+            )
+        else:
+            emit("activity_status", {"active": False}, room=request.sid)
 
 
 def group_consecutive_roles(messages):
@@ -1542,12 +1590,14 @@ def loop_through_steps_until_question(
 
         # Check if the current step has a question
         if "question" in step:
-            question_content = f"Question: {step['question']}"
+            question_content = step["question"]
             translated_question_content = translate_text(
                 question_content, user_language
             )
             new_message = Message(
-                username="System", content=translated_question_content, room_id=room.id
+                username="System (Question)",
+                content=translated_question_content,
+                room_id=room.id,
             )
             db.session.add(new_message)
             db.session.commit()
@@ -1623,6 +1673,18 @@ def start_activity(room_name, s3_file_path, username):
             activity_content, activity_state, room_name, username
         )
 
+        # Emit activity status update
+        socketio.emit(
+            "activity_status",
+            {
+                "active": True,
+                "activity_name": s3_file_path,
+                "section_id": initial_section["section_id"],
+                "step_id": initial_step["step_id"],
+            },
+            room=room_name,
+        )
+
 
 def cancel_activity(room_name, username):
     with app.app_context():
@@ -1655,6 +1717,9 @@ def cancel_activity(room_name, username):
             },
             room=room_name,
         )
+
+        # Emit activity status update
+        socketio.emit("activity_status", {"active": False}, room=room_name)
 
 
 def display_activity_metadata(room_name, username):
@@ -2114,7 +2179,7 @@ def handle_activity_response(room_name, user_response, username):
                 if feedback:
                     # feedback is metadata language aware, doesn't need to be translated.
                     new_message = Message(
-                        username="System", content=feedback, room_id=room.id
+                        username="System (Feedback)", content=feedback, room_id=room.id
                     )
                     db.session.add(new_message)
                     db.session.commit()
@@ -2123,7 +2188,7 @@ def handle_activity_response(room_name, user_response, username):
                         "chat_message",
                         {
                             "id": new_message.id,
-                            "username": "System",
+                            "username": "System (Feedback)",
                             "content": feedback,
                         },
                         room=room_name,
@@ -2199,12 +2264,12 @@ def handle_activity_response(room_name, user_response, username):
                         db.session.commit()
 
                     # Emit the question again
-                    question_content = f"Question: {step['question']}"
+                    question_content = step["question"]
                     translated_question_content = translate_text(
                         question_content, user_language
                     )
                     new_message = Message(
-                        username="System",
+                        username="System (Question)",
                         content=translated_question_content,
                         room_id=room.id,
                     )
@@ -2517,7 +2582,7 @@ def provide_feedback(
             json_metadata,
             json_new_metadata,
         )
-        feedback += f"\n\nAI Feedback: {ai_feedback}"
+        feedback += f"\n\n{ai_feedback}"
 
     return feedback
 

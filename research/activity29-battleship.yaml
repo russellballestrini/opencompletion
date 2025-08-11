@@ -187,21 +187,22 @@ sections:
           If the user wants to exit, categorize as 'exit'.
           Otherwise, categorize as 'invalid_move'.
         feedback_tokens_for_ai: |
-          Write battleship feedback from the game's perspective that covers:
+          You are the naval battle narrator. Look at the metadata provided and report what happened.
 
-          1. User's shot result - check user_hit_result in metadata: 
-             - If "hit": Describe the impact and explosion 
-             - If "miss": Describe the splash and fog of war
-          2. AI's shot result - report where the AI fired:
-             - If hit: Describe the damage to the player's ship
-             - If miss: Describe the near miss and ocean spray
-          3. CRITICAL: If ai_sunk_ship_this_round contains a ship name, express dismay that the AI destroyed the player's ship in 2 sentences describing the carnage at sea
-          4. CRITICAL: If user_sunk_ship_this_round contains a ship name, celebrate the player destroying the AI ship in 2 sentences describing the carnage at sea
-          5. CRITICAL: If game_over is true, announce the victory:
-             - If user_wins is true: Celebrate the player's total victory with excitement!
-             - If ai_wins is true: Express dismay at the player's defeat!
+          STEP 1 - CHECK SHIP DESTRUCTION (MANDATORY):
+          Look in the metadata for these exact fields:
+          - user_sunk_ship_this_round: If this contains a ship name like "Carrier" or "Battleship", say: "💥 SHIP DESTROYED! You have sunk the enemy's [ship name]! The enemy vessel explodes and sinks! Victory!"
+          - ai_sunk_ship_this_round: If this contains a ship name, say: "🔥 YOUR SHIP SUNK! The enemy destroyed your [ship name]! Your vessel burns and sinks!"
 
-          Describe the sights and sounds of naval warfare! You are the game system rooting for the player!
+          STEP 2 - REPORT SHOTS:
+          - Your shot result (user_hit_result): "hit" or "miss" 
+          - Enemy shot result (ai_hit_result): "hit" or "miss"
+
+          EXAMPLE RESPONSE FORMAT:
+          If user_sunk_ship_this_round = "Carrier": "💥 SHIP DESTROYED! You have sunk the enemy's Carrier! [shot details]"
+          If ai_sunk_ship_this_round = "Destroyer": "🔥 YOUR SHIP SUNK! The enemy destroyed your Destroyer! [shot details]"
+
+          Always check the metadata for user_sunk_ship_this_round and ai_sunk_ship_this_round first. These are the most important events to report.
 
         processing_script: |
           import random

@@ -37,6 +37,29 @@
                 <option value="shimmer">Shimmer</option>
             </select>
         </div>
+        <div>
+            <button id="auto-play-tts-btn" onclick="toggleAutoPlayTTS()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
+                Auto-Play TTS: OFF
+            </button>
+        </div>
+
+       <div id="activity-controls">
+           <h3>Activities</h3>
+           <div id="current-activity-info" style="display: none;">
+               <p>Current Activity: <span id="current-activity-name"></span></p>
+               <button id="cancel-activity-btn" onclick="cancelActivity()">Cancel Activity</button>
+           </div>
+           <div id="activity-list-section">
+               <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 5px; margin-bottom: 5px;">
+                   <select id="activity-select">
+                       <option value="">-- Select an Activity --</option>
+                   </select>
+                   <button id="refresh-activities-btn" onclick="refreshActivityList()">🔄</button>
+               </div>
+               <button id="load-activity-btn" onclick="loadSelectedActivity()" style="margin-top: 5px;">Load Activity</button>
+           </div>
+       </div>
+
        <div id="user-lists">
            <div id="active-users-list">
                <h3>Active Users</h3>
@@ -83,6 +106,11 @@ let audioCache = {}; // Cache to store audio blobs
 // Flag to prevent mutual updates on desktop/mobile
 let isSyncingDropdowns = false;
 
+// Auto-play TTS state
+let autoPlayTTS = localStorage.getItem('autoPlayTTS') === 'true' || false;
+let ttsQueue = [];
+let isPlayingTTS = false;
+
 // Function to sanitize the username
 function sanitizeUsername(username) {
     // Split the username on commas and take the first part.
@@ -121,6 +149,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const voiceSelectDesktop = document.getElementById("voice-select");
     const modelSelectMobile = document.getElementById("model-select-mobile");
     const voiceSelectMobile = document.getElementById("voice-select-mobile");
+    
+    // Initialize auto-play TTS button state from localStorage
+    updateAutoPlayTTSDisplay();
 
     // Function to populate the dropdown
     function populateModelDropdown(models) {
@@ -322,8 +353,9 @@ socket.on('update_room_list', function(updatedRoom) {
     }
 });
 
-// Function to read text using TTS
+// Function to read text using TTS (for manual button clicks)
 async function speakText(text, playButton, messageId) {
+    console.log("speakText called with:", {text: text, messageId, autoPlay: autoPlayTTS});
     const voice = document.getElementById("voice-select").value;
     const cacheKey = `${messageId}-${voice}`; // Unique cache key for each message and voice
 
@@ -375,6 +407,121 @@ async function speakText(text, playButton, messageId) {
         playButton.textContent = "Play"; // Reset button text on error
         playButton.disabled = false;
     }
+}
+
+// Function to read text using TTS (for queued auto-play)
+async function speakTextQueued(text, playButton, messageId) {
+    return new Promise((resolve, reject) => {
+        const voice = document.getElementById("voice-select").value;
+        const cacheKey = `${messageId}-${voice}`;
+        const cleanText = text.replace(/[^a-zA-Z0-9\s.,!?]/g, '');
+
+        const playAudio = (audio) => {
+            audio.onended = () => {
+                console.log("TTS finished for:", messageId);
+                resolve();
+            };
+            audio.onerror = () => {
+                console.error("TTS audio error for:", messageId);
+                reject(new Error("Audio playback failed"));
+            };
+            audio.play().catch(reject);
+        };
+
+        // Check if audio is cached
+        if (audioCache[cacheKey]) {
+            playAudio(audioCache[cacheKey]);
+            return;
+        }
+
+        // Fetch new audio
+        fetch(TTS_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'tts-1',
+                voice: voice,
+                input: cleanText
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.blob();
+        })
+        .then(audioBlob => {
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.playbackRate = 0.9;
+            audioCache[cacheKey] = audio;
+            playAudio(audio);
+        })
+        .catch(reject);
+    });
+}
+
+// Function to add TTS to queue
+function queueTTS(text, playButton, messageId) {
+    ttsQueue.push({ text, playButton, messageId });
+    console.log("Added to TTS queue:", messageId, "Queue length:", ttsQueue.length);
+    processNextTTS();
+}
+
+// Function to process the next TTS in queue
+async function processNextTTS() {
+    if (isPlayingTTS || ttsQueue.length === 0) {
+        return;
+    }
+    
+    isPlayingTTS = true;
+    const { text, playButton, messageId } = ttsQueue.shift();
+    console.log("Processing TTS from queue:", messageId);
+    
+    try {
+        await speakTextQueued(text, playButton, messageId);
+    } catch (error) {
+        console.error("TTS error:", error);
+    }
+    
+    isPlayingTTS = false;
+    // Process next item in queue
+    setTimeout(processNextTTS, 100);
+}
+
+// Function to update auto-play TTS button display
+function updateAutoPlayTTSDisplay() {
+    const autoPlayBtn = document.getElementById("auto-play-tts-btn");
+    const autoPlayBtnMobile = document.getElementById("auto-play-tts-btn-mobile");
+    
+    if (autoPlayTTS) {
+        autoPlayBtn.textContent = "Auto-Play TTS: ON";
+        autoPlayBtn.style.backgroundColor = "#4CAF50";
+        autoPlayBtnMobile.textContent = "Auto-Play TTS: ON";
+        autoPlayBtnMobile.style.backgroundColor = "#4CAF50";
+    } else {
+        autoPlayBtn.textContent = "Auto-Play TTS: OFF";
+        autoPlayBtn.style.backgroundColor = "#f44336";
+        autoPlayBtnMobile.textContent = "Auto-Play TTS: OFF";
+        autoPlayBtnMobile.style.backgroundColor = "#f44336";
+        // Clear queue when turning off
+        ttsQueue = [];
+        isPlayingTTS = false;
+    }
+}
+
+// Function to toggle auto-play TTS
+function toggleAutoPlayTTS() {
+    autoPlayTTS = !autoPlayTTS;
+    console.log("Auto-play TTS toggled to:", autoPlayTTS);
+    
+    // Save to localStorage
+    localStorage.setItem('autoPlayTTS', autoPlayTTS.toString());
+    
+    updateAutoPlayTTSDisplay();
 }
 
 // Function to toggle audio playback
@@ -467,6 +614,20 @@ socket.on("chat_message", (data) => {
     // Scroll to the bottom of the chat container to show the new message.
     if (data.id) {
         document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+        
+        // Auto-play TTS if enabled and message has content - AFTER buttons are created
+        if (autoPlayTTS && data.content && data.content.trim() !== "") {
+            setTimeout(() => {
+                // Find the play button after buttons have been created
+                const buttons = messageWrapper.querySelectorAll("button");
+                const playButton = Array.from(buttons).find(btn => btn.textContent === "Play");
+                console.log("Auto-play TTS: enabled=", autoPlayTTS, "content=", data.content, "playButton=", playButton);
+                if (playButton) {
+                    console.log("Queueing TTS for message:", data.id);
+                    queueTTS(data.content, playButton, data.id);
+                }
+            }, 100); // Short delay to let buttons be created
+        }
     }
 });
 
@@ -630,6 +791,17 @@ socket.on("message_chunk", (data) => {
 
         // Append the button container before the message content
         messageWrapper.insertBefore(buttonContainer, targetMessageElement);
+        
+        // Auto-play TTS if enabled and message is complete (only when streaming finishes)
+        if (autoPlayTTS && data.is_complete && messageBuffers[data.id] && messageBuffers[data.id].trim() !== "") {
+            const playButton = buttonContainer.querySelector("button");
+            if (playButton && playButton.textContent === "Play") {
+                setTimeout(() => {
+                    const fullText = targetMessageElement.textContent || targetMessageElement.innerText;
+                    queueTTS(fullText, playButton, data.id);
+                }, 500); // Small delay to let the message render
+            }
+        }
     }
 });
 
@@ -851,6 +1023,122 @@ socket.on("set_background", (data) => {
     chat.style.backgroundRepeat = "no-repeat";
     chat.style.backgroundPosition = "right center";
     chat.style.backgroundSize = "auto"; // Ensures the image is not stretched
+});
+
+// Activity management functions
+function refreshActivityList() {
+    fetch('/api/activities')
+        .then(response => response.json())
+        .then(data => {
+            const activitySelect = document.getElementById('activity-select');
+            const activitySelectMobile = document.getElementById('activity-select-mobile');
+            
+            // Clear existing options except the first one for desktop
+            while (activitySelect.options.length > 1) {
+                activitySelect.remove(1);
+            }
+            
+            // Clear existing options except the first one for mobile
+            while (activitySelectMobile.options.length > 1) {
+                activitySelectMobile.remove(1);
+            }
+            
+            // Add activities to both dropdowns
+            data.activities.forEach(activity => {
+                const option = document.createElement('option');
+                option.value = activity;
+                option.textContent = activity;
+                activitySelect.appendChild(option);
+                
+                const optionMobile = document.createElement('option');
+                optionMobile.value = activity;
+                optionMobile.textContent = activity;
+                activitySelectMobile.appendChild(optionMobile);
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching activities:', error);
+            alert('Failed to fetch activities');
+        });
+}
+
+function loadSelectedActivity() {
+    const activitySelect = document.getElementById('activity-select');
+    const selectedActivity = activitySelect.value;
+    
+    if (!selectedActivity) {
+        alert('Please select an activity');
+        return;
+    }
+    
+    // Send command to load activity
+    socket.emit("chat_message", {
+        "username": username,
+        "message": `/activity ${selectedActivity}`,
+        "model": document.getElementById("model-select").value,
+        "room_name": room_name
+    });
+}
+
+function loadSelectedActivityMobile() {
+    const activitySelectMobile = document.getElementById('activity-select-mobile');
+    const selectedActivity = activitySelectMobile.value;
+    
+    if (!selectedActivity) {
+        alert('Please select an activity');
+        return;
+    }
+    
+    // Send command to load activity
+    socket.emit("chat_message", {
+        "username": username,
+        "message": `/activity ${selectedActivity}`,
+        "model": document.getElementById("model-select").value,
+        "room_name": room_name
+    });
+}
+
+function cancelActivity() {
+    if (confirm('Are you sure you want to cancel the current activity?')) {
+        socket.emit("chat_message", {
+            "username": username,
+            "message": "/activity cancel",
+            "model": document.getElementById("model-select").value,
+            "room_name": room_name
+        });
+    }
+}
+
+// Socket event for activity status updates
+socket.on("activity_status", (data) => {
+    const currentActivityInfo = document.getElementById('current-activity-info');
+    const activityListSection = document.getElementById('activity-list-section');
+    const currentActivityName = document.getElementById('current-activity-name');
+    const currentActivityInfoMobile = document.getElementById('current-activity-info-mobile');
+    const activityListSectionMobile = document.getElementById('activity-list-section-mobile');
+    const currentActivityNameMobile = document.getElementById('current-activity-name-mobile');
+    
+    if (data.active) {
+        currentActivityInfo.style.display = 'block';
+        activityListSection.style.display = 'none';
+        currentActivityName.textContent = data.activity_name || 'Unknown';
+        currentActivityInfoMobile.style.display = 'block';
+        activityListSectionMobile.style.display = 'none';
+        currentActivityNameMobile.textContent = data.activity_name || 'Unknown';
+    } else {
+        currentActivityInfo.style.display = 'none';
+        activityListSection.style.display = 'block';
+        currentActivityInfoMobile.style.display = 'none';
+        activityListSectionMobile.style.display = 'block';
+    }
+});
+
+// Load activities on page load
+document.addEventListener('DOMContentLoaded', () => {
+    refreshActivityList();
+    
+    // Request current activity status
+    socket.emit("get_activity_status", {"room_name": room_name});
 });
 
 </script>

@@ -201,6 +201,19 @@ clean:
 	find . -name "*.pyc" -delete 2>/dev/null || true
 	find . -name "*.pyo" -delete 2>/dev/null || true
 	find . -name "*~" -delete 2>/dev/null || true
+
+.PHONY: init-db
+init-db:
+	@echo "🗄️ Initializing database tables..."
+	@if [ -f vars.sh ]; then \
+		. ./vars.sh && python init_db.py; \
+		echo "✅ Database tables created successfully"; \
+	else \
+		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \
+		exit 1; \
+	fi
+
+clean-cache:
 	rm -rf .pytest_cache/ 2>/dev/null || true
 	rm -rf htmlcov/ 2>/dev/null || true
 	rm -rf .coverage 2>/dev/null || true
