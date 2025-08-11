@@ -379,8 +379,8 @@ class TestRealActivityFiles(unittest.TestCase):
             mock_get_client.return_value = (self.mock_client, "test-model")
 
             # Load actual activity3.yaml
-            activity_file = "/home/fox/git/opencompletion/research/activity3.yaml"
-            activity = guarded_ai.load_yaml_activity(activity_file)
+            activity_file = Path(__file__).parent.parent.parent / "research" / "activity3.yaml"
+            activity = guarded_ai.load_yaml_activity(str(activity_file))
 
             # Should have section_5 as the terminal section
             section_5 = None
@@ -408,9 +408,9 @@ class TestRealActivityFiles(unittest.TestCase):
             mock_get_client.return_value = (self.mock_client, "test-model")
 
             activity_file = (
-                "/home/fox/git/opencompletion/research/activity17-choose-adventure.yaml"
+                Path(__file__).parent.parent.parent / "research" / "activity17-choose-adventure.yaml"
             )
-            activity = guarded_ai.load_yaml_activity(activity_file)
+            activity = guarded_ai.load_yaml_activity(str(activity_file))
 
             # Find a step with metadata_remove operations
             found_remove_operation = False
@@ -450,9 +450,9 @@ class TestRealActivityFiles(unittest.TestCase):
             mock_get_client.return_value = (self.mock_client, "test-model")
 
             activity_file = (
-                "/home/fox/git/opencompletion/research/activity20-n-plus-1.yaml"
+                Path(__file__).parent.parent.parent / "research" / "activity20-n-plus-1.yaml"
             )
-            activity = guarded_ai.load_yaml_activity(activity_file)
+            activity = guarded_ai.load_yaml_activity(str(activity_file))
 
             # Find the step with integer bucket (1912)
             found_integer_bucket = False

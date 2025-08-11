@@ -11,6 +11,7 @@ import tempfile
 import json
 import sys
 import os
+import yaml
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
@@ -446,7 +447,7 @@ script_result = {'status': 'error'}
                 with open(test_file, "w") as f:
                     f.write(malformed_yaml)
 
-                with self.assertRaises(Exception):  # YAML parsing error
+                with self.assertRaises(yaml.YAMLError):  # YAML parsing error
                     app.get_activity_content("research/malformed.yaml")
 
         finally:
