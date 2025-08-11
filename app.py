@@ -22,6 +22,8 @@ from flask import (
     send_from_directory,
     jsonify,
     Response,
+    redirect,
+    url_for,
 )
 
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -364,6 +366,25 @@ def search_page():
 
     # Call the function to search messages
     search_results = search_messages(keywords)
+
+    # If there's exactly one search result, redirect directly to that room
+    if len(search_results) == 1:
+        room_result = search_results[0]
+        room_name = room_result["room_name"]
+
+        # Build the redirect URL with current parameters
+        redirect_params = {}
+        if username and username != "guest":
+            redirect_params["username"] = username
+
+        # Preserve other URL parameters like model, voice, etc.
+        for param in ["model", "voice"]:
+            value = request.args.get(param)
+            if value:
+                redirect_params[param] = value
+
+        redirect_url = url_for("chat", room_name=room_name, **redirect_params)
+        return redirect(redirect_url)
 
     return render_template(
         "search.html",

@@ -21,6 +21,10 @@
         </div>
         <br>
         <div>
+            <label for="username-input">Username</label>
+            <input type="text" id="username-input" placeholder="guest" maxlength="50" style="width: 100%; padding: 4px; margin-top: 2px; border: 1px solid #ccc; border-radius: 3px;">
+        </div>
+        <div>
             <label for="model-select">Model</label>
             <select id="model-select">
                 <option value="None">None</option>
@@ -82,7 +86,14 @@
 const API_KEY = "dummy-api-key";
 const TTS_API_URL = "https://speech.ai.unturf.com/v1/audio/speech";
 const urlParams = new URLSearchParams(window.location.search);
-const username = urlParams.get("username");
+let username = urlParams.get("username") || "guest"; // Default to "guest" if no username in URL
+
+// If no username was in the URL, add it now
+if (!urlParams.get("username")) {
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("username", username);
+    window.history.replaceState({}, '', newUrl);
+}
 const room_name = "{{ room_name }}";
 
 // Global constants for valid voices
@@ -119,29 +130,45 @@ function sanitizeUsername(username) {
     return username.split(',')[0].trim();
 }
 
-// Function to sync dropdowns and update the query string
-function syncDropdownsAndQueryString() {
-    const sanitizedUsername = sanitizeUsername(username);
+// Function to sync all inputs and update the query string
+function syncInputsAndQueryString() {
+    const usernameInputDesktop = document.getElementById("username-input");
+    const usernameInputMobile = document.getElementById("username-input-mobile");
     const modelSelectDesktop = document.getElementById("model-select");
     const voiceSelectDesktop = document.getElementById("voice-select");
     const modelSelectMobile = document.getElementById("model-select-mobile");
     const voiceSelectMobile = document.getElementById("voice-select-mobile");
 
-    // Determine the current model and voice from any dropdown
+    // Get current values
+    const currentUsername = usernameInputDesktop?.value || username || "guest";
     const currentModel = modelSelectDesktop.value;
     const currentVoice = VALID_VOICES.includes(voiceSelectDesktop.value) ? voiceSelectDesktop.value : 'onyx';
 
-    // Sync both desktop and mobile dropdowns
+    // Update global username variable
+    username = currentUsername;
+    const sanitizedUsername = sanitizeUsername(username);
+
+    // Sync username inputs
+    if (usernameInputDesktop) usernameInputDesktop.value = sanitizedUsername;
+    if (usernameInputMobile) usernameInputMobile.value = sanitizedUsername;
+
+    // Sync dropdowns
     modelSelectDesktop.value = currentModel;
     voiceSelectDesktop.value = currentVoice;
-    modelSelectMobile.value = currentModel;
-    voiceSelectMobile.value = currentVoice;
+    if (modelSelectMobile) modelSelectMobile.value = currentModel;
+    if (voiceSelectMobile) voiceSelectMobile.value = currentVoice;
 
+    // Update URL
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.set("username", sanitizedUsername);
     newUrl.searchParams.set("model", currentModel);
     newUrl.searchParams.set("voice", currentVoice);
     window.history.replaceState({}, '', newUrl);
+}
+
+// Backward compatibility
+function syncDropdownsAndQueryString() {
+    syncInputsAndQueryString();
 }
 
 document.addEventListener('DOMContentLoaded', (event) => {
@@ -204,13 +231,21 @@ document.addEventListener('DOMContentLoaded', (event) => {
         userHasScrolledUp = distanceFromBottom > 5;
     });
 
-    // Set initial model and voice from query string
+    // Set initial model, voice, and username from query string
     const initialModel = urlParams.get("model") || "None";
     const initialVoice = urlParams.get("voice") || "onyx";
+    const initialUsername = username; // Already set to URL param or "guest"
+    
     modelSelectDesktop.value = initialModel;
     voiceSelectDesktop.value = initialVoice;
     modelSelectMobile.value = initialModel;
     voiceSelectMobile.value = initialVoice;
+    
+    // Set initial username values
+    const usernameInputDesktop = document.getElementById("username-input");
+    const usernameInputMobile = document.getElementById("username-input-mobile");
+    if (usernameInputDesktop) usernameInputDesktop.value = initialUsername;
+    if (usernameInputMobile) usernameInputMobile.value = initialUsername;
 
     // Add event listeners for desktop dropdowns
     modelSelectDesktop.addEventListener("change", () => {
@@ -245,6 +280,39 @@ document.addEventListener('DOMContentLoaded', (event) => {
         syncDropdownsAndQueryString();
         isSyncingDropdowns = false;
     });
+    
+    // Add event listeners for username inputs
+    if (usernameInputDesktop) {
+        usernameInputDesktop.addEventListener("input", () => {
+            if (isSyncingDropdowns) return;
+            isSyncingDropdowns = true;
+            if (usernameInputMobile) {
+                usernameInputMobile.value = usernameInputDesktop.value;
+            }
+            syncInputsAndQueryString();
+            isSyncingDropdowns = false;
+        });
+        
+        usernameInputDesktop.addEventListener("blur", () => {
+            syncInputsAndQueryString();
+        });
+    }
+    
+    if (usernameInputMobile) {
+        usernameInputMobile.addEventListener("input", () => {
+            if (isSyncingDropdowns) return;
+            isSyncingDropdowns = true;
+            if (usernameInputDesktop) {
+                usernameInputDesktop.value = usernameInputMobile.value;
+            }
+            syncInputsAndQueryString();
+            isSyncingDropdowns = false;
+        });
+        
+        usernameInputMobile.addEventListener("blur", () => {
+            syncInputsAndQueryString();
+        });
+    }
 });
 
 // Socket event when the user connects
@@ -252,8 +320,8 @@ socket.on("connect", () => {
     // Sanitize the username before joining
     const sanitizedUsername = sanitizeUsername(username);
     socket.emit("join", {"username": sanitizedUsername, "room_name": room_name});
-    // Sync dropdowns and update the query string
-    syncDropdownsAndQueryString();
+    // Sync inputs and update the query string
+    syncInputsAndQueryString();
 });
 
 // Function to update the active and inactive user lists in the DOM

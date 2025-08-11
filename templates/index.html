@@ -6,6 +6,7 @@
     <title>Chatroom</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -52,10 +53,6 @@
     </div>
 
     <script>
-        function slugify(str) {
-            return str.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-        }
-
         document.getElementById('join-room-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const username = document.getElementById('username').value;
