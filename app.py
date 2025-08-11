@@ -2668,8 +2668,12 @@ def provide_feedback_prompts(
             elif prompt_name == "Game Over":
                 print(f"DEBUG GAME OVER - filter_keys: {filter_keys}")
                 print(f"DEBUG GAME OVER - filtered metadata: {prompt_metadata}")
-                print(f"DEBUG GAME OVER - game_over = '{prompt_metadata.get('game_over')}'")
-                print(f"DEBUG GAME OVER - user_wins = '{prompt_metadata.get('user_wins')}'")
+                print(
+                    f"DEBUG GAME OVER - game_over = '{prompt_metadata.get('game_over')}'"
+                )
+                print(
+                    f"DEBUG GAME OVER - user_wins = '{prompt_metadata.get('user_wins')}'"
+                )
                 print(f"DEBUG GAME OVER - ai_wins = '{prompt_metadata.get('ai_wins')}'")
         else:
             if prompt_name == "Ship Status":
