@@ -733,6 +733,310 @@ class TestAppFeedback(unittest.TestCase):
             second_user_message.count("I choose position 35"), 0
         )  # user_response should be empty/filtered
 
+    @patch("app.get_openai_client_and_model")
+    def test_skip_condition_all_null(self, mock_get_client):
+        """Test skip_condition 'all_null' skips prompts when all metadata values are null"""
+        try:
+            from app import provide_feedback_prompts
+        except ImportError:
+            self.skipTest("app module not available for testing")
+
+        # Mock client (should not be called for skipped prompts)
+        mock_client = MagicMock()
+        mock_get_client.return_value = (mock_client, "test-model")
+
+        feedback_prompts = [
+            {
+                "name": "Ship Status",
+                "tokens_for_ai": "Report ship destruction",
+                "metadata_filter": ["user_sunk_ship", "ai_sunk_ship"],
+                "skip_condition": "all_null"
+            }
+        ]
+
+        # Test with all null values - should skip
+        metadata_all_null = {
+            "user_sunk_ship": None,
+            "ai_sunk_ship": None
+        }
+
+        feedback_messages = provide_feedback_prompts(
+            {},
+            "test",
+            "Question?", 
+            feedback_prompts,
+            "response",
+            "English",
+            "user",
+            json.dumps(metadata_all_null),
+            json.dumps({}),
+            ""
+        )
+
+        # Should be empty (prompt was skipped)
+        self.assertEqual(len(feedback_messages), 0)
+        # Client should not have been called
+        self.assertEqual(mock_client.chat.completions.create.call_count, 0)
+
+    @patch("app.get_openai_client_and_model")
+    def test_skip_condition_all_null_with_values(self, mock_get_client):
+        """Test skip_condition 'all_null' does NOT skip when values exist"""
+        try:
+            from app import provide_feedback_prompts
+        except ImportError:
+            self.skipTest("app module not available for testing")
+
+        # Mock client to return valid response
+        mock_client = MagicMock()
+        mock_completion = MagicMock()
+        mock_completion.choices[0].message.content = "Ship destroyed!"
+        mock_client.chat.completions.create.return_value = mock_completion
+        mock_get_client.return_value = (mock_client, "test-model")
+
+        feedback_prompts = [
+            {
+                "name": "Ship Status",
+                "tokens_for_ai": "Report ship destruction",
+                "metadata_filter": ["user_sunk_ship", "ai_sunk_ship"],
+                "skip_condition": "all_null"
+            }
+        ]
+
+        # Test with actual values - should NOT skip
+        metadata_with_values = {
+            "user_sunk_ship": "Destroyer",
+            "ai_sunk_ship": None
+        }
+
+        feedback_messages = provide_feedback_prompts(
+            {},
+            "test",
+            "Question?",
+            feedback_prompts, 
+            "response",
+            "English",
+            "user",
+            json.dumps(metadata_with_values),
+            json.dumps({}),
+            ""
+        )
+
+        # Should have feedback (prompt was NOT skipped)
+        self.assertEqual(len(feedback_messages), 1)
+        self.assertEqual(feedback_messages[0]["name"], "Ship Status")
+        self.assertEqual(feedback_messages[0]["content"], "Ship destroyed!")
+        # Client should have been called
+        self.assertEqual(mock_client.chat.completions.create.call_count, 1)
+
+    @patch("app.get_openai_client_and_model")
+    def test_skip_condition_all_false(self, mock_get_client):
+        """Test skip_condition 'all_false' skips when all metadata values are False"""
+        try:
+            from app import provide_feedback_prompts
+        except ImportError:
+            self.skipTest("app module not available for testing")
+
+        mock_client = MagicMock()
+        mock_get_client.return_value = (mock_client, "test-model")
+
+        feedback_prompts = [
+            {
+                "name": "Game Over",
+                "tokens_for_ai": "Report game over",
+                "metadata_filter": ["game_over", "user_wins", "ai_wins"],
+                "skip_condition": "all_false"
+            }
+        ]
+
+        # Test with all false values - should skip
+        metadata_all_false = {
+            "game_over": False,
+            "user_wins": False,
+            "ai_wins": False
+        }
+
+        feedback_messages = provide_feedback_prompts(
+            {},
+            "test",
+            "Question?",
+            feedback_prompts,
+            "response", 
+            "English",
+            "user",
+            json.dumps(metadata_all_false),
+            json.dumps({}),
+            ""
+        )
+
+        # Should be empty (prompt was skipped)
+        self.assertEqual(len(feedback_messages), 0)
+        self.assertEqual(mock_client.chat.completions.create.call_count, 0)
+
+    @patch("app.get_openai_client_and_model")
+    def test_skip_condition_all_true(self, mock_get_client):
+        """Test skip_condition 'all_true' skips when all metadata values are True"""
+        try:
+            from app import provide_feedback_prompts
+        except ImportError:
+            self.skipTest("app module not available for testing")
+
+        mock_client = MagicMock()
+        mock_get_client.return_value = (mock_client, "test-model")
+
+        feedback_prompts = [
+            {
+                "name": "All True Test",
+                "tokens_for_ai": "Test prompt",
+                "metadata_filter": ["flag1", "flag2", "flag3"],
+                "skip_condition": "all_true"
+            }
+        ]
+
+        # Test with all true values - should skip
+        metadata_all_true = {
+            "flag1": True,
+            "flag2": True, 
+            "flag3": True
+        }
+
+        feedback_messages = provide_feedback_prompts(
+            {},
+            "test",
+            "Question?",
+            feedback_prompts,
+            "response",
+            "English", 
+            "user",
+            json.dumps(metadata_all_true),
+            json.dumps({}),
+            ""
+        )
+
+        # Should be empty (prompt was skipped)
+        self.assertEqual(len(feedback_messages), 0)
+        self.assertEqual(mock_client.chat.completions.create.call_count, 0)
+
+    @patch("app.get_openai_client_and_model")
+    def test_skip_condition_mixed_values(self, mock_get_client):
+        """Test skip_condition does NOT skip when values are mixed"""
+        try:
+            from app import provide_feedback_prompts
+        except ImportError:
+            self.skipTest("app module not available for testing")
+
+        # Mock client to return valid response
+        mock_client = MagicMock()
+        mock_completion = MagicMock()
+        mock_completion.choices[0].message.content = "Mixed values feedback"
+        mock_client.chat.completions.create.return_value = mock_completion
+        mock_get_client.return_value = (mock_client, "test-model")
+
+        feedback_prompts = [
+            {
+                "name": "Mixed Test",
+                "tokens_for_ai": "Mixed test prompt", 
+                "metadata_filter": ["val1", "val2", "val3"],
+                "skip_condition": "all_false"
+            }
+        ]
+
+        # Test with mixed values - should NOT skip
+        metadata_mixed = {
+            "val1": False,
+            "val2": True,  # Mixed with False - should NOT skip
+            "val3": False
+        }
+
+        feedback_messages = provide_feedback_prompts(
+            {},
+            "test",
+            "Question?",
+            feedback_prompts,
+            "response",
+            "English",
+            "user", 
+            json.dumps(metadata_mixed),
+            json.dumps({}),
+            ""
+        )
+
+        # Should have feedback (prompt was NOT skipped due to mixed values)
+        self.assertEqual(len(feedback_messages), 1)
+        self.assertEqual(feedback_messages[0]["name"], "Mixed Test")
+        self.assertEqual(feedback_messages[0]["content"], "Mixed values feedback")
+        self.assertEqual(mock_client.chat.completions.create.call_count, 1)
+
+    @patch("app.get_openai_client_and_model")
+    def test_skip_condition_battleship_scenario(self, mock_get_client):
+        """Test the real battleship scenario that was causing hallucinations"""
+        try:
+            from app import provide_feedback_prompts
+        except ImportError:
+            self.skipTest("app module not available for testing")
+
+        mock_client = MagicMock()
+        mock_get_client.return_value = (mock_client, "test-model")
+
+        feedback_prompts = [
+            {
+                "name": "Shot Report",
+                "tokens_for_ai": "Report shot results",
+                "metadata_filter": ["user_shot", "ai_shot", "user_hit_result", "ai_hit_result"]
+                # No skip condition - always runs
+            },
+            {
+                "name": "Ship Status", 
+                "tokens_for_ai": "Report ship destruction",
+                "metadata_filter": ["user_sunk_ship_this_round", "ai_sunk_ship_this_round"],
+                "skip_condition": "all_null"  # Skip when no ships sunk
+            },
+            {
+                "name": "Game Over",
+                "tokens_for_ai": "Report game over",
+                "metadata_filter": ["game_over", "user_wins", "ai_wins"],
+                "skip_condition": "all_false"  # Skip when game not over
+            }
+        ]
+
+        # Real scenario: shots taken, no ships sunk, game continues
+        real_battleship_metadata = {
+            "user_shot": 23,
+            "ai_shot": 46, 
+            "user_hit_result": "hit",
+            "ai_hit_result": "hit",
+            "user_sunk_ship_this_round": None,  # No ship sunk
+            "ai_sunk_ship_this_round": None,    # No ship sunk  
+            "game_over": False,
+            "user_wins": False,
+            "ai_wins": False
+        }
+
+        # Mock only Shot Report response (others should be skipped)
+        mock_completion = MagicMock()
+        mock_completion.choices[0].message.content = "🎯 Your shot at 23: hit! AI shot at 46: hit!"
+        mock_client.chat.completions.create.return_value = mock_completion
+
+        feedback_messages = provide_feedback_prompts(
+            {},
+            "test",
+            "Choose position",
+            feedback_prompts,
+            "23",
+            "English",
+            "user",
+            json.dumps(real_battleship_metadata),
+            json.dumps({}),
+            ""
+        )
+
+        # Should only have Shot Report (other two skipped)
+        self.assertEqual(len(feedback_messages), 1)
+        self.assertEqual(feedback_messages[0]["name"], "Shot Report")
+        self.assertIn("🎯", feedback_messages[0]["content"])
+        
+        # Only one API call should have been made (Ship Status and Game Over skipped)
+        self.assertEqual(mock_client.chat.completions.create.call_count, 1)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

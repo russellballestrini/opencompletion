@@ -208,6 +208,7 @@ sections:
             metadata_filter:
               - user_sunk_ship_this_round
               - ai_sunk_ship_this_round
+            skip_condition: "all_null"
               
           - name: "Game Over"
             tokens_for_ai: |
@@ -223,6 +224,7 @@ sections:
               - game_over
               - user_wins
               - ai_wins
+            skip_condition: "all_false"
 
         processing_script: |
           import random

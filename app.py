@@ -2675,6 +2675,23 @@ def provide_feedback_prompts(
             prompt_metadata = {
                 k: v for k, v in full_metadata.items() if k in filter_keys
             }
+            
+            # Check skip condition if specified
+            skip_condition = prompt.get("skip_condition")
+            if skip_condition:
+                should_skip = False
+                values = list(prompt_metadata.values())
+                
+                if skip_condition == "all_null":
+                    should_skip = all(value is None or value == "" or value == "None" for value in values)
+                elif skip_condition == "all_false":
+                    should_skip = all(value is False or value == "False" for value in values)
+                elif skip_condition == "all_true":
+                    should_skip = all(value is True or value == "True" for value in values)
+                
+                if should_skip:
+                    print(f"DEBUG: Skipping prompt '{prompt_name}' - skip_condition '{skip_condition}' met")
+                    continue
 
             # Special debug for Ship Status and Game Over
             if prompt_name == "Ship Status":
