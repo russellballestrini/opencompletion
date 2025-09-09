@@ -649,6 +649,22 @@
         
         // Get current URL parameters to maintain username, model, voice, etc.
         const urlParams = new URLSearchParams(window.location.search);
+        
+        // Also check localStorage for model and voice if not in URL
+        if (!urlParams.has('model')) {
+            const storedModel = localStorage.getItem('selectedModel');
+            if (storedModel && storedModel !== 'None') {
+                urlParams.set('model', storedModel);
+            }
+        }
+        
+        if (!urlParams.has('voice')) {
+            const storedVoice = localStorage.getItem('selectedVoice');
+            if (storedVoice) {
+                urlParams.set('voice', storedVoice);
+            }
+        }
+        
         const currentParams = urlParams.toString();
         
         // Navigate to the new room using the slugified name

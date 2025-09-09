@@ -130,6 +130,21 @@ function sanitizeUsername(username) {
     return username.split(',')[0].trim();
 }
 
+// Function to copy message content to clipboard
+function copyMessageContent(content) {
+    navigator.clipboard.writeText(content).then(() => {
+        // Optional: show a temporary success message
+        const button = event.currentTarget;
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(() => {
+            button.textContent = originalText;
+        }, 2000);
+    }).catch(err => {
+        console.error('Error copying text: ', err);
+    });
+}
+
 // Function to sync all inputs and update the query string
 function syncInputsAndQueryString() {
     const usernameInputDesktop = document.getElementById("username-input");
@@ -240,9 +255,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
         userHasScrolledUp = distanceFromBottom > 5;
     });
 
+    // Load model and voice from localStorage if not in URL
+    const storedModel = localStorage.getItem('selectedModel');
+    const storedVoice = localStorage.getItem('selectedVoice');
+    
     // Set initial model, voice, and username from URL, localStorage, or defaults
-    const initialModel = urlParams.get("model") || localStorage.getItem('selectedModel') || "None";
-    const initialVoice = urlParams.get("voice") || localStorage.getItem('selectedVoice') || "onyx";
+    const initialModel = urlParams.get("model") || storedModel || "None";
+    const initialVoice = urlParams.get("voice") || storedVoice || "onyx";
     const initialUsername = username; // Already set to URL param or "guest"
     
     modelSelectDesktop.value = initialModel;
@@ -702,6 +721,13 @@ socket.on("chat_message", (data) => {
         editButton.onclick = () => editMessage(data.id, newMessage, data.content);
         buttonContainer.appendChild(editButton);
 
+        // Create the copy button
+        const copyButton = document.createElement("button");
+        copyButton.textContent = "Copy";
+        copyButton.className = "copy-button";
+        copyButton.onclick = () => copyMessageContent(data.content);
+        buttonContainer.appendChild(copyButton);
+
         // Create the play button for TTS
         const playButton = document.createElement("button");
         playButton.textContent = "Play";
@@ -785,6 +811,13 @@ socket.on("previous_messages", (data) => {
     editButton.className = "edit-button";
     editButton.onclick = () => editMessage(data.id, newMessage);
     buttonContainer.appendChild(editButton);
+
+    // Create the copy button
+    const copyButton = document.createElement("button");
+    copyButton.textContent = "Copy";
+    copyButton.className = "copy-button";
+    copyButton.onclick = () => copyMessageContent(data.content);
+    buttonContainer.appendChild(copyButton);
 
     // Create the play button for TTS
     const playButton = document.createElement("button");
@@ -920,6 +953,13 @@ socket.on("message_chunk", (data) => {
         editButton.className = "edit-button";
         editButton.onclick = () => editMessage(data.id, targetMessageElement);
         buttonContainer.appendChild(editButton);
+
+        // Create the copy button
+        const copyButton = document.createElement("button");
+        copyButton.textContent = "Copy";
+        copyButton.className = "copy-button";
+        copyButton.onclick = () => copyMessageContent(messageBuffers[data.id]);
+        buttonContainer.appendChild(copyButton);
 
         // Create the play button for TTS
         const playButton = document.createElement("button");
