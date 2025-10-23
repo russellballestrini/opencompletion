@@ -638,7 +638,7 @@ def handle_message(data):
 
     activity_state = ActivityState.query.filter_by(room_id=room.id).first()
     if activity_state:
-        gevent.spawn(handle_activity_response, room_name, message, username)
+        gevent.spawn(handle_activity_response, room_name, message, username, model)
         return
 
     if model != "None":
@@ -1569,7 +1569,7 @@ def get_activity_content(file_path):
 
 
 def loop_through_steps_until_question(
-    activity_content, activity_state, room_name, username
+    activity_content, activity_state, room_name, username, model=None
 ):
     room = get_room(room_name)
 
@@ -1600,7 +1600,7 @@ def loop_through_steps_until_question(
         # Emit the current step content blocks
         if "content_blocks" in step:
             content = "\n\n".join(step["content_blocks"])
-            translated_content = translate_text(content, user_language)
+            translated_content = translate_text(content, user_language, model)
             new_message = Message(
                 username="System", content=translated_content, room_id=room.id
             )
@@ -1622,7 +1622,7 @@ def loop_through_steps_until_question(
         if "question" in step:
             question_content = step["question"]
             translated_question_content = translate_text(
-                question_content, user_language
+                question_content, user_language, model
             )
             new_message = Message(
                 username="System (Question)",
@@ -1663,7 +1663,7 @@ def loop_through_steps_until_question(
             # Activity completed
 
             # Display activity info before completing
-            display_activity_info(room_name, username)
+            display_activity_info(room_name, username, model)
 
             db.session.delete(activity_state)
             db.session.commit()
@@ -1702,7 +1702,7 @@ def start_activity(room_name, s3_file_path, username):
 
         # Loop through steps until a question is found or the end is reached
         loop_through_steps_until_question(
-            activity_content, activity_state, room_name, username
+            activity_content, activity_state, room_name, username, model
         )
 
         # Emit activity status update
@@ -1807,7 +1807,7 @@ def execute_processing_script(metadata, script):
     return local_env["script_result"]
 
 
-def handle_activity_response(room_name, user_response, username):
+def handle_activity_response(room_name, user_response, username, model=None):
     with app.app_context():
         room = get_room(room_name)
         activity_state = ActivityState.query.filter_by(room_id=room.id).first()
@@ -1854,6 +1854,7 @@ def handle_activity_response(room_name, user_response, username):
                     user_response,
                     step["buckets"],
                     step.get("tokens_for_ai", ""),
+                    model,
                 )
 
                 # Initialize transition to None
@@ -2161,7 +2162,7 @@ def handle_activity_response(room_name, user_response, username):
                 if "content_blocks" in transition:
                     transition_content = "\n\n".join(transition["content_blocks"])
                     translated_transition_content = translate_text(
-                        transition_content, user_language
+                        transition_content, user_language, model
                     )
                     new_message = Message(
                         username="System",
@@ -2201,6 +2202,7 @@ def handle_activity_response(room_name, user_response, username):
                         json.dumps(activity_state.dict_metadata),  # Pass full metadata
                         json.dumps(new_metadata),
                         feedback_tokens_for_ai,  # Pass legacy tokens to be combined
+                        model,
                     )
                     feedback_messages.extend(multi_feedback_messages)
                 elif feedback_tokens_for_ai:
@@ -2224,6 +2226,7 @@ def handle_activity_response(room_name, user_response, username):
                         username,
                         json.dumps(feedback_metadata),
                         json.dumps(new_metadata),
+                        model,
                     )
                     if feedback and feedback.strip():
                         feedback_messages.append(
@@ -2310,7 +2313,7 @@ def handle_activity_response(room_name, user_response, username):
 
                         # Loop through steps until a question is found or the end is reached
                         loop_through_steps_until_question(
-                            activity_content, activity_state, room_name, username
+                            activity_content, activity_state, room_name, username, model
                         )
                 else:
                     # the user response is any bucket other than correct.
@@ -2322,7 +2325,7 @@ def handle_activity_response(room_name, user_response, username):
                     # Emit the question again
                     question_content = step["question"]
                     translated_question_content = translate_text(
-                        question_content, user_language
+                        question_content, user_language, model
                     )
                     new_message = Message(
                         username="System (Question)",
@@ -2361,7 +2364,7 @@ def handle_activity_response(room_name, user_response, username):
             else:
                 # Handle steps without a question
                 loop_through_steps_until_question(
-                    activity_content, activity_state, room_name, username
+                    activity_content, activity_state, room_name, username, model
                 )
 
         except Exception as e:
@@ -2379,7 +2382,7 @@ def handle_activity_response(room_name, user_response, username):
             )
 
 
-def display_activity_info(room_name, username):
+def display_activity_info(room_name, username, model=None):
     with app.app_context():
         room = get_room(room_name)
         activity_state = ActivityState.query.filter_by(room_id=room.id).first()
@@ -2433,7 +2436,7 @@ def display_activity_info(room_name, username):
             )
 
             # Generate the grading using the AI
-            grading_message = generate_grading(chat_history, rubric)
+            grading_message = generate_grading(chat_history, rubric, model)
 
             # Store and emit the activity info
             info_message = f"Activity Info:\nCurrent Section: {activity_state.section_id}\nCurrent Step: {activity_state.step_id}\nAttempts: {activity_state.attempts}\n\n{grading_message}"
@@ -2467,8 +2470,12 @@ def display_activity_info(room_name, username):
             print(f"Exception: {e}")
 
 
-def generate_grading(chat_history, rubric):
-    openai_client, model_name = get_openai_client_and_model()
+def generate_grading(chat_history, rubric, model=None):
+    # Use provided model or fall back to default
+    if model and model != "None":
+        openai_client, model_name = get_openai_client_and_model(model)
+    else:
+        openai_client, model_name = get_openai_client_and_model()
     messages = [
         {
             "role": "system",
@@ -2515,8 +2522,12 @@ def get_next_step(activity_content, current_section_id, current_step_id):
 
 
 # Categorize the user's response.
-def categorize_response(question, response, buckets, tokens_for_ai):
-    openai_client, model_name = get_openai_client_and_model()
+def categorize_response(question, response, buckets, tokens_for_ai, model=None):
+    # Use provided model or fall back to default
+    if model and model != "None":
+        openai_client, model_name = get_openai_client_and_model(model)
+    else:
+        openai_client, model_name = get_openai_client_and_model()
     bucket_list = ", ".join([str(bucket) for bucket in buckets])
     # Check if tokens_for_ai already includes format instructions (ANALYSIS/BUCKET format)
     if "ANALYSIS:" in tokens_for_ai and "BUCKET:" in tokens_for_ai:
@@ -2592,8 +2603,13 @@ def generate_ai_feedback(
     username,
     json_metadata,
     json_new_metadata,
+    model=None,
 ):
-    openai_client, model_name = get_openai_client_and_model()
+    # Use provided model or fall back to default
+    if model and model != "None":
+        openai_client, model_name = get_openai_client_and_model(model)
+    else:
+        openai_client, model_name = get_openai_client_and_model()
     messages = [
         {
             "role": "system",
@@ -2625,6 +2641,7 @@ def provide_feedback(
     username,
     json_metadata,
     json_new_metadata,
+    model=None,
 ):
     feedback = ""
     if "ai_feedback" in transition:
@@ -2637,6 +2654,7 @@ def provide_feedback(
             username,
             json_metadata,
             json_new_metadata,
+            model,
         )
         feedback += f"\n\n{ai_feedback}"
 
@@ -2654,6 +2672,7 @@ def provide_feedback_prompts(
     json_metadata,
     json_new_metadata,
     legacy_tokens_for_ai="",
+    model=None,
 ):
     """Generate feedback from multiple prompts"""
     feedback_messages = []
@@ -2675,22 +2694,31 @@ def provide_feedback_prompts(
             prompt_metadata = {
                 k: v for k, v in full_metadata.items() if k in filter_keys
             }
-            
+
             # Check skip condition if specified
             skip_condition = prompt.get("skip_condition")
             if skip_condition:
                 should_skip = False
                 values = list(prompt_metadata.values())
-                
+
                 if skip_condition == "all_null":
-                    should_skip = all(value is None or value == "" or value == "None" for value in values)
+                    should_skip = all(
+                        value is None or value == "" or value == "None"
+                        for value in values
+                    )
                 elif skip_condition == "all_false":
-                    should_skip = all(value is False or value == "False" for value in values)
+                    should_skip = all(
+                        value is False or value == "False" for value in values
+                    )
                 elif skip_condition == "all_true":
-                    should_skip = all(value is True or value == "True" for value in values)
-                
+                    should_skip = all(
+                        value is True or value == "True" for value in values
+                    )
+
                 if should_skip:
-                    print(f"DEBUG: Skipping prompt '{prompt_name}' - skip_condition '{skip_condition}' met")
+                    print(
+                        f"DEBUG: Skipping prompt '{prompt_name}' - skip_condition '{skip_condition}' met"
+                    )
                     continue
 
             # Special debug for Ship Status and Game Over
@@ -2752,6 +2780,7 @@ def provide_feedback_prompts(
             username,
             json.dumps(prompt_metadata),  # Use filtered metadata for this prompt
             json_new_metadata,
+            model,
         )
 
         # Only add feedback if it has content
@@ -2763,14 +2792,18 @@ def provide_feedback_prompts(
     return feedback_messages
 
 
-def translate_text(text, target_language):
+def translate_text(text, target_language, model=None):
     # Guard clause for default language
     target_language = target_language.lower().split()
 
     if "english" in target_language:
         return text
 
-    openai_client, model_name = get_openai_client_and_model()
+    # Use provided model or fall back to default
+    if model and model != "None":
+        openai_client, model_name = get_openai_client_and_model(model)
+    else:
+        openai_client, model_name = get_openai_client_and_model()
     messages = [
         {
             "role": "system",
