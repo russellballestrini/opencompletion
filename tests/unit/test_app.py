@@ -30,6 +30,7 @@ with patch.dict(
     },
 ):
     import app
+    import activity
 
 
 class TestAppUtilityFunctions(unittest.TestCase):
@@ -116,7 +117,7 @@ script_result = {'status': 'success', 'data': 42}
 """
         metadata = {"existing_key": "existing_value"}
 
-        result = app.execute_processing_script(metadata, script)
+        result = activity.execute_processing_script(metadata, script)
 
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["data"], 42)
@@ -138,7 +139,7 @@ script_result = {
 """
         metadata = {"input_value": 21, "list_field": [1, 2, 3, 4, 5]}
 
-        result = app.execute_processing_script(metadata, script)
+        result = activity.execute_processing_script(metadata, script)
 
         self.assertEqual(metadata["new_field"], 42)
         self.assertEqual(metadata["calculated"], 5)
@@ -162,7 +163,7 @@ script_result = {
 """
         metadata = {}
 
-        result = app.execute_processing_script(metadata, script)
+        result = activity.execute_processing_script(metadata, script)
 
         self.assertTrue(result["has_random"])
         self.assertIsInstance(result["json_output"], str)
@@ -201,7 +202,7 @@ sections:
 
             # Set LOCAL_ACTIVITIES to True
             with patch.dict(app.app.config, {"LOCAL_ACTIVITIES": True}):
-                result = app.get_activity_content("research/test_activity.yaml")
+                result = activity.get_activity_content("research/test_activity.yaml")
 
                 self.assertEqual(result["default_max_attempts_per_step"], 3)
                 self.assertEqual(len(result["sections"]), 1)
@@ -225,7 +226,7 @@ sections:
 
             for path in dangerous_paths:
                 with self.assertRaises(ValueError):
-                    app.get_activity_content(path)
+                    activity.get_activity_content(path)
 
     def test_get_activity_content_s3(self):
         """Test loading activity content from S3"""
@@ -236,9 +237,9 @@ sections:
 
         with patch.dict(app.app.config, {"LOCAL_ACTIVITIES": False}):
             with patch.object(
-                app, "get_activity_content", return_value=test_yaml_content
+                activity, "get_activity_content", return_value=test_yaml_content
             ) as mock_func:
-                result = app.get_activity_content("path/to/activity.yaml")
+                result = activity.get_activity_content("path/to/activity.yaml")
 
                 self.assertEqual(result["default_max_attempts_per_step"], 5)
                 self.assertEqual(result["sections"][0]["section_id"], "s3_section")
@@ -272,7 +273,7 @@ class TestActivityNavigation(unittest.TestCase):
 
     def test_get_next_step_within_section(self):
         """Test getting next step within the same section"""
-        next_section, next_step = app.get_next_step(
+        next_section, next_step = activity.get_next_step(
             self.activity_content, "section_1", "step_1"
         )
 
@@ -281,7 +282,7 @@ class TestActivityNavigation(unittest.TestCase):
 
     def test_get_next_step_across_sections(self):
         """Test getting next step across sections"""
-        next_section, next_step = app.get_next_step(
+        next_section, next_step = activity.get_next_step(
             self.activity_content, "section_1", "step_3"
         )
 
@@ -290,7 +291,7 @@ class TestActivityNavigation(unittest.TestCase):
 
     def test_get_next_step_at_end(self):
         """Test getting next step when at the end of activity"""
-        next_section, next_step = app.get_next_step(
+        next_section, next_step = activity.get_next_step(
             self.activity_content, "section_2", "step_2"
         )
 
@@ -299,7 +300,7 @@ class TestActivityNavigation(unittest.TestCase):
 
     def test_get_next_step_invalid_section(self):
         """Test getting next step with invalid section"""
-        next_section, next_step = app.get_next_step(
+        next_section, next_step = activity.get_next_step(
             self.activity_content, "invalid_section", "step_1"
         )
 
@@ -308,7 +309,7 @@ class TestActivityNavigation(unittest.TestCase):
 
     def test_get_next_step_invalid_step(self):
         """Test getting next step with invalid step"""
-        next_section, next_step = app.get_next_step(
+        next_section, next_step = activity.get_next_step(
             self.activity_content, "section_1", "invalid_step"
         )
 
@@ -322,9 +323,9 @@ class TestResponseCategorizationAndFeedback(unittest.TestCase):
     def test_categorize_response_simple_format(self):
         """Test response categorization with simple format"""
         with patch.object(
-            app, "categorize_response", return_value="correct"
+            activity, "categorize_response", return_value="correct"
         ) as mock_func:
-            result = app.categorize_response(
+            result = activity.categorize_response(
                 "What is 2+2?",
                 "4",
                 ["correct", "incorrect"],
@@ -342,9 +343,9 @@ class TestResponseCategorizationAndFeedback(unittest.TestCase):
     def test_categorize_response_analysis_bucket_format(self):
         """Test response categorization with ANALYSIS/BUCKET format"""
         with patch.object(
-            app, "categorize_response", return_value="correct"
+            activity, "categorize_response", return_value="correct"
         ) as mock_func:
-            result = app.categorize_response(
+            result = activity.categorize_response(
                 "What is 2+2?",
                 "4",
                 ["correct", "incorrect"],
@@ -357,9 +358,9 @@ class TestResponseCategorizationAndFeedback(unittest.TestCase):
     def test_categorize_response_with_spaces_and_case(self):
         """Test response categorization handles spaces and case properly"""
         with patch.object(
-            app, "categorize_response", return_value="partially_correct"
+            activity, "categorize_response", return_value="partially_correct"
         ) as mock_func:
-            result = app.categorize_response(
+            result = activity.categorize_response(
                 "Test question",
                 "Test response",
                 ["partially_correct", "incorrect"],
@@ -372,9 +373,11 @@ class TestResponseCategorizationAndFeedback(unittest.TestCase):
     def test_generate_ai_feedback(self):
         """Test AI feedback generation"""
         with patch.object(
-            app, "generate_ai_feedback", return_value="Great job! You got it right."
+            activity,
+            "generate_ai_feedback",
+            return_value="Great job! You got it right.",
         ) as mock_func:
-            result = app.generate_ai_feedback(
+            result = activity.generate_ai_feedback(
                 "correct",
                 "What is 2+2?",
                 "4",
@@ -392,9 +395,9 @@ class TestResponseCategorizationAndFeedback(unittest.TestCase):
         transition = {"ai_feedback": {"tokens_for_ai": "Be encouraging"}}
 
         with patch.object(
-            app, "provide_feedback", return_value="Excellent work!"
+            activity, "provide_feedback", return_value="Excellent work!"
         ) as mock_func:
-            result = app.provide_feedback(
+            result = activity.provide_feedback(
                 transition,
                 "correct",
                 "Test question",
@@ -413,7 +416,7 @@ class TestResponseCategorizationAndFeedback(unittest.TestCase):
         """Test provide_feedback function without AI feedback"""
         transition = {}
 
-        result = app.provide_feedback(
+        result = activity.provide_feedback(
             transition,
             "correct",
             "Test question",
@@ -434,23 +437,23 @@ class TestTranslationAndLanguage(unittest.TestCase):
     def test_translate_text_english_bypass(self):
         """Test that English text is not translated"""
         text = "Hello, world!"
-        result = app.translate_text(text, "English")
+        result = activity.translate_text(text, "English")
         self.assertEqual(result, text)
 
         # Test case insensitive
-        result = app.translate_text(text, "english")
+        result = activity.translate_text(text, "english")
         self.assertEqual(result, text)
 
         # Test with compound language specification
-        result = app.translate_text(text, "english please")
+        result = activity.translate_text(text, "english please")
         self.assertEqual(result, text)
 
     def test_translate_text_other_language(self):
         """Test translation to other languages"""
         with patch.object(
-            app, "translate_text", return_value="Hola, mundo!"
+            activity, "translate_text", return_value="Hola, mundo!"
         ) as mock_func:
-            result = app.translate_text("Hello, world!", "Spanish")
+            result = activity.translate_text("Hello, world!", "Spanish")
 
             self.assertEqual(result, "Hola, mundo!")
             mock_func.assert_called_once_with("Hello, world!", "Spanish")
@@ -458,9 +461,9 @@ class TestTranslationAndLanguage(unittest.TestCase):
     def test_translate_text_error_handling(self):
         """Test translation error handling"""
         with patch.object(
-            app, "translate_text", return_value="Error: Translation failed"
+            activity, "translate_text", return_value="Error: Translation failed"
         ) as mock_func:
-            result = app.translate_text("Hello, world!", "Spanish")
+            result = activity.translate_text("Hello, world!", "Spanish")
 
             self.assertIn("Error:", result)
             mock_func.assert_called_once_with("Hello, world!", "Spanish")
@@ -566,8 +569,10 @@ class TestActivityManagementFunctions(unittest.TestCase):
     def test_loop_through_steps_until_question_mock_test(self):
         """Test that loop_through_steps_until_question function exists and is callable"""
         # Simple test to verify function exists without complex mocking
-        self.assertTrue(hasattr(app, "loop_through_steps_until_question"))
-        self.assertTrue(callable(getattr(app, "loop_through_steps_until_question")))
+        self.assertTrue(hasattr(activity, "loop_through_steps_until_question"))
+        self.assertTrue(
+            callable(getattr(activity, "loop_through_steps_until_question"))
+        )
 
 
 class TestActivityResponseProcessing(unittest.TestCase):
@@ -604,7 +609,7 @@ script_result = {'validation_complete': True}
         temp_metadata = metadata.copy()
         temp_metadata["user_response"] = user_response
 
-        result = app.execute_processing_script(temp_metadata, step["pre_script"])
+        result = activity.execute_processing_script(temp_metadata, step["pre_script"])
 
         self.assertTrue(result["validation_complete"])
         self.assertEqual(temp_metadata["parsed_number"], 42)
@@ -637,7 +642,9 @@ script_result = {
         temp_metadata = metadata.copy()
         temp_metadata["user_response"] = user_response
 
-        result = app.execute_processing_script(temp_metadata, step["processing_script"])
+        result = activity.execute_processing_script(
+            temp_metadata, step["processing_script"]
+        )
 
         self.assertTrue(result["processing_complete"])
         self.assertEqual(temp_metadata["calculated_score"], 110)  # 11 chars * 10
