@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Execution Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/default.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+        .code-execution-results {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>Code Execution Service Test</h1>
+
+    <div class="test-container">
+        <h2>Test 1: Python (Auto-detect)</h2>
+        <pre><code id="python-code">print("Hello from Python!")
+for i in range(3):
+    print(f"Count: {i}")</code></pre>
+        <button onclick="testExecution('python-code', null)">▶ Run (Auto-detect)</button>
+        <div id="python-code-result"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>Test 2: JavaScript (Specified)</h2>
+        <pre><code id="js-code" class="language-javascript">console.log("Hello from JavaScript!");
+const arr = [1, 2, 3];
+arr.forEach(n => console.log(`Number: ${n}`));</code></pre>
+        <button onclick="testExecution('js-code', 'javascript')">▶ Run JavaScript</button>
+        <div id="js-code-result"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>Test 3: Ruby</h2>
+        <pre><code id="ruby-code">puts "Hello from Ruby!"
+3.times do |i|
+  puts "Iteration #{i}"
+end</code></pre>
+        <button onclick="testExecution('ruby-code', 'ruby')">▶ Run Ruby</button>
+        <div id="ruby-code-result"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>Test 4: Go</h2>
+        <pre><code id="go-code" class="language-go">package main
+import "fmt"
+func main() {
+    fmt.Println("Hello from Go!")
+}</code></pre>
+        <button onclick="testExecution('go-code', 'go')">▶ Run Go</button>
+        <div id="go-code-result"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>Test 5: C++</h2>
+        <pre><code id="cpp-code" class="language-cpp">#include &lt;iostream&gt;
+using namespace std;
+int main() {
+    cout &lt;&lt; "Hello from C++!" &lt;&lt; endl;
+    return 0;
+}</code></pre>
+        <button onclick="testExecution('cpp-code', 'cpp')">▶ Run C++</button>
+        <div id="cpp-code-result"></div>
+    </div>
+
+    <script>
+        const CODE_EXEC_URL = "http://cammy.foxhop.net";
+
+        async function testExecution(codeId, language) {
+            const codeElement = document.getElementById(codeId);
+            const resultElement = document.getElementById(codeId + '-result');
+            const code = codeElement.textContent;
+
+            // Clear previous results
+            resultElement.innerHTML = '<div style="color: #666;">Executing code...</div>';
+            resultElement.className = 'code-execution-results';
+
+            try {
+                let response;
+                if (language) {
+                    // Use /execute endpoint with specific language
+                    response = await fetch(`${CODE_EXEC_URL}/execute`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            language: language,
+                            code: code
+                        })
+                    });
+                } else {
+                    // Use /run endpoint for auto-detection
+                    response = await fetch(`${CODE_EXEC_URL}/run`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'text/plain',
+                        },
+                        body: code
+                    });
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('Result:', result);
+
+                // Format and display results
+                let outputHtml = '';
+
+                // Show detected language if auto-detected
+                if (result.detected_language) {
+                    outputHtml += `<div style="color: #0066cc; margin-bottom: 8px;">✓ Detected Language: ${result.detected_language}</div>`;
+                } else if (result.language) {
+                    outputHtml += `<div style="color: #0066cc; margin-bottom: 8px;">✓ Language: ${result.language}</div>`;
+                }
+
+                if (result.success) {
+                    outputHtml += '<div style="color: #008800; font-weight: bold;">✓ Execution Successful</div>';
+
+                    // Show stdout
+                    if (result.stdout) {
+                        outputHtml += '<div style="color: #008800; font-weight: bold; margin-top: 8px;">Output:</div>';
+                        outputHtml += `<div style="color: #333; margin-left: 10px;">${escapeHtml(result.stdout)}</div>`;
+                    }
+
+                    // Show stderr if present
+                    if (result.stderr) {
+                        outputHtml += '<div style="color: #cc0000; font-weight: bold; margin-top: 8px;">Errors/Warnings:</div>';
+                        outputHtml += `<div style="color: #cc0000; margin-left: 10px;">${escapeHtml(result.stderr)}</div>`;
+                    }
+
+                    // If no output at all
+                    if (!result.stdout && !result.stderr) {
+                        outputHtml += '<div style="color: #666;">(No output produced)</div>';
+                    }
+                } else {
+                    // Execution failed
+                    outputHtml += '<div style="color: #cc0000; font-weight: bold;">✗ Execution Failed</div>';
+                    outputHtml += `<div style="color: #cc0000; margin-left: 10px;">${escapeHtml(result.error || result.stderr || 'Unknown error')}</div>`;
+                }
+
+                resultElement.innerHTML = outputHtml;
+
+            } catch (error) {
+                console.error('Error executing code:', error);
+                resultElement.innerHTML = `<div style="color: #cc0000;">✗ Error: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Apply syntax highlighting
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -85,6 +85,7 @@
 // Constants
 const API_KEY = "dummy-api-key";
 const TTS_API_URL = "https://speech.ai.unturf.com/v1/audio/speech";
+const CODE_EXEC_URL = "https://cammy-black.foxhop.net"; // Code execution service URL (served via Caddy)
 const urlParams = new URLSearchParams(window.location.search);
 let username = urlParams.get("username") || "guest"; // Default to "guest" if no username in URL
 
@@ -1177,6 +1178,13 @@ function addCopyButtonToCodeBlock(block) {
     // Check if the full content is stored in a data attribute, otherwise use textContent
     const contentToCopy = block.dataset.fullContent || block.textContent;
 
+    // Create a container for the buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.classList.add('code-block-button-container');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.gap = '8px';
+    buttonContainer.style.marginBottom = '8px';
+
     // Create a button to copy the code block's content
     const copyButton = document.createElement('button');
     copyButton.textContent = 'Copy';
@@ -1194,8 +1202,142 @@ function addCopyButtonToCodeBlock(block) {
         });
     };
 
-    // Insert the button before the code block
-    block.parentNode.insertBefore(copyButton, block);
+    // Create a button to execute the code block's content
+    const playButton = document.createElement('button');
+    playButton.textContent = '▶ Run';
+    playButton.classList.add('play-button');
+    playButton.onclick = function() {
+        executeCodeBlock(contentToCopy, block, playButton);
+    };
+
+    // Add buttons to container
+    buttonContainer.appendChild(copyButton);
+    buttonContainer.appendChild(playButton);
+
+    // Insert the button container before the code block
+    block.parentNode.insertBefore(buttonContainer, block);
+}
+
+// Function to execute code block content
+async function executeCodeBlock(code, blockElement, playButton) {
+    // Update button state
+    playButton.textContent = 'Running...';
+    playButton.disabled = true;
+
+    // Check if we already have a results container
+    let resultsContainer = blockElement.parentNode.querySelector('.code-execution-results');
+    if (!resultsContainer) {
+        // Create results container
+        resultsContainer = document.createElement('div');
+        resultsContainer.classList.add('code-execution-results');
+        resultsContainer.style.marginTop = '10px';
+        resultsContainer.style.padding = '10px';
+        resultsContainer.style.backgroundColor = '#f0f0f0';
+        resultsContainer.style.borderRadius = '5px';
+        resultsContainer.style.fontFamily = 'monospace';
+        resultsContainer.style.fontSize = '14px';
+        resultsContainer.style.whiteSpace = 'pre-wrap';
+        resultsContainer.style.wordWrap = 'break-word';
+
+        // Insert after the code block
+        blockElement.parentNode.insertBefore(resultsContainer, blockElement.nextSibling);
+    }
+
+    // Clear previous results
+    resultsContainer.innerHTML = '<div style="color: #666;">Executing code...</div>';
+
+    try {
+        // Try to detect language from the code block's class
+        let language = null;
+        const classes = blockElement.className.split(' ');
+        for (const cls of classes) {
+            if (cls.startsWith('language-')) {
+                language = cls.replace('language-', '');
+                break;
+            }
+        }
+
+        // If no language specified (no class on code block), default to Python
+        if (!language) {
+            language = 'python';
+        }
+
+        // Use /execute endpoint with specified or default language
+        const response = await fetch(`${CODE_EXEC_URL}/execute`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                language: language,
+                code: code
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Format and display results
+        let outputHtml = '';
+
+        // Handle nested response structure - check if stdout is an object with nested data
+        let actualStdout = result.stdout;
+        let actualStderr = result.stderr;
+
+        // If stdout is an object (nested response), extract the actual stdout/stderr
+        if (typeof result.stdout === 'object' && result.stdout !== null) {
+            actualStdout = result.stdout.stdout || '';
+            actualStderr = result.stdout.stderr || '';
+        }
+
+        // Show language
+        if (result.language) {
+            outputHtml += `<div style="color: #0066cc; margin-bottom: 8px;">Language: ${result.language}</div>`;
+        }
+
+        if (result.success) {
+            // Show stdout
+            if (actualStdout) {
+                outputHtml += '<div style="color: #008800; font-weight: bold;">Output:</div>';
+                outputHtml += `<div style="color: #333; margin-left: 10px;">${escapeHtml(actualStdout)}</div>`;
+            }
+
+            // Show stderr if present
+            if (actualStderr) {
+                outputHtml += '<div style="color: #cc0000; font-weight: bold; margin-top: 8px;">Errors/Warnings:</div>';
+                outputHtml += `<div style="color: #cc0000; margin-left: 10px;">${escapeHtml(actualStderr)}</div>`;
+            }
+
+            // If no output at all
+            if (!actualStdout && !actualStderr) {
+                outputHtml += '<div style="color: #666;">(No output produced)</div>';
+            }
+        } else {
+            // Execution failed
+            outputHtml += '<div style="color: #cc0000; font-weight: bold;">Execution Failed:</div>';
+            outputHtml += `<div style="color: #cc0000; margin-left: 10px;">${escapeHtml(result.error || result.stderr || 'Unknown error')}</div>`;
+        }
+
+        resultsContainer.innerHTML = outputHtml;
+
+    } catch (error) {
+        console.error('Error executing code:', error);
+        resultsContainer.innerHTML = `<div style="color: #cc0000;">Error: ${escapeHtml(error.message)}</div>`;
+    } finally {
+        // Reset button state
+        playButton.textContent = '▶ Run';
+        playButton.disabled = false;
+    }
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function addLineNumbers(block) {
