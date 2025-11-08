@@ -1,0 +1,702 @@
+default_max_attempts_per_step: 3
+
+tokens_for_ai_rubric: |
+  Evaluate the student's development of media literacy skills.
+  Consider:
+  - Their ability to identify credible vs unreliable sources
+  - Recognition of bias and propaganda techniques
+  - Understanding of fact-checking methods
+  - Critical thinking about information sources
+  - Application of media literacy principles
+
+  Provide encouraging feedback and emphasize the importance of these skills in the digital age.
+
+sections:
+  - section_id: "introduction"
+    title: "Welcome to Media Literacy"
+    steps:
+      - step_id: "welcome"
+        title: "Welcome to Media Literacy"
+        content_blocks:
+          - "# Media Literacy & Information Evaluation 📰"
+          - "Welcome to the world of critical media consumption!"
+          - ""
+          - "In today's information-rich world, the ability to evaluate sources is essential."
+          - ""
+          - "**You'll learn to:**"
+          - "- Identify credible vs unreliable sources"
+          - "- Recognize bias and propaganda techniques"
+          - "- Fact-check claims effectively"
+          - "- Detect emotional manipulation"
+          - "- Understand how misinformation spreads"
+          - "- Become a savvy information consumer"
+          - ""
+          - "**Why this matters:**"
+          - "Every day we're exposed to thousands of messages - news, ads, social media posts."
+          - "Some are accurate, some are biased, some are deliberately false."
+          - "Media literacy helps you navigate this landscape and make informed decisions."
+        question: "Ready to sharpen your information evaluation skills?"
+        tokens_for_ai: |
+          Student is expressing readiness.
+
+          Categorize as:
+          - ready: Positive, ready to begin
+          - set_language: Setting language preference
+          - off_topic: Unrelated
+        buckets:
+          - ready
+          - set_language
+          - off_topic
+        transitions:
+          ready:
+            content_blocks:
+              - "Excellent! Let's start with the basics of source evaluation."
+            metadata_add:
+              misinformation_detected: "0"
+              sources_verified: "0"
+            next_section_and_step: "section_1:step_1"
+          set_language:
+            content_blocks:
+              - "I'll communicate in your preferred language."
+            counts_as_attempt: false
+            next_section_and_step: "introduction:welcome"
+          off_topic:
+            content_blocks:
+              - "Let's begin developing your media literacy skills! Are you ready?"
+            counts_as_attempt: false
+            next_section_and_step: "introduction:welcome"
+
+  - section_id: "section_1"
+    title: "Evaluating Sources"
+    steps:
+      - step_id: "step_1"
+        title: "Understanding Source Credibility"
+        content_blocks:
+          - "## Understanding Source Credibility 🔍"
+          - "Not all information sources are equally reliable."
+          - ""
+          - "**Key questions to ask:**"
+          - "- **Who created this?** (Author, organization)"
+          - "- **What's their expertise?** (Credentials, experience)"
+          - "- **What's their motive?** (Inform, persuade, sell, entertain?)"
+          - "- **Is it verifiable?** (Can you check the facts?)"
+          - "- **Who else reports this?** (Corroboration from other sources)"
+          - ""
+          - "**Example article to evaluate:**"
+          - ""
+          - "**Title:** 'Scientists Confirm Chocolate Cures All Diseases'"
+          - "**Source:** ChocoLovers Blog"
+          - "**Author:** No author listed"
+          - "**Content:** Claims a new study proves chocolate cures cancer, diabetes, and heart disease. No study is named or linked. Article includes ads for chocolate products."
+          - "**No other news sources are reporting this story.**"
+        question: "Is this a credible source? Why or why not? What red flags do you notice?"
+        tokens_for_ai: |
+          This is clearly NOT credible. Red flags:
+          - Extraordinary claim ("cures ALL diseases")
+          - No author credentials
+          - No named study or link to research
+          - Biased source (ChocoLovers Blog)
+          - Financial motive (chocolate ads)
+          - No corroboration from other sources
+          - Lacks scientific plausibility
+
+          Categorize as:
+          - correctly_identified: Recognizes this is not credible and identifies multiple red flags
+          - partially_correct: Sees it's suspicious but misses some red flags
+          - missed_red_flags: Thinks it might be credible or only sees one red flag
+          - limited_effort: Very brief answer
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Praise identification of red flags! Walk through all the warning signs if they missed any.
+          Emphasize: extraordinary claims require extraordinary evidence, check for conflicts of
+          interest, and verify with multiple independent sources.
+        buckets:
+          - correctly_identified
+          - partially_correct
+          - missed_red_flags
+          - limited_effort
+          - off_topic
+        transitions:
+          correctly_identified:
+            ai_feedback:
+              tokens_for_ai: "Excellent source evaluation! You identified the key red flags. Explain the principle: extraordinary claims require extraordinary evidence."
+            metadata_add:
+              score: "n+2"
+              misinformation_detected: "n+1"
+            next_section_and_step: "section_1:step_2"
+          partially_correct:
+            ai_feedback:
+              tokens_for_ai: "Good critical thinking! You spotted some red flags. Point out any additional warning signs they missed."
+            metadata_add:
+              score: "n+1"
+              misinformation_detected: "n+1"
+            next_section_and_step: "section_1:step_2"
+          missed_red_flags:
+            ai_feedback:
+              tokens_for_ai: "Let's examine this more carefully. Walk through the red flags: no named study, biased source, extraordinary claims, financial motive, no corroboration."
+            next_section_and_step: "section_1:step_1"
+          limited_effort:
+            content_blocks:
+              - "Take time to analyze this carefully. Look at the source, the claims, the evidence provided, and whether other sources report this."
+            next_section_and_step: "section_1:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on evaluating this article. Is it credible? What red flags do you see?"
+            next_section_and_step: "section_1:step_1"
+
+      - step_id: "step_2"
+        title: "Comparing Sources"
+        content_blocks:
+          - "## Comparing Sources 📊"
+          - "Great work! Now let's compare different sources on the same topic."
+          - ""
+          - "**Topic: A new medical treatment**"
+          - ""
+          - "**Source A:**"
+          - "- Journal of Medicine (peer-reviewed)"
+          - "- Authors: Dr. Smith et al., university researchers"
+          - "- Reports: 'Preliminary study of 200 patients shows 15% improvement in symptoms'"
+          - "- Lists limitations and notes more research needed"
+          - ""
+          - "**Source B:**"
+          - "- HealthMiracles.com"
+          - "- No author listed"
+          - "- Claims: 'Revolutionary cure helps 99% of patients!'"
+          - "- Sells the treatment for $299"
+          - "- No peer review or scientific citation"
+        question: "Which source is more credible, and why? What makes Source A different from Source B?"
+        tokens_for_ai: |
+          Source A is clearly more credible:
+          - Peer-reviewed journal
+          - Named researchers with credentials
+          - Modest, specific claims (15%, not 99%)
+          - Acknowledges limitations
+          - No financial conflict
+
+          Source B has red flags:
+          - No author/credentials
+          - Extraordinary claims (99%)
+          - Selling the product (financial motive)
+          - No peer review
+
+          Categorize as:
+          - correct_analysis: Identifies Source A as more credible with good reasoning
+          - partial_understanding: Gets the right answer but incomplete reasoning
+          - confused: Doesn't clearly distinguish credibility
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they correctly identify A, praise their analysis! Explain peer review process and
+          why modest claims with limitations are actually MORE trustworthy than extraordinary
+          promises. Discuss financial conflicts of interest.
+        buckets:
+          - correct_analysis
+          - partial_understanding
+          - confused
+          - limited_effort
+          - off_topic
+        transitions:
+          correct_analysis:
+            ai_feedback:
+              tokens_for_ai: "Excellent! You understand the hallmarks of credible scientific reporting: peer review, transparency about limitations, and absence of financial conflicts. Explain why modest claims are more trustworthy."
+            metadata_add:
+              score: "n+2"
+              sources_verified: "n+1"
+            next_section_and_step: "section_2:step_1"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "You're on the right track! Expand on the specific factors that make Source A more trustworthy: peer review, credentialed authors, modest claims, acknowledged limitations."
+            metadata_add:
+              score: "n+1"
+              sources_verified: "n+1"
+            next_section_and_step: "section_2:step_1"
+          confused:
+            content_blocks:
+              - "**Key principle:** When evaluating sources, look for transparency, credentials, peer review, and absence of financial conflicts."
+              - "Which source has these qualities?"
+            next_section_and_step: "section_1:step_2"
+          limited_effort:
+            content_blocks:
+              - "Compare them systematically: Who wrote it? Is it peer-reviewed? Are the claims modest or extraordinary? Is someone selling something?"
+            next_section_and_step: "section_1:step_2"
+          off_topic:
+            content_blocks:
+              - "Let's compare these two sources. Which is more credible and why?"
+            next_section_and_step: "section_1:step_2"
+
+  - section_id: "section_2"
+    title: "Recognizing Bias"
+    steps:
+      - step_id: "step_1"
+        title: "Understanding Bias and Framing"
+        content_blocks:
+          - "## Understanding Bias and Framing 📰"
+          - "All sources have some perspective, but recognizing bias helps you get fuller picture."
+          - ""
+          - "**Types of bias:**"
+          - "- **Selection bias:** What facts are included or omitted?"
+          - "- **Framing bias:** How is the story presented?"
+          - "- **Word choice:** Loaded language vs neutral language"
+          - ""
+          - "**Example: Same event, two headlines:**"
+          - ""
+          - "**Headline A:** 'Protesters disrupt traffic, cause chaos downtown'"
+          - "**Headline B:** 'Citizens march peacefully for voting rights'"
+          - ""
+          - "**Facts:** 5,000 people marched. Two streets closed for 3 hours. No violence or arrests. March was about voting rights legislation."
+        question: "How does each headline frame the event differently? What does word choice reveal about each source's perspective?"
+        tokens_for_ai: |
+          Headline A uses negative framing: "disrupt," "chaos," focuses on inconvenience
+          Headline B uses positive framing: "peacefully," "citizens," emphasizes purpose
+          Both are describing the same factual event but with different emphasis and word choice.
+
+          Categorize as:
+          - recognizes_bias: Identifies how each headline frames the story differently and discusses word choice
+          - partial_recognition: Sees some difference but doesn't fully analyze framing
+          - missed_bias: Doesn't recognize the bias or framing differences
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they recognize bias, excellent! Explain how both can be factually accurate yet
+          emphasize different aspects. Discuss how word choice ("disrupt" vs "march," "chaos" vs
+          "peaceful") shapes perception. Emphasize importance of reading multiple sources.
+        buckets:
+          - recognizes_bias
+          - partial_recognition
+          - missed_bias
+          - limited_effort
+          - off_topic
+        transitions:
+          recognizes_bias:
+            ai_feedback:
+              tokens_for_ai: "Excellent analysis of bias and framing! Explain how consuming news from multiple perspectives helps us understand the full picture."
+            metadata_add:
+              score: "n+2"
+              bias_identified: "n+1"
+            next_section_and_step: "section_2:step_2"
+          partial_recognition:
+            ai_feedback:
+              tokens_for_ai: "You're seeing the difference! Dig deeper into the specific words used: 'disrupt' vs 'march,' 'chaos' vs 'peaceful.' How does this language shape our perception?"
+            metadata_add:
+              score: "n+1"
+              bias_identified: "n+1"
+            next_section_and_step: "section_2:step_2"
+          missed_bias:
+            content_blocks:
+              - "Look closely at the word choices: 'disrupt' vs 'march,' 'chaos' vs 'peaceful.'"
+              - "One headline emphasizes inconvenience, the other emphasizes the purpose and peaceful nature."
+              - "Same facts, different framing!"
+            next_section_and_step: "section_2:step_1"
+          limited_effort:
+            content_blocks:
+              - "Compare the specific words used in each headline. What feeling does each create about the protest?"
+            next_section_and_step: "section_2:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's analyze these headlines. How does each one frame the protest differently?"
+            next_section_and_step: "section_2:step_1"
+
+      - step_id: "step_2"
+        title: "Emotional Manipulation vs Facts"
+        content_blocks:
+          - "## Emotional Manipulation vs Facts 💭"
+          - "Some content uses emotional triggers to bypass critical thinking."
+          - ""
+          - "**Propaganda techniques to watch for:**"
+          - "- **Fear appeals:** 'If you don't act now, disaster will happen!'"
+          - "- **Bandwagon:** 'Everyone believes this, don't be left out!'"
+          - "- **Name-calling:** Attacking people rather than addressing arguments"
+          - "- **Glittering generalities:** Vague positive language without substance"
+          - "- **Appeals to emotion** over evidence"
+          - ""
+          - "**Example social media post:**"
+          - ""
+          - "_'They're trying to hide the TRUTH from you! Don't be a sheep! Share this before it's deleted! Everyone who's smart knows this is happening! Wake up!'_"
+          - ""
+          - "The post contains no specific claims, sources, or verifiable facts."
+        question: "What propaganda techniques do you see in this post? What red flags indicate this is trying to manipulate rather than inform?"
+        tokens_for_ai: |
+          Propaganda techniques present:
+          - Fear/urgency ("before it's deleted!")
+          - Bandwagon ("everyone who's smart knows")
+          - Name-calling ("sheep")
+          - Emotional language ("TRUTH," "Wake up!")
+          - Vague claims with no specifics
+          - No sources or verifiable facts
+
+          Categorize as:
+          - identified_manipulation: Recognizes multiple propaganda techniques
+          - partial_recognition: Sees some manipulation tactics
+          - missed_manipulation: Doesn't recognize the manipulative techniques
+          - limited_effort: Very brief
+          - asking_clarifying_questions: Requests explanation
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they identify manipulation, excellent! Explain how these techniques are designed to
+          bypass critical thinking by triggering emotional responses. Contrast with informative
+          content that provides specific, verifiable claims.
+        buckets:
+          - identified_manipulation
+          - partial_recognition
+          - missed_manipulation
+          - limited_effort
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
+          identified_manipulation:
+            ai_feedback:
+              tokens_for_ai: "Excellent! You spotted the emotional manipulation tactics. Explain how credible information provides specific, verifiable facts rather than emotional appeals."
+            metadata_add:
+              score: "n+3"
+              misinformation_detected: "n+1"
+              bias_identified: "n+1"
+            next_section_and_step: "section_3:step_1"
+          partial_recognition:
+            ai_feedback:
+              tokens_for_ai: "Good start! Point out additional manipulation techniques they missed: fear/urgency, bandwagon, name-calling, vague claims without specifics."
+            metadata_add:
+              score: "n+1"
+              misinformation_detected: "n+1"
+            next_section_and_step: "section_3:step_1"
+          missed_manipulation:
+            content_blocks:
+              - "Look for emotional triggers: fear ('before it's deleted'), peer pressure ('everyone who's smart'), and name-calling ('sheep')."
+              - "Notice: no specific facts, no sources, just emotional language designed to make you share without thinking."
+            next_section_and_step: "section_2:step_2"
+          limited_effort:
+            content_blocks:
+              - "Analyze this post carefully. Is it providing facts and sources, or is it using emotions and pressure tactics?"
+            next_section_and_step: "section_2:step_2"
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about propaganda techniques and emotional manipulation."
+            counts_as_attempt: false
+            next_section_and_step: "section_2:step_2"
+          off_topic:
+            content_blocks:
+              - "Let's analyze this social media post. What manipulation techniques do you notice?"
+            next_section_and_step: "section_2:step_2"
+
+  - section_id: "section_3"
+    title: "Fact-Checking Methods"
+    steps:
+      - step_id: "step_1"
+        title: "How to Fact-Check Claims"
+        content_blocks:
+          - "## How to Fact-Check Claims ✓"
+          - "When you encounter a surprising claim, you can verify it!"
+          - ""
+          - "**Fact-checking steps:**"
+          - "1. **Check the original source** - Is the claim based on a real study/document?"
+          - "2. **Verify with fact-checking sites** - Snopes, FactCheck.org, PolitiFact, etc."
+          - "3. **Look for corroboration** - Do credible news sources report this?"
+          - "4. **Check the date** - Is this old news being presented as new?"
+          - "5. **Reverse image search** - Are images real or manipulated?"
+          - "6. **Consider expertise** - Are experts in the field confirming this?"
+          - ""
+          - "**Claim to evaluate:**"
+          - ""
+          - "_'Breaking: Government announces pizza is now a vegetable!'_"
+          - ""
+          - "**Quick research reveals:**"
+          - "- This claim went viral in 2011"
+          - "- What actually happened: Congress ruled that tomato paste on pizza counts toward vegetable requirements in school lunches"
+          - "- Pizza itself was NOT declared a vegetable"
+          - "- The claim misrepresents the actual policy"
+        question: "Is the viral claim accurate? What fact-checking steps revealed the truth?"
+        tokens_for_ai: |
+          The claim is INACCURATE/MISLEADING:
+          - Pizza was NOT declared a vegetable
+          - The actual policy was about tomato paste servings in school lunches
+          - The headline distorts what actually happened
+          - Checking the date reveals this is old news
+
+          Fact-checking revealed: date checking, finding original source, understanding context
+
+          Categorize as:
+          - correctly_debunked: Identifies the claim as false/misleading and explains why
+          - partial_understanding: Sees something wrong but doesn't fully explain
+          - fooled: Thinks the claim is accurate
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they debunk it, excellent! Explain how viral claims often distort real events to
+          create outrage. Discuss importance of checking dates and finding original sources.
+          This teaches the difference between "false" and "misleading."
+        buckets:
+          - correctly_debunked
+          - partial_understanding
+          - fooled
+          - limited_effort
+          - off_topic
+        transitions:
+          correctly_debunked:
+            ai_feedback:
+              tokens_for_ai: "Excellent fact-checking! You identified that the viral claim distorts the real policy. Explain how misleading headlines often contain a grain of truth but misrepresent the reality."
+            metadata_add:
+              score: "n+2"
+              misinformation_detected: "n+1"
+              sources_verified: "n+1"
+            next_section_and_step: "section_3:step_2"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "You're thinking critically! Clarify the distinction: the policy was about tomato paste portions, not declaring pizza a vegetable. The headline distorts reality."
+            metadata_add:
+              score: "n+1"
+              sources_verified: "n+1"
+            next_section_and_step: "section_3:step_2"
+          fooled:
+            content_blocks:
+              - "Look at what ACTUALLY happened versus the headline: The policy was about counting tomato paste as a vegetable serving, not declaring pizza itself a vegetable."
+              - "The viral claim distorts the truth to create outrage!"
+            next_section_and_step: "section_3:step_1"
+          limited_effort:
+            content_blocks:
+              - "Read the fact-check information carefully. What's the difference between the viral claim and what actually happened?"
+            next_section_and_step: "section_3:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's fact-check this claim. Is it accurate based on the research provided?"
+            next_section_and_step: "section_3:step_1"
+
+      - step_id: "step_2"
+        title: "Spotting Manipulated Media"
+        content_blocks:
+          - "## Advanced: Spotting Deepfakes and Manipulated Media 🎭"
+          - "Technology now allows realistic fake images, videos, and audio."
+          - ""
+          - "**Warning signs of manipulated media:**"
+          - "- Unusual lighting or shadows"
+          - "- Mismatched details (watch, background elements)"
+          - "- Unnatural movement or expressions (in video)"
+          - "- Context seems wrong (location, date, people present)"
+          - "- No other sources have this image/video"
+          - ""
+          - "**Best practice:** Use reverse image search (Google Images, TinEye) to find original source"
+          - ""
+          - "**Scenario:**"
+          - "You see a photo claiming to show a celebrity at a political rally yesterday."
+          - ""
+          - "**Reverse image search reveals:**"
+          - "The same photo appears in an article from 3 years ago at a completely different event."
+          - "The background has been digitally altered."
+        question: "What does this tell you about the photo? Why is reverse image search such a valuable tool?"
+        tokens_for_ai: |
+          The photo is FAKE/MANIPULATED:
+          - Original image is from a different event years ago
+          - Background has been altered
+          - This is misinformation
+
+          Reverse image search helps:
+          - Find original context
+          - Detect recycled/manipulated images
+          - Verify when and where photo was actually taken
+
+          Categorize as:
+          - understood_manipulation: Recognizes the photo is fake and explains the value of reverse search
+          - partial_understanding: Gets general idea but incomplete
+          - confused: Doesn't fully grasp the manipulation
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they understand, excellent! Explain how old images are often recycled to create
+          false narratives. Emphasize that reverse image search is a powerful tool anyone can
+          use to verify visual claims.
+        buckets:
+          - understood_manipulation
+          - partial_understanding
+          - confused
+          - limited_effort
+          - off_topic
+        transitions:
+          understood_manipulation:
+            ai_feedback:
+              tokens_for_ai: "Perfect! You understand how images can be manipulated and recycled. Explain how reverse image search helps verify visual claims and find original context."
+            metadata_add:
+              score: "n+2"
+              misinformation_detected: "n+1"
+            next_section_and_step: "section_4:step_1"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Good thinking! Emphasize that reverse image search reveals when images are recycled from different contexts or digitally altered."
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "section_4:step_1"
+          confused:
+            content_blocks:
+              - "The photo is fake - it's from a different event years ago with an altered background."
+              - "Reverse image search helps you find where images really came from!"
+            next_section_and_step: "section_3:step_2"
+          limited_effort:
+            content_blocks:
+              - "Think about what it means that the same photo appears from years ago in a different context."
+            next_section_and_step: "section_3:step_2"
+          off_topic:
+            content_blocks:
+              - "Let's analyze this scenario. What does the reverse image search reveal?"
+            next_section_and_step: "section_3:step_2"
+
+  - section_id: "section_4"
+    title: "Building Your Media Diet"
+    steps:
+      - step_id: "step_1"
+        title: "Creating a Healthy Information Diet"
+        content_blocks:
+          - "## Creating a Healthy Information Diet 🧠"
+          - "You've learned to spot misinformation, bias, and manipulation!"
+          - ""
+          - "**Now: Building good habits**"
+          - ""
+          - "**Principles for healthy media consumption:**"
+          - ""
+          - "✓ **Diverse sources** - Read multiple perspectives, not just sources you agree with"
+          - "✓ **Primary sources** - When possible, check original documents/studies, not just summaries"
+          - "✓ **Slow down** - Resist the urge to share immediately; verify first"
+          - "✓ **Check your emotions** - If content makes you very angry/scared, pause and fact-check"
+          - "✓ **Know the difference** - News, opinion, satire, and propaganda are different"
+          - "✓ **Digital hygiene** - Regularly audit your information sources"
+          - ""
+          - "**Question:**"
+          - "You see a shocking headline that confirms something you already believe."
+          - ""
+          - "**What should you do BEFORE sharing it?**"
+        question: "What steps should you take before sharing a shocking claim, even if it confirms your beliefs?"
+        tokens_for_ai: |
+          Good practices before sharing:
+          - Check the source (is it credible?)
+          - Verify with fact-checking sites
+          - Look for corroboration from other sources
+          - Check if it's satire
+          - Be extra skeptical of claims that confirm your biases (confirmation bias)
+          - Read beyond the headline
+
+          Categorize as:
+          - comprehensive_approach: Lists multiple verification steps
+          - basic_verification: Mentions checking source or fact-checking
+          - confirmation_bias_awareness: Recognizes need to be extra skeptical of agreeable claims
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they show verification thinking, excellent! Emphasize the importance of being
+          especially skeptical of claims we WANT to believe (confirmation bias). Discuss the
+          responsibility of sharing in the digital age - false information spreads faster than
+          corrections.
+        buckets:
+          - comprehensive_approach
+          - basic_verification
+          - confirmation_bias_awareness
+          - limited_effort
+          - off_topic
+        transitions:
+          comprehensive_approach:
+            ai_feedback:
+              tokens_for_ai: "Excellent! You've internalized the verification process. Emphasize that sharing misinformation, even unintentionally, contributes to the problem."
+            metadata_add:
+              score: "n+3"
+            next_section_and_step: "conclusion:step_1"
+          basic_verification:
+            ai_feedback:
+              tokens_for_ai: "Good instinct to verify! Expand on additional steps: check multiple sources, use fact-checking sites, be extra skeptical of claims you want to believe."
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "conclusion:step_1"
+          confirmation_bias_awareness:
+            ai_feedback:
+              tokens_for_ai: "Excellent self-awareness! Recognizing confirmation bias is crucial. We're all more likely to believe and share claims that confirm what we already think."
+            metadata_add:
+              score: "n+3"
+            next_section_and_step: "conclusion:step_1"
+          limited_effort:
+            content_blocks:
+              - "Think about the verification steps you've learned: checking sources, fact-checking sites, looking for corroboration, being skeptical of claims you want to believe."
+            next_section_and_step: "section_4:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's think about responsible information sharing. What should you do before sharing a claim?"
+            next_section_and_step: "section_4:step_1"
+
+  - section_id: "conclusion"
+    title: "Media Literacy Graduate"
+    steps:
+      - step_id: "step_1"
+        title: "Congratulations!"
+        content_blocks:
+          - "## Congratulations, Media Literacy Expert! 🎓"
+          - "You've developed critical skills for navigating the information landscape!"
+          - ""
+          - "**What you've learned:**"
+          - "✓ How to evaluate source credibility"
+          - "✓ Recognizing bias and framing"
+          - "✓ Identifying propaganda and emotional manipulation"
+          - "✓ Fact-checking techniques (including reverse image search)"
+          - "✓ Building a healthy media diet"
+          - "✓ Spotting misinformation before it spreads"
+          - ""
+          - "**Why this matters in the digital age:**"
+          - "- Information spreads faster than ever before"
+          - "- Misinformation can influence elections, health decisions, and social trust"
+          - "- Critical thinking is essential for democracy"
+          - "- You have power AND responsibility as an information consumer and sharer"
+          - ""
+          - "**Remember:**"
+          - "_'The inability to distinguish fact from fiction is the defining challenge of our age.'_"
+          - ""
+          - "You now have the tools to meet this challenge."
+          - ""
+          - "**Your media literacy checklist:**"
+          - "- Check the source"
+          - "- Verify with multiple sources"
+          - "- Watch for emotional manipulation"
+          - "- Fact-check before sharing"
+          - "- Consume diverse perspectives"
+          - "- Stay curious and humble"
+        question: "How will you apply media literacy in your daily life? What's one specific habit you want to develop to be a more critical information consumer?"
+        tokens_for_ai: |
+          This is a reflection question about applying media literacy skills.
+
+          Categorize as:
+          - specific_commitment: Identifies a concrete practice they'll adopt
+          - thoughtful_reflection: Meaningful reflection on importance of media literacy
+          - basic_reflection: Brief but genuine
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Provide encouraging, personalized feedback. Emphasize that media literacy is a lifelong
+          practice, not a destination. Acknowledge the challenges of the information age and praise
+          their commitment to critical thinking. Remind them that every time they verify before
+          sharing, they help combat misinformation.
+        buckets:
+          - specific_commitment
+          - thoughtful_reflection
+          - basic_reflection
+          - limited_effort
+          - off_topic
+        transitions:
+          specific_commitment:
+            ai_feedback:
+              tokens_for_ai: "Excellent commitment! Support their specific practice and emphasize how individual critical thinking contributes to a healthier information ecosystem."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          thoughtful_reflection:
+            ai_feedback:
+              tokens_for_ai: "Thoughtful reflection! Encourage them to make verification a habit and to help others develop media literacy too."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          basic_reflection:
+            ai_feedback:
+              tokens_for_ai: "Thank them for engaging with media literacy. Emphasize the importance of these skills in the digital age."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          limited_effort:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their completion and encourage them to practice verification before sharing information."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's reflect on your learning. How will you apply media literacy skills going forward?"
+            next_section_and_step: "conclusion:step_1"

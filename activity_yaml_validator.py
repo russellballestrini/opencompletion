@@ -110,6 +110,14 @@ class ActivityYAMLValidator:
             if not isinstance(data["tokens_for_ai_rubric"], str):
                 self.errors.append("tokens_for_ai_rubric must be a string")
 
+        if "classifier_model" in data:
+            if not isinstance(data["classifier_model"], str):
+                self.errors.append("classifier_model must be a string")
+
+        if "feedback_model" in data:
+            if not isinstance(data["feedback_model"], str):
+                self.errors.append("feedback_model must be a string")
+
     def _validate_sections(self, sections: List[Dict[str, Any]]):
         """Validate sections structure"""
         if not isinstance(sections, list):
@@ -187,6 +195,19 @@ class ActivityYAMLValidator:
             if field not in step:
                 self.errors.append(
                     f"Section {section_id}, step {step_id}: Missing required field '{field}'"
+                )
+
+        # Validate optional model overrides at step level
+        if "classifier_model" in step:
+            if not isinstance(step["classifier_model"], str):
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: classifier_model must be a string"
+                )
+
+        if "feedback_model" in step:
+            if not isinstance(step["feedback_model"], str):
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: feedback_model must be a string"
                 )
 
         # Validate content_blocks or question
@@ -666,10 +687,10 @@ class ActivityYAMLValidator:
 
                 for bucket, transition in step["transitions"].items():
                     if "metadata_feedback_filter" in transition:
-                        # Check if step has feedback_tokens_for_ai
-                        if "feedback_tokens_for_ai" not in step:
+                        # Check if step has feedback_tokens_for_ai or feedback_prompts
+                        if "feedback_tokens_for_ai" not in step and "feedback_prompts" not in step:
                             self.warnings.append(
-                                f"Section {section_id}, step {step_id}: metadata_feedback_filter used but no feedback_tokens_for_ai defined"
+                                f"Section {section_id}, step {step_id}: metadata_feedback_filter used but no feedback_tokens_for_ai or feedback_prompts defined"
                             )
 
     def _validate_pre_scripts(self, data: Dict[str, Any]):

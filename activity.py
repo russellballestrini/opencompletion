@@ -91,7 +91,7 @@ def get_activity_content(file_path):
 
 
 def loop_through_steps_until_question(
-    activity_content, activity_state, room_name, username, model=None
+    activity_content, activity_state, room_name, username, classifier_model="MODEL_0", feedback_model="MODEL_0"
 ):
     room = get_room(room_name)
 
@@ -122,7 +122,7 @@ def loop_through_steps_until_question(
         # Emit the current step content blocks
         if "content_blocks" in step:
             content = "\n\n".join(step["content_blocks"])
-            translated_content = translate_text(content, user_language, model)
+            translated_content = translate_text(content, user_language, feedback_model)
             new_message = Message(
                 username="System", content=translated_content, room_id=room.id
             )
@@ -144,7 +144,7 @@ def loop_through_steps_until_question(
         if "question" in step:
             question_content = step["question"]
             translated_question_content = translate_text(
-                question_content, user_language, model
+                question_content, user_language, feedback_model
             )
             new_message = Message(
                 username="System (Question)",
@@ -185,7 +185,7 @@ def loop_through_steps_until_question(
             # Activity completed
 
             # Display activity info before completing
-            display_activity_info(room_name, username, model)
+            display_activity_info(room_name, username, feedback_model)
 
             db.session.delete(activity_state)
             db.session.commit()
@@ -222,9 +222,15 @@ def start_activity(room_name, s3_file_path, username):
         db.session.add(activity_state)
         db.session.commit()
 
+        # Get model configuration from activity content if specified
+        # Default to MODEL_0 (Hermes) for both - fast, accurate, and always available
+        classifier_model = activity_content.get("classifier_model", "MODEL_0")
+        feedback_model = activity_content.get("feedback_model", "MODEL_0")
+
         # Loop through steps until a question is found or the end is reached
         loop_through_steps_until_question(
-            activity_content, activity_state, room_name, username, model=None
+            activity_content, activity_state, room_name, username,
+            classifier_model=classifier_model, feedback_model=feedback_model
         )
 
         # Emit activity status update
@@ -329,7 +335,7 @@ def execute_processing_script(metadata, script):
     return local_env["script_result"]
 
 
-def handle_activity_response(room_name, user_response, username, model=None):
+def handle_activity_response(room_name, user_response, username, model="MODEL_0"):
     with app.app_context():
         room = get_room(room_name)
         activity_state = ActivityState.query.filter_by(room_id=room.id).first()
@@ -339,6 +345,11 @@ def handle_activity_response(room_name, user_response, username, model=None):
 
         # Load the activity content
         activity_content = get_activity_content(activity_state.s3_file_path)
+
+        # Get activity-level model defaults
+        # Default to MODEL_0 (Hermes) for both - fast, accurate, and always available
+        default_classifier_model = activity_content.get("classifier_model", "MODEL_0")
+        default_feedback_model = activity_content.get("feedback_model", "MODEL_0")
 
         try:
             # Find the current section and step
@@ -350,6 +361,10 @@ def handle_activity_response(room_name, user_response, username, model=None):
             step = next(
                 s for s in section["steps"] if s["step_id"] == activity_state.step_id
             )
+
+            # Get step-level model overrides (if specified), otherwise use activity defaults
+            classifier_model = step.get("classifier_model", default_classifier_model)
+            feedback_model = step.get("feedback_model", default_feedback_model)
 
             feedback_tokens_for_ai = step.get("feedback_tokens_for_ai", "")
 
@@ -376,7 +391,7 @@ def handle_activity_response(room_name, user_response, username, model=None):
                     user_response,
                     step["buckets"],
                     step.get("tokens_for_ai", ""),
-                    model,
+                    classifier_model,
                 )
 
                 # Initialize transition to None
@@ -684,7 +699,7 @@ def handle_activity_response(room_name, user_response, username, model=None):
                 if "content_blocks" in transition:
                     transition_content = "\n\n".join(transition["content_blocks"])
                     translated_transition_content = translate_text(
-                        transition_content, user_language, model
+                        transition_content, user_language, feedback_model
                     )
                     new_message = Message(
                         username="System",
@@ -724,7 +739,7 @@ def handle_activity_response(room_name, user_response, username, model=None):
                         json.dumps(activity_state.dict_metadata),  # Pass full metadata
                         json.dumps(new_metadata),
                         feedback_tokens_for_ai,  # Pass legacy tokens to be combined
-                        model,
+                        feedback_model,
                     )
                     feedback_messages.extend(multi_feedback_messages)
                 elif feedback_tokens_for_ai:
@@ -748,7 +763,7 @@ def handle_activity_response(room_name, user_response, username, model=None):
                         username,
                         json.dumps(feedback_metadata),
                         json.dumps(new_metadata),
-                        model,
+                        feedback_model,
                     )
                     if feedback and feedback.strip():
                         feedback_messages.append(
@@ -835,7 +850,8 @@ def handle_activity_response(room_name, user_response, username, model=None):
 
                         # Loop through steps until a question is found or the end is reached
                         loop_through_steps_until_question(
-                            activity_content, activity_state, room_name, username, model
+                            activity_content, activity_state, room_name, username,
+                            classifier_model=classifier_model, feedback_model=feedback_model
                         )
                 else:
                     # the user response is any bucket other than correct.
@@ -847,7 +863,7 @@ def handle_activity_response(room_name, user_response, username, model=None):
                     # Emit the question again
                     question_content = step["question"]
                     translated_question_content = translate_text(
-                        question_content, user_language, model
+                        question_content, user_language, feedback_model
                     )
                     new_message = Message(
                         username="System (Question)",
@@ -886,7 +902,8 @@ def handle_activity_response(room_name, user_response, username, model=None):
             else:
                 # Handle steps without a question
                 loop_through_steps_until_question(
-                    activity_content, activity_state, room_name, username, model
+                    activity_content, activity_state, room_name, username,
+                    classifier_model=classifier_model, feedback_model=feedback_model
                 )
 
         except Exception as e:
@@ -904,7 +921,7 @@ def handle_activity_response(room_name, user_response, username, model=None):
             )
 
 
-def display_activity_info(room_name, username, model=None):
+def display_activity_info(room_name, username, model="MODEL_0"):
     with app.app_context():
         room = get_room(room_name)
         activity_state = ActivityState.query.filter_by(room_id=room.id).first()
@@ -992,7 +1009,7 @@ def display_activity_info(room_name, username, model=None):
             print(f"Exception: {e}")
 
 
-def generate_grading(chat_history, rubric, model=None):
+def generate_grading(chat_history, rubric, model="MODEL_0"):
     # Use provided model or fall back to default
     if model and model != "None":
         openai_client, model_name = get_openai_client_and_model(model)
@@ -1044,7 +1061,7 @@ def get_next_step(activity_content, current_section_id, current_step_id):
 
 
 # Categorize the user's response.
-def categorize_response(question, response, buckets, tokens_for_ai, model=None):
+def categorize_response(question, response, buckets, tokens_for_ai, model="MODEL_0"):
     # Use provided model or fall back to default
     if model and model != "None":
         openai_client, model_name = get_openai_client_and_model(model)
@@ -1125,7 +1142,7 @@ def generate_ai_feedback(
     username,
     json_metadata,
     json_new_metadata,
-    model=None,
+    model="MODEL_0",
 ):
     # Use provided model or fall back to default
     if model and model != "None":
@@ -1163,7 +1180,7 @@ def provide_feedback(
     username,
     json_metadata,
     json_new_metadata,
-    model=None,
+    model="MODEL_0",
 ):
     feedback = ""
     if "ai_feedback" in transition:
@@ -1194,7 +1211,7 @@ def provide_feedback_prompts(
     json_metadata,
     json_new_metadata,
     legacy_tokens_for_ai="",
-    model=None,
+    model="MODEL_0",
 ):
     """Generate feedback from multiple prompts"""
     feedback_messages = []
@@ -1314,7 +1331,7 @@ def provide_feedback_prompts(
     return feedback_messages
 
 
-def translate_text(text, target_language, model=None):
+def translate_text(text, target_language, model="MODEL_0"):
     # Guard clause for default language
     target_language = target_language.lower().split()
 

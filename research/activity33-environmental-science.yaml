@@ -1,0 +1,643 @@
+default_max_attempts_per_step: 3
+
+tokens_for_ai_rubric: |
+  Evaluate the student's understanding of environmental science and sustainability.
+  Consider:
+  - Their grasp of ecosystem connections and interdependencies
+  - Understanding of environmental impacts
+  - Ability to think about tradeoffs and systems thinking
+  - Engagement with sustainability concepts
+  - Quality of their decision-making and reasoning
+
+  Provide encouraging feedback and suggestions for how they can apply sustainable thinking in their own lives.
+
+sections:
+  - section_id: "introduction"
+    title: "Welcome to Environmental Consulting"
+    steps:
+      - step_id: "welcome"
+        title: "Welcome Environmental Consultant"
+        content_blocks:
+          - "# Environmental Science & Sustainability 🌱"
+          - "Welcome, Environmental Consultant!"
+          - ""
+          - "You've been hired to help redesign River City to be more sustainable and environmentally friendly."
+          - ""
+          - "**Your mission:**"
+          - "Make decisions that balance environmental protection, economic needs, and quality of life."
+          - ""
+          - "**You'll learn about:**"
+          - "- Ecosystem interdependencies"
+          - "- Carbon footprint and climate impact"
+          - "- Renewable vs non-renewable energy"
+          - "- Sustainable urban planning"
+          - "- Biodiversity and habitat protection"
+          - "- Systems thinking and tradeoffs"
+          - ""
+          - "**How it works:**"
+          - "You'll face real-world environmental challenges. Each decision affects the city's Environmental Health Score."
+          - ""
+          - "Think carefully about both immediate and long-term consequences!"
+        question: "Are you ready to create a more sustainable River City?"
+        tokens_for_ai: |
+          Student is expressing readiness.
+
+          Categorize as:
+          - ready: Positive, ready to begin
+          - set_language: Setting language preference
+          - off_topic: Unrelated
+        buckets:
+          - ready
+          - set_language
+          - off_topic
+        transitions:
+          ready:
+            content_blocks:
+              - "Excellent! Let's start with your first environmental challenge."
+            metadata_add:
+              environmental_score: "50"
+              decisions_made: "0"
+            next_section_and_step: "section_1:step_1"
+          set_language:
+            content_blocks:
+              - "I'll communicate in your preferred language."
+            counts_as_attempt: false
+            next_section_and_step: "introduction:welcome"
+          off_topic:
+            content_blocks:
+              - "Let's get started helping River City become more sustainable! Are you ready?"
+            counts_as_attempt: false
+            next_section_and_step: "introduction:welcome"
+
+  - section_id: "section_1"
+    title: "Transportation Challenge"
+    steps:
+      - step_id: "step_1"
+        title: "Transportation Infrastructure"
+        content_blocks:
+          - "## Challenge 1: Transportation Infrastructure 🚗🚌"
+          - "**The Situation:**"
+          - "River City has severe traffic congestion. Most residents drive personal cars, creating:"
+          - "- High carbon emissions"
+          - "- Air pollution affecting public health"
+          - "- Traffic jams wasting time and fuel"
+          - ""
+          - "The city council has budget for ONE major transportation initiative."
+          - ""
+          - "**Your options:**"
+          - "**A) Build more highways** - Reduce traffic jams, support car culture"
+          - "**B) Expand public transit** - Buses and light rail, less convenient than cars but lower emissions per person"
+          - "**C) Create bike lanes and pedestrian zones** - Healthiest and greenest option, but only works for shorter distances"
+          - "**D) Mixed approach** - Smaller improvements to all three, but none will be as effective"
+        question: "Which transportation approach do you recommend? Explain your reasoning considering environmental impact, practicality, and long-term effects."
+        tokens_for_ai: |
+          Evaluate their choice and reasoning.
+
+          Sustainable choices in order: C (best), B (good), D (mixed), A (worst for environment)
+
+          Categorize as:
+          - sustainable_choice: Chooses B or C with environmental reasoning
+          - mixed_thinking: Chooses D with awareness of tradeoffs
+          - unsustainable: Chooses A (highways)
+          - thoughtful_tradeoff: Any choice with sophisticated understanding of tradeoffs
+          - limited_effort: Very brief or no reasoning
+          - asking_clarifying_questions: Needs more information
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Provide feedback on their environmental reasoning. If they chose highways, explain the
+          concept of "induced demand" - more highways lead to more driving. If they chose sustainable
+          options, praise their thinking and explain the benefits. Acknowledge legitimate concerns
+          about practicality and economic impacts.
+        buckets:
+          - sustainable_choice
+          - mixed_thinking
+          - unsustainable
+          - thoughtful_tradeoff
+          - limited_effort
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
+          sustainable_choice:
+            ai_feedback:
+              tokens_for_ai: "Excellent environmental thinking! Explain the positive impacts of their choice on emissions, health, and urban livability."
+            metadata_add:
+              environmental_score: "n+10"
+              carbon_reduced: "high"
+              decisions_made: "n+1"
+            next_section_and_step: "section_2:step_1"
+          mixed_thinking:
+            ai_feedback:
+              tokens_for_ai: "A balanced approach can work! Discuss the tradeoffs and how to maximize environmental benefit within the mixed approach."
+            metadata_add:
+              environmental_score: "n+5"
+              carbon_reduced: "medium"
+              decisions_made: "n+1"
+            next_section_and_step: "section_2:step_1"
+          unsustainable:
+            ai_feedback:
+              tokens_for_ai: "Explain 'induced demand' - more highways lead to more driving and sprawl. Suggest how public transit or bike infrastructure could address congestion more sustainably."
+            metadata_add:
+              environmental_score: "n-5"
+              carbon_reduced: "none"
+              decisions_made: "n+1"
+            next_section_and_step: "section_2:step_1"
+          thoughtful_tradeoff:
+            ai_feedback:
+              tokens_for_ai: "You're thinking systemically about the tradeoffs! Validate their sophisticated reasoning and provide additional context."
+            metadata_add:
+              environmental_score: "n+7"
+              carbon_reduced: "medium"
+              decisions_made: "n+1"
+            next_section_and_step: "section_2:step_1"
+          limited_effort:
+            content_blocks:
+              - "Please think more deeply about the environmental and practical implications of each option. What are the long-term effects?"
+            next_section_and_step: "section_1:step_1"
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer their question helpfully, providing information about emissions, costs, or practicality as requested."
+            counts_as_attempt: false
+            next_section_and_step: "section_1:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on the transportation challenge. Which option do you recommend and why?"
+            next_section_and_step: "section_1:step_1"
+
+  - section_id: "section_2"
+    title: "Energy Challenge"
+    steps:
+      - step_id: "step_1"
+        title: "Energy Infrastructure"
+        content_blocks:
+          - "## Challenge 2: Energy Infrastructure ⚡🌞"
+          - "**The Situation:**"
+          - "River City's power currently comes from:"
+          - "- 70% coal (cheap but high carbon emissions and air pollution)"
+          - "- 20% natural gas (cleaner than coal but still fossil fuel)"
+          - "- 10% renewable (solar and wind)"
+          - ""
+          - "The city wants to transition to cleaner energy. Budget allows for ONE major initiative."
+          - ""
+          - "**Your options:**"
+          - "**A) Build large solar farm** - Clean energy, works great in sunny weather, needs battery storage for nighttime"
+          - "**B) Invest in wind turbines** - Clean energy, works day and night if windy, some people find them unsightly"
+          - "**C) Upgrade to natural gas** - Cleaner than coal, much lower cost than renewables, but still emits CO2"
+          - "**D) Energy efficiency program** - Help residents insulate homes, use LED lights, efficient appliances - reduces total energy needed"
+        question: "Which energy strategy do you recommend? Consider climate impact, reliability, and cost."
+        tokens_for_ai: |
+          Evaluate their choice and reasoning.
+
+          Sustainability ranking: A or B (excellent), D (good), C (poor - still fossil fuel)
+
+          Categorize as:
+          - renewable_choice: Chooses A or B with climate reasoning
+          - efficiency_focus: Chooses D understanding that reducing demand is also sustainable
+          - transitional_thinking: Chooses C as a "bridge" fuel
+          - systems_thinking: Shows understanding of energy grid complexity
+          - limited_effort: Very brief
+          - asking_clarifying_questions: Needs more info
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Discuss their reasoning. If they chose renewables, explain benefits and acknowledge
+          intermittency challenges. If they chose efficiency, praise reducing demand. If natural
+          gas, acknowledge it's cleaner than coal but emphasize it's still fossil fuel and won't
+          meet long-term climate goals.
+        buckets:
+          - renewable_choice
+          - efficiency_focus
+          - transitional_thinking
+          - systems_thinking
+          - limited_effort
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
+          renewable_choice:
+            ai_feedback:
+              tokens_for_ai: "Excellent climate-conscious choice! Explain the long-term benefits of renewable energy for climate and air quality."
+            metadata_add:
+              environmental_score: "n+10"
+              carbon_reduced: "high"
+              renewable_energy: "true"
+              decisions_made: "n+1"
+            next_section_and_step: "section_3:step_1"
+          efficiency_focus:
+            ai_feedback:
+              tokens_for_ai: "Smart thinking! Reducing energy demand is one of the most cost-effective climate solutions. Explain how efficiency complements renewable energy."
+            metadata_add:
+              environmental_score: "n+8"
+              carbon_reduced: "medium-high"
+              decisions_made: "n+1"
+            next_section_and_step: "section_3:step_1"
+          transitional_thinking:
+            ai_feedback:
+              tokens_for_ai: "Natural gas is cleaner than coal, but it's still a fossil fuel. Discuss the difference between a transitional step and a long-term solution for climate goals."
+            metadata_add:
+              environmental_score: "n+3"
+              carbon_reduced: "low"
+              decisions_made: "n+1"
+            next_section_and_step: "section_3:step_1"
+          systems_thinking:
+            ai_feedback:
+              tokens_for_ai: "Excellent systems thinking! Validate their sophisticated understanding and provide additional context on grid management."
+            metadata_add:
+              environmental_score: "n+9"
+              carbon_reduced: "high"
+              decisions_made: "n+1"
+            next_section_and_step: "section_3:step_1"
+          limited_effort:
+            content_blocks:
+              - "Please provide more reasoning about environmental impact and long-term sustainability. What are the climate implications?"
+            next_section_and_step: "section_2:step_1"
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about renewable energy, costs, or technical details."
+            counts_as_attempt: false
+            next_section_and_step: "section_2:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on the energy challenge. Which energy strategy would you recommend?"
+            next_section_and_step: "section_2:step_1"
+
+  - section_id: "section_3"
+    title: "Land Use Challenge"
+    steps:
+      - step_id: "step_1"
+        title: "Green Space vs Development"
+        content_blocks:
+          - "## Challenge 3: Green Space vs Development 🌳🏢"
+          - "**The Situation:**"
+          - "River City has a 50-acre plot of undeveloped land with mature forest and a wetland."
+          - ""
+          - "**Why the forest and wetland matter:**"
+          - "- Trees absorb CO2 (carbon sink)"
+          - "- Wetlands filter water and prevent flooding"
+          - "- Habitat for dozens of bird species, amphibians, and small mammals"
+          - "- Cool air and reduce urban heat island effect"
+          - ""
+          - "The city faces pressure to develop this land."
+          - ""
+          - "**Your options:**"
+          - "**A) Preserve as nature reserve** - Maximum environmental benefit, provides green space for residents, but no economic development"
+          - "**B) Build affordable housing** - Addresses housing shortage, but removes habitat and green benefits"
+          - "**C) Mixed-use development** - Preserve 30 acres as park, develop 20 acres with green building standards"
+          - "**D) Commercial development** - Shopping center, brings jobs and tax revenue, full removal of natural area"
+        question: "What do you recommend for this land? Consider biodiversity, climate impact, and community needs."
+        tokens_for_ai: |
+          Evaluate their reasoning about balancing conservation and development.
+
+          Sustainability ranking: A (best for environment), C (good compromise), B (mixed), D (worst)
+
+          Categorize as:
+          - conservation_priority: Chooses A with ecological reasoning
+          - balanced_approach: Chooses C recognizing need to balance multiple goals
+          - housing_priority: Chooses B emphasizing social needs
+          - development_focus: Chooses D
+          - sophisticated_tradeoff: Any choice with nuanced understanding of competing values
+          - limited_effort: Very brief
+          - asking_clarifying_questions: Needs more info
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Discuss ecosystem services the forest provides. If they chose preservation, explain the
+          value of biodiversity and carbon sequestration. If mixed-use, validate the tradeoff thinking.
+          If development, discuss the irreversibility of habitat loss and the concept of ecosystem services.
+        buckets:
+          - conservation_priority
+          - balanced_approach
+          - housing_priority
+          - development_focus
+          - sophisticated_tradeoff
+          - limited_effort
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
+          conservation_priority:
+            ai_feedback:
+              tokens_for_ai: "Strong environmental reasoning! Explain the long-term value of ecosystem services and urban green space."
+            metadata_add:
+              environmental_score: "n+10"
+              biodiversity_protected: "high"
+              decisions_made: "n+1"
+            next_section_and_step: "section_4:step_1"
+          balanced_approach:
+            ai_feedback:
+              tokens_for_ai: "Good systems thinking! You're balancing environmental protection with community needs. Discuss how to maximize environmental benefit in the developed portion."
+            metadata_add:
+              environmental_score: "n+7"
+              biodiversity_protected: "medium"
+              decisions_made: "n+1"
+            next_section_and_step: "section_4:step_1"
+          housing_priority:
+            ai_feedback:
+              tokens_for_ai: "Housing is indeed important! Explore whether there are alternative sites for housing that wouldn't destroy irreplaceable habitat. Discuss the value of ecosystem services."
+            metadata_add:
+              environmental_score: "n+2"
+              biodiversity_protected: "low"
+              decisions_made: "n+1"
+            next_section_and_step: "section_4:step_1"
+          development_focus:
+            ai_feedback:
+              tokens_for_ai: "Commercial development provides economic benefits, but at the cost of irreplaceable ecosystem services. Discuss what's lost: carbon storage, water filtration, biodiversity, flood control."
+            metadata_add:
+              environmental_score: "n-3"
+              biodiversity_protected: "none"
+              decisions_made: "n+1"
+            next_section_and_step: "section_4:step_1"
+          sophisticated_tradeoff:
+            ai_feedback:
+              tokens_for_ai: "Excellent analysis of competing values! Validate their nuanced thinking about ecology, economics, and social needs."
+            metadata_add:
+              environmental_score: "n+8"
+              biodiversity_protected: "medium-high"
+              decisions_made: "n+1"
+            next_section_and_step: "section_4:step_1"
+          limited_effort:
+            content_blocks:
+              - "Think about what would be permanently lost if the natural area is developed. What ecosystem services does it provide?"
+            next_section_and_step: "section_3:step_1"
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about ecosystem services, biodiversity, or development alternatives."
+            counts_as_attempt: false
+            next_section_and_step: "section_3:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on the land use decision. What would you recommend for the 50-acre natural area?"
+            next_section_and_step: "section_3:step_1"
+
+  - section_id: "section_4"
+    title: "Waste & Circular Economy"
+    steps:
+      - step_id: "step_1"
+        title: "Waste Management"
+        content_blocks:
+          - "## Challenge 4: Waste Management ♻️"
+          - "**The Situation:**"
+          - "River City sends 80% of waste to landfills, where it:"
+          - "- Takes up space (landfills filling up)"
+          - "- Produces methane (a potent greenhouse gas)"
+          - "- Wastes valuable materials"
+          - ""
+          - "Only 20% is currently recycled."
+          - ""
+          - "**Understanding the circular economy:**"
+          - "Instead of 'take, make, dispose,' we can 'reduce, reuse, recycle' - keeping materials in use."
+          - ""
+          - "**Your options:**"
+          - "**A) Mandatory recycling & composting** - Requires sorting, provides trucks, reduces landfill waste by ~50%"
+          - "**B) Ban single-use plastics** - Eliminates major source of waste and ocean pollution"
+          - "**C) Waste-to-energy incinerator** - Reduces landfill volume and generates electricity, but produces air emissions"
+          - "**D) Producer responsibility laws** - Require manufacturers to take back and recycle their products"
+        question: "Which waste strategy would you implement? Consider environmental impact and systemic change."
+        tokens_for_ai: |
+          Evaluate their understanding of circular economy and waste hierarchy.
+
+          Sustainability ranking: A (good), B (good), D (excellent - addresses root cause), C (mixed - better than landfill but not ideal)
+
+          Categorize as:
+          - circular_economy: Chooses A or D with understanding of reuse/recycling
+          - pollution_prevention: Chooses B to eliminate plastic waste
+          - technical_solution: Chooses C (incineration)
+          - systems_thinking: Shows understanding of upstream vs downstream solutions
+          - limited_effort: Very brief
+          - asking_clarifying_questions: Needs more info
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Discuss the waste hierarchy: reduce > reuse > recycle > recover energy > landfill.
+          If they chose producer responsibility, praise thinking about root causes. If recycling,
+          good but also mention reducing consumption. If incineration, discuss why it's better
+          than landfill but not as good as preventing waste.
+        buckets:
+          - circular_economy
+          - pollution_prevention
+          - technical_solution
+          - systems_thinking
+          - limited_effort
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
+          circular_economy:
+            ai_feedback:
+              tokens_for_ai: "Excellent! You understand circular economy principles. Explain how keeping materials in use reduces resource extraction and emissions."
+            metadata_add:
+              environmental_score: "n+8"
+              waste_reduction: "high"
+              decisions_made: "n+1"
+            next_section_and_step: "section_5:step_1"
+          pollution_prevention:
+            ai_feedback:
+              tokens_for_ai: "Great prevention thinking! Eliminating single-use plastics prevents pollution at the source. Discuss how this addresses ocean plastic crisis."
+            metadata_add:
+              environmental_score: "n+9"
+              waste_reduction: "high"
+              plastic_reduction: "true"
+              decisions_made: "n+1"
+            next_section_and_step: "section_5:step_1"
+          technical_solution:
+            ai_feedback:
+              tokens_for_ai: "Incineration is better than landfilling, but it's still treating symptoms rather than causes. Discuss the waste hierarchy and how prevention is better than end-of-pipe solutions."
+            metadata_add:
+              environmental_score: "n+4"
+              waste_reduction: "medium"
+              decisions_made: "n+1"
+            next_section_and_step: "section_5:step_1"
+          systems_thinking:
+            ai_feedback:
+              tokens_for_ai: "Excellent systems thinking! You're looking at root causes rather than just managing waste. Validate their sophisticated approach."
+            metadata_add:
+              environmental_score: "n+10"
+              waste_reduction: "high"
+              decisions_made: "n+1"
+            next_section_and_step: "section_5:step_1"
+          limited_effort:
+            content_blocks:
+              - "Think about the waste hierarchy: Is it better to prevent waste or manage it after it's created?"
+            next_section_and_step: "section_4:step_1"
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about waste management, recycling, or circular economy concepts."
+            counts_as_attempt: false
+            next_section_and_step: "section_4:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on waste management. Which strategy would you recommend?"
+            next_section_and_step: "section_4:step_1"
+
+  - section_id: "section_5"
+    title: "Food & Agriculture"
+    steps:
+      - step_id: "step_1"
+        title: "Sustainable Food Systems"
+        content_blocks:
+          - "## Challenge 5: Sustainable Food Systems 🌾"
+          - "**The Situation:**"
+          - "River City imports 90% of its food from distant farms, which:"
+          - "- Requires energy for transportation (high carbon footprint)"
+          - "- Makes city vulnerable to supply disruptions"
+          - "- Disconnects residents from food sources"
+          - ""
+          - "**Environmental context:**"
+          - "Food systems account for ~25% of global greenhouse gas emissions"
+          - "Agriculture uses 70% of freshwater globally"
+          - "Industrial farming often depletes soil and harms biodiversity"
+          - ""
+          - "**Your options:**"
+          - "**A) Support local organic farms** - Lower transportation emissions, no pesticides, higher cost to consumers"
+          - "**B) Urban farming program** - Rooftop gardens, community gardens, very local but limited scale"
+          - "**C) Promote plant-based diets** - Meat production has 10-50x more emissions than plants, but culturally challenging"
+          - "**D) Reduce food waste** - 30-40% of food is wasted; composting and redistribution can help"
+        question: "Which food sustainability strategy would you prioritize? Consider climate impact, feasibility, and food security."
+        tokens_for_ai: |
+          Evaluate their understanding of food system environmental impacts.
+
+          All options have merit! C (plant-based) has highest climate impact potential, D (waste reduction)
+          is high-impact and feasible, A and B support local food systems.
+
+          Categorize as:
+          - climate_focused: Chooses C (plant-based) with emissions reasoning
+          - waste_reduction: Chooses D understanding the scale of food waste
+          - local_food: Chooses A or B for local benefits
+          - holistic_thinking: Shows understanding of multiple interconnected issues
+          - limited_effort: Very brief
+          - asking_clarifying_questions: Needs more info
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          All choices have environmental merit! Validate their reasoning and provide context about
+          the environmental impacts they're addressing. Discuss connections between food, climate,
+          biodiversity, and resource use.
+        buckets:
+          - climate_focused
+          - waste_reduction
+          - local_food
+          - holistic_thinking
+          - limited_effort
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
+          climate_focused:
+            ai_feedback:
+              tokens_for_ai: "You've identified one of the highest-impact climate solutions! Explain why animal agriculture has such large emissions, while acknowledging cultural and practical challenges."
+            metadata_add:
+              environmental_score: "n+10"
+              carbon_reduced: "very-high"
+              decisions_made: "n+1"
+            next_section_and_step: "conclusion:step_1"
+          waste_reduction:
+            ai_feedback:
+              tokens_for_ai: "Excellent choice! Food waste is a massive but often overlooked problem. Explain the triple benefit: less production needed, less methane from landfills, food reaches hungry people."
+            metadata_add:
+              environmental_score: "n+9"
+              waste_reduction: "high"
+              decisions_made: "n+1"
+            next_section_and_step: "conclusion:step_1"
+          local_food:
+            ai_feedback:
+              tokens_for_ai: "Good thinking about local food systems! Explain benefits for local economy, food security, and reducing transportation emissions. Note that production methods matter more than distance for some foods."
+            metadata_add:
+              environmental_score: "n+7"
+              local_food: "true"
+              decisions_made: "n+1"
+            next_section_and_step: "conclusion:step_1"
+          holistic_thinking:
+            ai_feedback:
+              tokens_for_ai: "Excellent holistic understanding of food system sustainability! Validate their sophisticated systems thinking about multiple interconnected issues."
+            metadata_add:
+              environmental_score: "n+10"
+              decisions_made: "n+1"
+            next_section_and_step: "conclusion:step_1"
+          limited_effort:
+            content_blocks:
+              - "Think about the full lifecycle of food: production, transportation, consumption, and waste. Where are the biggest environmental impacts?"
+            next_section_and_step: "section_5:step_1"
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about food system environmental impacts, emissions, or sustainability strategies."
+            counts_as_attempt: false
+            next_section_and_step: "section_5:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on food sustainability. Which strategy would you recommend?"
+            next_section_and_step: "section_5:step_1"
+
+  - section_id: "conclusion"
+    title: "Sustainability Report"
+    steps:
+      - step_id: "step_1"
+        title: "Congratulations!"
+        content_blocks:
+          - "## Congratulations, Environmental Consultant! 🌍"
+          - "You've completed your sustainability consulting project for River City!"
+          - ""
+          - "**Key environmental concepts you explored:**"
+          - "✓ Carbon footprint and climate impact"
+          - "✓ Renewable vs fossil fuel energy"
+          - "✓ Ecosystem services and biodiversity"
+          - "✓ Circular economy and waste hierarchy"
+          - "✓ Sustainable food systems"
+          - "✓ Systems thinking and tradeoffs"
+          - ""
+          - "**Why sustainability matters:**"
+          - "Human wellbeing depends on healthy ecosystems - they provide:"
+          - "- Clean air and water"
+          - "- Climate regulation"
+          - "- Food and materials"
+          - "- Recreation and beauty"
+          - ""
+          - "**The challenge:**"
+          - "We must meet human needs while protecting the Earth's systems that support all life."
+          - ""
+          - "**What you learned:**"
+          - "- Environmental problems are interconnected (systems thinking)"
+          - "- Choices have both immediate and long-term consequences"
+          - "- Prevention is better than treating symptoms"
+          - "- We can balance environmental protection with human needs through thoughtful design"
+        question: "Reflecting on your decisions, what's one action you could take in your own life to reduce your environmental impact? What sustainability principle resonated most with you?"
+        tokens_for_ai: |
+          This is a reflection question. Accept any thoughtful response about personal application
+          of sustainability principles.
+
+          Categorize as:
+          - specific_commitment: Identifies concrete action they plan to take
+          - thoughtful_reflection: Meaningful reflection on what they learned
+          - basic_reflection: Brief but genuine
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Provide personalized, encouraging feedback. Acknowledge the environmental decisions they
+          made throughout the activity. Emphasize that individual actions matter AND we need systemic
+          change. Encourage them to think about sustainability in their daily choices and to advocate
+          for environmental protection in their communities.
+        buckets:
+          - specific_commitment
+          - thoughtful_reflection
+          - basic_reflection
+          - limited_effort
+          - off_topic
+        transitions:
+          specific_commitment:
+            ai_feedback:
+              tokens_for_ai: "Wonderful! Your specific commitment shows you're ready to apply what you learned. Encourage and support their action plan. Remind them that individual actions AND systemic advocacy both matter."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          thoughtful_reflection:
+            ai_feedback:
+              tokens_for_ai: "Excellent reflection on sustainability principles! Provide encouragement and suggest ways to apply these concepts in daily life."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          basic_reflection:
+            ai_feedback:
+              tokens_for_ai: "Thank them for engaging with environmental challenges. Summarize key takeaways and encourage sustainable thinking."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          limited_effort:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their completion and encourage them to consider environmental impacts in their daily decisions."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's reflect on sustainability. What action could you take personally to reduce environmental impact?"
+            next_section_and_step: "conclusion:step_1"
