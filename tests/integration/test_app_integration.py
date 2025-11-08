@@ -65,7 +65,8 @@ class TestDatabaseModelsIntegration(unittest.TestCase):
         self.db.session.remove()
         try:
             self.db.drop_all()
-        except:
+        except Exception as e:
+            # Drop all may fail if db is already cleaned up
             pass
         self.app_context.pop()
 
