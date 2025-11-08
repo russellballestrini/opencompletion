@@ -7,8 +7,9 @@
 
     <!-- Include highlight.js library for syntax highlighting -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script>
-    <!-- Include a highlight.js theme (replace 'default' with your preferred theme) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/default.min.css">
+    <!-- Include highlight.js themes for light and dark modes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/github.min.css" id="highlight-theme-light">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/github-dark.min.css" id="highlight-theme-dark" disabled>
 
     <!-- Include socket.io for real-time bidirectional event-based communication -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
@@ -863,6 +864,22 @@
 
         // Update button text for both desktop and mobile
         updateThemeButtonText(newTheme);
+
+        // Switch highlight.js theme
+        updateHighlightTheme(newTheme);
+    }
+
+    function updateHighlightTheme(theme) {
+        const lightTheme = document.getElementById('highlight-theme-light');
+        const darkTheme = document.getElementById('highlight-theme-dark');
+
+        if (theme === 'dark') {
+            lightTheme.disabled = true;
+            darkTheme.disabled = false;
+        } else {
+            lightTheme.disabled = false;
+            darkTheme.disabled = true;
+        }
     }
 
     function updateThemeButtonText(theme) {
@@ -883,6 +900,7 @@
         const savedTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
         updateThemeButtonText(savedTheme);
+        updateHighlightTheme(savedTheme);
     }
 
     // Apply theme immediately (before DOMContentLoaded to prevent flash)
