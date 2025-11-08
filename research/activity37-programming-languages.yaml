@@ -1,5 +1,11 @@
 default_max_attempts_per_step: 3
 
+# Model configuration
+# Use Hermes for classification (fast, accurate bucketing)
+# Use Qwen 3 Coder for feedback (specialized for code generation)
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_3"
+
 tokens_for_ai_rubric: |
   Evaluate the student's understanding of programming concepts in their chosen language.
   Consider:
