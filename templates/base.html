@@ -515,6 +515,59 @@
         transition: background-color 0.3s ease, border-color 0.3s ease;
     }
 
+    /* Labels styling */
+    .utility-belt label {
+        color: var(--text-primary);
+        transition: color 0.3s ease;
+    }
+
+    /* Username input styling */
+    #username-input, #username-input-mobile {
+        width: 100%;
+        padding: 4px;
+        margin-top: 2px;
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    /* Search input styling */
+    #search-keywords {
+        width: 100%;
+        text-align: center;
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        padding: 8px;
+        border-radius: 5px;
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    /* Theme toggle button styling */
+    #theme-toggle-btn, #theme-toggle-btn-mobile {
+        width: 100%;
+        margin-top: 10px;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    #theme-toggle-btn:hover, #theme-toggle-btn-mobile:hover {
+        background-color: #5a6268;
+    }
+
+    /* User lists styling */
+    #user-lists h3, #user-lists-mobile h3 {
+        color: var(--text-primary);
+        transition: color 0.3s ease;
+    }
+
     /* Media query for mobile devices */
     @media (max-width: 768px) {
         .main-container {
@@ -536,7 +589,7 @@
   <!-- Search form -->
   <div id="search-form" style="width: 90%;">
       <form action="/search" method="get">
-          <input type="text" id="search-keywords" name="keywords" placeholder="Search for keywords..." style="width: 100%; text-align: center; background-color: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 8px; border-radius: 5px;" value="{{ keywords }}">
+          <input type="text" id="search-keywords" name="keywords" placeholder="Search for keywords..." value="{{ keywords }}">
           <input type="hidden" id="username" name="username" value="{{ username }}">
       </form>
   </div>
@@ -548,19 +601,19 @@
 <div id="room-list-modal">
     <div id="room-list-modal-content">
         <button id="close-modal-button" onclick="closeModal()">×</button>
-        <div id="utility-belt-mobile">
+        <div id="utility-belt-mobile" class="utility-belt">
             <div id="username-chooser-mobile">
-                <label for="username-input-mobile" style="color: var(--text-primary);">Username:</label>
-                <input type="text" id="username-input-mobile" placeholder="guest" maxlength="50" style="width: 100%; padding: 4px; margin-top: 2px; border: 1px solid var(--border-color); border-radius: 3px; background-color: var(--bg-secondary); color: var(--text-primary);">
+                <label for="username-input-mobile">Username:</label>
+                <input type="text" id="username-input-mobile" placeholder="guest" maxlength="50">
             </div>
             <div id="model-chooser-mobile">
-                <label for="model-select-mobile" style="color: var(--text-primary);">Choose Model:</label>
+                <label for="model-select-mobile">Choose Model:</label>
                 <select id="model-select-mobile">
                     <option value="None">None</option>
                 </select>
             </div>
             <div id="voice-chooser-mobile">
-                <label for="voice-select-mobile" style="color: var(--text-primary);">Choose Voice:</label>
+                <label for="voice-select-mobile">Choose Voice:</label>
                 <select id="voice-select-mobile">
                     <option value="onyx">Onyx</option>
                     <option value="alloy">Alloy</option>
@@ -571,7 +624,7 @@
                 </select>
             </div>
             <div id="theme-toggle-mobile">
-                <button id="theme-toggle-btn-mobile" onclick="toggleTheme()" style="width: 100%; margin-top: 10px; background-color: #6c757d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
+                <button id="theme-toggle-btn-mobile" onclick="toggleTheme()">
                     🌙 Dark Mode
                 </button>
             </div>
@@ -581,9 +634,9 @@
                 </button>
             </div>
             <div id="activity-controls-mobile">
-                <h3 style="color: var(--text-primary);">Activities</h3>
+                <h3>Activities</h3>
                 <div id="current-activity-info-mobile" style="display: none;">
-                    <p style="color: var(--text-primary);">Current Activity: <span id="current-activity-name-mobile"></span></p>
+                    <p>Current Activity: <span id="current-activity-name-mobile"></span></p>
                     <button id="cancel-activity-btn-mobile" onclick="cancelActivity()">Cancel Activity</button>
                 </div>
                 <div id="activity-list-section-mobile">
@@ -599,13 +652,13 @@
 
             <div id="user-lists-mobile">
                 <div id="active-users-list">
-                    <h3 style="color: var(--text-primary);">Active Users</h3>
+                    <h3>Active Users</h3>
                     <ul id="active-users-mobile">
                         <!-- Active users will be dynamically populated here -->
                     </ul>
                 </div>
                 <div id="inactive-users-list">
-                    <h3 style="color: var(--text-primary);">Inactive Users</h3>
+                    <h3>Inactive Users</h3>
                     <ul id="inactive-users-mobile">
                         <!-- Inactive users will be dynamically populated here -->
                     </ul>
