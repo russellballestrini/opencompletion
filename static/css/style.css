@@ -1,0 +1,618 @@
+/* CSS Variables for Light and Dark Themes */
+:root {
+    --bg-primary: #f7f7f7;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f8f9fa;
+    --bg-code: #f0f0f0;
+    --text-primary: #000000;
+    --text-secondary: #495057;
+    --text-muted: #666;
+    --text-info: #0066cc;
+    --text-success: #008800;
+    --text-error: #cc0000;
+    --link-color: #0066cc;
+    --link-hover: #004499;
+    --border-color: #e1e1e1;
+    --border-color-dark: #ced4da;
+    --border-code: #ccc;
+    --button-primary: #007bff;
+    --button-primary-hover: #0056b3;
+    --button-success: #28a745;
+    --button-success-hover: #218838;
+    --button-activity: #4CAF50;
+    --button-danger: #f44336;
+    --shadow: rgba(0, 0, 0, 0.1);
+    --shadow-dark: rgba(0, 0, 0, 0.2);
+    --highlight-bg: #f8f9fa;
+    --code-line-numbers: #999;
+    --modal-overlay: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #252525;
+    --bg-code: #1e1e1e;
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --text-muted: #888;
+    --text-info: #4da3ff;
+    --text-success: #5fcc5f;
+    --text-error: #ff6b6b;
+    --link-color: #58a6ff;
+    --link-hover: #79b8ff;
+    --border-color: #404040;
+    --border-color-dark: #4a4a4a;
+    --border-code: #555;
+    --button-primary: #0d6efd;
+    --button-primary-hover: #0b5ed7;
+    --button-success: #198754;
+    --button-success-hover: #157347;
+    --button-activity: #4CAF50;
+    --button-danger: #dc3545;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --shadow-dark: rgba(0, 0, 0, 0.5);
+    --highlight-bg: #2a2a2a;
+    --code-line-numbers: #666;
+    --modal-overlay: rgba(0, 0, 0, 0.7);
+}
+
+/* Dark theme overrides for code blocks */
+[data-theme="dark"] .hljs {
+    color: #e0e0e0;
+}
+
+[data-theme="dark"] pre {
+    background-color: var(--bg-code);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] code {
+    background-color: var(--bg-code);
+    color: var(--text-primary);
+}
+
+/* Basic styling for the chat application */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    display: grid;
+    place-items: center;
+    overflow: hidden; /* Prevent scrolling of the main viewport */
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Styling for the chat container */
+#chat-container {
+    display: grid;
+    grid-template-rows: 1fr auto;
+    width: 100%;
+    height: 90vh;
+    background-color: var(--bg-secondary);
+    border-radius: 5px;
+    padding: 15px;
+    box-shadow: 0 2px 6px var(--shadow);
+    box-sizing: border-box;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Styling for the chat area */
+#chat {
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding-left: 10px;
+    margin-bottom: 10px;
+    width: 100%; /* Allow chat window to fill available space */
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Styling for the message input area */
+#message, .message-edit {
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 5px;
+    display: block;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Styling for the message body wrapper that contains header and content */
+.message-body {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Styling for the message header (username/model) */
+.message-header {
+    width: 100%;
+    margin-bottom: 0;
+}
+
+/* Styling for the message div holding html/markdown content  */
+.message-content {
+    width: 100%;
+}
+
+/* Styling for individual message wrappers */
+.message-wrapper {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    gap: 4px;
+    margin-bottom: 32px;
+}
+
+/* Styling for the delete and edit buttons next to messages */
+.message-wrapper button {
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+/* Styling for the button container within each message */
+.button-container {
+    display: grid;
+    grid-auto-rows: min-content; /* Ensure each button takes up only as much space as it needs */
+    gap: 4px; /* Vertical space between buttons */
+}
+
+/* Styling for paragraphs, used for messages */
+p {
+    margin: 0;
+    margin-bottom: 12px;
+}
+
+/* Styling for the main container that holds the rooms list and chat */
+.main-container {
+    display: grid;
+    grid-template-columns: 15% 70% 15%;
+    width: 100%;
+    height: 90vh;
+}
+
+/* Styling for the rooms list */
+#rooms-list {
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    padding: 10px;
+    background-color: var(--bg-secondary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Styling for site header */
+#site-header {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+#opencompletion-btn {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--button-primary);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#opencompletion-btn:hover {
+    background-color: var(--button-primary-hover);
+}
+
+/* Styling for new room creation section */
+#new-room-section {
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--bg-tertiary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+#new-room-section h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    transition: color 0.3s ease;
+}
+
+#new-room-name {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color-dark);
+    border-radius: 3px;
+    font-size: 12px;
+    resize: vertical;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+#create-room-btn {
+    width: 100%;
+    padding: 8px;
+    background-color: var(--button-success);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#create-room-btn:hover {
+    background-color: var(--button-success-hover);
+}
+
+/* Styling for public rooms header */
+#public-rooms-header {
+    margin-bottom: 10px;
+}
+
+#public-rooms-header h4 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+    transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Styling for the unordered list in the rooms list */
+#rooms-list ul, #rooms-list-modal-content ul {
+    list-style: none; /* Removes default list styling */
+    padding: 0; /* Resets default padding */
+    margin: 0; /* Resets default margin */
+}
+
+/* Styling for list items in the rooms list */
+#rooms-list li {
+    margin-bottom: 10px; /* Adds space between items */
+    padding: 5px; /* Adds padding inside each item */
+    border: 1px solid var(--border-color); /* Adds a border around each item */
+    border-radius: 5px; /* Optional: Rounds the corners of the border */
+    background-color: var(--bg-secondary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* General link styling */
+a {
+    color: var(--link-color);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+}
+
+/* Styling for links in the rooms list */
+#rooms-list a {
+    color: var(--link-color);
+    transition: color 0.3s ease;
+}
+
+#rooms-list a:hover {
+    color: var(--link-hover);
+}
+
+.hljs {
+    position: relative;
+    padding-left: 46px !important;
+    counter-reset: line;
+    background-color: var(--bg-code) !important;
+    transition: background-color 0.3s ease;
+}
+
+.hljs .line-numbers-rows {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3em; /* Adjust the width as needed */
+    letter-spacing: -1px;
+    border-right: 1px solid var(--border-code); /* Optional: adds a line to separate numbers */
+    text-align: right;
+    margin-top: 14px; /* Align with the code block */
+    color: var(--code-line-numbers);
+    pointer-events: none;
+    transition: border-color 0.3s ease, color 0.3s ease;
+}
+
+.hljs .line-numbers-rows span {
+    display: block;
+    counter-increment: line;
+}
+
+.hljs .line-numbers-rows span::before {
+    content: counter(line);
+    display: block;
+    padding-right: 0.8em; /* Adjust the padding as needed */
+}
+.download-links {
+    text-align: center;
+}
+
+/* Hamburger button styling */
+#hamburger-button {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background-color: #333;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px;
+    cursor: pointer;
+    z-index: 1001;
+}
+
+/* Modal styling */
+#room-list-modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--modal-overlay);
+    z-index: 1002;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.3s ease;
+}
+
+#room-list-modal-content {
+    display: none; /* Hidden by default */
+    background-color: var(--bg-secondary);
+    padding: 20px;
+    border-radius: 5px;
+    width: 80%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow-y: auto; /* Make the room list scrollable */
+    position: relative;
+    transition: background-color 0.3s ease;
+}
+
+/* Close button styling */
+#close-modal-button {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background-color: #333;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 1003; /* Ensure it is above the modal content */
+    padding: 5px 10px; /* Add padding for a button-like appearance */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Add a shadow for depth */
+    transition: background-color 0.3s; /* Smooth transition for hover effect */
+}
+
+#close-modal-button:hover {
+    background-color: #555; /* Darken on hover */
+}
+
+.utility-belt {
+    padding: 10px;
+    background-color: var(--bg-secondary);
+    transition: background-color 0.3s ease;
+}
+
+/* Activity controls styling */
+#activity-controls {
+    margin-top: 20px;
+    padding: 10px;
+    border-top: 1px solid var(--border-color);
+    transition: border-color 0.3s ease;
+}
+
+#activity-controls h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+    transition: color 0.3s ease;
+}
+
+#current-activity-info {
+    background-color: var(--bg-code);
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    transition: background-color 0.3s ease;
+}
+
+#current-activity-info p {
+    margin: 0 0 10px 0;
+    color: var(--text-primary);
+    transition: color 0.3s ease;
+}
+
+#activity-controls button {
+    background-color: var(--button-activity);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: opacity 0.3s ease;
+}
+
+#cancel-activity-btn {
+    background-color: var(--button-danger);
+}
+
+#activity-controls button:hover {
+    opacity: 0.8;
+}
+
+#activity-select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 5px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Model and voice select dropdowns styling */
+#model-select, #voice-select, #model-select-mobile, #voice-select-mobile {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 5px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Labels styling */
+.utility-belt label {
+    color: var(--text-primary);
+    transition: color 0.3s ease;
+}
+
+/* Username input styling */
+#username-input, #username-input-mobile {
+    width: 100%;
+    padding: 4px;
+    margin-top: 2px;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Search input styling */
+#search-keywords {
+    width: 100%;
+    text-align: center;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Theme toggle button styling */
+#theme-toggle-btn, #theme-toggle-btn-mobile {
+    width: 100%;
+    margin-top: 10px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#theme-toggle-btn:hover, #theme-toggle-btn-mobile:hover {
+    background-color: #5a6268;
+}
+
+/* User lists styling */
+#user-lists h3, #user-lists-mobile h3 {
+    color: var(--text-primary);
+    transition: color 0.3s ease;
+}
+
+/* Media query for mobile devices */
+@media (max-width: 768px) {
+    .main-container {
+        grid-template-columns: 1fr; /* Single column layout */
+    }
+
+    #rooms-list {
+        display: none; /* Hide the room list on mobile */
+    }
+
+    #hamburger-button {
+        display: block; /* Show the hamburger button on mobile */
+    }
+}
+
+/* Scrollbar styling for webkit browsers (Chrome, Safari, Edge) */
+/* Light mode scrollbars */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 6px;
+    border: 2px solid var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Dark mode scrollbars */
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+    border: 2px solid var(--bg-secondary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: #5a5a5a;
+}
+
+/* Scrollbar styling for Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 var(--bg-secondary);
+}
+
+[data-theme="dark"] * {
+    scrollbar-color: #4a4a4a var(--bg-secondary);
+}
