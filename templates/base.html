@@ -609,6 +609,52 @@
         }
     }
 
+    /* Scrollbar styling for webkit browsers (Chrome, Safari, Edge) */
+    /* Light mode scrollbars */
+    ::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--bg-secondary);
+        border-radius: 6px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 6px;
+        border: 2px solid var(--bg-secondary);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    /* Dark mode scrollbars */
+    [data-theme="dark"] ::-webkit-scrollbar-track {
+        background: var(--bg-secondary);
+    }
+
+    [data-theme="dark"] ::-webkit-scrollbar-thumb {
+        background: #4a4a4a;
+        border: 2px solid var(--bg-secondary);
+    }
+
+    [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+        background: #5a5a5a;
+    }
+
+    /* Scrollbar styling for Firefox */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: #c1c1c1 var(--bg-secondary);
+    }
+
+    [data-theme="dark"] * {
+        scrollbar-color: #4a4a4a var(--bg-secondary);
+    }
+
    </style>
 </head>
 <body>
