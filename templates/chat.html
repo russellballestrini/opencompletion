@@ -21,17 +21,17 @@
         </div>
         <br>
         <div>
-            <label for="username-input">Username</label>
-            <input type="text" id="username-input" placeholder="guest" maxlength="50" style="width: 100%; padding: 4px; margin-top: 2px; border: 1px solid #ccc; border-radius: 3px;">
+            <label for="username-input" style="color: var(--text-primary);">Username</label>
+            <input type="text" id="username-input" placeholder="guest" maxlength="50" style="width: 100%; padding: 4px; margin-top: 2px; border: 1px solid var(--border-color); border-radius: 3px; background-color: var(--bg-secondary); color: var(--text-primary);">
         </div>
         <div>
-            <label for="model-select">Model</label>
+            <label for="model-select" style="color: var(--text-primary);">Model</label>
             <select id="model-select">
                 <option value="None">None</option>
             </select>
         </div>
         <div>
-            <label for="voice-select">Voice</label>
+            <label for="voice-select" style="color: var(--text-primary);">Voice</label>
             <select id="voice-select">
                 <option value="onyx">Onyx</option>
                 <option value="alloy">Alloy</option>
@@ -42,15 +42,20 @@
             </select>
         </div>
         <div>
+            <button id="theme-toggle-btn" onclick="toggleTheme()" style="width: 100%; margin-top: 10px; background-color: #6c757d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
+                🌙 Dark Mode
+            </button>
+        </div>
+        <div>
             <button id="auto-play-tts-btn" onclick="toggleAutoPlayTTS()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
                 Auto-Play TTS: OFF
             </button>
         </div>
 
        <div id="activity-controls">
-           <h3>Activities</h3>
+           <h3 style="color: var(--text-primary);">Activities</h3>
            <div id="current-activity-info" style="display: none;">
-               <p>Current Activity: <span id="current-activity-name"></span></p>
+               <p style="color: var(--text-primary);">Current Activity: <span id="current-activity-name"></span></p>
                <button id="cancel-activity-btn" onclick="cancelActivity()">Cancel Activity</button>
            </div>
            <div id="activity-list-section">
@@ -66,13 +71,13 @@
 
        <div id="user-lists">
            <div id="active-users-list">
-               <h3>Active Users</h3>
+               <h3 style="color: var(--text-primary);">Active Users</h3>
                <ul id="active-users">
                    <!-- Active users will be dynamically populated here -->
                </ul>
            </div>
            <div id="inactive-users-list">
-               <h3>Inactive Users</h3>
+               <h3 style="color: var(--text-primary);">Inactive Users</h3>
                <ul id="inactive-users">
                    <!-- Inactive users will be dynamically populated here -->
                </ul>

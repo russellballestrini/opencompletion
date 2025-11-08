@@ -35,16 +35,82 @@
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
     <style>
+    /* CSS Variables for Light and Dark Themes */
+    :root {
+        --bg-primary: #f7f7f7;
+        --bg-secondary: #ffffff;
+        --bg-tertiary: #f8f9fa;
+        --bg-code: #f0f0f0;
+        --text-primary: #000000;
+        --text-secondary: #495057;
+        --text-muted: #666;
+        --border-color: #e1e1e1;
+        --border-color-dark: #ced4da;
+        --border-code: #ccc;
+        --button-primary: #007bff;
+        --button-primary-hover: #0056b3;
+        --button-success: #28a745;
+        --button-success-hover: #218838;
+        --button-activity: #4CAF50;
+        --button-danger: #f44336;
+        --shadow: rgba(0, 0, 0, 0.1);
+        --shadow-dark: rgba(0, 0, 0, 0.2);
+        --highlight-bg: #f8f9fa;
+        --code-line-numbers: #999;
+        --modal-overlay: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="dark"] {
+        --bg-primary: #1a1a1a;
+        --bg-secondary: #2d2d2d;
+        --bg-tertiary: #252525;
+        --bg-code: #1e1e1e;
+        --text-primary: #e0e0e0;
+        --text-secondary: #b0b0b0;
+        --text-muted: #888;
+        --border-color: #404040;
+        --border-color-dark: #4a4a4a;
+        --border-code: #555;
+        --button-primary: #0d6efd;
+        --button-primary-hover: #0b5ed7;
+        --button-success: #198754;
+        --button-success-hover: #157347;
+        --button-activity: #4CAF50;
+        --button-danger: #dc3545;
+        --shadow: rgba(0, 0, 0, 0.3);
+        --shadow-dark: rgba(0, 0, 0, 0.5);
+        --highlight-bg: #2a2a2a;
+        --code-line-numbers: #666;
+        --modal-overlay: rgba(0, 0, 0, 0.7);
+    }
+
+    /* Dark theme overrides for code blocks */
+    [data-theme="dark"] .hljs {
+        color: #e0e0e0;
+    }
+
+    [data-theme="dark"] pre {
+        background-color: var(--bg-code);
+        color: var(--text-primary);
+    }
+
+    [data-theme="dark"] code {
+        background-color: var(--bg-code);
+        color: var(--text-primary);
+    }
+
     /* Basic styling for the chat application */
     html, body {
         height: 100%;
         margin: 0;
         padding: 0;
         font-family: Arial, sans-serif;
-        background-color: #f7f7f7;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
         display: grid;
         place-items: center;
         overflow: hidden; /* Prevent scrolling of the main viewport */
+        transition: background-color 0.3s ease, color 0.3s ease;
     }
     
     /* Styling for the chat container */
@@ -53,30 +119,37 @@
         grid-template-rows: 1fr auto;
         width: 100%;
         height: 90vh;
-        background-color: #ffffff;
+        background-color: var(--bg-secondary);
         border-radius: 5px;
         padding: 15px;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 6px var(--shadow);
         box-sizing: border-box;
+        transition: background-color 0.3s ease, box-shadow 0.3s ease;
     }
-    
+
     /* Styling for the chat area */
     #chat {
         overflow-y: auto;
-        border: 1px solid #e1e1e1;
+        border: 1px solid var(--border-color);
         border-radius: 5px;
         padding-left: 10px;
         margin-bottom: 10px;
         width: 100%; /* Allow chat window to fill available space */
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
     }
-    
+
     /* Styling for the message input area */
     #message, .message-edit {
         width: 100%;
-        border: 1px solid #e1e1e1;
+        border: 1px solid var(--border-color);
         border-radius: 5px;
         padding: 5px;
         display: block;
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
     }
 
     /* Styling for the message body wrapper that contains header and content */
@@ -135,21 +208,23 @@
 
     /* Styling for the rooms list */
     #rooms-list {
-        border-right: 1px solid #e1e1e1;
+        border-right: 1px solid var(--border-color);
         overflow-y: auto;
         padding: 10px;
+        background-color: var(--bg-secondary);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
     }
-    
+
     /* Styling for site header */
     #site-header {
         margin-bottom: 20px;
         text-align: center;
     }
-    
+
     #opencompletion-btn {
         width: 100%;
         padding: 10px;
-        background-color: #007bff;
+        background-color: var(--button-primary);
         color: white;
         border: none;
         border-radius: 5px;
@@ -158,41 +233,46 @@
         cursor: pointer;
         transition: background-color 0.3s;
     }
-    
+
     #opencompletion-btn:hover {
-        background-color: #0056b3;
+        background-color: var(--button-primary-hover);
     }
-    
+
     /* Styling for new room creation section */
     #new-room-section {
         margin-bottom: 20px;
         padding: 10px;
-        border: 1px solid #e1e1e1;
+        border: 1px solid var(--border-color);
         border-radius: 5px;
-        background-color: #f8f9fa;
+        background-color: var(--bg-tertiary);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
     }
-    
+
     #new-room-section h4 {
         margin: 0 0 10px 0;
         font-size: 14px;
-        color: #495057;
+        color: var(--text-secondary);
+        transition: color 0.3s ease;
     }
-    
+
     #new-room-name {
         width: 100%;
         padding: 8px;
-        border: 1px solid #ced4da;
+        border: 1px solid var(--border-color-dark);
         border-radius: 3px;
         font-size: 12px;
         resize: vertical;
         margin-bottom: 10px;
         box-sizing: border-box;
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
     }
-    
+
     #create-room-btn {
         width: 100%;
         padding: 8px;
-        background-color: #28a745;
+        background-color: var(--button-success);
         color: white;
         border: none;
         border-radius: 3px;
@@ -200,22 +280,23 @@
         cursor: pointer;
         transition: background-color 0.3s;
     }
-    
+
     #create-room-btn:hover {
-        background-color: #218838;
+        background-color: var(--button-success-hover);
     }
-    
+
     /* Styling for public rooms header */
     #public-rooms-header {
         margin-bottom: 10px;
     }
-    
+
     #public-rooms-header h4 {
         margin: 0;
         font-size: 14px;
-        color: #495057;
-        border-bottom: 1px solid #e1e1e1;
+        color: var(--text-secondary);
+        border-bottom: 1px solid var(--border-color);
         padding-bottom: 5px;
+        transition: color 0.3s ease, border-color 0.3s ease;
     }
 
     /* Styling for the unordered list in the rooms list */
@@ -229,33 +310,39 @@
     #rooms-list li {
         margin-bottom: 10px; /* Adds space between items */
         padding: 5px; /* Adds padding inside each item */
-        border: 1px solid #e1e1e1; /* Adds a border around each item */
+        border: 1px solid var(--border-color); /* Adds a border around each item */
         border-radius: 5px; /* Optional: Rounds the corners of the border */
+        background-color: var(--bg-secondary);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
     }
 
     /* Styling for links in the rooms list */
     #rooms-list a {
         text-decoration: none; /* Optional: Removes underline from links */
-        color: inherit; /* Optional: Ensures link color matches the text color */
+        color: var(--text-primary); /* Ensures link color matches the text color */
+        transition: color 0.3s ease;
     }
 
     .hljs {
         position: relative;
         padding-left: 46px !important;
         counter-reset: line;
+        background-color: var(--bg-code) !important;
+        transition: background-color 0.3s ease;
     }
- 
+
     .hljs .line-numbers-rows {
         position: absolute;
         top: 0;
         left: 0;
         width: 3em; /* Adjust the width as needed */
         letter-spacing: -1px;
-        border-right: 1px solid #ccc; /* Optional: adds a line to separate numbers */
+        border-right: 1px solid var(--border-code); /* Optional: adds a line to separate numbers */
         text-align: right;
         margin-top: 14px; /* Align with the code block */
-        color: #999;
+        color: var(--code-line-numbers);
         pointer-events: none;
+        transition: border-color 0.3s ease, color 0.3s ease;
     }
     
     .hljs .line-numbers-rows span {
@@ -295,15 +382,16 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
+        background-color: var(--modal-overlay);
         z-index: 1002;
         justify-content: center;
         align-items: center;
+        transition: background-color 0.3s ease;
     }
 
     #room-list-modal-content {
         display: none; /* Hidden by default */
-        background-color: white;
+        background-color: var(--bg-secondary);
         padding: 20px;
         border-radius: 5px;
         width: 80%;
@@ -311,6 +399,7 @@
         max-height: 80vh;
         overflow-y: auto; /* Make the room list scrollable */
         position: relative;
+        transition: background-color 0.3s ease;
     }
 
     /* Close button styling */
@@ -337,33 +426,41 @@
 
     .utility-belt {
         padding: 10px;
+        background-color: var(--bg-secondary);
+        transition: background-color 0.3s ease;
     }
-    
+
     /* Activity controls styling */
     #activity-controls {
         margin-top: 20px;
         padding: 10px;
-        border-top: 1px solid #e1e1e1;
+        border-top: 1px solid var(--border-color);
+        transition: border-color 0.3s ease;
     }
-    
+
     #activity-controls h3 {
         margin-top: 0;
         margin-bottom: 10px;
+        color: var(--text-primary);
+        transition: color 0.3s ease;
     }
-    
+
     #current-activity-info {
-        background-color: #f0f0f0;
+        background-color: var(--bg-code);
         padding: 10px;
         border-radius: 5px;
         margin-bottom: 10px;
+        transition: background-color 0.3s ease;
     }
-    
+
     #current-activity-info p {
         margin: 0 0 10px 0;
+        color: var(--text-primary);
+        transition: color 0.3s ease;
     }
-    
+
     #activity-controls button {
-        background-color: #4CAF50;
+        background-color: var(--button-activity);
         color: white;
         border: none;
         padding: 8px 16px;
@@ -374,41 +471,48 @@
         margin: 4px 2px;
         cursor: pointer;
         border-radius: 4px;
+        transition: opacity 0.3s ease;
     }
-    
+
     #cancel-activity-btn {
-        background-color: #f44336;
+        background-color: var(--button-danger);
     }
-    
+
     #activity-controls button:hover {
         opacity: 0.8;
     }
-    
+
     #activity-select {
         width: 100%;
         max-width: 100%;
         box-sizing: border-box;
         padding: 5px;
-        border: 1px solid #e1e1e1;
+        border: 1px solid var(--border-color);
         border-radius: 4px;
         font-size: 14px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
     }
-    
+
     /* Model and voice select dropdowns styling */
     #model-select, #voice-select, #model-select-mobile, #voice-select-mobile {
         width: 100%;
         max-width: 100%;
         box-sizing: border-box;
         padding: 5px;
-        border: 1px solid #e1e1e1;
+        border: 1px solid var(--border-color);
         border-radius: 4px;
         font-size: 14px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
     }
 
     /* Media query for mobile devices */
@@ -432,7 +536,7 @@
   <!-- Search form -->
   <div id="search-form" style="width: 90%;">
       <form action="/search" method="get">
-          <input type="text" id="search-keywords" name="keywords" placeholder="Search for keywords..." style="width: 100%; text-align: center;" value="{{ keywords }}">
+          <input type="text" id="search-keywords" name="keywords" placeholder="Search for keywords..." style="width: 100%; text-align: center; background-color: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 8px; border-radius: 5px;" value="{{ keywords }}">
           <input type="hidden" id="username" name="username" value="{{ username }}">
       </form>
   </div>
@@ -446,17 +550,17 @@
         <button id="close-modal-button" onclick="closeModal()">×</button>
         <div id="utility-belt-mobile">
             <div id="username-chooser-mobile">
-                <label for="username-input-mobile">Username:</label>
-                <input type="text" id="username-input-mobile" placeholder="guest" maxlength="50" style="width: 100%; padding: 4px; margin-top: 2px; border: 1px solid #ccc; border-radius: 3px;">
+                <label for="username-input-mobile" style="color: var(--text-primary);">Username:</label>
+                <input type="text" id="username-input-mobile" placeholder="guest" maxlength="50" style="width: 100%; padding: 4px; margin-top: 2px; border: 1px solid var(--border-color); border-radius: 3px; background-color: var(--bg-secondary); color: var(--text-primary);">
             </div>
             <div id="model-chooser-mobile">
-                <label for="model-select-mobile">Choose Model:</label>
+                <label for="model-select-mobile" style="color: var(--text-primary);">Choose Model:</label>
                 <select id="model-select-mobile">
                     <option value="None">None</option>
                 </select>
             </div>
             <div id="voice-chooser-mobile">
-                <label for="voice-select-mobile">Choose Voice:</label>
+                <label for="voice-select-mobile" style="color: var(--text-primary);">Choose Voice:</label>
                 <select id="voice-select-mobile">
                     <option value="onyx">Onyx</option>
                     <option value="alloy">Alloy</option>
@@ -466,15 +570,20 @@
                     <option value="shimmer">Shimmer</option>
                 </select>
             </div>
+            <div id="theme-toggle-mobile">
+                <button id="theme-toggle-btn-mobile" onclick="toggleTheme()" style="width: 100%; margin-top: 10px; background-color: #6c757d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
+                    🌙 Dark Mode
+                </button>
+            </div>
             <div id="auto-play-tts-mobile">
                 <button id="auto-play-tts-btn-mobile" onclick="toggleAutoPlayTTS()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
                     Auto-Play TTS: OFF
                 </button>
             </div>
             <div id="activity-controls-mobile">
-                <h3>Activities</h3>
+                <h3 style="color: var(--text-primary);">Activities</h3>
                 <div id="current-activity-info-mobile" style="display: none;">
-                    <p>Current Activity: <span id="current-activity-name-mobile"></span></p>
+                    <p style="color: var(--text-primary);">Current Activity: <span id="current-activity-name-mobile"></span></p>
                     <button id="cancel-activity-btn-mobile" onclick="cancelActivity()">Cancel Activity</button>
                 </div>
                 <div id="activity-list-section-mobile">
@@ -490,13 +599,13 @@
 
             <div id="user-lists-mobile">
                 <div id="active-users-list">
-                    <h3>Active Users</h3>
+                    <h3 style="color: var(--text-primary);">Active Users</h3>
                     <ul id="active-users-mobile">
                         <!-- Active users will be dynamically populated here -->
                     </ul>
                 </div>
                 <div id="inactive-users-list">
-                    <h3>Inactive Users</h3>
+                    <h3 style="color: var(--text-primary);">Inactive Users</h3>
                     <ul id="inactive-users-mobile">
                         <!-- Inactive users will be dynamically populated here -->
                     </ul>
@@ -687,9 +796,52 @@
     // Add event listener to the hamburger button
     document.getElementById("hamburger-button").addEventListener("click", openModal);
 
+    // Theme switching functionality
+    function toggleTheme() {
+        const html = document.documentElement;
+        const currentTheme = html.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+        // Update the data-theme attribute
+        html.setAttribute('data-theme', newTheme);
+
+        // Save to localStorage
+        localStorage.setItem('theme', newTheme);
+
+        // Update button text for both desktop and mobile
+        updateThemeButtonText(newTheme);
+    }
+
+    function updateThemeButtonText(theme) {
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        const themeBtnMobile = document.getElementById('theme-toggle-btn-mobile');
+
+        if (theme === 'dark') {
+            if (themeBtn) themeBtn.textContent = '☀️ Light Mode';
+            if (themeBtnMobile) themeBtnMobile.textContent = '☀️ Light Mode';
+        } else {
+            if (themeBtn) themeBtn.textContent = '🌙 Dark Mode';
+            if (themeBtnMobile) themeBtnMobile.textContent = '🌙 Dark Mode';
+        }
+    }
+
+    // Apply saved theme on page load
+    function applySavedTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeButtonText(savedTheme);
+    }
+
+    // Apply theme immediately (before DOMContentLoaded to prevent flash)
+    applySavedTheme();
+
     // Populate the mobile model dropdown dynamically
     document.addEventListener('DOMContentLoaded', (event) => {
         const modelSelectMobile = document.getElementById("model-select-mobile");
+
+        // Ensure theme button text is correct on page load
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+        updateThemeButtonText(currentTheme);
 
         // Function to populate the dropdown
         function populateModelDropdown(models) {
