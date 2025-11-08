@@ -1,5 +1,6 @@
 *.swp
 env
+venv/
 instance/
 __pycache__/
 .flaskenv
