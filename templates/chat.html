@@ -22,7 +22,7 @@
         <br>
         <div>
             <label for="username-input">Username</label>
-            <input type="text" id="username-input" placeholder="guest" maxlength="50" style="width: 100%; padding: 4px; margin-top: 2px; border: 1px solid #ccc; border-radius: 3px;">
+            <input type="text" id="username-input" placeholder="guest" maxlength="50">
         </div>
         <div>
             <label for="model-select">Model</label>
@@ -40,6 +40,11 @@
                 <option value="nova">Nova</option>
                 <option value="shimmer">Shimmer</option>
             </select>
+        </div>
+        <div>
+            <button id="theme-toggle-btn" onclick="toggleTheme()">
+                🌙 Dark Mode
+            </button>
         </div>
         <div>
             <button id="auto-play-tts-btn" onclick="toggleAutoPlayTTS()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
