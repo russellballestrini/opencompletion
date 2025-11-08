@@ -2,25 +2,13 @@ default_max_attempts_per_step: 3
 
 # Model configuration
 # classifier_model: Fast classification into buckets (correct, partial, etc.)
-#   MODEL_1 = Hermes-3-Llama-3.1-8B (always available, great for role-play)
+#   MODEL_0 = Hermes (your stable default)
 #
 # feedback_model: Code generation and feedback
-#   MODEL_3 = Qwen3-Coder-30B-A3B-Instruct (specialized for code)
-#   Recommended: hf.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M
+#   MODEL_1 = Qwen (specialized for code in your setup)
 #
-#   Setup with llama.cpp:
-#     1. Download: huggingface-cli download unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF \
-#                    Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf
-#     2. Run: llama-server -m Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf \
-#               --host 0.0.0.0 --port 8080 -ngl 99
-#     3. Set env: export MODEL_ENDPOINT_3=http://localhost:8080/v1
-#                 export MODEL_API_KEY_3=dummy
-#
-#   Or use with ollama:
-#     ollama run unsloth/qwen3-coder:30b-instruct-q4_K_M
-#
-classifier_model: "MODEL_1"
-feedback_model: "MODEL_3"
+classifier_model: "MODEL_0"
+feedback_model: "MODEL_1"
 
 tokens_for_ai_rubric: |
   Evaluate the student's understanding of programming concepts in their chosen language.

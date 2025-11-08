@@ -91,7 +91,7 @@ def get_activity_content(file_path):
 
 
 def loop_through_steps_until_question(
-    activity_content, activity_state, room_name, username, classifier_model="MODEL_1", feedback_model="MODEL_1"
+    activity_content, activity_state, room_name, username, classifier_model="MODEL_0", feedback_model="MODEL_0"
 ):
     room = get_room(room_name)
 
@@ -223,9 +223,9 @@ def start_activity(room_name, s3_file_path, username):
         db.session.commit()
 
         # Get model configuration from activity content if specified
-        # Default to MODEL_1 (Hermes) for both - fast, accurate, and always available
-        classifier_model = activity_content.get("classifier_model", "MODEL_1")
-        feedback_model = activity_content.get("feedback_model", "MODEL_1")
+        # Default to MODEL_0 (Hermes) for both - fast, accurate, and always available
+        classifier_model = activity_content.get("classifier_model", "MODEL_0")
+        feedback_model = activity_content.get("feedback_model", "MODEL_0")
 
         # Loop through steps until a question is found or the end is reached
         loop_through_steps_until_question(
@@ -335,7 +335,7 @@ def execute_processing_script(metadata, script):
     return local_env["script_result"]
 
 
-def handle_activity_response(room_name, user_response, username, model="MODEL_1"):
+def handle_activity_response(room_name, user_response, username, model="MODEL_0"):
     with app.app_context():
         room = get_room(room_name)
         activity_state = ActivityState.query.filter_by(room_id=room.id).first()
@@ -347,9 +347,9 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_1"
         activity_content = get_activity_content(activity_state.s3_file_path)
 
         # Get activity-level model defaults
-        # Default to MODEL_1 (Hermes) for both - fast, accurate, and always available
-        default_classifier_model = activity_content.get("classifier_model", "MODEL_1")
-        default_feedback_model = activity_content.get("feedback_model", "MODEL_1")
+        # Default to MODEL_0 (Hermes) for both - fast, accurate, and always available
+        default_classifier_model = activity_content.get("classifier_model", "MODEL_0")
+        default_feedback_model = activity_content.get("feedback_model", "MODEL_0")
 
         try:
             # Find the current section and step
@@ -921,7 +921,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_1"
             )
 
 
-def display_activity_info(room_name, username, model="MODEL_1"):
+def display_activity_info(room_name, username, model="MODEL_0"):
     with app.app_context():
         room = get_room(room_name)
         activity_state = ActivityState.query.filter_by(room_id=room.id).first()
@@ -1009,7 +1009,7 @@ def display_activity_info(room_name, username, model="MODEL_1"):
             print(f"Exception: {e}")
 
 
-def generate_grading(chat_history, rubric, model="MODEL_1"):
+def generate_grading(chat_history, rubric, model="MODEL_0"):
     # Use provided model or fall back to default
     if model and model != "None":
         openai_client, model_name = get_openai_client_and_model(model)
@@ -1061,7 +1061,7 @@ def get_next_step(activity_content, current_section_id, current_step_id):
 
 
 # Categorize the user's response.
-def categorize_response(question, response, buckets, tokens_for_ai, model="MODEL_1"):
+def categorize_response(question, response, buckets, tokens_for_ai, model="MODEL_0"):
     # Use provided model or fall back to default
     if model and model != "None":
         openai_client, model_name = get_openai_client_and_model(model)
@@ -1142,7 +1142,7 @@ def generate_ai_feedback(
     username,
     json_metadata,
     json_new_metadata,
-    model="MODEL_1",
+    model="MODEL_0",
 ):
     # Use provided model or fall back to default
     if model and model != "None":
@@ -1180,7 +1180,7 @@ def provide_feedback(
     username,
     json_metadata,
     json_new_metadata,
-    model="MODEL_1",
+    model="MODEL_0",
 ):
     feedback = ""
     if "ai_feedback" in transition:
@@ -1211,7 +1211,7 @@ def provide_feedback_prompts(
     json_metadata,
     json_new_metadata,
     legacy_tokens_for_ai="",
-    model="MODEL_1",
+    model="MODEL_0",
 ):
     """Generate feedback from multiple prompts"""
     feedback_messages = []
@@ -1331,7 +1331,7 @@ def provide_feedback_prompts(
     return feedback_messages
 
 
-def translate_text(text, target_language, model="MODEL_1"):
+def translate_text(text, target_language, model="MODEL_0"):
     # Guard clause for default language
     target_language = target_language.lower().split()
 
