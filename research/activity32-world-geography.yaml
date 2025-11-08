@@ -1,0 +1,805 @@
+default_max_attempts_per_step: 3
+
+tokens_for_ai_rubric: |
+  Evaluate the student's engagement with world geography and cultural learning.
+  Consider:
+  - Their curiosity about different regions
+  - Retention of geographical and cultural facts
+  - Respect and interest in cultural diversity
+  - Performance on geography questions
+
+  Provide encouraging feedback and suggest areas of the world they might explore further.
+
+sections:
+  - section_id: "introduction"
+    title: "Welcome, World Explorer!"
+    steps:
+      - step_id: "welcome"
+        title: "Welcome to World Geography"
+        content_blocks:
+          - "# Welcome to World Geography & Cultural Awareness! 🌍"
+          - "Embark on a virtual journey around the world!"
+          - ""
+          - "**In this adventure, you will:**"
+          - "- Explore different continents and countries"
+          - "- Learn fascinating cultural facts and traditions"
+          - "- Discover historical connections between regions"
+          - "- Test your geography knowledge"
+          - "- Develop global awareness and appreciation for diversity"
+          - ""
+          - "**Your journey:**"
+          - "You'll choose which regions to explore, learn about each location, and answer questions to test your knowledge."
+          - "The more you explore, the more cultural insights you'll collect!"
+          - ""
+          - "Ready to explore our amazing planet?"
+        question: "Which continent would you like to explore first? Choose: Africa, Asia, Europe, South America, or Oceania."
+        tokens_for_ai: |
+          Student is choosing their starting continent.
+
+          Categorize as:
+          - africa: Chose Africa
+          - asia: Chose Asia
+          - europe: Chose Europe
+          - south_america: Chose South America
+          - oceania: Chose Oceania (Australia/Pacific)
+          - set_language: Setting language preference
+          - off_topic: Doesn't choose a continent
+        buckets:
+          - africa
+          - asia
+          - europe
+          - south_america
+          - oceania
+          - set_language
+          - off_topic
+        transitions:
+          africa:
+            content_blocks:
+              - "🌍 Excellent choice! Let's explore the diverse continent of Africa!"
+            metadata_add:
+              continents_visited: "n+1"
+              current_continent: "Africa"
+            next_section_and_step: "africa:step_1"
+          asia:
+            content_blocks:
+              - "🌏 Wonderful! Asia awaits - the world's largest and most populous continent!"
+            metadata_add:
+              continents_visited: "n+1"
+              current_continent: "Asia"
+            next_section_and_step: "asia:step_1"
+          europe:
+            content_blocks:
+              - "🌍 Great! Let's discover the rich history and culture of Europe!"
+            metadata_add:
+              continents_visited: "n+1"
+              current_continent: "Europe"
+            next_section_and_step: "europe:step_1"
+          south_america:
+            content_blocks:
+              - "🌎 Fantastic! South America's biodiversity and culture await!"
+            metadata_add:
+              continents_visited: "n+1"
+              current_continent: "South America"
+            next_section_and_step: "south_america:step_1"
+          oceania:
+            content_blocks:
+              - "🌏 Awesome! Let's explore the islands and nations of Oceania!"
+            metadata_add:
+              continents_visited: "n+1"
+              current_continent: "Oceania"
+            next_section_and_step: "oceania:step_1"
+          set_language:
+            content_blocks:
+              - "I'll communicate in your preferred language."
+            counts_as_attempt: false
+            next_section_and_step: "introduction:welcome"
+          off_topic:
+            content_blocks:
+              - "Please choose a continent to explore: Africa, Asia, Europe, South America, or Oceania."
+            counts_as_attempt: false
+            next_section_and_step: "introduction:welcome"
+
+  - section_id: "africa"
+    title: "Exploring Africa"
+    steps:
+      - step_id: "step_1"
+        title: "Welcome to Africa - Kenya"
+        content_blocks:
+          - "## Welcome to Africa! 🦁"
+          - "Africa is the world's second-largest continent, home to 54 countries and over 1.3 billion people."
+          - ""
+          - "**Let's visit Kenya!**"
+          - ""
+          - "**Geography:** Kenya is located in East Africa, bordered by the Indian Ocean."
+          - "**Capital:** Nairobi"
+          - "**Famous for:** Wildlife safaris, the Great Rift Valley, and being home to the Maasai people"
+          - ""
+          - "**Cultural Fact:**"
+          - "Kenya is known for its incredible biodiversity. The annual wildebeest migration through the Maasai Mara is one of the world's most spectacular natural events!"
+          - ""
+          - "**Language Note:**"
+          - "While English and Swahili are official languages, Kenya has over 60 indigenous languages!"
+          - "In Swahili, 'Jambo' means 'Hello' and 'Karibu' means 'Welcome'."
+        question: "What is the capital city of Kenya?"
+        tokens_for_ai: |
+          The capital of Kenya is Nairobi (just mentioned in the content).
+
+          Categorize as:
+          - correct: Says Nairobi
+          - close: Says a major Kenyan city but not the capital (like Mombasa)
+          - confused_region: Names a capital from a different African country
+          - limited_effort: Very brief or no real answer
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct, praise them! If they guessed another city, gently correct and perhaps share
+          a fun fact about Nairobi.
+        buckets:
+          - correct
+          - close
+          - confused_region
+          - limited_effort
+          - off_topic
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Correct! Nairobi is indeed the capital. Share an interesting fact about Nairobi being one of Africa's major cities."
+            metadata_add:
+              quiz_score: "n+1"
+              countries_visited: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "africa:step_2"
+          close:
+            ai_feedback:
+              tokens_for_ai: "That's a major city in Kenya, but the capital is Nairobi! Share a fact about both cities."
+            metadata_add:
+              countries_visited: "n+1"
+            next_section_and_step: "africa:step_2"
+          confused_region:
+            content_blocks:
+              - "That's a capital of another African country! Kenya's capital is Nairobi."
+            metadata_add:
+              countries_visited: "n+1"
+            next_section_and_step: "africa:step_2"
+          limited_effort:
+            content_blocks:
+              - "Look back at the information about Kenya. Which city is listed as the capital?"
+            next_section_and_step: "africa:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on learning about Kenya. What is its capital city?"
+            next_section_and_step: "africa:step_1"
+
+      - step_id: "step_2"
+        title: "Choose Your Next Destination"
+        content_blocks:
+          - "## Journey Continues..."
+          - "Excellent! You've learned about Kenya."
+          - ""
+          - "**From Kenya, you can explore:**"
+          - "- **North to Egypt** - Ancient pyramids and the Nile River"
+          - "- **West to Nigeria** - Africa's most populous country, rich in culture and music"
+          - "- **South to South Africa** - Diverse landscapes from savannas to mountains"
+          - "- **Continue to a new continent** - Asia, Europe, South America, or Oceania"
+        question: "Where would you like to go next?"
+        tokens_for_ai: |
+          Student is choosing their next destination.
+
+          Categorize as:
+          - egypt: North to Egypt
+          - nigeria: West to Nigeria
+          - south_africa: South to South Africa
+          - new_continent: Wants to explore a different continent
+          - off_topic: Unrelated
+        buckets:
+          - egypt
+          - nigeria
+          - south_africa
+          - new_continent
+          - off_topic
+        transitions:
+          egypt:
+            content_blocks:
+              - "🐪 Heading north to Egypt - land of pharaohs!"
+            metadata_add:
+              countries_visited: "n+1"
+            next_section_and_step: "africa_egypt:step_1"
+          nigeria:
+            content_blocks:
+              - "🎵 Traveling west to Nigeria - birthplace of Afrobeat!"
+            metadata_add:
+              countries_visited: "n+1"
+            next_section_and_step: "africa_nigeria:step_1"
+          south_africa:
+            content_blocks:
+              - "🦏 Heading south to South Africa - the Rainbow Nation!"
+            metadata_add:
+              countries_visited: "n+1"
+            next_section_and_step: "africa_south:step_1"
+          new_continent:
+            content_blocks:
+              - "Ready to explore a new continent! Great choice."
+            next_section_and_step: "choose_continent:step_1"
+          off_topic:
+            content_blocks:
+              - "Please choose your next destination: Egypt, Nigeria, South Africa, or a new continent."
+            counts_as_attempt: false
+            next_section_and_step: "africa:step_2"
+
+  - section_id: "africa_egypt"
+    title: "Egypt"
+    steps:
+      - step_id: "step_1"
+        title: "Egypt - Land of Ancient Wonders"
+        content_blocks:
+          - "## Egypt - Land of Ancient Wonders 🐪"
+          - "**Geography:** Located in Northeast Africa, Egypt connects Africa to Asia via the Sinai Peninsula."
+          - "**Capital:** Cairo"
+          - "**Famous for:** The Pyramids of Giza, the Sphinx, the Nile River (world's longest river)"
+          - ""
+          - "**Historical Fact:**"
+          - "Ancient Egyptian civilization lasted over 3,000 years! They developed hieroglyphic writing, built massive monuments, and made advances in mathematics, medicine, and astronomy."
+          - ""
+          - "**Cultural Fact:**"
+          - "The Nile River has been central to Egyptian life for millennia. The ancient saying 'Egypt is the gift of the Nile' reflects how the river's annual flooding made agriculture possible in the desert."
+        question: "What is the world's longest river, which flows through Egypt?"
+        tokens_for_ai: |
+          The answer is the Nile River (mentioned multiple times above).
+
+          Categorize as:
+          - correct: Says Nile or Nile River
+          - confused: Names another famous long river (Amazon, Yangtze, Mississippi)
+          - limited_effort: Very brief or no answer
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct, praise them! If they say Amazon (second longest), acknowledge it's close but
+          the Nile is slightly longer.
+        buckets:
+          - correct
+          - confused
+          - limited_effort
+          - off_topic
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Excellent! The Nile is indeed the world's longest river. Share a fascinating fact about its importance."
+            metadata_add:
+              quiz_score: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          confused:
+            ai_feedback:
+              tokens_for_ai: "That's another long river! But the Nile is the world's longest. Explain the comparison between them."
+            metadata_add:
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          limited_effort:
+            content_blocks:
+              - "Look at the information about Egypt. Which river is mentioned as the world's longest?"
+            next_section_and_step: "africa_egypt:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on geography. What is the world's longest river?"
+            next_section_and_step: "africa_egypt:step_1"
+
+  - section_id: "africa_nigeria"
+    title: "Nigeria"
+    steps:
+      - step_id: "step_1"
+        title: "Nigeria - Heart of West Africa"
+        content_blocks:
+          - "## Nigeria - Heart of West Africa 🎵"
+          - "**Geography:** Located in West Africa on the Gulf of Guinea"
+          - "**Capital:** Abuja"
+          - "**Famous for:** Being Africa's most populous country (over 200 million people), Nollywood (film industry), Afrobeat music"
+          - ""
+          - "**Cultural Fact:**"
+          - "Nigeria is incredibly diverse with over 250 ethnic groups and 500+ languages! The largest groups are Hausa, Yoruba, and Igbo."
+          - ""
+          - "**Music Heritage:**"
+          - "Nigeria is the birthplace of Afrobeat, pioneered by Fela Kuti. Today, Nigerian artists are internationally renowned in genres from Afrobeats to hip-hop."
+        question: "Nigeria is famous for its film industry. What is it called?"
+        tokens_for_ai: |
+          The answer is Nollywood (mentioned above).
+
+          Categorize as:
+          - correct: Says Nollywood
+          - confused: Says Bollywood or Hollywood
+          - limited_effort: Very brief or no answer
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct, share fun facts about Nollywood being one of the world's largest film
+          industries by volume!
+        buckets:
+          - correct
+          - confused
+          - limited_effort
+          - off_topic
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Correct! Nollywood is one of the world's largest film industries. Share impressive statistics about it."
+            metadata_add:
+              quiz_score: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          confused:
+            ai_feedback:
+              tokens_for_ai: "That's a film industry, but Nigeria has its own! It's called Nollywood."
+            metadata_add:
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          limited_effort:
+            content_blocks:
+              - "Check the information about Nigeria. What is their film industry called? (Hint: it rhymes with Hollywood!)"
+            next_section_and_step: "africa_nigeria:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's learn about Nigerian culture. What is their film industry called?"
+            next_section_and_step: "africa_nigeria:step_1"
+
+  - section_id: "africa_south"
+    title: "South Africa"
+    steps:
+      - step_id: "step_1"
+        title: "South Africa - The Rainbow Nation"
+        content_blocks:
+          - "## South Africa - The Rainbow Nation 🦏"
+          - "**Geography:** Located at the southern tip of Africa"
+          - "**Capitals:** THREE! Pretoria (executive), Cape Town (legislative), Bloemfontein (judicial)"
+          - "**Famous for:** Diverse landscapes, wildlife (Big Five: lion, leopard, rhino, elephant, buffalo), and being called the 'Rainbow Nation' for its multicultural diversity"
+          - ""
+          - "**Historical Fact:**"
+          - "Nelson Mandela led the struggle against apartheid and became South Africa's first Black president in 1994, helping to create a democratic, multicultural nation."
+          - ""
+          - "**Language Diversity:**"
+          - "South Africa has 11 official languages, including English, Afrikaans, Zulu, and Xhosa!"
+        question: "How many official languages does South Africa have?"
+        tokens_for_ai: |
+          The answer is 11 (mentioned above).
+
+          Categorize as:
+          - correct: Says 11 or eleven
+          - close: Says a number between 8-15
+          - confused: Says 1, 2, or 3
+          - limited_effort: Very brief or no answer
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct or close, praise their attention! Share how this linguistic diversity reflects
+          the country's multicultural heritage.
+        buckets:
+          - correct
+          - close
+          - confused
+          - limited_effort
+          - off_topic
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Exactly right - 11 official languages! Explain what this reveals about South African diversity."
+            metadata_add:
+              quiz_score: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          close:
+            ai_feedback:
+              tokens_for_ai: "Very close! South Africa has exactly 11 official languages. Explain why this is significant."
+            metadata_add:
+              quiz_score: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          confused:
+            content_blocks:
+              - "Actually, South Africa is remarkably diverse! It has 11 official languages."
+            metadata_add:
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          limited_effort:
+            content_blocks:
+              - "Look at the language diversity section. How many official languages are mentioned?"
+            next_section_and_step: "africa_south:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on South African culture. How many official languages does the country have?"
+            next_section_and_step: "africa_south:step_1"
+
+  - section_id: "asia"
+    title: "Exploring Asia"
+    steps:
+      - step_id: "step_1"
+        title: "Welcome to Asia - Japan"
+        content_blocks:
+          - "## Welcome to Asia! 🏯"
+          - "Asia is the world's largest continent, covering 30% of Earth's land area and home to 60% of the world's population!"
+          - ""
+          - "**Let's visit Japan!**"
+          - ""
+          - "**Geography:** An island nation in East Asia, consisting of 4 main islands and thousands of smaller ones"
+          - "**Capital:** Tokyo"
+          - "**Famous for:** Technology, anime/manga, cherry blossoms, ancient temples, and a unique blend of tradition and modernity"
+          - ""
+          - "**Cultural Fact:**"
+          - "Japan has a deep tradition of respect and harmony. The concept of 'wa' (和) emphasizes peace and balance in relationships."
+          - "Bowing is a traditional greeting showing respect!"
+          - ""
+          - "**Interesting Note:**"
+          - "Japan has more than 6,800 islands, though most people live on the four largest: Honshu, Hokkaido, Kyushu, and Shikoku."
+        question: "What is the capital of Japan?"
+        tokens_for_ai: |
+          The answer is Tokyo (mentioned above).
+
+          Categorize as:
+          - correct: Says Tokyo
+          - close: Names another major Japanese city (Osaka, Kyoto)
+          - confused_region: Names a capital from another Asian country
+          - limited_effort: Very brief or no answer
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct, share a fact about Tokyo being one of the world's largest metropolitan areas!
+        buckets:
+          - correct
+          - close
+          - confused_region
+          - limited_effort
+          - off_topic
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Correct! Tokyo is the capital and one of the world's largest cities. Share a fascinating fact about it."
+            metadata_add:
+              quiz_score: "n+1"
+              countries_visited: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          close:
+            ai_feedback:
+              tokens_for_ai: "That's an important Japanese city! But the capital is Tokyo. Explain the historical significance of Kyoto if they mentioned it."
+            metadata_add:
+              countries_visited: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          confused_region:
+            content_blocks:
+              - "That's a capital of another Asian country! Japan's capital is Tokyo."
+            metadata_add:
+              countries_visited: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          limited_effort:
+            content_blocks:
+              - "Look at the information about Japan. Which city is the capital?"
+            next_section_and_step: "asia:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's learn about Japan. What is its capital city?"
+            next_section_and_step: "asia:step_1"
+
+  - section_id: "europe"
+    title: "Exploring Europe"
+    steps:
+      - step_id: "step_1"
+        title: "Welcome to Europe - Italy"
+        content_blocks:
+          - "## Welcome to Europe! 🏰"
+          - "Europe may be small in size, but it's mighty in history, culture, and diversity!"
+          - ""
+          - "**Let's visit Italy!**"
+          - ""
+          - "**Geography:** A boot-shaped peninsula in Southern Europe, extending into the Mediterranean Sea"
+          - "**Capital:** Rome"
+          - "**Famous for:** Ancient Roman history, Renaissance art, delicious cuisine (pizza, pasta!), and beautiful architecture"
+          - ""
+          - "**Historical Fact:**"
+          - "Rome was the heart of the Roman Empire, which at its height controlled most of Europe, North Africa, and the Middle East. The saying 'All roads lead to Rome' comes from the extensive Roman road network!"
+          - ""
+          - "**Cultural Fact:**"
+          - "Italy is home to more UNESCO World Heritage Sites than any other country - 58 sites including the Colosseum, Venice, and Pompeii!"
+        question: "What is the capital of Italy, which was also the center of the ancient Roman Empire?"
+        tokens_for_ai: |
+          The answer is Rome (mentioned multiple times above).
+
+          Categorize as:
+          - correct: Says Rome
+          - close: Names another major Italian city (Venice, Milan, Florence)
+          - confused_region: Names a capital from another European country
+          - limited_effort: Very brief or no answer
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct, share excitement about Rome's incredible history spanning over 2,500 years!
+        buckets:
+          - correct
+          - close
+          - confused_region
+          - limited_effort
+          - off_topic
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Correct! Rome - the Eternal City - has over 2,500 years of history. Share a fascinating fact about it."
+            metadata_add:
+              quiz_score: "n+1"
+              countries_visited: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          close:
+            ai_feedback:
+              tokens_for_ai: "That's a beautiful Italian city! But the capital is Rome. Share a fact about the city they mentioned if historically significant."
+            metadata_add:
+              countries_visited: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          confused_region:
+            content_blocks:
+              - "That's a European capital, but Italy's capital is Rome!"
+            metadata_add:
+              countries_visited: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          limited_effort:
+            content_blocks:
+              - "Look at the information about Italy. Which city is mentioned as both the capital AND the center of the ancient Roman Empire?"
+            next_section_and_step: "europe:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's learn about Italy. What is its capital city?"
+            next_section_and_step: "europe:step_1"
+
+  - section_id: "south_america"
+    title: "Exploring South America"
+    steps:
+      - step_id: "step_1"
+        title: "Welcome to South America - Brazil"
+        content_blocks:
+          - "## Welcome to South America! 🦜"
+          - "Home to the Amazon rainforest, the Andes mountains, and incredibly rich biodiversity!"
+          - ""
+          - "**Let's visit Brazil!**"
+          - ""
+          - "**Geography:** The largest country in South America, covering nearly half the continent"
+          - "**Capital:** Brasília (planned and built in the 1960s)"
+          - "**Famous for:** Amazon rainforest, carnival celebrations, football (soccer), and diverse ecosystems from rainforests to beaches"
+          - ""
+          - "**Environmental Fact:**"
+          - "The Amazon rainforest, which covers much of Brazil, is sometimes called the 'lungs of the Earth' because it produces about 20% of the world's oxygen!"
+          - ""
+          - "**Cultural Fact:**"
+          - "Brazil is the only Portuguese-speaking country in South America (most others speak Spanish). Brazilian Portuguese has its own unique accent and expressions!"
+        question: "What language is primarily spoken in Brazil?"
+        tokens_for_ai: |
+          The answer is Portuguese (mentioned above).
+
+          Categorize as:
+          - correct: Says Portuguese
+          - confused: Says Spanish (common misconception)
+          - limited_effort: Very brief or no answer
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they say Spanish, gently correct and explain this is a common misconception - Brazil
+          was colonized by Portugal, not Spain! If correct, praise them for knowing this fact.
+        buckets:
+          - correct
+          - confused
+          - limited_effort
+          - off_topic
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Excellent! Many people think Spanish, but Brazil speaks Portuguese due to Portuguese colonization. Share why this is unique in South America."
+            metadata_add:
+              quiz_score: "n+1"
+              countries_visited: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          confused:
+            ai_feedback:
+              tokens_for_ai: "Common misconception! Unlike most of South America, Brazil speaks Portuguese, not Spanish. Explain the historical reason."
+            metadata_add:
+              countries_visited: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          limited_effort:
+            content_blocks:
+              - "Look at the cultural fact section. Which language does Brazil speak?"
+            next_section_and_step: "south_america:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's learn about Brazil. What language is primarily spoken there?"
+            next_section_and_step: "south_america:step_1"
+
+  - section_id: "oceania"
+    title: "Exploring Oceania"
+    steps:
+      - step_id: "step_1"
+        title: "Welcome to Oceania - Australia"
+        content_blocks:
+          - "## Welcome to Oceania! 🏝️"
+          - "A region of islands and nations in the Pacific Ocean!"
+          - ""
+          - "**Let's visit Australia!**"
+          - ""
+          - "**Geography:** The world's smallest continent but largest island, located between the Indian and Pacific Oceans"
+          - "**Capital:** Canberra"
+          - "**Famous for:** Unique wildlife (kangaroos, koalas, platypuses), the Great Barrier Reef, the Outback, and indigenous Aboriginal culture spanning 65,000+ years"
+          - ""
+          - "**Indigenous Heritage:**"
+          - "Aboriginal Australians have the longest continuous culture on Earth - over 65,000 years! They have deep knowledge of the land, sophisticated art traditions, and hundreds of distinct languages."
+          - ""
+          - "**Wildlife Fact:**"
+          - "Australia has more unique species than anywhere else! About 80% of its plants, mammals, and reptiles are found nowhere else on Earth."
+        question: "What is the world's largest coral reef system, located off the coast of Australia?"
+        tokens_for_ai: |
+          The answer is the Great Barrier Reef (mentioned above).
+
+          Categorize as:
+          - correct: Says Great Barrier Reef or just Barrier Reef
+          - close: Mentions coral reef but not the specific name
+          - confused: Names another natural wonder in Australia
+          - limited_effort: Very brief or no answer
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct, share facts about it being visible from space and home to thousands of species!
+        buckets:
+          - correct
+          - close
+          - confused
+          - limited_effort
+          - off_topic
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Correct! The Great Barrier Reef is the world's largest coral reef system and can even be seen from space! Share conservation importance."
+            metadata_add:
+              quiz_score: "n+1"
+              countries_visited: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          close:
+            ai_feedback:
+              tokens_for_ai: "You're thinking of the right feature! It's called the Great Barrier Reef. Share impressive facts about it."
+            metadata_add:
+              countries_visited: "n+1"
+              cultural_facts_learned: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          confused:
+            content_blocks:
+              - "That's an Australian feature, but we're looking for the coral reef! It's the Great Barrier Reef."
+            metadata_add:
+              countries_visited: "n+1"
+            next_section_and_step: "choose_continent:step_1"
+          limited_effort:
+            content_blocks:
+              - "Look at the information about Australia. What coral reef system is mentioned?"
+            next_section_and_step: "oceania:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's learn about Australia. What is the famous coral reef system off its coast?"
+            next_section_and_step: "oceania:step_1"
+
+  - section_id: "choose_continent"
+    title: "Continue Your Journey"
+    steps:
+      - step_id: "step_1"
+        title: "Choose Next Continent"
+        content_blocks:
+          - "## Your World Journey Continues! ✈️"
+          - "Great exploring! You're building global knowledge."
+          - ""
+          - "**What would you like to do next?**"
+          - "- Explore another continent (type: Africa, Asia, Europe, South America, or Oceania)"
+          - "- Finish your journey and see what you've learned (type: finish)"
+        question: "Continue exploring or finish your journey?"
+        tokens_for_ai: |
+          Student chooses to continue or finish.
+
+          Categorize as:
+          - africa: Wants to explore Africa
+          - asia: Wants to explore Asia
+          - europe: Wants to explore Europe
+          - south_america: Wants to explore South America
+          - oceania: Wants to explore Oceania
+          - finish: Ready to finish
+          - off_topic: Unrelated
+        buckets:
+          - africa
+          - asia
+          - europe
+          - south_america
+          - oceania
+          - finish
+          - off_topic
+        transitions:
+          africa:
+            content_blocks:
+              - "🌍 Heading to Africa!"
+            metadata_add:
+              continents_visited: "n+1"
+            next_section_and_step: "africa:step_1"
+          asia:
+            content_blocks:
+              - "🌏 Off to Asia!"
+            metadata_add:
+              continents_visited: "n+1"
+            next_section_and_step: "asia:step_1"
+          europe:
+            content_blocks:
+              - "🌍 Traveling to Europe!"
+            metadata_add:
+              continents_visited: "n+1"
+            next_section_and_step: "europe:step_1"
+          south_america:
+            content_blocks:
+              - "🌎 Journey to South America!"
+            metadata_add:
+              continents_visited: "n+1"
+            next_section_and_step: "south_america:step_1"
+          oceania:
+            content_blocks:
+              - "🌏 Exploring Oceania!"
+            metadata_add:
+              continents_visited: "n+1"
+            next_section_and_step: "oceania:step_1"
+          finish:
+            content_blocks:
+              - "🌍 Wonderful! Let's reflect on your global journey."
+            next_section_and_step: "conclusion:step_1"
+          off_topic:
+            content_blocks:
+              - "Choose a continent to explore (Africa, Asia, Europe, South America, Oceania) or type 'finish' to complete your journey."
+            counts_as_attempt: false
+            next_section_and_step: "choose_continent:step_1"
+
+  - section_id: "conclusion"
+    title: "Journey Complete!"
+    steps:
+      - step_id: "step_1"
+        title: "Congratulations!"
+        content_blocks:
+          - "## Congratulations, World Explorer! 🌍🌎🌏"
+          - "You've completed your global geography journey!"
+          - ""
+          - "**Why geography and cultural awareness matter:**"
+          - "- Helps us understand global events and connections"
+          - "- Builds respect and appreciation for diversity"
+          - "- Reveals how geography shapes culture, history, and daily life"
+          - "- Prepares us to be global citizens in an interconnected world"
+          - ""
+          - "**Remember:**"
+          - "Every region has unique beauty, wisdom, and contributions to humanity."
+          - "Learning about the world helps us see both our differences and our common humanity."
+        question: "What was the most interesting cultural fact or place you learned about? What would you like to explore more deeply?"
+        tokens_for_ai: |
+          This is a reflection question. Accept any thoughtful response about their learning.
+
+          Categorize as:
+          - thoughtful_reflection: Specific insights about what they learned
+          - brief_reflection: Short but genuine
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Provide personalized feedback based on their journey. Acknowledge the places they visited
+          (from metadata) and encourage continued exploration of world cultures.
+        buckets:
+          - thoughtful_reflection
+          - brief_reflection
+          - limited_effort
+          - off_topic
+        transitions:
+          thoughtful_reflection:
+            ai_feedback:
+              tokens_for_ai: "Provide thoughtful, personalized feedback about their learning journey. Suggest resources for further exploration of the topics that interested them most."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          brief_reflection:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their learning and encourage them to continue exploring world geography and cultures."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          limited_effort:
+            ai_feedback:
+              tokens_for_ai: "Thank them for their participation and summarize key geography and cultural facts they encountered."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's reflect on your journey. What did you find most interesting about the places you visited?"
+            next_section_and_step: "conclusion:step_1"

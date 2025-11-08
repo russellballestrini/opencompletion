@@ -1,0 +1,677 @@
+default_max_attempts_per_step: 3
+
+tokens_for_ai_rubric: |
+  Evaluate the student's understanding of the scientific method.
+  Consider:
+  - Their ability to identify steps in the scientific method
+  - Understanding of hypothesis formation and testing
+  - Recognition of controls and variables
+  - Critical thinking about experimental design
+  - Engagement with the case studies
+
+  Provide encouraging feedback and suggestions for applying scientific thinking in their own explorations.
+
+sections:
+  - section_id: "introduction"
+    title: "Welcome to Scientific Method Explorer"
+    steps:
+      - step_id: "welcome"
+        title: "Welcome to Scientific Method"
+        content_blocks:
+          - "# Welcome to Scientific Method Explorer!"
+          - "Explore how scientists make discoveries through the scientific method."
+          - ""
+          - "You'll follow in the footsteps of famous scientists, learning to:"
+          - "- Ask testable questions"
+          - "- Form hypotheses"
+          - "- Design experiments"
+          - "- Identify variables and controls"
+          - "- Analyze results and draw conclusions"
+          - ""
+          - "**The Scientific Method Steps:**"
+          - "1. **Observe** - Notice something interesting"
+          - "2. **Question** - Ask why or how"
+          - "3. **Hypothesize** - Make an educated guess"
+          - "4. **Experiment** - Test your hypothesis"
+          - "5. **Analyze** - Look at your data"
+          - "6. **Conclude** - Determine if hypothesis was supported"
+          - ""
+          - "Ready to think like a scientist?"
+        question: "Are you ready to explore the scientific method through real discoveries?"
+        tokens_for_ai: |
+          Student is expressing readiness. Accept any positive response.
+
+          Categorize as:
+          - ready: Positive, ready to begin
+          - set_language: Setting language preference
+          - off_topic: Unrelated
+        buckets:
+          - ready
+          - set_language
+          - off_topic
+        transitions:
+          ready:
+            content_blocks:
+              - "Excellent! Let's begin with a fascinating historical case study."
+            next_section_and_step: "section_1:step_1"
+          set_language:
+            content_blocks:
+              - "I'll communicate in your preferred language."
+            counts_as_attempt: false
+            next_section_and_step: "introduction:welcome"
+          off_topic:
+            content_blocks:
+              - "Let's get started with exploring science! Are you ready?"
+            counts_as_attempt: false
+            next_section_and_step: "introduction:welcome"
+
+  - section_id: "section_1"
+    title: "Case Study: Germ Theory"
+    steps:
+      - step_id: "step_1"
+        title: "The Mystery of Childbed Fever"
+        content_blocks:
+          - "## The Mystery of Childbed Fever (1840s)"
+          - "**The Observation:**"
+          - "Dr. Ignaz Semmelweis noticed something disturbing in his Vienna hospital:"
+          - "- Ward 1 (doctors and medical students): 10% of mothers died from childbed fever"
+          - "- Ward 2 (midwives): Only 4% of mothers died"
+          - ""
+          - "**The Puzzle:**"
+          - "Both wards had similar conditions, but Ward 1 had much higher death rates."
+          - ""
+          - "Semmelweis observed that doctors in Ward 1 came directly from autopsy rooms to deliver babies, while midwives in Ward 2 did not perform autopsies."
+        question: "What question should Semmelweis ask based on this observation? What do you think might be causing the difference in death rates?"
+        tokens_for_ai: |
+          Good scientific questions might be:
+          - Are doctors carrying something deadly from autopsies?
+          - Does something on doctors' hands cause the fever?
+          - Is there a connection between autopsies and infections?
+
+          Categorize as:
+          - correct_question: Identifies a connection between autopsy work and infections
+          - partial_understanding: Notices the pattern but doesn't form a clear causal question
+          - creative_thinking: Proposes alternative explanations worth considering
+          - limited_effort: Very brief or vague
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they identify the connection to autopsies and handwashing, praise their observation.
+          If they suggest other factors, acknowledge the thinking but guide toward the autopsy connection.
+        buckets:
+          - correct_question
+          - partial_understanding
+          - creative_thinking
+          - limited_effort
+          - off_topic
+        transitions:
+          correct_question:
+            ai_feedback:
+              tokens_for_ai: "Excellent scientific observation! You've identified the key question that Semmelweis asked."
+            metadata_add:
+              score: "n+1"
+              experiments_designed: "n+1"
+            next_section_and_step: "section_1:step_2"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Good thinking! Can you be more specific about what might be different about the doctors' hands?"
+            next_section_and_step: "section_1:step_2"
+          creative_thinking:
+            ai_feedback:
+              tokens_for_ai: "Interesting hypothesis! Acknowledge their creativity while guiding them to consider the autopsy connection."
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "section_1:step_2"
+          limited_effort:
+            content_blocks:
+              - "Think about what the doctors were doing that the midwives were not. What might they be carrying on their hands?"
+            next_section_and_step: "section_1:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on the medical mystery. What difference between the two wards might explain the death rates?"
+            next_section_and_step: "section_1:step_1"
+
+      - step_id: "step_2"
+        title: "Forming a Hypothesis"
+        content_blocks:
+          - "## Forming a Hypothesis"
+          - "Semmelweis formed a hypothesis:"
+          - ""
+          - "**'Cadaveric particles' from autopsies on doctors' hands are causing childbed fever.**"
+          - ""
+          - "This was revolutionary! In the 1840s, germs were not yet understood."
+          - ""
+          - "**Now for the experiment:**"
+          - "Semmelweis needs to test this hypothesis. He decides to require doctors to wash their hands with chlorinated lime solution before examining patients."
+          - ""
+          - "**Question for you:**"
+          - "To make this a good scientific experiment, what should we compare?"
+        question: "What should Semmelweis measure before and after the handwashing requirement? What would be the control group?"
+        tokens_for_ai: |
+          Good answers should mention:
+          - Measure death rates before and after handwashing
+          - Compare Ward 1 with handwashing to previous Ward 1 without handwashing
+          - Or compare Ward 1 (with handwashing) to Ward 2 (baseline)
+          - The control is the previous data or Ward 2
+
+          Categorize as:
+          - correct_method: Identifies need to compare death rates before/after or between groups
+          - partial_understanding: Mentions measuring death rates but unclear on control
+          - confused_about_controls: Doesn't understand the concept of a control group
+          - limited_effort: Very brief answer
+          - asking_clarifying_questions: Requests explanation of terms
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they understand controls, praise them! If confused about controls, explain that
+          a control group helps us know if changes are due to our intervention or something else.
+        buckets:
+          - correct_method
+          - partial_understanding
+          - confused_about_controls
+          - limited_effort
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
+          correct_method:
+            ai_feedback:
+              tokens_for_ai: "Excellent experimental thinking! You understand the importance of controls in science."
+            metadata_add:
+              score: "n+2"
+              controls_identified: "n+1"
+            next_section_and_step: "section_1:step_3"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Good! You're thinking about measurement. Explain what a control group is and why it's important."
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "section_1:step_3"
+          confused_about_controls:
+            content_blocks:
+              - "**Control groups** help us compare results."
+              - "We need to know: Are death rates different WITH handwashing vs WITHOUT handwashing?"
+              - "That way we know if handwashing made the difference!"
+            next_section_and_step: "section_1:step_2"
+          limited_effort:
+            content_blocks:
+              - "Think about what Semmelweis should measure and what he should compare it to."
+            next_section_and_step: "section_1:step_2"
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about experimental design and controls helpfully."
+            counts_as_attempt: false
+            next_section_and_step: "section_1:step_2"
+          off_topic:
+            content_blocks:
+              - "Let's focus on designing the experiment. What should we measure?"
+            next_section_and_step: "section_1:step_2"
+
+      - step_id: "step_3"
+        title: "The Results!"
+        content_blocks:
+          - "## The Results!"
+          - "Semmelweis implemented handwashing with chlorinated lime in 1847."
+          - ""
+          - "**The data:**"
+          - "- **Before handwashing (1846):** Death rate in Ward 1 = 10%"
+          - "- **After handwashing (1847-1848):** Death rate in Ward 1 = 2%"
+          - ""
+          - "This was a dramatic improvement! The death rate dropped by 80%."
+          - ""
+          - "**Analysis step:**"
+          - "Now we must analyze these results and draw a conclusion."
+        question: "Based on these results, was Semmelweis's hypothesis supported? What can we conclude about the cause of childbed fever?"
+        tokens_for_ai: |
+          The hypothesis WAS supported - handwashing dramatically reduced death rates, suggesting
+          that something on doctors' hands (cadaveric particles/germs) was indeed causing the fever.
+
+          Categorize as:
+          - correct_conclusion: States hypothesis was supported, handwashing worked, something on hands caused illness
+          - partial_understanding: Gets general idea but incomplete reasoning
+          - overstating: Claims this "proves" rather than "supports" (good to address scientific certainty)
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct, praise their analysis! If they say "proves," gently explain that in science
+          we say evidence "supports" a hypothesis rather than "proves" it absolutely.
+        buckets:
+          - correct_conclusion
+          - partial_understanding
+          - overstating
+          - limited_effort
+          - off_topic
+        transitions:
+          correct_conclusion:
+            ai_feedback:
+              tokens_for_ai: "Excellent analysis! You've worked through a complete scientific investigation. Explain the impact this had on medicine."
+            metadata_add:
+              score: "n+2"
+              case_studies_completed: "n+1"
+            next_section_and_step: "section_2:step_1"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Good! Can you connect the results more explicitly to the hypothesis about what was on doctors' hands?"
+            metadata_add:
+              score: "n+1"
+              case_studies_completed: "n+1"
+            next_section_and_step: "section_2:step_1"
+          overstating:
+            ai_feedback:
+              tokens_for_ai: "Great thinking! One note: in science we say results 'support' a hypothesis rather than 'prove' it. Explain why scientific conclusions are provisional."
+            metadata_add:
+              score: "n+1"
+              case_studies_completed: "n+1"
+            next_section_and_step: "section_2:step_1"
+          limited_effort:
+            content_blocks:
+              - "Look at the dramatic change in death rates. What does this tell us about Semmelweis's hypothesis?"
+            next_section_and_step: "section_1:step_3"
+          off_topic:
+            content_blocks:
+              - "Let's analyze the data. Death rates dropped from 10% to 2%. What does this mean?"
+            next_section_and_step: "section_1:step_3"
+
+  - section_id: "section_2"
+    title: "Design Your Own Experiment"
+    steps:
+      - step_id: "step_1"
+        title: "Newton's Light Experiment"
+        content_blocks:
+          - "## Newton's Light Experiment"
+          - "Let's explore another famous case, then YOU'LL design an experiment!"
+          - ""
+          - "**The Observation (1660s):**"
+          - "Isaac Newton observed that sunlight passing through a prism splits into rainbow colors."
+          - ""
+          - "**The Common Belief:**"
+          - "Most people thought the prism was adding color to the light, like stained glass adds color."
+          - ""
+          - "**Newton's Hypothesis:**"
+          - "Newton proposed something radical: White light is actually MADE of all the colors combined, and the prism just separates them."
+          - ""
+          - "**Your Task:**"
+          - "Newton needs to prove that the colors come FROM the white light, not from the prism."
+        question: "Design an experiment that could test whether the colors are already in white light or are created by the prism. What would you do?"
+        tokens_for_ai: |
+          Newton's actual experiment: He used a second prism to recombine the separated colors
+          back into white light. If the prism created the colors, you couldn't get white light back.
+
+          Good student answers might suggest:
+          - Using a second prism to recombine colors
+          - Testing different prisms (if prism creates color, different prisms would create different colors)
+          - Blocking some colors and seeing what recombines
+          - Comparing different light sources
+
+          Categorize as:
+          - excellent_design: Proposes recombining colors or testing multiple prisms
+          - creative_approach: Different but scientifically sound experiment
+          - partial_understanding: Has an idea but experimental design is unclear
+          - confused: Doesn't understand what needs to be tested
+          - limited_effort: Very brief
+          - asking_clarifying_questions: Needs help
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Encourage creative experimental thinking! If they propose recombining colors, that's
+          exactly what Newton did. If they have other ideas, evaluate if they would actually
+          distinguish between the two hypotheses.
+        buckets:
+          - excellent_design
+          - creative_approach
+          - partial_understanding
+          - confused
+          - limited_effort
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
+          excellent_design:
+            ai_feedback:
+              tokens_for_ai: "Brilliant experimental design! Explain how this is similar to what Newton actually did and praise their scientific thinking."
+            metadata_add:
+              score: "n+3"
+              experiments_designed: "n+1"
+            next_section_and_step: "section_2:step_2"
+          creative_approach:
+            ai_feedback:
+              tokens_for_ai: "Interesting approach! Evaluate whether their experiment would actually distinguish between the two hypotheses. If yes, praise them. If not, guide them."
+            metadata_add:
+              score: "n+2"
+              experiments_designed: "n+1"
+            next_section_and_step: "section_2:step_2"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "You're thinking in the right direction. Ask: if the prism creates color, could you reverse the process? If light contains the colors, could you recombine them?"
+            next_section_and_step: "section_2:step_1"
+          confused:
+            content_blocks:
+              - "**Hint:** Think about what would happen differently based on each explanation:"
+              - "- If the PRISM creates color, could you get white light back from colored light?"
+              - "- If WHITE LIGHT contains colors, could you recombine them?"
+            next_section_and_step: "section_2:step_1"
+          limited_effort:
+            content_blocks:
+              - "Take time to think creatively! How could you test whether colors come from the light or from the prism?"
+            next_section_and_step: "section_2:step_1"
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer their question and provide guidance on experimental design principles."
+            counts_as_attempt: false
+            next_section_and_step: "section_2:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on designing an experiment about light and prisms."
+            next_section_and_step: "section_2:step_1"
+
+      - step_id: "step_2"
+        title: "Identifying Variables"
+        content_blocks:
+          - "## Identifying Variables"
+          - "Great thinking! Newton did indeed use a second prism to recombine the colors back into white light."
+          - ""
+          - "**Understanding Variables:**"
+          - "In any experiment, we need to identify:"
+          - "- **Independent variable:** What YOU change"
+          - "- **Dependent variable:** What you MEASURE"
+          - "- **Control variables:** What you keep THE SAME"
+          - ""
+          - "**Example scenario:**"
+          - "You want to test if plants grow faster with music."
+          - ""
+          - "You set up:"
+          - "- 10 plants with music"
+          - "- 10 plants without music"
+          - "- All plants get same water, light, soil, and temperature"
+          - "- Measure growth after 2 weeks"
+        question: "Identify the independent variable, dependent variable, and control variables in this plant experiment."
+        tokens_for_ai: |
+          Correct answers:
+          - Independent variable: Presence/absence of music (what you change)
+          - Dependent variable: Plant growth/height (what you measure)
+          - Control variables: Water, light, soil, temperature (what you keep the same)
+
+          Categorize as:
+          - correct: Correctly identifies all three types of variables
+          - partial_understanding: Gets 2 out of 3 correct
+          - confused: Mixes up independent and dependent
+          - limited_effort: Very brief or incomplete
+          - asking_clarifying_questions: Needs clarification
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they confuse independent and dependent, explain: independent is what the experimenter
+          controls/changes, dependent is what responds/changes as a result.
+        buckets:
+          - correct
+          - partial_understanding
+          - confused
+          - limited_effort
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Perfect! You understand variables - a crucial concept in experimental design."
+            metadata_add:
+              score: "n+2"
+              controls_identified: "n+1"
+            next_section_and_step: "section_3:step_1"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Good start! Clarify which variables they got right and help with the others."
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "section_3:step_1"
+          confused:
+            content_blocks:
+              - "**Tip:** The INDEPENDENT variable is what the experimenter changes on purpose."
+              - "The DEPENDENT variable is what you measure to see the effect."
+              - "CONTROL variables are kept the same so they don't interfere."
+            next_section_and_step: "section_2:step_2"
+          limited_effort:
+            content_blocks:
+              - "Try to identify each type: What are you changing? What are you measuring? What are you keeping the same?"
+            next_section_and_step: "section_2:step_2"
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about variables clearly with examples."
+            counts_as_attempt: false
+            next_section_and_step: "section_2:step_2"
+          off_topic:
+            content_blocks:
+              - "Let's focus on identifying the different types of variables in this experiment."
+            next_section_and_step: "section_2:step_2"
+
+  - section_id: "section_3"
+    title: "Avoiding Bias and Errors"
+    steps:
+      - step_id: "step_1"
+        title: "Recognizing Experimental Bias"
+        content_blocks:
+          - "## Recognizing Experimental Bias"
+          - "Good scientists must watch out for bias and confounding factors!"
+          - ""
+          - "**Scenario:**"
+          - "A pharmaceutical company tests a new headache medicine."
+          - ""
+          - "**Experimental setup:**"
+          - "- Group A: 100 patients receive the new medicine"
+          - "- Group B: 100 patients receive nothing"
+          - "- Researchers record who reports headache relief"
+          - ""
+          - "**Results:**"
+          - "- Group A: 80% report relief"
+          - "- Group B: 30% report relief"
+          - ""
+          - "The company concludes the medicine works!"
+        question: "Is there a problem with this experimental design? What's missing or problematic?"
+        tokens_for_ai: |
+          Major problems:
+          - No placebo (Group B should get a fake pill, not nothing)
+          - Placebo effect not controlled for
+          - Patients know if they're getting treatment (should be blind/double-blind)
+          - Researcher bias possible if they know who got real medicine
+
+          Categorize as:
+          - identified_placebo: Recognizes need for placebo control
+          - identified_blinding: Recognizes need for blind study
+          - partial_understanding: Sees something wrong but can't articulate it clearly
+          - missed_bias: Doesn't see the problem
+          - limited_effort: Very brief
+          - asking_clarifying_questions: Needs explanation
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they identify placebo effect, excellent! If not, explain that people often feel
+          better just because they think they're getting treatment. That's why we need placebo
+          controls and blind studies.
+        buckets:
+          - identified_placebo
+          - identified_blinding
+          - partial_understanding
+          - missed_bias
+          - limited_effort
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
+          identified_placebo:
+            ai_feedback:
+              tokens_for_ai: "Excellent! You identified the placebo effect. Explain why placebos are crucial in medical research."
+            metadata_add:
+              score: "n+3"
+              bias_identified: "n+1"
+            next_section_and_step: "section_3:step_2"
+          identified_blinding:
+            ai_feedback:
+              tokens_for_ai: "Great catch! Explain how blinding prevents bias in both patients and researchers."
+            metadata_add:
+              score: "n+3"
+              bias_identified: "n+1"
+            next_section_and_step: "section_3:step_2"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "You're sensing something's wrong. Guide them toward the placebo effect concept."
+            next_section_and_step: "section_3:step_1"
+          missed_bias:
+            content_blocks:
+              - "**Hint:** Think about the psychological effect of KNOWING you're getting medicine."
+              - "What if people feel better just because they believe they're being treated?"
+            next_section_and_step: "section_3:step_1"
+          limited_effort:
+            content_blocks:
+              - "Think carefully: Is it fair to compare people who GET something to people who get NOTHING?"
+            next_section_and_step: "section_3:step_1"
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about experimental design and bias."
+            counts_as_attempt: false
+            next_section_and_step: "section_3:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's analyze this medical experiment. Is the design fair and unbiased?"
+            next_section_and_step: "section_3:step_1"
+
+      - step_id: "step_2"
+        title: "Scientific Integrity"
+        content_blocks:
+          - "## Scientific Integrity"
+          - "Excellent work identifying bias!"
+          - ""
+          - "**Key principles for good science:**"
+          - ""
+          - "✓ **Use controls** - Compare to a baseline or control group"
+          - "✓ **Use placebos** - Control for psychological effects"
+          - "✓ **Blind studies** - Subjects don't know if they got real treatment"
+          - "✓ **Double-blind** - Researchers also don't know (prevents their bias)"
+          - "✓ **Replicate** - Repeat experiments to confirm results"
+          - "✓ **Peer review** - Other scientists check your work"
+          - "✓ **Large sample sizes** - More data = more reliable"
+          - "✓ **Account for confounding variables** - What else might affect results?"
+          - ""
+          - "These principles help ensure that scientific findings are reliable and trustworthy."
+        question: "Why do you think it's important for other scientists to be able to replicate (repeat) an experiment? What purpose does replication serve in science?"
+        tokens_for_ai: |
+          Good answers mention:
+          - Verifying results weren't due to chance
+          - Catching errors or fraud
+          - Building confidence in findings
+          - Testing if results hold in different conditions
+          - Science is self-correcting
+
+          Categorize as:
+          - insightful: Understands multiple purposes of replication
+          - correct_understanding: Gets the basic concept (verification)
+          - partial_understanding: General idea but incomplete
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Encourage their understanding of how science builds reliable knowledge through
+          replication and peer review. Connect it to why we can trust scientific consensus.
+        buckets:
+          - insightful
+          - correct_understanding
+          - partial_understanding
+          - limited_effort
+          - off_topic
+        transitions:
+          insightful:
+            ai_feedback:
+              tokens_for_ai: "Excellent understanding of scientific process! You grasp why science is a self-correcting system."
+            metadata_add:
+              score: "n+3"
+            next_section_and_step: "section_4:step_1"
+          correct_understanding:
+            ai_feedback:
+              tokens_for_ai: "Correct! Replication is indeed crucial for verifying results. Expand on other benefits if they didn't mention them."
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "section_4:step_1"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "You're on the right track. Explain how replication helps catch errors and builds confidence."
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "section_4:step_1"
+          limited_effort:
+            content_blocks:
+              - "Think about what happens if only ONE person does an experiment. How do we know if their result was accurate?"
+            next_section_and_step: "section_3:step_2"
+          off_topic:
+            content_blocks:
+              - "Let's focus on why repeating experiments is important in science."
+            next_section_and_step: "section_3:step_2"
+
+  - section_id: "section_4"
+    title: "Reflection and Conclusion"
+    steps:
+      - step_id: "step_1"
+        title: "Congratulations!"
+        content_blocks:
+          - "## Congratulations, Scientist! 🔬"
+          - "You've completed the Scientific Method Explorer!"
+          - ""
+          - "**What you've learned:**"
+          - "✓ The steps of the scientific method"
+          - "✓ How to form testable hypotheses"
+          - "✓ Experimental design principles"
+          - "✓ Identifying variables (independent, dependent, control)"
+          - "✓ The importance of controls and placebos"
+          - "✓ Recognizing bias in experiments"
+          - "✓ Why replication and peer review matter"
+          - ""
+          - "**Famous scientists you studied:**"
+          - "- Ignaz Semmelweis (germ theory and handwashing)"
+          - "- Isaac Newton (nature of light)"
+          - ""
+          - "**Why this matters:**"
+          - "The scientific method is how we reliably discover truth about the natural world."
+          - "These principles apply whether you're:"
+          - "- Testing a new technology"
+          - "- Debugging code (forming and testing hypotheses!)"
+          - "- Evaluating health claims"
+          - "- Understanding climate science"
+          - "- Or pursuing any evidence-based inquiry"
+        question: "How might you apply scientific thinking in your own life or studies? Give an example of a question you could investigate using the scientific method."
+        tokens_for_ai: |
+          This is a reflection question. Accept any thoughtful application of scientific method
+          to a real-world question or problem.
+
+          Categorize as:
+          - excellent_application: Proposes a specific, testable question with clear methodology
+          - good_application: Identifies a reasonable application area
+          - basic_reflection: General but genuine reflection
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Provide personalized, encouraging feedback on their learning journey. Acknowledge their
+          application ideas. Encourage them to actually try investigating something scientifically.
+          Emphasize that scientific thinking is a powerful tool for understanding the world.
+        buckets:
+          - excellent_application
+          - good_application
+          - basic_reflection
+          - limited_effort
+          - off_topic
+        transitions:
+          excellent_application:
+            ai_feedback:
+              tokens_for_ai: "Fantastic! Your example shows you truly understand how to apply the scientific method. Encourage them to actually investigate their question!"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "section_4:step_1"
+          good_application:
+            ai_feedback:
+              tokens_for_ai: "Great thinking! Provide positive feedback and suggestions for how they could make their investigation more rigorous."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "section_4:step_1"
+          basic_reflection:
+            ai_feedback:
+              tokens_for_ai: "Thank them for their reflection and summarize the key scientific principles they've learned."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "section_4:step_1"
+          limited_effort:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their completion and encourage them to think scientifically in their daily life."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "section_4:step_1"
+          off_topic:
+            content_blocks:
+              - "Think about how you could use scientific thinking in your own investigations. What question might you explore?"
+            next_section_and_step: "section_4:step_1"
