@@ -75,3 +75,142 @@
   - `/run` - Auto-detect language and execute
 - Add play button next to copy button for code blocks
 - Display execution results inline below code blocks
+
+## Activity YAML Schema
+
+### Model Configuration (New Feature)
+
+Activities can specify separate models for classification and feedback generation:
+
+```yaml
+# Activity-level defaults (optional)
+classifier_model: "MODEL_1"  # For categorizing user responses into buckets
+feedback_model: "MODEL_1"    # For generating AI feedback and translations
+
+# Step-level overrides (optional)
+sections:
+  - section_id: "coding"
+    steps:
+      - step_id: "code_review"
+        classifier_model: "MODEL_1"  # Keep fast classification
+        feedback_model: "MODEL_3"    # Use specialized code model
+```
+
+**Why Separate Models?**
+
+1. **Speed**: Use fast 8B models for classification → instant bucketing
+2. **Quality**: Use specialized models for feedback → better explanations
+3. **Cost Efficiency**: Don't waste tokens on simple categorization
+4. **Flexibility**: Override per-step for specific needs
+
+**Model Defaults**
+
+If not specified, both default to `MODEL_1` (Hermes-3-Llama-3.1-8B):
+- Always available in base install
+- Fast and accurate
+- Excellent for role-playing and general tasks
+- Great classifier and feedback generator
+
+**Recommended Model Combinations**
+
+| Activity Type | Classifier | Feedback | Rationale |
+|--------------|------------|----------|-----------|
+| General Education | MODEL_1 | MODEL_1 | Fast, accurate, always available |
+| Programming | MODEL_1 | MODEL_3 | Fast bucketing + code specialist (Qwen3-Coder) |
+| Role-Playing | MODEL_1 | MODEL_1 | Hermes excels at character consistency |
+| Advanced Topics | MODEL_1 | MODEL_2 | Fast bucketing + larger model for depth |
+
+**Environment Variables**
+
+Models are configured via environment variables in `vars.sh`:
+
+```bash
+# MODEL_1 - Hermes (always available, default)
+export MODEL_ENDPOINT_1=http://localhost:8080/v1
+export MODEL_API_KEY_1=your-api-key
+
+# MODEL_2 - Additional model (optional)
+export MODEL_ENDPOINT_2=http://localhost:8081/v1
+export MODEL_API_KEY_2=your-api-key
+
+# MODEL_3 - Qwen3-Coder (recommended for programming)
+export MODEL_ENDPOINT_3=http://localhost:8082/v1
+export MODEL_API_KEY_3=your-api-key
+```
+
+**Example: Programming Activity**
+
+```yaml
+# research/activity37-programming-languages.yaml
+classifier_model: "MODEL_1"  # Hermes for fast classification
+feedback_model: "MODEL_3"    # Qwen3-Coder-30B for code generation
+
+sections:
+  - section_id: "hello_world"
+    steps:
+      - step_id: "write_hello"
+        question: "Write a Hello World program in your chosen language"
+        tokens_for_ai: |
+          Get the student's chosen language from metadata (programming_language).
+          Evaluate their code in THAT specific language.
+        feedback_tokens_for_ai: |
+          Provide detailed feedback on their code syntax and style.
+          Generate example code if they need help.
+```
+
+### Activity YAML Validation
+
+**Validator Location**: `activity_yaml_validator.py`
+
+**Validate Activities**:
+```bash
+python activity_yaml_validator.py research/activity*.yaml
+```
+
+**Model Field Validation**:
+- `classifier_model` (optional, string): Activity or step-level
+- `feedback_model` (optional, string): Activity or step-level
+- Both default to "MODEL_1" if not specified
+- Can reference MODEL_1, MODEL_2, MODEL_3, etc.
+
+**Testing Activities**
+
+CLI simulation tool supports model configuration:
+
+```bash
+source vars.sh
+python research/guarded_ai.py research/activity37-programming-languages.yaml
+# Uses MODEL_1 for classification, MODEL_3 for code feedback
+```
+
+### Model Setup: Qwen3-Coder-30B (MODEL_3)
+
+**Why Qwen3-Coder?**
+- 30B parameters (much smarter for code)
+- Trained on 100+ programming languages
+- Q4_K_M quantization (~20GB RAM)
+- Perfect for activity37 (universal programming activity)
+
+**Setup with llama.cpp**:
+```bash
+# Download
+huggingface-cli download unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF \
+  Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf
+
+# Run server (GPU acceleration)
+llama-server -m Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf \
+  --host 0.0.0.0 --port 8082 -ngl 99
+
+# Configure in vars.sh
+export MODEL_ENDPOINT_3=http://localhost:8082/v1
+export MODEL_API_KEY_3=dummy
+```
+
+**Setup with ollama**:
+```bash
+ollama run unsloth/qwen3-coder:30b-instruct-q4_K_M
+
+# Configure in vars.sh
+export MODEL_ENDPOINT_3=http://localhost:11434/v1
+export MODEL_API_KEY_3=dummy
+```
