@@ -13,6 +13,7 @@ Tests complete workflows with real Flask environment:
 import unittest
 import json
 import tempfile
+import os
 from unittest.mock import patch, MagicMock
 import sys
 from pathlib import Path
@@ -26,11 +27,17 @@ class TestActivityIntegration(unittest.TestCase):
 
     def setUp(self):
         """Set up test Flask application with in-memory database"""
+        # Set up environment for uncloseai.com models (hermes and qwen)
+        os.environ["MODEL_ENDPOINT_0"] = "https://uncloseai.com/v1"
+        os.environ["MODEL_API_KEY_0"] = "test-key"
+
         import app as app_module
+        import activity
         from models import db
-        from flask_sqlalchemy import SQLAlchemy
+        from openai import OpenAI
 
         self.app_module = app_module
+        self.activity_module = activity
         self.db = db
 
         # Create a fresh Flask app for testing
@@ -46,9 +53,23 @@ class TestActivityIntegration(unittest.TestCase):
         # Initialize db with test app
         db.init_app(test_app)
 
-        # Replace the global app temporarily
+        # Set up MODEL_CLIENT_MAP with test models (hermes and qwen)
+        self.original_model_map = app_module.MODEL_CLIENT_MAP.copy()
+        mock_client = MagicMock(spec=OpenAI)
+        app_module.MODEL_CLIENT_MAP = {
+            "hermes-3-llama-3.1-405b": (mock_client, "https://uncloseai.com/v1"),
+            "qwen-2.5-72b": (mock_client, "https://uncloseai.com/v1"),
+        }
+
+        # Replace the global app temporarily in both modules
         self.original_app = app_module.app
+        self.original_activity_app = activity.app
+        self.original_activity_db = activity.db
+        self.original_activity_get_room = activity.get_room
         app_module.app = test_app
+        activity.app = test_app
+        activity.db = db
+        activity.get_room = app_module.get_room
 
         self.client = test_app.test_client()
         self.app_context = test_app.app_context()
@@ -66,13 +87,24 @@ class TestActivityIntegration(unittest.TestCase):
             pass
         self.app_context.pop()
 
-        # Restore original app
+        # Restore original app and model map
         self.app_module.app = self.original_app
+        self.activity_module.app = self.original_activity_app
+        self.activity_module.db = self.original_activity_db
+        self.activity_module.get_room = self.original_activity_get_room
+        self.app_module.MODEL_CLIENT_MAP = self.original_model_map
+
+        # Clean up environment variables
+        if "MODEL_ENDPOINT_0" in os.environ:
+            del os.environ["MODEL_ENDPOINT_0"]
+        if "MODEL_API_KEY_0" in os.environ:
+            del os.environ["MODEL_API_KEY_0"]
 
     def create_test_activity_file(self):
         """Create a test activity YAML file"""
         from models import Room
         import activity
+        import os
 
         # Create a test room
         room = Room(name="test_room")
@@ -94,22 +126,33 @@ sections:
         buckets:
           - bucket_name: "correct"
             bucket_criteria: "Answer is 4"
+          - bucket_name: "incorrect"
+            bucket_criteria: "Wrong answer"
         transitions:
           correct:
             ai_feedback:
               tokens_for_ai: "Provide encouragement"
             next_section_id: "section_1"
             next_step_id: "step_2"
+          incorrect:
+            ai_feedback:
+              tokens_for_ai: "Try again"
+            next_section_id: "section_1"
+            next_step_id: "step_1"
       - step_id: "step_2"
-        type: "info"
-        display_text: "Great job!"
+        type: "question"
+        question: "What is 3+3?"
+        buckets:
+          - bucket_name: "correct"
+            bucket_criteria: "Answer is 6"
 """
         # Write to research directory
         with tempfile.NamedTemporaryFile(
             mode='w', suffix='.yaml', dir='research', delete=False
         ) as f:
             f.write(activity_content)
-            return f.name.replace('research/', ''), room
+            # Return just the filename (not the full path)
+            return os.path.basename(f.name), room
 
     @patch('activity.socketio')
     @patch('activity.get_openai_client_and_model')
@@ -121,9 +164,9 @@ sections:
         # Create test activity
         filename, room = self.create_test_activity_file()
 
-        # Mock AI client
+        # Mock AI client to use hermes model from uncloseai.com
         mock_client = MagicMock()
-        mock_get_client.return_value = (mock_client, "gpt-4")
+        mock_get_client.return_value = (mock_client, "hermes-3-llama-3.1-405b")
 
         # Start activity
         activity.start_activity(room.name, f"research/{filename}", "alice")
@@ -190,10 +233,12 @@ sections:
         # Display metadata
         activity.display_activity_metadata(room.name, "alice")
 
-        # Verify emit was called with metadata
+        # Verify emit was called with chat_message containing metadata
         mock_socketio.emit.assert_called()
         call_args = mock_socketio.emit.call_args
-        self.assertIn("activity_metadata", str(call_args))
+        # Check that chat_message was emitted with metadata in the content
+        self.assertIn("chat_message", str(call_args))
+        self.assertIn("score", str(call_args)) or self.assertIn("level", str(call_args))
 
     @patch('activity.socketio')
     @patch('activity.get_openai_client_and_model')
@@ -215,19 +260,23 @@ sections:
         self.db.session.add(state)
         self.db.session.commit()
 
-        # Mock AI client for categorization and feedback
+        # Mock AI client for categorization and feedback - using qwen model
         mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content.strip.return_value = "correct"
         mock_client.chat.completions.create.return_value = mock_response
-        mock_get_client.return_value = (mock_client, "gpt-4")
+        mock_get_client.return_value = (mock_client, "qwen-2.5-72b")
 
         # Handle response
         activity.handle_activity_response(room.name, "4", "alice")
 
+        # Refresh the session to get the latest state
+        self.db.session.expire_all()
+
         # Verify state advanced to next step
         updated_state = ActivityState.query.filter_by(room_id=room.id).first()
+        self.assertIsNotNone(updated_state, "ActivityState should still exist after correct answer")
         self.assertEqual(updated_state.step_id, "step_2")
 
     @patch('activity.socketio')
@@ -252,16 +301,19 @@ sections:
 
         initial_attempts = state.attempts
 
-        # Mock AI to return incorrect answer
+        # Mock AI to return incorrect answer - using hermes model
         mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content.strip.return_value = "incorrect"
         mock_client.chat.completions.create.return_value = mock_response
-        mock_get_client.return_value = (mock_client, "gpt-4")
+        mock_get_client.return_value = (mock_client, "hermes-3-llama-3.1-405b")
 
         # Handle response
         activity.handle_activity_response(room.name, "5", "alice")
+
+        # Refresh the session to get the latest state
+        self.db.session.expire_all()
 
         # Verify attempts incremented
         updated_state = ActivityState.query.filter_by(room_id=room.id).first()
@@ -330,7 +382,7 @@ sections:
             mode='w', suffix='.yaml', dir='research', delete=False
         ) as f:
             f.write(activity_content)
-            filename = f.name.replace('research/', '')
+            filename = os.path.basename(f.name)
 
         # Create room
         from models import Room
@@ -351,9 +403,9 @@ sections:
         # Load activity content
         content = activity.get_activity_content(f"research/{filename}")
 
-        # Mock AI client
+        # Mock AI client - using qwen model
         mock_client = MagicMock()
-        mock_get_client.return_value = (mock_client, "gpt-4")
+        mock_get_client.return_value = (mock_client, "qwen-2.5-72b")
 
         # Loop through steps
         activity.loop_through_steps_until_question(
