@@ -9,7 +9,7 @@
         <div id="chat"></div>
         <!-- Form for sending messages -->
         <form id="message-form">
-            <textarea id="message" rows="4" placeholder="Type your message..."></textarea>
+            <textarea id="message" placeholder="Type your message..."></textarea>
         </form>
     </div>
 
@@ -409,7 +409,8 @@ socket.on("active_users", (data) => {
 
 // Function to handle sending the message
 function sendMessage() {
-    const message = document.getElementById("message").value;
+    const messageTextarea = document.getElementById("message");
+    const message = messageTextarea.value;
     const model = document.getElementById("model-select").value;
     let messageToSend = message.trim();
 
@@ -420,7 +421,9 @@ function sendMessage() {
             "model": model,  // Pass model as a separate attribute
             "room_name": room_name
         });
-        document.getElementById("message").value = "";
+        messageTextarea.value = "";
+        // Reset textarea height after sending
+        messageTextarea.style.height = 'auto';
     }
 }
 
@@ -441,6 +444,14 @@ document.getElementById("message").addEventListener("keydown", function(e) {
         e.preventDefault();
         sendMessage();
     }
+});
+
+// Auto-grow textarea as user types
+document.getElementById("message").addEventListener("input", function() {
+    // Reset height to auto to get the correct scrollHeight
+    this.style.height = 'auto';
+    // Set height to scrollHeight to fit content
+    this.style.height = this.scrollHeight + 'px';
 });
 
 // Socket event for updating the room title

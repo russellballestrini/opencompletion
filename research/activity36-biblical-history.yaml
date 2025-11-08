@@ -1,912 +1,1052 @@
 default_max_attempts_per_step: 3
+tokens_for_ai_rubric: 'Evaluate the student''s understanding of biblical history and ancient Near Eastern context.
 
-tokens_for_ai_rubric: |
-  Evaluate the student's understanding of biblical history and ancient Near Eastern context.
   Consider:
+
   - Their grasp of historical periods and chronology
+
   - Understanding of archaeological and historical evidence
+
   - Ability to contextualize texts within their cultural setting
+
   - Recognition of how geography influenced history
+
   - Critical thinking about historical sources
+
 
   Provide encouraging feedback and suggest areas for deeper exploration of ancient history.
 
+  '
 sections:
-  - section_id: "introduction"
-    title: "Welcome to Biblical History"
-    steps:
-      - step_id: "welcome"
-        title: "Welcome, Ancient Historian"
+- section_id: introduction
+  title: Welcome to Biblical History
+  steps:
+  - step_id: welcome
+    title: Welcome, Ancient Historian
+    content_blocks:
+    - '# Biblical History: Ancient Near East and Beyond 📜'
+    - Explore the historical world of the Bible through archaeology, ancient texts, and cultural context.
+    - ''
+    - '**In this journey, you''ll explore:**'
+    - '- The ancient Near Eastern world (Egypt, Mesopotamia, Canaan)'
+    - '- Historical periods from Bronze Age to Roman Empire'
+    - '- Archaeological discoveries and what they reveal'
+    - '- Cultural practices and daily life in ancient times'
+    - '- How geography shaped history and religion'
+    - '- Connections between biblical texts and historical context'
+    - ''
+    - '**Important Note:**'
+    - This activity focuses on **historical and archaeological study**, not theology or religious belief.
+    - We'll examine the Bible as an ancient text within its historical context.
+    - ''
+    - Ready to explore the ancient world?
+    question: Are you ready to study biblical history through archaeology, ancient texts, and cultural context?
+    tokens_for_ai: 'Student expressing readiness.
+
+
+      Categorize as:
+
+      - ready: Positive, ready to begin
+
+      - set_language: Setting language preference
+
+      - off_topic: Unrelated
+
+      '
+    buckets:
+    - ready
+    - set_language
+    - off_topic
+    transitions:
+      ready:
         content_blocks:
-          - "# Biblical History: Ancient Near East and Beyond 📜"
-          - "Explore the historical world of the Bible through archaeology, ancient texts, and cultural context."
-          - ""
-          - "**In this journey, you'll explore:**"
-          - "- The ancient Near Eastern world (Egypt, Mesopotamia, Canaan)"
-          - "- Historical periods from Bronze Age to Roman Empire"
-          - "- Archaeological discoveries and what they reveal"
-          - "- Cultural practices and daily life in ancient times"
-          - "- How geography shaped history and religion"
-          - "- Connections between biblical texts and historical context"
-          - ""
-          - "**Important Note:**"
-          - "This activity focuses on **historical and archaeological study**, not theology or religious belief."
-          - "We'll examine the Bible as an ancient text within its historical context."
-          - ""
-          - "Ready to explore the ancient world?"
-        question: "Are you ready to study biblical history through archaeology, ancient texts, and cultural context?"
-        tokens_for_ai: |
-          Student expressing readiness.
-
-          Categorize as:
-          - ready: Positive, ready to begin
-          - set_language: Setting language preference
-          - off_topic: Unrelated
-        buckets:
-          - ready
-          - set_language
-          - off_topic
-        transitions:
-          ready:
-            content_blocks:
-              - "Excellent! Let's begin with the ancient Near Eastern world."
-            metadata_add:
-              period: "ancient_near_east"
-            next_section_and_step: "ancient_near_east:step_1"
-          set_language:
-            content_blocks:
-              - "I'll communicate in your preferred language."
-            counts_as_attempt: false
-            next_section_and_step: "introduction:welcome"
-          off_topic:
-            content_blocks:
-              - "Let's begin our journey into ancient history. Are you ready to explore?"
-            counts_as_attempt: false
-            next_section_and_step: "introduction:welcome"
-
-  - section_id: "ancient_near_east"
-    title: "The Ancient Near Eastern World"
-    steps:
-      - step_id: "step_1"
-        title: "Geography and Civilizations"
+        - Excellent! Let's begin with the ancient Near Eastern world.
+        metadata_add:
+          period: ancient_near_east
+        next_section_and_step: ancient_near_east:step_1
+      set_language:
         content_blocks:
-          - "## The Fertile Crescent 🌍"
-          - "The biblical world was part of the ancient Near East, centered on the Fertile Crescent."
-          - ""
-          - "**Key Geographic Regions:**"
-          - ""
-          - "**Mesopotamia (Iraq):**"
-          - "- 'Land between rivers' (Tigris and Euphrates)"
-          - "- Civilizations: Sumerians, Akkadians, Babylonians, Assyrians"
-          - "- Invented cuneiform writing (3200 BCE)"
-          - "- Code of Hammurabi (1750 BCE) - ancient law code"
-          - ""
-          - "**Egypt:**"
-          - "- Nile River civilization"
-          - "- Pyramids, pharaohs, hieroglyphics"
-          - "- Powerful empire from 3000 BCE"
-          - ""
-          - "**Canaan/Levant (Israel/Palestine, Lebanon, Syria):**"
-          - "- Land bridge between Egypt and Mesopotamia"
-          - "- Trade routes made it strategically important"
-          - "- Caught between great empires"
-          - "- Home to Canaanites, Phoenicians, Israelites"
-          - ""
-          - "**Why Geography Matters:**"
-          - "Canaan's location meant it was constantly invaded by larger empires (Egypt, Assyria, Babylon, Persia, Greece, Rome)"
-          - ""
-          - "This shaped everything: politics, trade, culture, and even religious ideas traveled these routes."
-        question: "How do you think Canaan's geographic location - as a small land bridge between powerful empires - might have influenced the development of Israelite religion and identity?"
-        tokens_for_ai: |
-          Looking for understanding that:
-          - Geographic vulnerability shaped identity
-          - Contact with empires brought cultural exchange
-          - Small nation survival strategies
-          - Monotheism as distinctiveness
-
-          Categorize as:
-          - sophisticated_geo_analysis: Connects geography to cultural/religious development
-          - identity_focus: Emphasizes how vulnerability shaped distinctiveness
-          - cultural_exchange: Notes influence from surrounding cultures
-          - political_analysis: Focuses on survival strategies
-          - partial_understanding: General thoughts
-          - limited_effort: Very brief
-          - asking_clarifying_questions: Needs more info
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          Engage their geographic thinking. Small nations between empires often develop strong
-          identity markers to maintain distinctiveness. Israelite monotheism emerged partly as
-          a way to differentiate from polytheistic empires. If they note cultural exchange, affirm
-          that biblical texts show both resistance to and adoption of surrounding practices.
-        buckets:
-          - sophisticated_geo_analysis
-          - identity_focus
-          - cultural_exchange
-          - political_analysis
-          - partial_understanding
-          - limited_effort
-          - asking_clarifying_questions
-          - off_topic
-        transitions:
-          sophisticated_geo_analysis:
-            ai_feedback:
-              tokens_for_ai: "Excellent geographic analysis! Location between empires forced cultural choices: adopt or resist? Monotheism became a marker of Israelite distinctiveness. Discuss how this plays out in biblical texts."
-            metadata_add:
-              score: "n+3"
-              critical_thinking: "n+1"
-            next_section_and_step: "ancient_near_east:step_2"
-          identity_focus:
-            ai_feedback:
-              tokens_for_ai: "Good insight about identity! Small nations between empires often emphasize what makes them unique. For Israel, monotheism became that distinctive marker."
-            metadata_add:
-              score: "n+2"
-            next_section_and_step: "ancient_near_east:step_2"
-          cultural_exchange:
-            ai_feedback:
-              tokens_for_ai: "Important observation! The biblical text shows both influence from surrounding cultures (law codes, flood stories) and resistance to them (prohibition of foreign gods)."
-            metadata_add:
-              score: "n+2"
-              critical_thinking: "n+1"
-            next_section_and_step: "ancient_near_east:step_2"
-          political_analysis:
-            ai_feedback:
-              tokens_for_ai: "Good political analysis! How does a small nation survive between empires? Cultural distinctiveness and strong identity help maintain cohesion."
-            metadata_add:
-              score: "n+2"
-            next_section_and_step: "ancient_near_east:step_2"
-          partial_understanding:
-            ai_feedback:
-              tokens_for_ai: "You're thinking about this. Consider: if you're a small nation constantly threatened by larger empires, how might you maintain your identity?"
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: "ancient_near_east:step_2"
-          limited_effort:
-            content_blocks:
-              - "Think about Canaan's vulnerable position between Egypt and Mesopotamia. How might this constant threat shape culture and religion?"
-            next_section_and_step: "ancient_near_east:step_1"
-          asking_clarifying_questions:
-            ai_feedback:
-              tokens_for_ai: "Answer their question about geography, empires, or ancient cultures."
-            counts_as_attempt: false
-            next_section_and_step: "ancient_near_east:step_1"
-          off_topic:
-            content_blocks:
-              - "Let's think about how geography shapes history. How did Canaan's location affect its development?"
-            next_section_and_step: "ancient_near_east:step_1"
-
-      - step_id: "step_2"
-        title: "Ancient Literature and Parallels"
+        - I'll communicate in your preferred language.
+        counts_as_attempt: false
+        next_section_and_step: introduction:welcome
+      off_topic:
         content_blocks:
-          - "## Ancient Near Eastern Texts"
-          - "The Bible wasn't written in isolation - it emerged from a world rich in literature."
-          - ""
-          - "**Epic of Gilgamesh (Mesopotamia, ~2100 BCE):**"
-          - "- Contains a flood story remarkably similar to Noah's flood"
-          - "- Utnapishtim builds an ark, saves animals, sends out birds, lands on a mountain"
-          - "- Written 1000+ years before biblical flood account"
-          - ""
-          - "**Code of Hammurabi (Babylon, ~1750 BCE):**"
-          - "- Ancient law code with similarities to biblical law"
-          - "- 'Eye for an eye' appears in Hammurabi and later in Exodus"
-          - "- Predates biblical law codes by centuries"
-          - ""
-          - "**Enuma Elish (Babylon, ~1100 BCE):**"
-          - "- Creation story with parallels to Genesis"
-          - "- Order from chaos, separation of waters, creation of humans"
-          - ""
-          - "**Archaeological Discovery:**"
-          - "These texts were discovered on clay tablets in the 1800s-1900s, showing the biblical writers knew and adapted earlier traditions."
-        question: "What does it mean that biblical stories have parallels in earlier Mesopotamian literature? Does this make the Bible less historically significant, or does it tell us something interesting about how ancient peoples shared and adapted stories?"
-        tokens_for_ai: |
-          This is a sophisticated question about cultural context and transmission.
+        - Let's begin our journey into ancient history. Are you ready to explore?
+        counts_as_attempt: false
+        next_section_and_step: introduction:welcome
+- section_id: ancient_near_east
+  title: The Ancient Near Eastern World
+  steps:
+  - step_id: step_1
+    title: Geography and Civilizations
+    content_blocks:
+    - '## The Fertile Crescent 🌍'
+    - The biblical world was part of the ancient Near East, centered on the Fertile Crescent.
+    - ''
+    - '**Key Geographic Regions:**'
+    - ''
+    - '**Mesopotamia (Iraq):**'
+    - '- ''Land between rivers'' (Tigris and Euphrates)'
+    - '- Civilizations: Sumerians, Akkadians, Babylonians, Assyrians'
+    - '- Invented cuneiform writing (3200 BCE)'
+    - '- Code of Hammurabi (1750 BCE) - ancient law code'
+    - ''
+    - '**Egypt:**'
+    - '- Nile River civilization'
+    - '- Pyramids, pharaohs, hieroglyphics'
+    - '- Powerful empire from 3000 BCE'
+    - ''
+    - '**Canaan/Levant (Israel/Palestine, Lebanon, Syria):**'
+    - '- Land bridge between Egypt and Mesopotamia'
+    - '- Trade routes made it strategically important'
+    - '- Caught between great empires'
+    - '- Home to Canaanites, Phoenicians, Israelites'
+    - ''
+    - '**Why Geography Matters:**'
+    - Canaan's location meant it was constantly invaded by larger empires (Egypt, Assyria, Babylon, Persia, Greece, Rome)
+    - ''
+    - 'This shaped everything: politics, trade, culture, and even religious ideas traveled these routes.'
+    question: How do you think Canaan's geographic location - as a small land bridge between powerful empires - might have influenced the development of Israelite religion and identity?
+    tokens_for_ai: 'Looking for understanding that:
 
-          Looking for:
-          - Understanding that cultures influence each other
-          - Recognition that adaptation shows engagement with traditions
-          - Historical vs religious significance distinction
-          - Sophisticated view of ancient literature
+      - Geographic vulnerability shaped identity
 
-          Categorize as:
-          - sophisticated_cultural_analysis: Understands literary borrowing and adaptation
-          - cultural_exchange_view: Sees parallels as normal cultural interaction
-          - theological_concern: Worried about implications for religious truth
-          - historical_significance: Focuses on what this tells us historically
-          - partial_understanding: General thoughts
-          - limited_effort: Very brief
-          - asking_clarifying_questions: Needs more info
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          Engage thoughtfully. Ancient cultures influenced each other through conquest, trade, and
-          migration. Biblical writers adapted earlier stories but transformed them (monotheism vs
-          polytheism, moral emphasis, etc.). This is how literature works in the ancient world.
-          If they express theological concern, acknowledge it but focus on historical perspective.
-        buckets:
-          - sophisticated_cultural_analysis
-          - cultural_exchange_view
-          - theological_concern
-          - historical_significance
-          - partial_understanding
-          - limited_effort
-          - asking_clarifying_questions
-          - off_topic
-        transitions:
-          sophisticated_cultural_analysis:
-            ai_feedback:
-              tokens_for_ai: "Excellent literary and cultural analysis! Biblical writers took existing stories and transformed them to reflect their monotheistic worldview. This is sophisticated engagement with tradition, not mere copying."
-            metadata_add:
-              score: "n+3"
-              critical_thinking: "n+1"
-            next_section_and_step: "israelite_history:step_1"
-          cultural_exchange_view:
-            ai_feedback:
-              tokens_for_ai: "Good understanding of cultural exchange! Ancient peoples shared stories across cultures. Biblical writers adapted these stories to express their own theological and moral perspectives."
-            metadata_add:
-              score: "n+2"
-            next_section_and_step: "israelite_history:step_1"
-          theological_concern:
-            ai_feedback:
-              tokens_for_ai: "I understand the concern. From a historical perspective, adaptation shows engagement with surrounding cultures. Biblical writers transformed polytheistic stories into monotheistic ones - this is creative theological work."
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: "israelite_history:step_1"
-          historical_significance:
-            ai_feedback:
-              tokens_for_ai: "Good historical perspective! These parallels show us how ideas traveled in the ancient world and how biblical writers creatively adapted traditions."
-            metadata_add:
-              score: "n+2"
-              critical_thinking: "n+1"
-            next_section_and_step: "israelite_history:step_1"
-          partial_understanding:
-            ai_feedback:
-              tokens_for_ai: "You're thinking about this. Consider: Shakespeare adapted earlier plays. Does that make his work less significant, or does it show how great writers transform traditions?"
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: "israelite_history:step_1"
-          limited_effort:
-            content_blocks:
-              - "Think about how ancient cultures influenced each other. What might it mean that biblical writers knew and adapted earlier stories?"
-            next_section_and_step: "ancient_near_east:step_2"
-          asking_clarifying_questions:
-            ai_feedback:
-              tokens_for_ai: "Answer their question about ancient literature, cultural borrowing, or specific parallels."
-            counts_as_attempt: false
-            next_section_and_step: "ancient_near_east:step_2"
-          off_topic:
-            content_blocks:
-              - "Let's think about the parallels between biblical and earlier Mesopotamian stories. What do these similarities tell us?"
-            next_section_and_step: "ancient_near_east:step_2"
+      - Contact with empires brought cultural exchange
 
-  - section_id: "israelite_history"
-    title: "Israelite History and Archaeology"
-    steps:
-      - step_id: "step_1"
-        title: "The Exodus Question"
+      - Small nation survival strategies
+
+      - Monotheism as distinctiveness
+
+
+      Categorize as:
+
+      - sophisticated_geo_analysis: Connects geography to cultural/religious development
+
+      - identity_focus: Emphasizes how vulnerability shaped distinctiveness
+
+      - cultural_exchange: Notes influence from surrounding cultures
+
+      - political_analysis: Focuses on survival strategies
+
+      - partial_understanding: General thoughts
+
+      - limited_effort: Very brief
+
+      - asking_clarifying_questions: Needs more info
+
+      - off_topic: Unrelated
+
+      '
+    feedback_tokens_for_ai: 'Engage their geographic thinking. Small nations between empires often develop strong
+
+      identity markers to maintain distinctiveness. Israelite monotheism emerged partly as
+
+      a way to differentiate from polytheistic empires. If they note cultural exchange, affirm
+
+      that biblical texts show both resistance to and adoption of surrounding practices.
+
+      '
+    buckets:
+    - sophisticated_geo_analysis
+    - identity_focus
+    - cultural_exchange
+    - political_analysis
+    - partial_understanding
+    - limited_effort
+    - asking_clarifying_questions
+    - off_topic
+    transitions:
+      sophisticated_geo_analysis:
+        ai_feedback:
+          tokens_for_ai: 'Excellent geographic analysis! Location between empires forced cultural choices: adopt or resist? Monotheism became a marker of Israelite distinctiveness. Discuss how this plays out in biblical texts.'
+        metadata_add:
+          score: n+3
+          critical_thinking: n+1
+        next_section_and_step: ancient_near_east:step_2
+      identity_focus:
+        ai_feedback:
+          tokens_for_ai: Good insight about identity! Small nations between empires often emphasize what makes them unique. For Israel, monotheism became that distinctive marker.
+        metadata_add:
+          score: n+2
+        next_section_and_step: ancient_near_east:step_2
+      cultural_exchange:
+        ai_feedback:
+          tokens_for_ai: Important observation! The biblical text shows both influence from surrounding cultures (law codes, flood stories) and resistance to them (prohibition of foreign gods).
+        metadata_add:
+          score: n+2
+          critical_thinking: n+1
+        next_section_and_step: ancient_near_east:step_2
+      political_analysis:
+        ai_feedback:
+          tokens_for_ai: Good political analysis! How does a small nation survive between empires? Cultural distinctiveness and strong identity help maintain cohesion.
+        metadata_add:
+          score: n+2
+        next_section_and_step: ancient_near_east:step_2
+      partial_understanding:
+        ai_feedback:
+          tokens_for_ai: 'You''re thinking about this. Consider: if you''re a small nation constantly threatened by larger empires, how might you maintain your identity?'
+        metadata_add:
+          score: n+1
+        next_section_and_step: ancient_near_east:step_2
+      limited_effort:
         content_blocks:
-          - "## Exodus: History or Memory? 🏜️"
-          - "The Exodus story is central to Jewish identity - but what do we know historically?"
-          - ""
-          - "**The Biblical Account:**"
-          - "- Israelites enslaved in Egypt"
-          - "- Moses leads them out through the Red Sea"
-          - "- 40 years wandering in the Sinai desert"
-          - "- Conquest of Canaan under Joshua"
-          - ""
-          - "**Archaeological Evidence:**"
-          - "- **No Egyptian records** of Israelite slavery or exodus (despite extensive Egyptian records)"
-          - "- **No archaeological evidence** of 2 million people in Sinai for 40 years"
-          - "- **No evidence of sudden conquest** of Canaan - instead, gradual emergence of Israelite settlements in highlands"
-          - "- **Merneptah Stele (1208 BCE):** Egyptian inscription mentions 'Israel' as a people in Canaan"
-          - ""
-          - "**Current Historical Consensus:**"
-          - "- A small group may have had experiences in Egypt, but not the massive exodus described"
-          - "- Israelites emerged primarily from Canaanite populations in the highlands"
-          - "- The Exodus story became a powerful foundation myth for Israelite identity"
-          - ""
-          - "**Why Foundation Myths Matter:**"
-          - "Every culture has origin stories that define identity - US Declaration of Independence, Romulus and Remus for Rome, etc."
-        question: "If the Exodus as described didn't happen, does that make the story less important? What's the difference between historical fact and historical significance? Why might a people preserve and elaborate such a story?"
-        tokens_for_ai: |
-          This is a sophisticated question about myth, history, and identity.
-
-          Looking for:
-          - Distinction between literal history and meaning
-          - Understanding of foundation myths
-          - Recognition that stories shape identity even if not factual
-          - Nuanced thinking about truth and significance
-
-          Categorize as:
-          - sophisticated_analysis: Distinguishes historical fact from historical/cultural significance
-          - myth_understanding: Grasps function of foundation myths
-          - identity_focus: Sees story's role in shaping group identity
-          - troubled_by_historicity: Struggles with non-literal interpretation
-          - partial_understanding: General thoughts
-          - limited_effort: Very brief
-          - asking_clarifying_questions: Needs more info
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          Engage thoughtfully. Foundation myths aren't 'lies' - they're how peoples understand
-          themselves. The Exodus story of liberation from oppression became central to Jewish
-          identity and later inspired other liberation movements (civil rights, etc.). Historical
-          significance isn't the same as historical accuracy. If troubled by non-historicity,
-          acknowledge their concern while explaining the distinction.
-        buckets:
-          - sophisticated_analysis
-          - myth_understanding
-          - identity_focus
-          - troubled_by_historicity
-          - partial_understanding
-          - limited_effort
-          - asking_clarifying_questions
-          - off_topic
-        transitions:
-          sophisticated_analysis:
-            ai_feedback:
-              tokens_for_ai: "Excellent sophisticated thinking! You understand that stories can be historically significant even if not literally factual. The Exodus story shaped Jewish identity and inspired liberation movements worldwide."
-            metadata_add:
-              score: "n+3"
-              critical_thinking: "n+1"
-            next_section_and_step: "israelite_history:step_2"
-          myth_understanding:
-            ai_feedback:
-              tokens_for_ai: "Good understanding of foundation myths! Every culture has origin stories that define who they are. Historical accuracy matters less than the story's role in shaping identity."
-            metadata_add:
-              score: "n+2"
-            next_section_and_step: "israelite_history:step_2"
-          identity_focus:
-            ai_feedback:
-              tokens_for_ai: "Important insight about identity! The Exodus story defines Jewish identity as a people freed from slavery. This narrative inspired countless later liberation movements."
-            metadata_add:
-              score: "n+2"
-              critical_thinking: "n+1"
-            next_section_and_step: "israelite_history:step_2"
-          troubled_by_historicity:
-            ai_feedback:
-              tokens_for_ai: "I understand the concern. From a historical perspective, we can distinguish between literal factuality and cultural/historical significance. The Exodus story's impact on history is undeniable even if the events as described didn't occur."
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: "israelite_history:step_2"
-          partial_understanding:
-            ai_feedback:
-              tokens_for_ai: "Think about other foundation stories: George Washington and the cherry tree probably didn't happen, but it expresses American values. Does that make it unimportant?"
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: "israelite_history:step_1"
-          limited_effort:
-            content_blocks:
-              - "Consider: Can a story be important even if it's not literally factual? Think about how stories shape group identity."
-            next_section_and_step: "israelite_history:step_1"
-          asking_clarifying_questions:
-            ai_feedback:
-              tokens_for_ai: "Answer their question about the Exodus, archaeology, or foundation myths."
-            counts_as_attempt: false
-            next_section_and_step: "israelite_history:step_1"
-          off_topic:
-            content_blocks:
-              - "Let's think about the Exodus story's significance. Can stories be important even if not literally historical?"
-            next_section_and_step: "israelite_history:step_1"
-
-      - step_id: "step_2"
-        title: "United Monarchy and Division"
+        - Think about Canaan's vulnerable position between Egypt and Mesopotamia. How might this constant threat shape culture and religion?
+        next_section_and_step: ancient_near_east:step_1
+      asking_clarifying_questions:
+        ai_feedback:
+          tokens_for_ai: Answer their question about geography, empires, or ancient cultures.
+        counts_as_attempt: false
+        next_section_and_step: ancient_near_east:step_1
+      off_topic:
         content_blocks:
-          - "## Kings David and Solomon"
-          - "**Biblical Account:**"
-          - "- David unites tribes into a kingdom (~1000 BCE)"
-          - "- Solomon builds the First Temple in Jerusalem (~950 BCE)"
-          - "- Kingdom splits after Solomon's death into Israel (north) and Judah (south)"
-          - ""
-          - "**Archaeological Evidence:**"
-          - "- **Tel Dan Stele (9th century BCE):** Mentions 'House of David' - first non-biblical reference to David"
-          - "- **Limited evidence** for Solomon's temple or extensive building projects"
-          - "- **No evidence** of empire described in biblical text"
-          - "- **Evidence of division:** Northern kingdom (Israel) and southern kingdom (Judah) had different pottery, architecture, practices"
-          - ""
-          - "**Historical Reconstruction:**"
-          - "- David and Solomon likely existed as local chieftains"
-          - "- Later writers (during exile) expanded their stories into tales of a golden age"
-          - "- The 'united monarchy' may have been more limited than biblical account suggests"
-          - ""
-          - "**Why Matters:**"
-          - "After the Babylonian exile (586 BCE), Jews longed for restoration of the Davidic monarchy"
-          - "This hope shaped messianic expectations"
-        question: "Why might the biblical writers, writing during or after the Babylonian exile, have portrayed David and Solomon's kingdom as larger and more glorious than historical evidence suggests? What purpose would such an idealized past serve?"
-        tokens_for_ai: |
-          Looking for understanding of:
-          - Writing in response to trauma/loss
-          - Idealized past as hope for future
-          - How suffering shapes memory
-          - Messianic hopes
+        - Let's think about how geography shapes history. How did Canaan's location affect its development?
+        next_section_and_step: ancient_near_east:step_1
+  - step_id: step_2
+    title: Ancient Literature and Parallels
+    content_blocks:
+    - '## Ancient Near Eastern Texts'
+    - The Bible wasn't written in isolation - it emerged from a world rich in literature.
+    - ''
+    - '**Epic of Gilgamesh (Mesopotamia, ~2100 BCE):**'
+    - '- Contains a flood story remarkably similar to Noah''s flood'
+    - '- Utnapishtim builds an ark, saves animals, sends out birds, lands on a mountain'
+    - '- Written 1000+ years before biblical flood account'
+    - ''
+    - '**Code of Hammurabi (Babylon, ~1750 BCE):**'
+    - '- Ancient law code with similarities to biblical law'
+    - '- ''Eye for an eye'' appears in Hammurabi and later in Exodus'
+    - '- Predates biblical law codes by centuries'
+    - ''
+    - '**Enuma Elish (Babylon, ~1100 BCE):**'
+    - '- Creation story with parallels to Genesis'
+    - '- Order from chaos, separation of waters, creation of humans'
+    - ''
+    - '**Archaeological Discovery:**'
+    - These texts were discovered on clay tablets in the 1800s-1900s, showing the biblical writers knew and adapted earlier traditions.
+    question: What does it mean that biblical stories have parallels in earlier Mesopotamian literature? Does this make the Bible less historically significant, or does it tell us something interesting about how ancient peoples shared and adapted stories?
+    tokens_for_ai: 'This is a sophisticated question about cultural context and transmission.
 
-          Categorize as:
-          - sophisticated_analysis: Connects exile trauma to idealization of past
-          - hope_focus: Sees idealized past as source of hope
-          - identity_maintenance: Recognizes role in preserving identity during crisis
-          - literary_purpose: Understands narrative function
-          - partial_understanding: General thoughts
-          - limited_effort: Very brief
-          - asking_clarifying_questions: Needs more info
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          Engage their thinking about trauma and memory. People in exile, having lost everything,
-          would remember a 'golden age' and hope for its restoration. The idealized past provides
-          both identity and hope for the future. This shapes messianic expectations - hope for a
-          new David to restore the kingdom.
-        buckets:
-          - sophisticated_analysis
-          - hope_focus
-          - identity_maintenance
-          - literary_purpose
-          - partial_understanding
-          - limited_effort
-          - asking_clarifying_questions
-          - off_topic
-        transitions:
-          sophisticated_analysis:
-            ai_feedback:
-              tokens_for_ai: "Excellent analysis of trauma and memory! In exile, an idealized past provides identity and hope for restoration. This shaped Jewish messianic expectations - longing for a new David."
-            metadata_add:
-              score: "n+3"
-              critical_thinking: "n+1"
-            next_section_and_step: "exile_return:step_1"
-          hope_focus:
-            ai_feedback:
-              tokens_for_ai: "Important insight about hope! The golden age of David/Solomon became a vision for the future - restoration of past glory. This shaped centuries of messianic hope."
-            metadata_add:
-              score: "n+2"
-            next_section_and_step: "exile_return:step_1"
-          identity_maintenance:
-            ai_feedback:
-              tokens_for_ai: "Good understanding of identity! In exile, remembering a glorious past helped maintain Jewish identity and hope when everything was lost."
-            metadata_add:
-              score: "n+2"
-              critical_thinking: "n+1"
-            next_section_and_step: "exile_return:step_1"
-          literary_purpose:
-            ai_feedback:
-              tokens_for_ai: "Good literary analysis! The idealized monarchy served narrative and theological purposes - explaining why exile happened and what restoration might look like."
-            metadata_add:
-              score: "n+2"
-            next_section_and_step: "exile_return:step_1"
-          partial_understanding:
-            ai_feedback:
-              tokens_for_ai: "Think about how people in crisis remember the past. If you've lost everything (exile), how might you remember 'the good old days'?"
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: "exile_return:step_1"
-          limited_effort:
-            content_blocks:
-              - "Consider: if you've lost your homeland (exile), why might you idealize the past? What purpose would that serve?"
-            next_section_and_step: "israelite_history:step_2"
-          asking_clarifying_questions:
-            ai_feedback:
-              tokens_for_ai: "Answer their question about David, Solomon, the exile, or idealized history."
-            counts_as_attempt: false
-            next_section_and_step: "israelite_history:step_2"
-          off_topic:
-            content_blocks:
-              - "Let's think about the idealization of David and Solomon. Why would exiled people portray their past as more glorious?"
-            next_section_and_step: "israelite_history:step_2"
 
-  - section_id: "exile_return"
-    title: "Exile, Return, and Second Temple Period"
-    steps:
-      - step_id: "step_1"
-        title: "Babylonian Exile"
+      Looking for:
+
+      - Understanding that cultures influence each other
+
+      - Recognition that adaptation shows engagement with traditions
+
+      - Historical vs religious significance distinction
+
+      - Sophisticated view of ancient literature
+
+
+      Categorize as:
+
+      - sophisticated_cultural_analysis: Understands literary borrowing and adaptation
+
+      - cultural_exchange_view: Sees parallels as normal cultural interaction
+
+      - theological_concern: Worried about implications for religious truth
+
+      - historical_significance: Focuses on what this tells us historically
+
+      - partial_understanding: General thoughts
+
+      - limited_effort: Very brief
+
+      - asking_clarifying_questions: Needs more info
+
+      - off_topic: Unrelated
+
+      '
+    feedback_tokens_for_ai: 'Engage thoughtfully. Ancient cultures influenced each other through conquest, trade, and
+
+      migration. Biblical writers adapted earlier stories but transformed them (monotheism vs
+
+      polytheism, moral emphasis, etc.). This is how literature works in the ancient world.
+
+      If they express theological concern, acknowledge it but focus on historical perspective.
+
+      '
+    buckets:
+    - sophisticated_cultural_analysis
+    - cultural_exchange_view
+    - theological_concern
+    - historical_significance
+    - partial_understanding
+    - limited_effort
+    - asking_clarifying_questions
+    - off_topic
+    transitions:
+      sophisticated_cultural_analysis:
+        ai_feedback:
+          tokens_for_ai: Excellent literary and cultural analysis! Biblical writers took existing stories and transformed them to reflect their monotheistic worldview. This is sophisticated engagement with tradition, not mere copying.
+        metadata_add:
+          score: n+3
+          critical_thinking: n+1
+        next_section_and_step: israelite_history:step_1
+      cultural_exchange_view:
+        ai_feedback:
+          tokens_for_ai: Good understanding of cultural exchange! Ancient peoples shared stories across cultures. Biblical writers adapted these stories to express their own theological and moral perspectives.
+        metadata_add:
+          score: n+2
+        next_section_and_step: israelite_history:step_1
+      theological_concern:
+        ai_feedback:
+          tokens_for_ai: I understand the concern. From a historical perspective, adaptation shows engagement with surrounding cultures. Biblical writers transformed polytheistic stories into monotheistic ones - this is creative theological work.
+        metadata_add:
+          score: n+1
+        next_section_and_step: israelite_history:step_1
+      historical_significance:
+        ai_feedback:
+          tokens_for_ai: Good historical perspective! These parallels show us how ideas traveled in the ancient world and how biblical writers creatively adapted traditions.
+        metadata_add:
+          score: n+2
+          critical_thinking: n+1
+        next_section_and_step: israelite_history:step_1
+      partial_understanding:
+        ai_feedback:
+          tokens_for_ai: 'You''re thinking about this. Consider: Shakespeare adapted earlier plays. Does that make his work less significant, or does it show how great writers transform traditions?'
+        metadata_add:
+          score: n+1
+        next_section_and_step: israelite_history:step_1
+      limited_effort:
         content_blocks:
-          - "## The Babylonian Exile (586-539 BCE)"
-          - "**Historical Events:**"
-          - "- 586 BCE: Babylonians destroy Jerusalem and Solomon's Temple"
-          - "- Judah's elite are exiled to Babylon"
-          - "- 539 BCE: Persians conquer Babylon"
-          - "- 538 BCE: Persian King Cyrus allows Jews to return"
-          - ""
-          - "**Why the Exile Was Transformative:**"
-          - ""
-          - "**Before Exile:**"
-          - "- Temple-centered worship in Jerusalem"
-          - "- Sacrifices performed by priests"
-          - "- David's descendants ruled as kings"
-          - ""
-          - "**After Exile:**"
-          - "- Synagogues emerged (gathering places for prayer/study)"
-          - "- Torah (written law) became central"
-          - "- Scribes and rabbis gained importance"
-          - "- Monotheism became strictly defined"
-          - ""
-          - "**The Exile Forced Questions:**"
-          - "- Why did God allow Jerusalem to fall?"
-          - "- Can we worship God without the Temple?"
-          - "- What does it mean to be Jewish in foreign lands?"
-          - "- How do we maintain identity without a homeland?"
-          - ""
-          - "**Most of the Hebrew Bible was edited/compiled during or after the exile**"
-          - "The experience of exile profoundly shaped how the Bible was written."
-        question: "The Babylonian exile forced Judaism to transform from a temple-based, land-based religion to one that could survive without either. Why do you think this crisis led to such religious creativity rather than the religion's disappearance?"
-        tokens_for_ai: |
-          Looking for understanding of:
-          - Crisis forcing adaptation
-          - Innovation from necessity
-          - Portable religion (Torah, synagogues)
-          - Identity maintenance in diaspora
-
-          Categorize as:
-          - sophisticated_analysis: Understands how crisis drives innovation
-          - adaptation_focus: Emphasizes flexibility and change
-          - portable_religion: Recognizes creation of non-territorial religion
-          - identity_focus: Sees response to threat of assimilation
-          - partial_understanding: General thoughts
-          - limited_effort: Very brief
-          - asking_clarifying_questions: Needs more info
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          Engage their thinking about crisis and adaptation. The exile could have ended Judaism,
-          but instead sparked innovation: synagogues, written Torah, rabbis. This created a
-          portable religion that could survive anywhere. This is one of history's great examples
-          of religious innovation in response to crisis.
-        buckets:
-          - sophisticated_analysis
-          - adaptation_focus
-          - portable_religion
-          - identity_focus
-          - partial_understanding
-          - limited_effort
-          - asking_clarifying_questions
-          - off_topic
-        transitions:
-          sophisticated_analysis:
-            ai_feedback:
-              tokens_for_ai: "Excellent analysis of crisis and innovation! The exile threatened Judaism's existence but sparked creativity: Torah, synagogues, and rabbis created a religion that could survive anywhere. This is a pivotal moment in religious history."
-            metadata_add:
-              score: "n+3"
-              critical_thinking: "n+1"
-            next_section_and_step: "new_testament:step_1"
-          adaptation_focus:
-            ai_feedback:
-              tokens_for_ai: "Good understanding of adaptation! Faced with the Temple's destruction, Judaism transformed rather than disappeared. This flexibility ensured survival."
-            metadata_add:
-              score: "n+2"
-            next_section_and_step: "new_testament:step_1"
-          portable_religion:
-            ai_feedback:
-              tokens_for_ai: "Excellent insight! The exile created a 'portable' religion - Torah scrolls, synagogues, and practices that worked anywhere. This allowed Judaism to survive dispersal worldwide."
-            metadata_add:
-              score: "n+2"
-              critical_thinking: "n+1"
-            next_section_and_step: "new_testament:step_1"
-          identity_focus:
-            ai_feedback:
-              tokens_for_ai: "Important point about identity! The threat of assimilation in Babylon forced Jews to define what made them distinctive - leading to emphasis on Torah and practices."
-            metadata_add:
-              score: "n+2"
-            next_section_and_step: "new_testament:step_1"
-          partial_understanding:
-            ai_feedback:
-              tokens_for_ai: "Think about what Judaism needed to survive without Temple and land. What innovations made religion 'portable'?"
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: "new_testament:step_1"
-          limited_effort:
-            content_blocks:
-              - "Consider: the Temple was destroyed, the land was lost. What changes would allow Judaism to survive anyway?"
-            next_section_and_step: "exile_return:step_1"
-          asking_clarifying_questions:
-            ai_feedback:
-              tokens_for_ai: "Answer their question about the exile, religious innovation, or survival strategies."
-            counts_as_attempt: false
-            next_section_and_step: "exile_return:step_1"
-          off_topic:
-            content_blocks:
-              - "Let's think about how the exile transformed Judaism. Why did crisis lead to innovation rather than disappearance?"
-            next_section_and_step: "exile_return:step_1"
-
-  - section_id: "new_testament"
-    title: "The Roman Period and Early Christianity"
-    steps:
-      - step_id: "step_1"
-        title: "Roman Judea and Messianic Expectations"
+        - Think about how ancient cultures influenced each other. What might it mean that biblical writers knew and adapted earlier stories?
+        next_section_and_step: ancient_near_east:step_2
+      asking_clarifying_questions:
+        ai_feedback:
+          tokens_for_ai: Answer their question about ancient literature, cultural borrowing, or specific parallels.
+        counts_as_attempt: false
+        next_section_and_step: ancient_near_east:step_2
+      off_topic:
         content_blocks:
-          - "## 1st Century CE: Roman Occupation"
-          - "**Historical Context:**"
-          - "- 63 BCE: Romans conquer Judea"
-          - "- Jews under foreign rule (again) - Romans, not Babylonians"
-          - "- Heavy taxation, political oppression"
-          - "- Various resistance movements"
-          - ""
-          - "**Diverse Jewish Groups (from historical sources):**"
-          - ""
-          - "**Pharisees:**"
-          - "- Emphasized Torah study and oral law"
-          - "- Believed in resurrection of the dead"
-          - "- Precursors to rabbinical Judaism"
-          - ""
-          - "**Sadducees:**"
-          - "- Priestly aristocracy controlling the Temple"
-          - "- Collaborated with Romans"
-          - "- Rejected resurrection belief"
-          - ""
-          - "**Essenes:**"
-          - "- Ascetic community in the desert (Dead Sea Scrolls)"
-          - "- Awaited apocalyptic end times"
-          - ""
-          - "**Zealots:**"
-          - "- Armed resistance against Rome"
-          - "- Eventually sparked the Jewish War (66-73 CE)"
-          - ""
-          - "**Messianic Expectations:**"
-          - "Many Jews expected a messiah (anointed king) to:"
-          - "- Restore Davidic kingdom"
-          - "- Defeat the Romans"
-          - "- Rebuild/purify the Temple"
-          - "- Usher in God's kingdom"
-        question: "Jesus emerged in this context of Roman occupation and messianic hope. Why do you think his movement attracted followers but also led to his execution by Roman authorities?"
-        tokens_for_ai: |
-          Looking for understanding of:
-          - Political context of messianic claims
-          - Rome's view of potential revolutionaries
-          - Jewish diversity of expectations
-          - Crucifixion as political punishment
+        - Let's think about the parallels between biblical and earlier Mesopotamian stories. What do these similarities tell us?
+        next_section_and_step: ancient_near_east:step_2
+- section_id: israelite_history
+  title: Israelite History and Archaeology
+  steps:
+  - step_id: step_1
+    title: The Exodus Question
+    content_blocks:
+    - '## Exodus: History or Memory? 🏜️'
+    - The Exodus story is central to Jewish identity - but what do we know historically?
+    - ''
+    - '**The Biblical Account:**'
+    - '- Israelites enslaved in Egypt'
+    - '- Moses leads them out through the Red Sea'
+    - '- 40 years wandering in the Sinai desert'
+    - '- Conquest of Canaan under Joshua'
+    - ''
+    - '**Archaeological Evidence:**'
+    - '- **No Egyptian records** of Israelite slavery or exodus (despite extensive Egyptian records)'
+    - '- **No archaeological evidence** of 2 million people in Sinai for 40 years'
+    - '- **No evidence of sudden conquest** of Canaan - instead, gradual emergence of Israelite settlements in highlands'
+    - '- **Merneptah Stele (1208 BCE):** Egyptian inscription mentions ''Israel'' as a people in Canaan'
+    - ''
+    - '**Current Historical Consensus:**'
+    - '- A small group may have had experiences in Egypt, but not the massive exodus described'
+    - '- Israelites emerged primarily from Canaanite populations in the highlands'
+    - '- The Exodus story became a powerful foundation myth for Israelite identity'
+    - ''
+    - '**Why Foundation Myths Matter:**'
+    - Every culture has origin stories that define identity - US Declaration of Independence, Romulus and Remus for Rome, etc.
+    question: If the Exodus as described didn't happen, does that make the story less important? What's the difference between historical fact and historical significance? Why might a people preserve and elaborate such a story?
+    tokens_for_ai: 'This is a sophisticated question about myth, history, and identity.
 
-          Categorize as:
-          - political_analysis: Understands political threat of messianic claims
-          - roman_perspective: Considers how Romans viewed such movements
-          - jewish_context: Situates Jesus within Jewish messianic expectations
-          - nuanced_understanding: Sees complexity of political/religious/social factors
-          - partial_understanding: General thoughts
-          - limited_effort: Very brief
-          - asking_clarifying_questions: Needs more info
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          Engage historical context. Messianic claims were political threats to Rome (claiming
-          to be 'King of the Jews' challenges Roman authority). Crucifixion was Roman punishment
-          for political rebels, not religious heretics. Jesus' movement attracted followers
-          precisely because of messianic hopes, but this made him dangerous to authorities.
-        buckets:
-          - political_analysis
-          - roman_perspective
-          - jewish_context
-          - nuanced_understanding
-          - partial_understanding
-          - limited_effort
-          - asking_clarifying_questions
-          - off_topic
-        transitions:
-          political_analysis:
-            ai_feedback:
-              tokens_for_ai: "Excellent political analysis! Messianic claims were inherently political - claiming to be 'King of the Jews' challenged Roman authority. Crucifixion was how Romans dealt with political rebels."
-            metadata_add:
-              score: "n+3"
-              critical_thinking: "n+1"
-            next_section_and_step: "new_testament:step_2"
-          roman_perspective:
-            ai_feedback:
-              tokens_for_ai: "Good historical perspective! From Rome's viewpoint, anyone claiming to be a king/messiah was a potential revolutionary. Crucifixion sent a message about challenging Roman power."
-            metadata_add:
-              score: "n+2"
-            next_section_and_step: "new_testament:step_2"
-          jewish_context:
-            ai_feedback:
-              tokens_for_ai: "Good contextualization! Jesus fit into existing Jewish messianic expectations - which is why he attracted followers - but also why authorities saw him as dangerous."
-            metadata_add:
-              score: "n+2"
-              critical_thinking: "n+1"
-            next_section_and_step: "new_testament:step_2"
-          nuanced_understanding:
-            ai_feedback:
-              tokens_for_ai: "Sophisticated historical thinking! You understand the complex political, religious, and social factors that made Jesus' movement both attractive and threatening."
-            metadata_add:
-              score: "n+3"
-              critical_thinking: "n+1"
-            next_section_and_step: "new_testament:step_2"
-          partial_understanding:
-            ai_feedback:
-              tokens_for_ai: "Think about the political context. What would Romans think of someone claiming to be 'King of the Jews'? How would they respond?"
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: "new_testament:step_1"
-          limited_effort:
-            content_blocks:
-              - "Consider: Judea is under Roman occupation. Someone claims to be the 'King of the Jews.' How would Rome view this?"
-            next_section_and_step: "new_testament:step_1"
-          asking_clarifying_questions:
-            ai_feedback:
-              tokens_for_ai: "Answer their question about Roman Judea, messianic movements, or crucifixion."
-            counts_as_attempt: false
-            next_section_and_step: "new_testament:step_1"
-          off_topic:
-            content_blocks:
-              - "Let's think about the political context. Why would messianic claims attract followers but threaten authorities?"
-            next_section_and_step: "new_testament:step_1"
 
-      - step_id: "step_2"
-        title: "Early Christianity's Transformation"
+      Looking for:
+
+      - Distinction between literal history and meaning
+
+      - Understanding of foundation myths
+
+      - Recognition that stories shape identity even if not factual
+
+      - Nuanced thinking about truth and significance
+
+
+      Categorize as:
+
+      - sophisticated_analysis: Distinguishes historical fact from historical/cultural significance
+
+      - myth_understanding: Grasps function of foundation myths
+
+      - identity_focus: Sees story''s role in shaping group identity
+
+      - troubled_by_historicity: Struggles with non-literal interpretation
+
+      - partial_understanding: General thoughts
+
+      - limited_effort: Very brief
+
+      - asking_clarifying_questions: Needs more info
+
+      - off_topic: Unrelated
+
+      '
+    feedback_tokens_for_ai: 'Engage thoughtfully. Foundation myths aren''t ''lies'' - they''re how peoples understand
+
+      themselves. The Exodus story of liberation from oppression became central to Jewish
+
+      identity and later inspired other liberation movements (civil rights, etc.). Historical
+
+      significance isn''t the same as historical accuracy. If troubled by non-historicity,
+
+      acknowledge their concern while explaining the distinction.
+
+      '
+    buckets:
+    - sophisticated_analysis
+    - myth_understanding
+    - identity_focus
+    - troubled_by_historicity
+    - partial_understanding
+    - limited_effort
+    - asking_clarifying_questions
+    - off_topic
+    transitions:
+      sophisticated_analysis:
+        ai_feedback:
+          tokens_for_ai: Excellent sophisticated thinking! You understand that stories can be historically significant even if not literally factual. The Exodus story shaped Jewish identity and inspired liberation movements worldwide.
+        metadata_add:
+          score: n+3
+          critical_thinking: n+1
+        next_section_and_step: israelite_history:step_2
+      myth_understanding:
+        ai_feedback:
+          tokens_for_ai: Good understanding of foundation myths! Every culture has origin stories that define who they are. Historical accuracy matters less than the story's role in shaping identity.
+        metadata_add:
+          score: n+2
+        next_section_and_step: israelite_history:step_2
+      identity_focus:
+        ai_feedback:
+          tokens_for_ai: Important insight about identity! The Exodus story defines Jewish identity as a people freed from slavery. This narrative inspired countless later liberation movements.
+        metadata_add:
+          score: n+2
+          critical_thinking: n+1
+        next_section_and_step: israelite_history:step_2
+      troubled_by_historicity:
+        ai_feedback:
+          tokens_for_ai: I understand the concern. From a historical perspective, we can distinguish between literal factuality and cultural/historical significance. The Exodus story's impact on history is undeniable even if the events as described didn't occur.
+        metadata_add:
+          score: n+1
+        next_section_and_step: israelite_history:step_2
+      partial_understanding:
+        ai_feedback:
+          tokens_for_ai: 'Think about other foundation stories: George Washington and the cherry tree probably didn''t happen, but it expresses American values. Does that make it unimportant?'
+        metadata_add:
+          score: n+1
+        next_section_and_step: israelite_history:step_1
+      limited_effort:
         content_blocks:
-          - "## From Jewish Sect to Separate Religion"
-          - "**Initial Movement (30s-40s CE):**"
-          - "- Followers were Jews who believed Jesus was the messiah"
-          - "- Centered in Jerusalem"
-          - "- Followed Torah and Jewish practices"
-          - "- Expected Jesus' imminent return"
-          - ""
-          - "**Paul's Innovation (40s-60s CE):**"
-          - "- Took message to non-Jews (Gentiles)"
-          - "- Argued Gentiles didn't need to follow Jewish law (circumcision, kosher, etc.)"
-          - "- Christianity became accessible to broader population"
-          - ""
-          - "**Destruction of Jerusalem (70 CE):**"
-          - "- Romans destroy Temple after Jewish revolt"
-          - "- Jewish Christianity (Jerusalem-based) devastated"
-          - "- Gentile Christianity (Paul's version) continues to grow"
-          - ""
-          - "**By 100 CE:**"
-          - "- Christianity is mostly Gentile"
-          - "- Distinct from Judaism (though sharing scriptures)"
-          - "- Spreading throughout Roman Empire"
-          - ""
-          - "**Historical Irony:**"
-          - "A movement that began as Jewish messianism became predominantly non-Jewish within a generation."
-        question: "Why did Christianity transform from a Jewish movement expecting a political messiah to defeat Rome, into a religion focused on spiritual salvation that attracted Romans? What changed?"
-        tokens_for_ai: |
-          Looking for understanding of:
-          - Failed political messianic expectations (Jesus didn't defeat Rome)
-          - Theological reinterpretation after crucifixion
-          - Paul's innovations for Gentiles
-          - Adaptation after Temple destruction
-
-          Categorize as:
-          - sophisticated_transformation: Understands theological reinterpretation after failed political expectations
-          - paul_focus: Emphasizes Paul's role in adaptation
-          - gentile_appeal: Understands removal of barriers attracted non-Jews
-          - failed_expectations: Grasps need to reinterpret after Jesus didn't fulfill political messianism
-          - partial_understanding: General thoughts
-          - limited_effort: Very brief
-          - asking_clarifying_questions: Needs more info
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          Engage complex transformation. Jesus didn't defeat Rome (political messianism failed),
-          so followers reinterpreted: spiritual not political kingdom, suffering messiah, second
-          coming. Paul removed Jewish law requirements, making it accessible to Gentiles. Temple
-          destruction ended Jerusalem-based Jewish Christianity. This is one of history's great
-          religious transformations.
-        buckets:
-          - sophisticated_transformation
-          - paul_focus
-          - gentile_appeal
-          - failed_expectations
-          - partial_understanding
-          - limited_effort
-          - asking_clarifying_questions
-          - off_topic
-        transitions:
-          sophisticated_transformation:
-            ai_feedback:
-              tokens_for_ai: "Excellent analysis of religious transformation! Political messianic expectations failed (Jesus didn't defeat Rome), requiring theological reinterpretation: spiritual kingdom, suffering messiah, future return. This is sophisticated historical thinking."
-            metadata_add:
-              score: "n+3"
-              critical_thinking: "n+1"
-            next_section_and_step: "conclusion:step_1"
-          paul_focus:
-            ai_feedback:
-              tokens_for_ai: "Good focus on Paul's innovation! Removing requirements for Jewish law made Christianity accessible to Gentiles. This was crucial for its spread beyond Jewish communities."
-            metadata_add:
-              score: "n+2"
-            next_section_and_step: "conclusion:step_1"
-          gentile_appeal:
-            ai_feedback:
-              tokens_for_ai: "Important insight! Removing barriers (circumcision, kosher laws) allowed non-Jews to join without becoming fully Jewish. This opened Christianity to the wider Roman world."
-            metadata_add:
-              score: "n+2"
-              critical_thinking: "n+1"
-            next_section_and_step: "conclusion:step_1"
-          failed_expectations:
-            ai_feedback:
-              tokens_for_ai: "Good historical understanding! Jesus didn't fulfill political messianic expectations (defeating Rome), requiring reinterpretation of what 'messiah' meant. This theological creativity allowed the movement to survive."
-            metadata_add:
-              score: "n+2"
-            next_section_and_step: "conclusion:step_1"
-          partial_understanding:
-            ai_feedback:
-              tokens_for_ai: "Think about expectations: Jesus was executed, Rome wasn't defeated. How would followers reinterpret this? And why would Paul's version appeal to non-Jews?"
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: "conclusion:step_1"
-          limited_effort:
-            content_blocks:
-              - "Consider two factors: 1) Jesus didn't defeat Rome as expected, 2) Paul removed Jewish law requirements. How did these shape Christianity's transformation?"
-            next_section_and_step: "new_testament:step_2"
-          asking_clarifying_questions:
-            ai_feedback:
-              tokens_for_ai: "Answer their question about early Christianity, Paul, or religious transformation."
-            counts_as_attempt: false
-            next_section_and_step: "new_testament:step_2"
-          off_topic:
-            content_blocks:
-              - "Let's think about Christianity's transformation from Jewish sect to separate religion. What changed?"
-            next_section_and_step: "new_testament:step_2"
-
-  - section_id: "conclusion"
-    title: "Conclusion: Historical Thinking and Ancient Texts"
-    steps:
-      - step_id: "step_1"
-        title: "Reflecting on Biblical History"
+        - 'Consider: Can a story be important even if it''s not literally factual? Think about how stories shape group identity.'
+        next_section_and_step: israelite_history:step_1
+      asking_clarifying_questions:
+        ai_feedback:
+          tokens_for_ai: Answer their question about the Exodus, archaeology, or foundation myths.
+        counts_as_attempt: false
+        next_section_and_step: israelite_history:step_1
+      off_topic:
         content_blocks:
-          - "## Congratulations, Ancient Historian! 📜"
-          - "You've explored biblical history through archaeology, ancient texts, and cultural context."
-          - ""
-          - "**Key Historical Thinking Skills:**"
-          - "✓ **Contextualizing** - Understanding texts within their historical setting"
-          - "✓ **Archaeological Evidence** - Using material remains to understand the past"
-          - "✓ **Cultural Exchange** - Recognizing how cultures influence each other"
-          - "✓ **Foundation Myths** - Understanding role of stories in identity"
-          - "✓ **Crisis and Adaptation** - How challenges drive innovation"
-          - "✓ **Transformation** - Religions change in response to historical circumstances"
-          - ""
-          - "**Themes Across Biblical History:**"
-          - "- Geography shapes history and culture"
-          - "- Small nations between empires develop strong identities"
-          - "- Stories serve purposes beyond literal history"
-          - "- Crisis drives religious innovation"
-          - "- Religions transform in response to circumstances"
-          - ""
-          - "**Why Historical Study Matters:**"
-          - "- Understand ancient texts in context"
-          - "- Appreciate cultural complexity of the ancient world"
-          - "- See how religions develop and change"
-          - "- Apply critical thinking to historical sources"
-          - "- Recognize patterns of cultural adaptation"
-        question: "What's the most interesting historical insight you gained from this activity? How does understanding the historical context change how you read ancient texts?"
-        tokens_for_ai: |
-          Reflection on historical learning.
+        - Let's think about the Exodus story's significance. Can stories be important even if not literally historical?
+        next_section_and_step: israelite_history:step_1
+  - step_id: step_2
+    title: United Monarchy and Division
+    content_blocks:
+    - '## Kings David and Solomon'
+    - '**Biblical Account:**'
+    - '- David unites tribes into a kingdom (~1000 BCE)'
+    - '- Solomon builds the First Temple in Jerusalem (~950 BCE)'
+    - '- Kingdom splits after Solomon''s death into Israel (north) and Judah (south)'
+    - ''
+    - '**Archaeological Evidence:**'
+    - '- **Tel Dan Stele (9th century BCE):** Mentions ''House of David'' - first non-biblical reference to David'
+    - '- **Limited evidence** for Solomon''s temple or extensive building projects'
+    - '- **No evidence** of empire described in biblical text'
+    - '- **Evidence of division:** Northern kingdom (Israel) and southern kingdom (Judah) had different pottery, architecture, practices'
+    - ''
+    - '**Historical Reconstruction:**'
+    - '- David and Solomon likely existed as local chieftains'
+    - '- Later writers (during exile) expanded their stories into tales of a golden age'
+    - '- The ''united monarchy'' may have been more limited than biblical account suggests'
+    - ''
+    - '**Why Matters:**'
+    - After the Babylonian exile (586 BCE), Jews longed for restoration of the Davidic monarchy
+    - This hope shaped messianic expectations
+    question: Why might the biblical writers, writing during or after the Babylonian exile, have portrayed David and Solomon's kingdom as larger and more glorious than historical evidence suggests? What purpose would such an idealized past serve?
+    tokens_for_ai: 'Looking for understanding of:
 
-          Categorize as:
-          - specific_insight: Identifies particular historical insight
-          - contextual_understanding: Emphasizes importance of historical context
-          - thoughtful_reflection: Meaningful reflection on learning
-          - general_reflection: Broader thoughts
-          - limited_effort: Very brief
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          Provide thoughtful, personalized feedback on their historical journey. Acknowledge insights
-          they shared throughout. Emphasize that understanding historical context enriches our
-          reading of ancient texts - whether approaching them religiously, literarily, or historically.
-          Suggest areas for further exploration based on their interests.
-        buckets:
-          - specific_insight
-          - contextual_understanding
-          - thoughtful_reflection
-          - general_reflection
-          - limited_effort
-          - off_topic
-        transitions:
-          specific_insight:
-            ai_feedback:
-              tokens_for_ai: "Excellent specific insight! Affirm their learning and suggest related topics for further exploration."
-            metadata_add:
-              activity_completed: "true"
-            next_section_and_step: "conclusion:step_1"
-          contextual_understanding:
-            ai_feedback:
-              tokens_for_ai: "Great emphasis on historical context! This approach enriches understanding of any ancient text, religious or otherwise."
-            metadata_add:
-              activity_completed: "true"
-            next_section_and_step: "conclusion:step_1"
-          thoughtful_reflection:
-            ai_feedback:
-              tokens_for_ai: "Thoughtful reflection on historical learning! Encourage continued exploration of ancient history and archaeology."
-            metadata_add:
-              activity_completed: "true"
-            next_section_and_step: "conclusion:step_1"
-          general_reflection:
-            ai_feedback:
-              tokens_for_ai: "Thank them for engaging with biblical history. Suggest specific topics they might explore further."
-            metadata_add:
-              activity_completed: "true"
-            next_section_and_step: "conclusion:step_1"
-          limited_effort:
-            ai_feedback:
-              tokens_for_ai: "Acknowledge their completion and encourage them to continue exploring the ancient world."
-            metadata_add:
-              activity_completed: "true"
-            next_section_and_step: "conclusion:step_1"
-          off_topic:
-            content_blocks:
-              - "Reflect on your historical journey. What did you find most interesting about the ancient Near Eastern world?"
-            next_section_and_step: "conclusion:step_1"
+      - Writing in response to trauma/loss
+
+      - Idealized past as hope for future
+
+      - How suffering shapes memory
+
+      - Messianic hopes
+
+
+      Categorize as:
+
+      - sophisticated_analysis: Connects exile trauma to idealization of past
+
+      - hope_focus: Sees idealized past as source of hope
+
+      - identity_maintenance: Recognizes role in preserving identity during crisis
+
+      - literary_purpose: Understands narrative function
+
+      - partial_understanding: General thoughts
+
+      - limited_effort: Very brief
+
+      - asking_clarifying_questions: Needs more info
+
+      - off_topic: Unrelated
+
+      '
+    feedback_tokens_for_ai: 'Engage their thinking about trauma and memory. People in exile, having lost everything,
+
+      would remember a ''golden age'' and hope for its restoration. The idealized past provides
+
+      both identity and hope for the future. This shapes messianic expectations - hope for a
+
+      new David to restore the kingdom.
+
+      '
+    buckets:
+    - sophisticated_analysis
+    - hope_focus
+    - identity_maintenance
+    - literary_purpose
+    - partial_understanding
+    - limited_effort
+    - asking_clarifying_questions
+    - off_topic
+    transitions:
+      sophisticated_analysis:
+        ai_feedback:
+          tokens_for_ai: Excellent analysis of trauma and memory! In exile, an idealized past provides identity and hope for restoration. This shaped Jewish messianic expectations - longing for a new David.
+        metadata_add:
+          score: n+3
+          critical_thinking: n+1
+        next_section_and_step: exile_return:step_1
+      hope_focus:
+        ai_feedback:
+          tokens_for_ai: Important insight about hope! The golden age of David/Solomon became a vision for the future - restoration of past glory. This shaped centuries of messianic hope.
+        metadata_add:
+          score: n+2
+        next_section_and_step: exile_return:step_1
+      identity_maintenance:
+        ai_feedback:
+          tokens_for_ai: Good understanding of identity! In exile, remembering a glorious past helped maintain Jewish identity and hope when everything was lost.
+        metadata_add:
+          score: n+2
+          critical_thinking: n+1
+        next_section_and_step: exile_return:step_1
+      literary_purpose:
+        ai_feedback:
+          tokens_for_ai: Good literary analysis! The idealized monarchy served narrative and theological purposes - explaining why exile happened and what restoration might look like.
+        metadata_add:
+          score: n+2
+        next_section_and_step: exile_return:step_1
+      partial_understanding:
+        ai_feedback:
+          tokens_for_ai: Think about how people in crisis remember the past. If you've lost everything (exile), how might you remember 'the good old days'?
+        metadata_add:
+          score: n+1
+        next_section_and_step: exile_return:step_1
+      limited_effort:
+        content_blocks:
+        - 'Consider: if you''ve lost your homeland (exile), why might you idealize the past? What purpose would that serve?'
+        next_section_and_step: israelite_history:step_2
+      asking_clarifying_questions:
+        ai_feedback:
+          tokens_for_ai: Answer their question about David, Solomon, the exile, or idealized history.
+        counts_as_attempt: false
+        next_section_and_step: israelite_history:step_2
+      off_topic:
+        content_blocks:
+        - Let's think about the idealization of David and Solomon. Why would exiled people portray their past as more glorious?
+        next_section_and_step: israelite_history:step_2
+- section_id: exile_return
+  title: Exile, Return, and Second Temple Period
+  steps:
+  - step_id: step_1
+    title: Babylonian Exile
+    content_blocks:
+    - '## The Babylonian Exile (586-539 BCE)'
+    - '**Historical Events:**'
+    - '- 586 BCE: Babylonians destroy Jerusalem and Solomon''s Temple'
+    - '- Judah''s elite are exiled to Babylon'
+    - '- 539 BCE: Persians conquer Babylon'
+    - '- 538 BCE: Persian King Cyrus allows Jews to return'
+    - ''
+    - '**Why the Exile Was Transformative:**'
+    - ''
+    - '**Before Exile:**'
+    - '- Temple-centered worship in Jerusalem'
+    - '- Sacrifices performed by priests'
+    - '- David''s descendants ruled as kings'
+    - ''
+    - '**After Exile:**'
+    - '- Synagogues emerged (gathering places for prayer/study)'
+    - '- Torah (written law) became central'
+    - '- Scribes and rabbis gained importance'
+    - '- Monotheism became strictly defined'
+    - ''
+    - '**The Exile Forced Questions:**'
+    - '- Why did God allow Jerusalem to fall?'
+    - '- Can we worship God without the Temple?'
+    - '- What does it mean to be Jewish in foreign lands?'
+    - '- How do we maintain identity without a homeland?'
+    - ''
+    - '**Most of the Hebrew Bible was edited/compiled during or after the exile**'
+    - The experience of exile profoundly shaped how the Bible was written.
+    question: The Babylonian exile forced Judaism to transform from a temple-based, land-based religion to one that could survive without either. Why do you think this crisis led to such religious creativity rather than the religion's disappearance?
+    tokens_for_ai: 'Looking for understanding of:
+
+      - Crisis forcing adaptation
+
+      - Innovation from necessity
+
+      - Portable religion (Torah, synagogues)
+
+      - Identity maintenance in diaspora
+
+
+      Categorize as:
+
+      - sophisticated_analysis: Understands how crisis drives innovation
+
+      - adaptation_focus: Emphasizes flexibility and change
+
+      - portable_religion: Recognizes creation of non-territorial religion
+
+      - identity_focus: Sees response to threat of assimilation
+
+      - partial_understanding: General thoughts
+
+      - limited_effort: Very brief
+
+      - asking_clarifying_questions: Needs more info
+
+      - off_topic: Unrelated
+
+      '
+    feedback_tokens_for_ai: 'Engage their thinking about crisis and adaptation. The exile could have ended Judaism,
+
+      but instead sparked innovation: synagogues, written Torah, rabbis. This created a
+
+      portable religion that could survive anywhere. This is one of history''s great examples
+
+      of religious innovation in response to crisis.
+
+      '
+    buckets:
+    - sophisticated_analysis
+    - adaptation_focus
+    - portable_religion
+    - identity_focus
+    - partial_understanding
+    - limited_effort
+    - asking_clarifying_questions
+    - off_topic
+    transitions:
+      sophisticated_analysis:
+        ai_feedback:
+          tokens_for_ai: 'Excellent analysis of crisis and innovation! The exile threatened Judaism''s existence but sparked creativity: Torah, synagogues, and rabbis created a religion that could survive anywhere. This is a pivotal moment in religious history.'
+        metadata_add:
+          score: n+3
+          critical_thinking: n+1
+        next_section_and_step: new_testament:step_1
+      adaptation_focus:
+        ai_feedback:
+          tokens_for_ai: Good understanding of adaptation! Faced with the Temple's destruction, Judaism transformed rather than disappeared. This flexibility ensured survival.
+        metadata_add:
+          score: n+2
+        next_section_and_step: new_testament:step_1
+      portable_religion:
+        ai_feedback:
+          tokens_for_ai: Excellent insight! The exile created a 'portable' religion - Torah scrolls, synagogues, and practices that worked anywhere. This allowed Judaism to survive dispersal worldwide.
+        metadata_add:
+          score: n+2
+          critical_thinking: n+1
+        next_section_and_step: new_testament:step_1
+      identity_focus:
+        ai_feedback:
+          tokens_for_ai: Important point about identity! The threat of assimilation in Babylon forced Jews to define what made them distinctive - leading to emphasis on Torah and practices.
+        metadata_add:
+          score: n+2
+        next_section_and_step: new_testament:step_1
+      partial_understanding:
+        ai_feedback:
+          tokens_for_ai: Think about what Judaism needed to survive without Temple and land. What innovations made religion 'portable'?
+        metadata_add:
+          score: n+1
+        next_section_and_step: new_testament:step_1
+      limited_effort:
+        content_blocks:
+        - 'Consider: the Temple was destroyed, the land was lost. What changes would allow Judaism to survive anyway?'
+        next_section_and_step: exile_return:step_1
+      asking_clarifying_questions:
+        ai_feedback:
+          tokens_for_ai: Answer their question about the exile, religious innovation, or survival strategies.
+        counts_as_attempt: false
+        next_section_and_step: exile_return:step_1
+      off_topic:
+        content_blocks:
+        - Let's think about how the exile transformed Judaism. Why did crisis lead to innovation rather than disappearance?
+        next_section_and_step: exile_return:step_1
+- section_id: new_testament
+  title: The Roman Period and Early Christianity
+  steps:
+  - step_id: step_1
+    title: Roman Judea and Messianic Expectations
+    content_blocks:
+    - '## 1st Century CE: Roman Occupation'
+    - '**Historical Context:**'
+    - '- 63 BCE: Romans conquer Judea'
+    - '- Jews under foreign rule (again) - Romans, not Babylonians'
+    - '- Heavy taxation, political oppression'
+    - '- Various resistance movements'
+    - ''
+    - '**Diverse Jewish Groups (from historical sources):**'
+    - ''
+    - '**Pharisees:**'
+    - '- Emphasized Torah study and oral law'
+    - '- Believed in resurrection of the dead'
+    - '- Precursors to rabbinical Judaism'
+    - ''
+    - '**Sadducees:**'
+    - '- Priestly aristocracy controlling the Temple'
+    - '- Collaborated with Romans'
+    - '- Rejected resurrection belief'
+    - ''
+    - '**Essenes:**'
+    - '- Ascetic community in the desert (Dead Sea Scrolls)'
+    - '- Awaited apocalyptic end times'
+    - ''
+    - '**Zealots:**'
+    - '- Armed resistance against Rome'
+    - '- Eventually sparked the Jewish War (66-73 CE)'
+    - ''
+    - '**Messianic Expectations:**'
+    - 'Many Jews expected a messiah (anointed king) to:'
+    - '- Restore Davidic kingdom'
+    - '- Defeat the Romans'
+    - '- Rebuild/purify the Temple'
+    - '- Usher in God''s kingdom'
+    question: Jesus emerged in this context of Roman occupation and messianic hope. Why do you think his movement attracted followers but also led to his execution by Roman authorities?
+    tokens_for_ai: 'Looking for understanding of:
+
+      - Political context of messianic claims
+
+      - Rome''s view of potential revolutionaries
+
+      - Jewish diversity of expectations
+
+      - Crucifixion as political punishment
+
+
+      Categorize as:
+
+      - political_analysis: Understands political threat of messianic claims
+
+      - roman_perspective: Considers how Romans viewed such movements
+
+      - jewish_context: Situates Jesus within Jewish messianic expectations
+
+      - nuanced_understanding: Sees complexity of political/religious/social factors
+
+      - partial_understanding: General thoughts
+
+      - limited_effort: Very brief
+
+      - asking_clarifying_questions: Needs more info
+
+      - off_topic: Unrelated
+
+      '
+    feedback_tokens_for_ai: 'Engage historical context. Messianic claims were political threats to Rome (claiming
+
+      to be ''King of the Jews'' challenges Roman authority). Crucifixion was Roman punishment
+
+      for political rebels, not religious heretics. Jesus'' movement attracted followers
+
+      precisely because of messianic hopes, but this made him dangerous to authorities.
+
+      '
+    buckets:
+    - political_analysis
+    - roman_perspective
+    - jewish_context
+    - nuanced_understanding
+    - partial_understanding
+    - limited_effort
+    - asking_clarifying_questions
+    - off_topic
+    transitions:
+      political_analysis:
+        ai_feedback:
+          tokens_for_ai: Excellent political analysis! Messianic claims were inherently political - claiming to be 'King of the Jews' challenged Roman authority. Crucifixion was how Romans dealt with political rebels.
+        metadata_add:
+          score: n+3
+          critical_thinking: n+1
+        next_section_and_step: new_testament:step_2
+      roman_perspective:
+        ai_feedback:
+          tokens_for_ai: Good historical perspective! From Rome's viewpoint, anyone claiming to be a king/messiah was a potential revolutionary. Crucifixion sent a message about challenging Roman power.
+        metadata_add:
+          score: n+2
+        next_section_and_step: new_testament:step_2
+      jewish_context:
+        ai_feedback:
+          tokens_for_ai: Good contextualization! Jesus fit into existing Jewish messianic expectations - which is why he attracted followers - but also why authorities saw him as dangerous.
+        metadata_add:
+          score: n+2
+          critical_thinking: n+1
+        next_section_and_step: new_testament:step_2
+      nuanced_understanding:
+        ai_feedback:
+          tokens_for_ai: Sophisticated historical thinking! You understand the complex political, religious, and social factors that made Jesus' movement both attractive and threatening.
+        metadata_add:
+          score: n+3
+          critical_thinking: n+1
+        next_section_and_step: new_testament:step_2
+      partial_understanding:
+        ai_feedback:
+          tokens_for_ai: Think about the political context. What would Romans think of someone claiming to be 'King of the Jews'? How would they respond?
+        metadata_add:
+          score: n+1
+        next_section_and_step: new_testament:step_1
+      limited_effort:
+        content_blocks:
+        - 'Consider: Judea is under Roman occupation. Someone claims to be the ''King of the Jews.'' How would Rome view this?'
+        next_section_and_step: new_testament:step_1
+      asking_clarifying_questions:
+        ai_feedback:
+          tokens_for_ai: Answer their question about Roman Judea, messianic movements, or crucifixion.
+        counts_as_attempt: false
+        next_section_and_step: new_testament:step_1
+      off_topic:
+        content_blocks:
+        - Let's think about the political context. Why would messianic claims attract followers but threaten authorities?
+        next_section_and_step: new_testament:step_1
+  - step_id: step_2
+    title: Early Christianity's Transformation
+    content_blocks:
+    - '## From Jewish Sect to Separate Religion'
+    - '**Initial Movement (30s-40s CE):**'
+    - '- Followers were Jews who believed Jesus was the messiah'
+    - '- Centered in Jerusalem'
+    - '- Followed Torah and Jewish practices'
+    - '- Expected Jesus'' imminent return'
+    - ''
+    - '**Paul''s Innovation (40s-60s CE):**'
+    - '- Took message to non-Jews (Gentiles)'
+    - '- Argued Gentiles didn''t need to follow Jewish law (circumcision, kosher, etc.)'
+    - '- Christianity became accessible to broader population'
+    - ''
+    - '**Destruction of Jerusalem (70 CE):**'
+    - '- Romans destroy Temple after Jewish revolt'
+    - '- Jewish Christianity (Jerusalem-based) devastated'
+    - '- Gentile Christianity (Paul''s version) continues to grow'
+    - ''
+    - '**By 100 CE:**'
+    - '- Christianity is mostly Gentile'
+    - '- Distinct from Judaism (though sharing scriptures)'
+    - '- Spreading throughout Roman Empire'
+    - ''
+    - '**Historical Irony:**'
+    - A movement that began as Jewish messianism became predominantly non-Jewish within a generation.
+    question: Why did Christianity transform from a Jewish movement expecting a political messiah to defeat Rome, into a religion focused on spiritual salvation that attracted Romans? What changed?
+    tokens_for_ai: 'Looking for understanding of:
+
+      - Failed political messianic expectations (Jesus didn''t defeat Rome)
+
+      - Theological reinterpretation after crucifixion
+
+      - Paul''s innovations for Gentiles
+
+      - Adaptation after Temple destruction
+
+
+      Categorize as:
+
+      - sophisticated_transformation: Understands theological reinterpretation after failed political expectations
+
+      - paul_focus: Emphasizes Paul''s role in adaptation
+
+      - gentile_appeal: Understands removal of barriers attracted non-Jews
+
+      - failed_expectations: Grasps need to reinterpret after Jesus didn''t fulfill political messianism
+
+      - partial_understanding: General thoughts
+
+      - limited_effort: Very brief
+
+      - asking_clarifying_questions: Needs more info
+
+      - off_topic: Unrelated
+
+      '
+    feedback_tokens_for_ai: 'Engage complex transformation. Jesus didn''t defeat Rome (political messianism failed),
+
+      so followers reinterpreted: spiritual not political kingdom, suffering messiah, second
+
+      coming. Paul removed Jewish law requirements, making it accessible to Gentiles. Temple
+
+      destruction ended Jerusalem-based Jewish Christianity. This is one of history''s great
+
+      religious transformations.
+
+      '
+    buckets:
+    - sophisticated_transformation
+    - paul_focus
+    - gentile_appeal
+    - failed_expectations
+    - partial_understanding
+    - limited_effort
+    - asking_clarifying_questions
+    - off_topic
+    transitions:
+      sophisticated_transformation:
+        ai_feedback:
+          tokens_for_ai: 'Excellent analysis of religious transformation! Political messianic expectations failed (Jesus didn''t defeat Rome), requiring theological reinterpretation: spiritual kingdom, suffering messiah, future return. This is sophisticated historical thinking.'
+        metadata_add:
+          score: n+3
+          critical_thinking: n+1
+        next_section_and_step: conclusion:step_1
+      paul_focus:
+        ai_feedback:
+          tokens_for_ai: Good focus on Paul's innovation! Removing requirements for Jewish law made Christianity accessible to Gentiles. This was crucial for its spread beyond Jewish communities.
+        metadata_add:
+          score: n+2
+        next_section_and_step: conclusion:step_1
+      gentile_appeal:
+        ai_feedback:
+          tokens_for_ai: Important insight! Removing barriers (circumcision, kosher laws) allowed non-Jews to join without becoming fully Jewish. This opened Christianity to the wider Roman world.
+        metadata_add:
+          score: n+2
+          critical_thinking: n+1
+        next_section_and_step: conclusion:step_1
+      failed_expectations:
+        ai_feedback:
+          tokens_for_ai: Good historical understanding! Jesus didn't fulfill political messianic expectations (defeating Rome), requiring reinterpretation of what 'messiah' meant. This theological creativity allowed the movement to survive.
+        metadata_add:
+          score: n+2
+        next_section_and_step: conclusion:step_1
+      partial_understanding:
+        ai_feedback:
+          tokens_for_ai: 'Think about expectations: Jesus was executed, Rome wasn''t defeated. How would followers reinterpret this? And why would Paul''s version appeal to non-Jews?'
+        metadata_add:
+          score: n+1
+        next_section_and_step: conclusion:step_1
+      limited_effort:
+        content_blocks:
+        - 'Consider two factors: 1) Jesus didn''t defeat Rome as expected, 2) Paul removed Jewish law requirements. How did these shape Christianity''s transformation?'
+        next_section_and_step: new_testament:step_2
+      asking_clarifying_questions:
+        ai_feedback:
+          tokens_for_ai: Answer their question about early Christianity, Paul, or religious transformation.
+        counts_as_attempt: false
+        next_section_and_step: new_testament:step_2
+      off_topic:
+        content_blocks:
+        - Let's think about Christianity's transformation from Jewish sect to separate religion. What changed?
+        next_section_and_step: new_testament:step_2
+- section_id: conclusion
+  title: 'Conclusion: Historical Thinking and Ancient Texts'
+  steps:
+  - step_id: step_1
+    title: Reflecting on Biblical History
+    content_blocks:
+    - '## Congratulations, Ancient Historian! 📜'
+    - You've explored biblical history through archaeology, ancient texts, and cultural context.
+    - ''
+    - '**Key Historical Thinking Skills:**'
+    - ✓ **Contextualizing** - Understanding texts within their historical setting
+    - ✓ **Archaeological Evidence** - Using material remains to understand the past
+    - ✓ **Cultural Exchange** - Recognizing how cultures influence each other
+    - ✓ **Foundation Myths** - Understanding role of stories in identity
+    - ✓ **Crisis and Adaptation** - How challenges drive innovation
+    - ✓ **Transformation** - Religions change in response to historical circumstances
+    - ''
+    - '**Themes Across Biblical History:**'
+    - '- Geography shapes history and culture'
+    - '- Small nations between empires develop strong identities'
+    - '- Stories serve purposes beyond literal history'
+    - '- Crisis drives religious innovation'
+    - '- Religions transform in response to circumstances'
+    - ''
+    - '**Why Historical Study Matters:**'
+    - '- Understand ancient texts in context'
+    - '- Appreciate cultural complexity of the ancient world'
+    - '- See how religions develop and change'
+    - '- Apply critical thinking to historical sources'
+    - '- Recognize patterns of cultural adaptation'
+    question: What's the most interesting historical insight you gained from this activity? How does understanding the historical context change how you read ancient texts?
+    tokens_for_ai: 'Reflection on historical learning.
+
+
+      Categorize as:
+
+      - specific_insight: Identifies particular historical insight
+
+      - contextual_understanding: Emphasizes importance of historical context
+
+      - thoughtful_reflection: Meaningful reflection on learning
+
+      - general_reflection: Broader thoughts
+
+      - limited_effort: Very brief
+
+      - off_topic: Unrelated
+
+      '
+    feedback_tokens_for_ai: 'Provide thoughtful, personalized feedback on their historical journey. Acknowledge insights
+
+      they shared throughout. Emphasize that understanding historical context enriches our
+
+      reading of ancient texts - whether approaching them religiously, literarily, or historically.
+
+      Suggest areas for further exploration based on their interests.
+
+      '
+    buckets:
+    - specific_insight
+    - contextual_understanding
+    - thoughtful_reflection
+    - general_reflection
+    - limited_effort
+    - off_topic
+    transitions:
+      specific_insight:
+        ai_feedback:
+          tokens_for_ai: Excellent specific insight! Affirm their learning and suggest related topics for further exploration.
+        metadata_add:
+          activity_completed: 'true'
+      contextual_understanding:
+        ai_feedback:
+          tokens_for_ai: Great emphasis on historical context! This approach enriches understanding of any ancient text, religious or otherwise.
+        metadata_add:
+          activity_completed: 'true'
+      thoughtful_reflection:
+        ai_feedback:
+          tokens_for_ai: Thoughtful reflection on historical learning! Encourage continued exploration of ancient history and archaeology.
+        metadata_add:
+          activity_completed: 'true'
+      general_reflection:
+        ai_feedback:
+          tokens_for_ai: Thank them for engaging with biblical history. Suggest specific topics they might explore further.
+        metadata_add:
+          activity_completed: 'true'
+      limited_effort:
+        ai_feedback:
+          tokens_for_ai: Acknowledge their completion and encourage them to continue exploring the ancient world.
+        metadata_add:
+          activity_completed: 'true'
+      off_topic:
+        content_blocks:
+        - Reflect on your historical journey. What did you find most interesting about the ancient Near Eastern world?
+        next_section_and_step: conclusion:step_1
