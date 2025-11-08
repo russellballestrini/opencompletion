@@ -43,6 +43,12 @@ class TestFlaskAppActivityFunctions(unittest.TestCase):
         self.app_context = app.app.app_context()
         self.app_context.push()
 
+        # Re-initialize db with test config to use in-memory database
+        try:
+            db.drop_all()
+        except Exception:
+            pass
+
         # Initialize database
         db.create_all()
 
