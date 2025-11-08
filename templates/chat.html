@@ -1276,7 +1276,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
         resultsContainer.classList.add('code-execution-results');
         resultsContainer.style.marginTop = '10px';
         resultsContainer.style.padding = '10px';
-        resultsContainer.style.backgroundColor = '#f0f0f0';
+        resultsContainer.style.backgroundColor = 'var(--bg-code)';
         resultsContainer.style.borderRadius = '5px';
         resultsContainer.style.fontFamily = 'monospace';
         resultsContainer.style.fontSize = '14px';
@@ -1288,7 +1288,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
     }
 
     // Clear previous results
-    resultsContainer.innerHTML = '<div style="color: #666;">Executing code...</div>';
+    resultsContainer.innerHTML = '<div style="color: var(--text-muted);">Executing code...</div>';
 
     try {
         // Try to detect language from the code block's class
@@ -1338,7 +1338,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
             cancelButton.style.display = 'none';
             cancelButton.style.marginTop = '8px';
             cancelButton.style.padding = '4px 8px';
-            cancelButton.style.backgroundColor = '#cc0000';
+            cancelButton.style.backgroundColor = 'var(--button-danger)';
             cancelButton.style.color = 'white';
             cancelButton.style.border = 'none';
             cancelButton.style.borderRadius = '3px';
@@ -1382,10 +1382,10 @@ async function executeCodeBlock(code, blockElement, playButton) {
                 const errorMsg = job.result?.error || 'Execution failed';
                 const partialOutput = job.result?.partial_output;
 
-                let outputHtml = `<div style="color: #cc0000; font-weight: bold;">${escapeHtml(errorMsg)}</div>`;
+                let outputHtml = `<div style="color: var(--text-error); font-weight: bold;">${escapeHtml(errorMsg)}</div>`;
                 if (partialOutput) {
-                    outputHtml += '<div style="color: #666; margin-top: 8px;">Partial output before timeout:</div>';
-                    outputHtml += `<div style="color: #333; margin-left: 10px;">${escapeHtml(partialOutput)}</div>`;
+                    outputHtml += '<div style="color: var(--text-muted); margin-top: 8px;">Partial output before timeout:</div>';
+                    outputHtml += `<div style="color: var(--text-primary); margin-left: 10px;">${escapeHtml(partialOutput)}</div>`;
                 }
                 resultsContainer.innerHTML = outputHtml;
                 break;
@@ -1400,7 +1400,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
 
     } catch (error) {
         console.error('Error executing code:', error);
-        resultsContainer.innerHTML = `<div style="color: #cc0000;">Error: ${escapeHtml(error.message)}</div>`;
+        resultsContainer.innerHTML = `<div style="color: var(--text-error);">Error: ${escapeHtml(error.message)}</div>`;
     } finally {
         // Reset button state
         playButton.textContent = '▶ Run';
@@ -1430,24 +1430,24 @@ function displayExecutionResults(result, resultsContainer, language) {
 
     // Show language
     if (language) {
-        outputHtml += `<div style="color: #0066cc; margin-bottom: 8px;">Language: ${language}</div>`;
+        outputHtml += `<div style="color: var(--text-info); margin-bottom: 8px;">Language: ${language}</div>`;
     }
 
     // Show stdout
     if (actualStdout) {
-        outputHtml += '<div style="color: #008800; font-weight: bold;">Output:</div>';
-        outputHtml += `<div style="color: #333; margin-left: 10px;">${escapeHtml(actualStdout)}</div>`;
+        outputHtml += '<div style="color: var(--text-success); font-weight: bold;">Output:</div>';
+        outputHtml += `<div style="color: var(--text-primary); margin-left: 10px;">${escapeHtml(actualStdout)}</div>`;
     }
 
     // Show stderr if present
     if (actualStderr) {
-        outputHtml += '<div style="color: #cc0000; font-weight: bold; margin-top: 8px;">Errors/Warnings:</div>';
-        outputHtml += `<div style="color: #cc0000; margin-left: 10px;">${escapeHtml(actualStderr)}</div>`;
+        outputHtml += '<div style="color: var(--text-error); font-weight: bold; margin-top: 8px;">Errors/Warnings:</div>';
+        outputHtml += `<div style="color: var(--text-error); margin-left: 10px;">${escapeHtml(actualStderr)}</div>`;
     }
 
     // If no output at all
     if (!actualStdout && !actualStderr) {
-        outputHtml += '<div style="color: #666;">(No output produced)</div>';
+        outputHtml += '<div style="color: var(--text-muted);">(No output produced)</div>';
     }
 
     resultsContainer.innerHTML = outputHtml;
