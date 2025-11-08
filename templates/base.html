@@ -45,6 +45,11 @@
         --text-primary: #000000;
         --text-secondary: #495057;
         --text-muted: #666;
+        --text-info: #0066cc;
+        --text-success: #008800;
+        --text-error: #cc0000;
+        --link-color: #0066cc;
+        --link-hover: #004499;
         --border-color: #e1e1e1;
         --border-color-dark: #ced4da;
         --border-code: #ccc;
@@ -69,6 +74,11 @@
         --text-primary: #e0e0e0;
         --text-secondary: #b0b0b0;
         --text-muted: #888;
+        --text-info: #4da3ff;
+        --text-success: #5fcc5f;
+        --text-error: #ff6b6b;
+        --link-color: #58a6ff;
+        --link-hover: #79b8ff;
         --border-color: #404040;
         --border-color-dark: #4a4a4a;
         --border-code: #555;
@@ -317,11 +327,26 @@
         transition: background-color 0.3s ease, border-color 0.3s ease;
     }
 
+    /* General link styling */
+    a {
+        color: var(--link-color);
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    a:hover {
+        color: var(--link-hover);
+        text-decoration: underline;
+    }
+
     /* Styling for links in the rooms list */
     #rooms-list a {
-        text-decoration: none; /* Optional: Removes underline from links */
-        color: var(--text-primary); /* Ensures link color matches the text color */
+        color: var(--link-color);
         transition: color 0.3s ease;
+    }
+
+    #rooms-list a:hover {
+        color: var(--link-hover);
     }
 
     .hljs {
