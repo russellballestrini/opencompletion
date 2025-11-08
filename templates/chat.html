@@ -1140,9 +1140,43 @@ function truncateCodeBlock(block, maxLines = 100) {
         const truncatedText = lines.slice(0, maxLines).join('\n') + '\n...';
         block.textContent = truncatedText;
 
-        // Create a button to expand the code block
+        // Create a container for bottom buttons
+        const bottomButtonContainer = document.createElement('div');
+        bottomButtonContainer.classList.add('code-block-bottom-buttons');
+        bottomButtonContainer.style.display = 'flex';
+        bottomButtonContainer.style.gap = '8px';
+        bottomButtonContainer.style.marginTop = '8px';
+
+        // Create the expand button
         const expandButton = document.createElement('button');
         expandButton.textContent = 'Show More';
+        expandButton.classList.add('show-more-button');
+
+        // Create bottom copy button
+        const bottomCopyButton = document.createElement('button');
+        bottomCopyButton.textContent = 'Copy';
+        bottomCopyButton.classList.add('copy-button');
+        bottomCopyButton.onclick = function() {
+            const contentToCopy = block.dataset.fullContent || block.textContent;
+            navigator.clipboard.writeText(contentToCopy).then(() => {
+                bottomCopyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    bottomCopyButton.textContent = 'Copy';
+                }, 2000);
+            }).catch(err => {
+                console.error('Error copying text: ', err);
+            });
+        };
+
+        // Create bottom run button
+        const bottomPlayButton = document.createElement('button');
+        bottomPlayButton.textContent = '▶ Run';
+        bottomPlayButton.classList.add('play-button');
+        bottomPlayButton.onclick = function() {
+            const contentToRun = block.dataset.fullContent || block.textContent;
+            executeCodeBlock(contentToRun, block, bottomPlayButton);
+        };
+
         expandButton.onclick = function() {
             // Restore the full content from the data attribute
             block.textContent = block.dataset.fullContent;
@@ -1167,8 +1201,13 @@ function truncateCodeBlock(block, maxLines = 100) {
         // Keep a reference to the original expand function
         const originalExpandFunction = expandButton.onclick;
 
-        // Insert the expand button after the code block
-        block.parentNode.insertBefore(expandButton, block.nextSibling);
+        // Add all buttons to container
+        bottomButtonContainer.appendChild(expandButton);
+        bottomButtonContainer.appendChild(bottomCopyButton);
+        bottomButtonContainer.appendChild(bottomPlayButton);
+
+        // Insert the button container after the code block
+        block.parentNode.insertBefore(bottomButtonContainer, block.nextSibling);
     }
 }
 
@@ -1262,8 +1301,8 @@ async function executeCodeBlock(code, blockElement, playButton) {
             language = 'python';
         }
 
-        // Use /execute endpoint with specified or default language
-        const response = await fetch(`${CODE_EXEC_URL}/execute`, {
+        // Use /execute/async endpoint with polling
+        const asyncResponse = await fetch(`${CODE_EXEC_URL}/execute/async`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1274,54 +1313,85 @@ async function executeCodeBlock(code, blockElement, playButton) {
             })
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        if (!asyncResponse.ok) {
+            throw new Error(`HTTP error! status: ${asyncResponse.status}`);
         }
 
-        const result = await response.json();
+        const { job_id } = await asyncResponse.json();
 
-        // Format and display results
-        let outputHtml = '';
+        // Poll for results: 300ms, 750ms, 1450ms, 2350ms, 3000ms, 4600ms, 6600ms+
+        const delays = [300, 450, 700, 900, 650, 1600, 2000];
+        let pollCount = 0;
+        let cancelButtonShown = false;
 
-        // Handle nested response structure - check if stdout is an object with nested data
-        let actualStdout = result.stdout;
-        let actualStderr = result.stderr;
-
-        // If stdout is an object (nested response), extract the actual stdout/stderr
-        if (typeof result.stdout === 'object' && result.stdout !== null) {
-            actualStdout = result.stdout.stdout || '';
-            actualStderr = result.stdout.stderr || '';
+        // Create cancel button (hidden initially)
+        let cancelButton = resultsContainer.querySelector('.cancel-execution-btn');
+        if (!cancelButton) {
+            cancelButton = document.createElement('button');
+            cancelButton.textContent = 'Cancel';
+            cancelButton.classList.add('cancel-execution-btn');
+            cancelButton.style.display = 'none';
+            cancelButton.style.marginTop = '8px';
+            cancelButton.style.padding = '4px 8px';
+            cancelButton.style.backgroundColor = '#cc0000';
+            cancelButton.style.color = 'white';
+            cancelButton.style.border = 'none';
+            cancelButton.style.borderRadius = '3px';
+            cancelButton.style.cursor = 'pointer';
+            cancelButton.onclick = async () => {
+                try {
+                    await fetch(`${CODE_EXEC_URL}/jobs/${job_id}`, { method: 'DELETE' });
+                    cancelButton.disabled = true;
+                    cancelButton.textContent = 'Cancelling...';
+                } catch (error) {
+                    console.error('Error cancelling job:', error);
+                }
+            };
+            resultsContainer.appendChild(cancelButton);
         }
 
-        // Show language
-        if (result.language) {
-            outputHtml += `<div style="color: #0066cc; margin-bottom: 8px;">Language: ${result.language}</div>`;
-        }
+        while (true) {
+            await sleep(delays[Math.min(pollCount, delays.length - 1)]);
+            pollCount++;
 
-        if (result.success) {
-            // Show stdout
-            if (actualStdout) {
-                outputHtml += '<div style="color: #008800; font-weight: bold;">Output:</div>';
-                outputHtml += `<div style="color: #333; margin-left: 10px;">${escapeHtml(actualStdout)}</div>`;
+            const jobResponse = await fetch(`${CODE_EXEC_URL}/jobs/${job_id}`);
+            if (!jobResponse.ok) {
+                throw new Error(`Failed to fetch job status: ${jobResponse.status}`);
             }
 
-            // Show stderr if present
-            if (actualStderr) {
-                outputHtml += '<div style="color: #cc0000; font-weight: bold; margin-top: 8px;">Errors/Warnings:</div>';
-                outputHtml += `<div style="color: #cc0000; margin-left: 10px;">${escapeHtml(actualStderr)}</div>`;
+            const job = await jobResponse.json();
+
+            if (job.status !== 'pending' && job.status !== 'running') {
+                // Job finished - hide cancel button
+                if (cancelButton) {
+                    cancelButton.style.display = 'none';
+                }
+
+                if (job.status === 'completed') {
+                    const result = job.result;
+                    displayExecutionResults(result, resultsContainer, language);
+                    break;
+                }
+
+                // timeout or cancelled
+                const errorMsg = job.result?.error || 'Execution failed';
+                const partialOutput = job.result?.partial_output;
+
+                let outputHtml = `<div style="color: #cc0000; font-weight: bold;">${escapeHtml(errorMsg)}</div>`;
+                if (partialOutput) {
+                    outputHtml += '<div style="color: #666; margin-top: 8px;">Partial output before timeout:</div>';
+                    outputHtml += `<div style="color: #333; margin-left: 10px;">${escapeHtml(partialOutput)}</div>`;
+                }
+                resultsContainer.innerHTML = outputHtml;
+                break;
             }
 
-            // If no output at all
-            if (!actualStdout && !actualStderr) {
-                outputHtml += '<div style="color: #666;">(No output produced)</div>';
+            // Show cancel button after poll #5 (3000ms) if still running
+            if (!cancelButtonShown && pollCount === 5) {
+                cancelButtonShown = true;
+                cancelButton.style.display = 'inline-block';
             }
-        } else {
-            // Execution failed
-            outputHtml += '<div style="color: #cc0000; font-weight: bold;">Execution Failed:</div>';
-            outputHtml += `<div style="color: #cc0000; margin-left: 10px;">${escapeHtml(result.error || result.stderr || 'Unknown error')}</div>`;
         }
-
-        resultsContainer.innerHTML = outputHtml;
 
     } catch (error) {
         console.error('Error executing code:', error);
@@ -1331,6 +1401,51 @@ async function executeCodeBlock(code, blockElement, playButton) {
         playButton.textContent = '▶ Run';
         playButton.disabled = false;
     }
+}
+
+// Helper function to sleep
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Helper function to display execution results
+function displayExecutionResults(result, resultsContainer, language) {
+    // Format and display results
+    let outputHtml = '';
+
+    // Handle nested response structure - check if stdout is an object with nested data
+    let actualStdout = result.stdout;
+    let actualStderr = result.stderr;
+
+    // If stdout is an object (nested response), extract the actual stdout/stderr
+    if (typeof result.stdout === 'object' && result.stdout !== null) {
+        actualStdout = result.stdout.stdout || '';
+        actualStderr = result.stdout.stderr || '';
+    }
+
+    // Show language
+    if (language) {
+        outputHtml += `<div style="color: #0066cc; margin-bottom: 8px;">Language: ${language}</div>`;
+    }
+
+    // Show stdout
+    if (actualStdout) {
+        outputHtml += '<div style="color: #008800; font-weight: bold;">Output:</div>';
+        outputHtml += `<div style="color: #333; margin-left: 10px;">${escapeHtml(actualStdout)}</div>`;
+    }
+
+    // Show stderr if present
+    if (actualStderr) {
+        outputHtml += '<div style="color: #cc0000; font-weight: bold; margin-top: 8px;">Errors/Warnings:</div>';
+        outputHtml += `<div style="color: #cc0000; margin-left: 10px;">${escapeHtml(actualStderr)}</div>`;
+    }
+
+    // If no output at all
+    if (!actualStdout && !actualStderr) {
+        outputHtml += '<div style="color: #666;">(No output produced)</div>';
+    }
+
+    resultsContainer.innerHTML = outputHtml;
 }
 
 // Helper function to escape HTML
