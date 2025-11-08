@@ -143,16 +143,36 @@ def get_openai_client_and_model(
             model_num = model_name.split("_")[1]
             endpoint_key = f"MODEL_ENDPOINT_{model_num}"
             api_key_key = f"MODEL_API_KEY_{model_num}"
-            model_name_key = f"MODEL_NAME_{model_num}"
 
             endpoint = os.environ.get(endpoint_key)
             api_key = os.environ.get(api_key_key)
 
             if endpoint and api_key:
                 client = get_client_for_endpoint(endpoint, api_key)
-                # Get the actual model name from environment, or use sensible default
-                actual_model = os.environ.get(model_name_key, "model")
-                return client, actual_model
+
+                # Look up actual model name from MODEL_CLIENT_MAP for this endpoint
+                actual_model = None
+                for model_id, (registered_client, base_url) in MODEL_CLIENT_MAP.items():
+                    if base_url == endpoint:
+                        actual_model = model_id
+                        break
+
+                if actual_model:
+                    return client, actual_model
+                else:
+                    # Fallback: query endpoint for models if not in map yet
+                    try:
+                        response = client.models.list()
+                        if response.data:
+                            actual_model = response.data[0].id
+                            print(f"[DEBUG] Using first model from {endpoint}: {actual_model}")
+                            return client, actual_model
+                    except Exception as e:
+                        print(f"Warning: Could not query models from {endpoint}: {e}")
+
+                    # Final fallback
+                    print(f"Warning: No models found for {endpoint}, using 'model' as fallback")
+                    return client, "model"
             else:
                 print(f"Warning: MODEL_{model_num} not configured ({endpoint_key} or {api_key_key} missing)")
                 # Fall back to default model

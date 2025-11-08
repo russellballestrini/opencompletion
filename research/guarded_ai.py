@@ -29,8 +29,17 @@ def initialize_model_map():
         if endpoint and api_key:
             try:
                 client = get_client_for_endpoint(endpoint, api_key)
-                # Try to get models (simplified - just register endpoint)
-                MODEL_CLIENT_MAP[f"endpoint_{i}"] = (client, endpoint)
+                # Query endpoint for available models
+                try:
+                    response = client.models.list()
+                    model_list = response.data
+                    print(f"[DEBUG] {endpoint} returned models: {[m.id for m in model_list]}")
+                    for m in model_list:
+                        model_id = m.id
+                        if model_id and model_id not in MODEL_CLIENT_MAP:
+                            MODEL_CLIENT_MAP[model_id] = (client, endpoint)
+                except Exception as e:
+                    print(f"Warning: Could not list models for endpoint '{endpoint}': {e}")
             except Exception as e:
                 print(f"Warning: Failed to initialize endpoint {endpoint}: {e}")
 
@@ -48,16 +57,36 @@ def get_openai_client_and_model(model_name=None):
             model_num = model_name.split("_")[1]
             endpoint_key = f"MODEL_ENDPOINT_{model_num}"
             api_key_key = f"MODEL_API_KEY_{model_num}"
-            model_name_key = f"MODEL_NAME_{model_num}"
 
             endpoint = os.getenv(endpoint_key)
             api_key = os.getenv(api_key_key)
 
             if endpoint and api_key:
                 client = get_client_for_endpoint(endpoint, api_key)
-                # Get the actual model name from environment, or use sensible default
-                actual_model = os.getenv(model_name_key) or "model"
-                return client, actual_model
+
+                # Look up actual model name from MODEL_CLIENT_MAP for this endpoint
+                actual_model = None
+                for model_id, (registered_client, base_url) in MODEL_CLIENT_MAP.items():
+                    if base_url == endpoint:
+                        actual_model = model_id
+                        break
+
+                if actual_model:
+                    return client, actual_model
+                else:
+                    # Fallback: query endpoint for models if not in map yet
+                    try:
+                        response = client.models.list()
+                        if response.data:
+                            actual_model = response.data[0].id
+                            print(f"[DEBUG] Using first model from {endpoint}: {actual_model}")
+                            return client, actual_model
+                    except Exception as e:
+                        print(f"Warning: Could not query models from {endpoint}: {e}")
+
+                    # Final fallback
+                    print(f"Warning: No models found for {endpoint}, using 'model' as fallback")
+                    return client, "model"
         except Exception as e:
             print(f"Warning: Failed to load {model_name}: {e}, falling back to default")
 
