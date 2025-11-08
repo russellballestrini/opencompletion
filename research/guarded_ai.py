@@ -48,14 +48,15 @@ def get_openai_client_and_model(model_name=None):
             model_num = model_name.split("_")[1]
             endpoint_key = f"MODEL_ENDPOINT_{model_num}"
             api_key_key = f"MODEL_API_KEY_{model_num}"
+            model_name_key = f"MODEL_NAME_{model_num}"
 
             endpoint = os.getenv(endpoint_key)
             api_key = os.getenv(api_key_key)
 
             if endpoint and api_key:
                 client = get_client_for_endpoint(endpoint, api_key)
-                # Use a simple default model name for the endpoint
-                actual_model = "model"  # Most endpoints use "model" or ignore this
+                # Get the actual model name from environment, or use sensible default
+                actual_model = os.getenv(model_name_key) or "model"
                 return client, actual_model
         except Exception as e:
             print(f"Warning: Failed to load {model_name}: {e}, falling back to default")

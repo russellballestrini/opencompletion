@@ -128,15 +128,20 @@ Models are configured via environment variables in `vars.sh`:
 # MODEL_1 - Hermes (always available, default)
 export MODEL_ENDPOINT_1=http://localhost:8080/v1
 export MODEL_API_KEY_1=your-api-key
+export MODEL_NAME_1=model  # Optional: actual model name for the endpoint
 
 # MODEL_2 - Additional model (optional)
 export MODEL_ENDPOINT_2=http://localhost:8081/v1
 export MODEL_API_KEY_2=your-api-key
+export MODEL_NAME_2=gpt-4  # Optional: specify deployment/model name
 
 # MODEL_3 - Qwen3-Coder (recommended for programming)
 export MODEL_ENDPOINT_3=http://localhost:8082/v1
 export MODEL_API_KEY_3=your-api-key
+export MODEL_NAME_3=model  # Optional: defaults to "model" if not specified
 ```
+
+**Note**: `MODEL_NAME_{n}` is optional and defaults to `"model"`. Some endpoints (like Azure OpenAI) require the actual deployment name - set this variable for those cases.
 
 **Example: Programming Activity**
 

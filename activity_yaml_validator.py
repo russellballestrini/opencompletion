@@ -687,10 +687,10 @@ class ActivityYAMLValidator:
 
                 for bucket, transition in step["transitions"].items():
                     if "metadata_feedback_filter" in transition:
-                        # Check if step has feedback_tokens_for_ai
-                        if "feedback_tokens_for_ai" not in step:
+                        # Check if step has feedback_tokens_for_ai or feedback_prompts
+                        if "feedback_tokens_for_ai" not in step and "feedback_prompts" not in step:
                             self.warnings.append(
-                                f"Section {section_id}, step {step_id}: metadata_feedback_filter used but no feedback_tokens_for_ai defined"
+                                f"Section {section_id}, step {step_id}: metadata_feedback_filter used but no feedback_tokens_for_ai or feedback_prompts defined"
                             )
 
     def _validate_pre_scripts(self, data: Dict[str, Any]):
