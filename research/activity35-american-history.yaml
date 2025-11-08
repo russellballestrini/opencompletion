@@ -1,0 +1,713 @@
+default_max_attempts_per_step: 3
+
+tokens_for_ai_rubric: |
+  Evaluate the student's understanding of American history and historical thinking.
+  Consider:
+  - Their grasp of historical cause and effect
+  - Ability to analyze primary sources
+  - Understanding of multiple perspectives
+  - Critical thinking about historical events
+  - Connection of past events to present issues
+
+  Provide encouraging feedback and suggest areas for deeper historical exploration.
+
+sections:
+  - section_id: "introduction"
+    title: "Welcome to American History"
+    steps:
+      - step_id: "welcome"
+        title: "Welcome, Historian"
+        content_blocks:
+          - "# American History: A Critical Journey 🇺🇸"
+          - "Welcome to an exploration of American history that goes beyond dates and names."
+          - ""
+          - "**In this journey, you'll:**"
+          - "- Analyze primary sources from different historical periods"
+          - "- Examine cause and effect in historical events"
+          - "- Consider multiple perspectives and viewpoints"
+          - "- Think critically about America's founding principles and their evolution"
+          - "- Connect historical events to contemporary issues"
+          - ""
+          - "**This is advanced history:**"
+          - "You'll be challenged to think like a historian - questioning sources, understanding context, and forming evidence-based conclusions."
+          - ""
+          - "Ready to dive deep into American history?"
+        question: "Are you ready to explore American history through critical thinking and primary sources?"
+        tokens_for_ai: |
+          Student expressing readiness.
+
+          Categorize as:
+          - ready: Positive, ready to begin
+          - set_language: Setting language preference
+          - off_topic: Unrelated
+        buckets:
+          - ready
+          - set_language
+          - off_topic
+        transitions:
+          ready:
+            content_blocks:
+              - "Excellent! Let's begin with the foundations of American democracy."
+            metadata_add:
+              period: "colonial"
+            next_section_and_step: "founding_principles:step_1"
+          set_language:
+            content_blocks:
+              - "I'll communicate in your preferred language."
+            counts_as_attempt: false
+            next_section_and_step: "introduction:welcome"
+          off_topic:
+            content_blocks:
+              - "Let's begin our historical journey. Are you ready to explore American history?"
+            counts_as_attempt: false
+            next_section_and_step: "introduction:welcome"
+
+  - section_id: "founding_principles"
+    title: "Founding Principles and the Constitution"
+    steps:
+      - step_id: "step_1"
+        title: "The Social Contract"
+        content_blocks:
+          - "## Philosophical Foundations 📜"
+          - "The American founders were heavily influenced by Enlightenment philosophy, particularly John Locke's ideas about natural rights and the social contract."
+          - ""
+          - "**Key Enlightenment Ideas:**"
+          - "- **Natural Rights:** Locke argued that people have inherent rights to life, liberty, and property"
+          - "- **Social Contract:** Government's authority comes from the consent of the governed"
+          - "- **Right to Revolution:** If government violates natural rights, people can overthrow it"
+          - ""
+          - "**From the Declaration of Independence (1776):**"
+          - "_'We hold these truths to be self-evident, that all men are created equal, that they are endowed by their Creator with certain unalienable Rights, that among these are Life, Liberty and the pursuit of Happiness.'_"
+          - ""
+          - "**Critical Question:**"
+          - "The Declaration states 'all men are created equal' - yet slavery existed, women couldn't vote, and Native Americans were displaced."
+        question: "How do you reconcile the contradiction between the Declaration's ideals of equality and the reality of 1776 America? What does this tell us about the founding period?"
+        tokens_for_ai: |
+          This is a sophisticated question about contradiction between ideals and reality. Look for:
+          - Recognition of the contradiction/hypocrisy
+          - Understanding of historical context (norms of the time)
+          - Nuanced thinking (ideals as aspirational vs. complete hypocrisy)
+          - Consideration of whose perspectives were included/excluded
+
+          Categorize as:
+          - sophisticated_analysis: Nuanced understanding of contradiction, historical context, and evolution of ideals
+          - recognizes_hypocrisy: Sees the contradiction clearly but may not fully analyze it
+          - contextualizes: Focuses on historical context ("people thought differently then")
+          - partial_understanding: General thoughts but incomplete analysis
+          - limited_effort: Very brief
+          - asking_clarifying_questions: Needs more information
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Engage with their analysis thoughtfully. If they note the hypocrisy, affirm that recognition
+          and discuss how the ideals in the Declaration became tools for excluded groups (abolitionists,
+          suffragists, civil rights activists) to demand rights. If they only contextualize, acknowledge
+          historical context while noting that the contradiction was recognized even then by some.
+        buckets:
+          - sophisticated_analysis
+          - recognizes_hypocrisy
+          - contextualizes
+          - partial_understanding
+          - limited_effort
+          - asking_clarifying_questions
+          - off_topic
+        transitions:
+          sophisticated_analysis:
+            ai_feedback:
+              tokens_for_ai: "Excellent historical thinking! Discuss how the Declaration's ideals became 'promissory notes' that future movements would claim. Mention Frederick Douglass's 1852 speech."
+            metadata_add:
+              score: "n+3"
+              critical_thinking: "n+1"
+            next_section_and_step: "founding_principles:step_2"
+          recognizes_hypocrisy:
+            ai_feedback:
+              tokens_for_ai: "Good recognition of the contradiction! Expand on how these ideals, though not practiced, created a framework that excluded groups later used to demand inclusion."
+            metadata_add:
+              score: "n+2"
+              critical_thinking: "n+1"
+            next_section_and_step: "founding_principles:step_2"
+          contextualizes:
+            ai_feedback:
+              tokens_for_ai: "Historical context is important! Also note that even in the 1770s, some people (like Abigail Adams, some Quakers) pointed out these contradictions. The ideals were radical even if not fully practiced."
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "founding_principles:step_2"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "You're thinking about this! Consider: the founders wrote about equality while owning slaves. How might excluded groups have used these written ideals to fight for their own rights later?"
+            next_section_and_step: "founding_principles:step_1"
+          limited_effort:
+            content_blocks:
+              - "This is a complex question requiring deep thought. Consider: What did 'all men are created equal' mean in practice in 1776? Who was excluded?"
+            next_section_and_step: "founding_principles:step_1"
+          asking_clarifying_questions:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about the Declaration, slavery, or founding era contradictions."
+            counts_as_attempt: false
+            next_section_and_step: "founding_principles:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's focus on the founding principles. How do you understand the contradiction between stated ideals and reality?"
+            next_section_and_step: "founding_principles:step_1"
+
+      - step_id: "step_2"
+        title: "Federalism and Separation of Powers"
+        content_blocks:
+          - "## The Constitutional Convention (1787)"
+          - "The founders faced a challenge: create a government strong enough to function, but not so strong it becomes tyrannical."
+          - ""
+          - "**Their solutions:**"
+          - ""
+          - "**1. Federalism** - Power divided between national and state governments"
+          - "**2. Separation of Powers** - Legislative, Executive, Judicial branches"
+          - "**3. Checks and Balances** - Each branch can limit the others"
+          - ""
+          - "**Madison's Federalist #51 (1788):**"
+          - "_'If men were angels, no government would be necessary. If angels were to govern men, neither external nor internal controls on government would be necessary.'_"
+          - ""
+          - "**The founders' key insight:**"
+          - "Don't rely on having virtuous leaders - design a system where ambition counteracts ambition."
+          - ""
+          - "**Examples of Checks and Balances:**"
+          - "- President can veto laws (Executive checks Legislative)"
+          - "- Congress can override veto with 2/3 vote (Legislative checks Executive)"
+          - "- Supreme Court can declare laws unconstitutional (Judicial checks both)"
+          - "- Senate confirms judges (Legislative checks Judicial)"
+        question: "Why did the founders distrust concentrated power so much? What historical experiences shaped this distrust, and do you think these checks and balances are still necessary today?"
+        tokens_for_ai: |
+          Looking for understanding of:
+          - Historical context (British monarchy, tyranny)
+          - Human nature assumptions (power corrupts)
+          - Contemporary relevance
+
+          Categorize as:
+          - excellent_analysis: Connects historical experience, theory, and contemporary relevance
+          - historical_understanding: Good grasp of why founders feared concentrated power
+          - contemporary_focus: Emphasizes modern relevance
+          - partial_understanding: General thoughts but incomplete
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Engage their thinking. The founders' experience with King George III and colonial governors
+          shaped their views. If they discuss contemporary relevance, acknowledge different perspectives
+          on whether checks and balances are working as intended today.
+        buckets:
+          - excellent_analysis
+          - historical_understanding
+          - contemporary_focus
+          - partial_understanding
+          - limited_effort
+          - off_topic
+        transitions:
+          excellent_analysis:
+            ai_feedback:
+              tokens_for_ai: "Sophisticated thinking! You've connected historical experience to institutional design and contemporary relevance. Discuss ongoing debates about executive power, judicial review, etc."
+            metadata_add:
+              score: "n+3"
+              critical_thinking: "n+1"
+            next_section_and_step: "civil_war:step_1"
+          historical_understanding:
+            ai_feedback:
+              tokens_for_ai: "Good historical understanding! The founders' experience with King George III profoundly shaped their distrust of concentrated power. Discuss how this plays out in contemporary politics."
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "civil_war:step_1"
+          contemporary_focus:
+            ai_feedback:
+              tokens_for_ai: "Interesting contemporary perspective! Connect this to the historical context: the founders had just fought a war against what they saw as tyrannical power."
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "civil_war:step_1"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "You're thinking about this! Consider: the founders had just fought a war against King George III. How might that experience have shaped their views on power?"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "civil_war:step_1"
+          limited_effort:
+            content_blocks:
+              - "Think about what the founders had just experienced - war against British monarchy. How might that shape their views on concentrated power?"
+            next_section_and_step: "founding_principles:step_2"
+          off_topic:
+            content_blocks:
+              - "Let's focus on the founders' distrust of concentrated power. What historical experiences shaped this?"
+            next_section_and_step: "founding_principles:step_2"
+
+  - section_id: "civil_war"
+    title: "The Civil War and Reconstruction"
+    steps:
+      - step_id: "step_1"
+        title: "Causes of the Civil War"
+        content_blocks:
+          - "## The Road to Civil War ⚔️"
+          - "The Civil War (1861-1865) was the deadliest conflict in American history - over 600,000 deaths."
+          - ""
+          - "**Was it about slavery or states' rights?**"
+          - "This debate continues, but let's look at primary sources."
+          - ""
+          - "**Mississippi's Declaration of Secession (1861):**"
+          - "_'Our position is thoroughly identified with the institution of slavery - the greatest material interest of the world.'_"
+          - ""
+          - "**Confederate VP Alexander Stephens (1861):**"
+          - "_'Our new government's foundations are laid, its cornerstone rests, upon the great truth that the negro is not equal to the white man; that slavery... is his natural and normal condition.'_"
+          - ""
+          - "**Economic Context:**"
+          - "- By 1860, enslaved people represented $3.5 billion in property value (more than all factories and railroads combined)"
+          - "- Cotton accounted for 60% of US exports"
+          - "- Southern economy was built on slave labor"
+          - ""
+          - "**Political Context:**"
+          - "- Lincoln's election (1860) without a single Southern electoral vote"
+          - "- Fear that federal government would restrict slavery's expansion"
+        question: "Based on these primary sources, what was the central cause of the Civil War? Why do you think some people today emphasize 'states' rights' rather than slavery as the cause?"
+        tokens_for_ai: |
+          Looking for:
+          - Recognition that slavery was the central cause (based on primary sources)
+          - Understanding of why revisionist narratives emerged
+          - Critical thinking about how history is remembered
+
+          Categorize as:
+          - evidence_based_conclusion: Uses primary sources to conclude slavery was central cause
+          - analyzes_revisionism: Understands why alternative narratives emerged
+          - sophisticated_both: Addresses both the historical reality and its contested memory
+          - partial_understanding: General thoughts but incomplete
+          - states_rights_focus: Emphasizes states' rights over slavery
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they correctly identify slavery as the central cause, affirm this and discuss Lost Cause
+          mythology that emerged after Reconstruction. If they emphasize states' rights, gently redirect
+          to the primary sources: Confederate states explicitly cited slavery as the reason for secession.
+        buckets:
+          - evidence_based_conclusion
+          - analyzes_revisionism
+          - sophisticated_both
+          - partial_understanding
+          - states_rights_focus
+          - limited_effort
+          - off_topic
+        transitions:
+          evidence_based_conclusion:
+            ai_feedback:
+              tokens_for_ai: "Excellent use of primary sources! The Confederate states' own words make clear that slavery was the central issue. Discuss how the 'Lost Cause' mythology later rewrote this history."
+            metadata_add:
+              score: "n+3"
+              primary_source_analysis: "n+1"
+            next_section_and_step: "civil_war:step_2"
+          analyzes_revisionism:
+            ai_feedback:
+              tokens_for_ai: "Good analysis of historical memory! After Reconstruction, the 'Lost Cause' narrative emerged to justify the Confederacy and maintain white supremacy. Explain this further."
+            metadata_add:
+              score: "n+2"
+              critical_thinking: "n+1"
+            next_section_and_step: "civil_war:step_2"
+          sophisticated_both:
+            ai_feedback:
+              tokens_for_ai: "Sophisticated historical thinking! You're understanding both what happened and how it's been remembered. This is advanced historical analysis."
+            metadata_add:
+              score: "n+3"
+              primary_source_analysis: "n+1"
+              critical_thinking: "n+1"
+            next_section_and_step: "civil_war:step_2"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "You're thinking about this. Look at the primary sources - what did Mississippi and Confederate VP Stephens say was the reason for secession?"
+            next_section_and_step: "civil_war:step_1"
+          states_rights_focus:
+            ai_feedback:
+              tokens_for_ai: "The 'states' rights' argument is common, but examine the primary sources: Mississippi's declaration and Stephens' speech explicitly state slavery was the central issue. States' rights to do what, specifically?"
+            next_section_and_step: "civil_war:step_1"
+          limited_effort:
+            content_blocks:
+              - "Read the primary sources carefully - Mississippi's declaration and Confederate VP Stephens' speech. What do they say was the reason for secession?"
+            next_section_and_step: "civil_war:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's analyze the primary sources from Confederate leaders. What do they say caused the war?"
+            next_section_and_step: "civil_war:step_1"
+
+      - step_id: "step_2"
+        title: "Reconstruction and Its Failure"
+        content_blocks:
+          - "## Reconstruction (1865-1877)"
+          - "After the Civil War, the nation faced the question: How do you integrate 4 million formerly enslaved people into American society?"
+          - ""
+          - "**Constitutional Amendments:**"
+          - "- **13th (1865):** Abolished slavery"
+          - "- **14th (1868):** Citizenship and equal protection under law"
+          - "- **15th (1870):** Voting rights regardless of race"
+          - ""
+          - "**Achievements of Reconstruction:**"
+          - "- Black men gained voting rights and political power"
+          - "- First Black Congressmen and Senators elected"
+          - "- Public schools established in the South (for both Black and white children)"
+          - "- Economic opportunities began to emerge"
+          - ""
+          - "**The Backlash:**"
+          - "- White terrorist groups (KKK) used violence to suppress Black voting"
+          - "- Compromise of 1877: Federal troops withdrawn from South"
+          - "- Jim Crow laws established racial segregation"
+          - "- Black voting rights systematically stripped through poll taxes, literacy tests, grandfather clauses"
+          - ""
+          - "**Historian Eric Foner:**"
+          - "_'Reconstruction was America's unfinished revolution.'_"
+        question: "Why did Reconstruction fail? What would have been needed for it to succeed in achieving true equality for formerly enslaved people?"
+        tokens_for_ai: |
+          Looking for understanding of:
+          - Political will (North lost interest)
+          - White supremacist violence
+          - Economic factors (land redistribution never happened)
+          - Federal enforcement needed but withdrawn
+
+          Categorize as:
+          - multi_factor_analysis: Identifies multiple reasons for failure
+          - political_will: Focuses on loss of Northern commitment
+          - violence_focus: Emphasizes white supremacist terrorism
+          - economic_analysis: Notes lack of land redistribution/"40 acres and a mule"
+          - thoughtful_counterfactual: Proposes what could have made it succeed
+          - partial_understanding: General thoughts
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Engage their analysis. Multiple factors contributed: Northern fatigue, white supremacist
+          violence, economic exploitation, political compromise. If they propose counterfactuals,
+          discuss land redistribution, sustained federal protection, economic investment.
+        buckets:
+          - multi_factor_analysis
+          - political_will
+          - violence_focus
+          - economic_analysis
+          - thoughtful_counterfactual
+          - partial_understanding
+          - limited_effort
+          - off_topic
+        transitions:
+          multi_factor_analysis:
+            ai_feedback:
+              tokens_for_ai: "Excellent multi-factor analysis! Reconstruction failed due to loss of political will, white supremacist violence, economic exploitation, and the Compromise of 1877. Discuss long-term consequences."
+            metadata_add:
+              score: "n+3"
+              critical_thinking: "n+1"
+            next_section_and_step: "civil_rights:step_1"
+          political_will:
+            ai_feedback:
+              tokens_for_ai: "Important factor! The North did lose interest after the Compromise of 1877. Also consider white supremacist violence and economic factors."
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "civil_rights:step_1"
+          violence_focus:
+            ai_feedback:
+              tokens_for_ai: "Crucial point! White terrorism (KKK, etc.) was systematically used to suppress Black political power. The federal government eventually stopped protecting Black citizens."
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "civil_rights:step_1"
+          economic_analysis:
+            ai_feedback:
+              tokens_for_ai: "Key economic insight! Without land redistribution ('40 acres and a mule'), formerly enslaved people remained economically dependent on white landowners through sharecropping."
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "civil_rights:step_1"
+          thoughtful_counterfactual:
+            ai_feedback:
+              tokens_for_ai: "Interesting counterfactual thinking! Evaluate their proposals against historical context and constraints."
+            metadata_add:
+              score: "n+2"
+              critical_thinking: "n+1"
+            next_section_and_step: "civil_rights:step_1"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "You're thinking about this. Consider: political will, violence, economics, and federal enforcement. What combination of factors led to failure?"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "civil_rights:step_1"
+          limited_effort:
+            content_blocks:
+              - "Think about what Reconstruction needed: political commitment, protection from violence, economic opportunity, federal enforcement. What went wrong?"
+            next_section_and_step: "civil_war:step_2"
+          off_topic:
+            content_blocks:
+              - "Let's analyze Reconstruction's failure. What factors led to the end of Black political power after 1877?"
+            next_section_and_step: "civil_war:step_2"
+
+  - section_id: "civil_rights"
+    title: "Civil Rights Movement"
+    steps:
+      - step_id: "step_1"
+        title: "Strategies for Change"
+        content_blocks:
+          - "## The Civil Rights Movement (1950s-1960s) ✊"
+          - "Nearly 100 years after the Civil War, Jim Crow segregation still dominated the South."
+          - ""
+          - "**Different Strategic Approaches:**"
+          - ""
+          - "**Legal Strategy (NAACP, Thurgood Marshall):**"
+          - "- Use courts to overturn segregation laws"
+          - "- *Brown v. Board of Education* (1954): Declared school segregation unconstitutional"
+          - "- Gradualist approach working within the system"
+          - ""
+          - "**Nonviolent Direct Action (MLK, SCLC):**"
+          - "- Boycotts, sit-ins, marches to create crisis that forces negotiation"
+          - "- Montgomery Bus Boycott (1955-56), March on Washington (1963)"
+          - "- Moral appeal to conscience of nation"
+          - ""
+          - "**Black Power/Self-Defense (Malcolm X, Black Panthers):**"
+          - "- Critique of integration as goal; emphasis on Black empowerment"
+          - "- Self-defense against violence (vs. absolute nonviolence)"
+          - "- Economic self-sufficiency and cultural pride"
+          - ""
+          - "**MLK's Letter from Birmingham Jail (1963):**"
+          - "_'Injustice anywhere is a threat to justice everywhere. We are caught in an inescapable network of mutuality, tied in a single garment of destiny.'_"
+          - ""
+          - "**Malcolm X (1964):**"
+          - "_'We declare our right on this earth to be a man, to be a human being, to be respected as a human being, to be given the rights of a human being in this society.'_"
+        question: "Why were there different strategic approaches in the Civil Rights Movement? Were all of these approaches necessary, or was one more effective than others? Explain your reasoning."
+        tokens_for_ai: |
+          Looking for:
+          - Understanding of different strategic visions
+          - Recognition that strategies complemented each other
+          - Sophisticated thinking about social movements
+          - Awareness that movements aren't monolithic
+
+          Categorize as:
+          - sophisticated_analysis: Understands how different strategies played different roles
+          - complementary_view: Sees strategies as working together
+          - single_strategy_preference: Argues one was most effective
+          - comparative_analysis: Thoughtfully compares approaches
+          - partial_understanding: General thoughts
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Engage their analysis thoughtfully. Historical consensus is that multiple strategies created
+          pressure from different angles: legal victories removed legal barriers, direct action created
+          urgency, Black Power empowered communities and pushed moderates to negotiate. If they prefer
+          one strategy, discuss how it interacted with others.
+        buckets:
+          - sophisticated_analysis
+          - complementary_view
+          - single_strategy_preference
+          - comparative_analysis
+          - partial_understanding
+          - limited_effort
+          - off_topic
+        transitions:
+          sophisticated_analysis:
+            ai_feedback:
+              tokens_for_ai: "Excellent historical thinking! You understand that social movements use multiple strategies simultaneously. The 'radical flank effect' made moderates seem more reasonable to white Americans."
+            metadata_add:
+              score: "n+3"
+              critical_thinking: "n+1"
+            next_section_and_step: "civil_rights:step_2"
+          complementary_view:
+            ai_feedback:
+              tokens_for_ai: "Good insight! The different strategies created pressure from multiple angles and appealed to different constituencies. Discuss the 'radical flank effect.'"
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "civil_rights:step_2"
+          single_strategy_preference:
+            ai_feedback:
+              tokens_for_ai: "You make a case for one strategy. Also consider how the strategies interacted: legal victories needed enforcement, which required political pressure from protests."
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "civil_rights:step_2"
+          comparative_analysis:
+            ai_feedback:
+              tokens_for_ai: "Good comparative thinking! Expand on how the strategies might have complemented each other or created tension."
+            metadata_add:
+              score: "n+2"
+              critical_thinking: "n+1"
+            next_section_and_step: "civil_rights:step_2"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Think about how different strategies might work together. Could 'radical' demands make 'moderate' demands seem more acceptable?"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "civil_rights:step_1"
+          limited_effort:
+            content_blocks:
+              - "Consider: Why might a movement need both people working within the system (courts) and outside it (protests)? How might they complement each other?"
+            next_section_and_step: "civil_rights:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's analyze the different Civil Rights strategies. How did legal, nonviolent direct action, and Black Power approaches differ?"
+            next_section_and_step: "civil_rights:step_1"
+
+      - step_id: "step_2"
+        title: "Unfinished Business"
+        content_blocks:
+          - "## The Civil Rights Movement's Legacy"
+          - "The Civil Rights Movement achieved major legal victories:"
+          - "- Civil Rights Act (1964): Outlawed discrimination"
+          - "- Voting Rights Act (1965): Prohibited racial discrimination in voting"
+          - "- Fair Housing Act (1968): Prohibited discrimination in housing"
+          - ""
+          - "**But many goals remained unachieved:**"
+          - ""
+          - "**Economic Justice:**"
+          - "MLK's focus in final years was on poverty - the Poor People's Campaign"
+          - "Wealth gap: In 1963, median Black family had 5% of white family wealth. In 2016: 10%"
+          - ""
+          - "**Systemic Issues:**"
+          - "- School resegregation (integration peaked in 1988, has declined since)"
+          - "- Mass incarceration (5x incarceration rate for Black vs white Americans)"
+          - "- Voting rights: Shelby County v. Holder (2013) weakened Voting Rights Act"
+          - ""
+          - "**MLK's Final Speech (1968, night before assassination):**"
+          - "_'I've been to the mountaintop... I've seen the Promised Land. I may not get there with you. But I want you to know tonight, that we, as a people, will get to the Promised Land.'_"
+        question: "The Civil Rights Movement won major legal battles but many economic and systemic issues persist. Why do legal victories not automatically solve social problems? What more is needed beyond changing laws?"
+        tokens_for_ai: |
+          Looking for understanding that:
+          - Laws vs. implementation/enforcement
+          - Formal equality vs. substantive equality
+          - Systemic/structural issues
+          - Cultural change, economic redistribution, enforcement
+
+          Categorize as:
+          - systemic_understanding: Grasps difference between formal and substantive equality
+          - implementation_focus: Emphasizes gap between law and enforcement
+          - cultural_change: Notes need for changing hearts and minds
+          - economic_analysis: Focuses on material/economic dimensions
+          - sophisticated_multi_factor: Identifies multiple dimensions of change needed
+          - partial_understanding: General thoughts
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Engage their thinking about social change. Legal change is necessary but not sufficient.
+          Systemic change requires enforcement, cultural shift, economic redistribution, and
+          addressing structural inequalities. If they give sophisticated analysis, affirm it.
+        buckets:
+          - systemic_understanding
+          - implementation_focus
+          - cultural_change
+          - economic_analysis
+          - sophisticated_multi_factor
+          - partial_understanding
+          - limited_effort
+          - off_topic
+        transitions:
+          systemic_understanding:
+            ai_feedback:
+              tokens_for_ai: "Excellent grasp of the difference between formal and substantive equality! Laws change what's legal, but systemic change requires transforming institutions, culture, and economic structures."
+            metadata_add:
+              score: "n+3"
+              critical_thinking: "n+1"
+            next_section_and_step: "conclusion:step_1"
+          implementation_focus:
+            ai_feedback:
+              tokens_for_ai: "Important point! There's often a gap between laws on the books and their enforcement. Discuss how enforcement requires political will and resources."
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "conclusion:step_1"
+          cultural_change:
+            ai_feedback:
+              tokens_for_ai: "Good insight about cultural change! Laws can change behavior, but cultural attitudes also need to shift. This is a slow, complex process."
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "conclusion:step_1"
+          economic_analysis:
+            ai_feedback:
+              tokens_for_ai: "Strong economic analysis! Legal equality doesn't address wealth gaps, employment discrimination, or economic structures. MLK increasingly focused on economic justice in his final years."
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "conclusion:step_1"
+          sophisticated_multi_factor:
+            ai_feedback:
+              tokens_for_ai: "Outstanding multi-dimensional analysis! You understand that social change requires legal, cultural, economic, and institutional transformation. This is advanced historical thinking."
+            metadata_add:
+              score: "n+3"
+              critical_thinking: "n+1"
+            next_section_and_step: "conclusion:step_1"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "You're thinking about this. Consider: if a law is passed but not enforced, or if economic structures remain unchanged, what's the impact?"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "conclusion:step_1"
+          limited_effort:
+            content_blocks:
+              - "Think about the difference between laws changing and society changing. What else needs to happen beyond passing legislation?"
+            next_section_and_step: "civil_rights:step_2"
+          off_topic:
+            content_blocks:
+              - "Let's think about why legal victories aren't enough. What more is needed for real social change?"
+            next_section_and_step: "civil_rights:step_2"
+
+  - section_id: "conclusion"
+    title: "Historical Thinking and Contemporary Connections"
+    steps:
+      - step_id: "step_1"
+        title: "Thinking Like a Historian"
+        content_blocks:
+          - "## Congratulations, Historian! 🎓"
+          - "You've engaged with American history at an advanced level."
+          - ""
+          - "**Key Historical Thinking Skills You've Practiced:**"
+          - "✓ **Primary Source Analysis** - Reading founding documents and speeches in context"
+          - "✓ **Cause and Effect** - Understanding how events lead to consequences"
+          - "✓ **Multiple Perspectives** - Considering different viewpoints on events"
+          - "✓ **Continuity and Change** - Seeing patterns and transformations over time"
+          - "✓ **Historical Significance** - Evaluating which events and ideas matter and why"
+          - "✓ **Connecting Past to Present** - Understanding how history shapes current issues"
+          - ""
+          - "**Themes Across American History:**"
+          - "- Tension between ideals and reality (equality vs. practice)"
+          - "- Struggles to expand democracy and rights"
+          - "- Economic factors shaping politics and society"
+          - "- Power of social movements to create change"
+          - "- Importance of institutions and their design"
+          - ""
+          - "**Why History Matters:**"
+          - "- Understand how we got here"
+          - "- Learn from past successes and failures"
+          - "- Recognize patterns and precedents"
+          - "- Think critically about present claims using historical evidence"
+          - "- Understand that change is possible because it has happened before"
+          - ""
+          - "**'Those who cannot remember the past are condemned to repeat it.'** - George Santayana"
+        question: "What's one historical insight from this activity that changes how you think about a contemporary issue? How does understanding history help you think more critically about the present?"
+        tokens_for_ai: |
+          This is a reflection on applying historical thinking to contemporary issues.
+
+          Categorize as:
+          - specific_connection: Makes clear connection between historical insight and contemporary issue
+          - thoughtful_reflection: Meaningful reflection on historical thinking
+          - general_reflection: Broader thoughts about history's relevance
+          - limited_effort: Very brief
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Provide thoughtful, personalized feedback on their historical journey. Acknowledge specific
+          insights they shared throughout the activity. Encourage continued historical thinking and
+          exploration. Discuss how understanding history makes us better citizens.
+        buckets:
+          - specific_connection
+          - thoughtful_reflection
+          - general_reflection
+          - limited_effort
+          - off_topic
+        transitions:
+          specific_connection:
+            ai_feedback:
+              tokens_for_ai: "Excellent application of historical thinking to contemporary issues! Affirm their specific connection and discuss how historians analyze present events using historical frameworks."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          thoughtful_reflection:
+            ai_feedback:
+              tokens_for_ai: "Thoughtful reflection on historical thinking! Encourage them to continue asking historical questions about contemporary issues."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          general_reflection:
+            ai_feedback:
+              tokens_for_ai: "Thank them for engaging deeply with American history. Suggest specific historical topics or periods they might explore further based on their interests."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          limited_effort:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their completion and encourage them to think about how historical patterns might illuminate current events."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:step_1"
+          off_topic:
+            content_blocks:
+              - "Reflect on your historical journey. What insight about the past helps you understand the present differently?"
+            next_section_and_step: "conclusion:step_1"
