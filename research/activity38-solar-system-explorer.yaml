@@ -1048,9 +1048,10 @@ sections:
           - 'callisto' if they mention callisto
           - 'other_moons' if they mention other moons, small moons
           - 'moon_menu' if they want to choose from menu, see list, back to moons
-          - 'leave_jupiter' if they want to leave Jupiter, go elsewhere, other planets
+          - 'back_to_planet' if they want to see Jupiter again, back to jupiter, jupiter details, planet
+          - 'leave_jupiter' if they want to leave Jupiter entirely, go elsewhere, other planets
           - 'stay' if they have questions about Io
-        buckets: [europa, ganymede, callisto, other_moons, moon_menu, leave_jupiter, stay]
+        buckets: [europa, ganymede, callisto, other_moons, moon_menu, back_to_planet, leave_jupiter, stay]
         transitions:
           europa:
             ai_feedback:
@@ -1072,6 +1073,10 @@ sections:
             ai_feedback:
               tokens_for_ai: "Back to the moon selection menu!"
             next_section_and_step: "jupiter:jupiter_moon_menu"
+          back_to_planet:
+            ai_feedback:
+              tokens_for_ai: "Returning to Jupiter!"
+            next_section_and_step: "jupiter:jupiter_details"
           leave_jupiter:
             ai_feedback:
               tokens_for_ai: "Ready to continue your journey!"
@@ -1125,9 +1130,10 @@ sections:
           - 'callisto' if they mention callisto
           - 'other_moons' if they mention other moons, small moons
           - 'moon_menu' if they want moon menu, choose from list
-          - 'leave_jupiter' if they want to leave Jupiter
+          - 'back_to_planet' if they want to see Jupiter, back to jupiter, planet
+          - 'leave_jupiter' if they want to leave Jupiter entirely, other planets
           - 'stay' if they have Europa questions
-        buckets: [io, ganymede, callisto, other_moons, moon_menu, leave_jupiter, stay]
+        buckets: [io, ganymede, callisto, other_moons, moon_menu, back_to_planet, leave_jupiter, stay]
         transitions:
           io:
             ai_feedback:
@@ -1149,6 +1155,10 @@ sections:
             ai_feedback:
               tokens_for_ai: "Back to the moon menu!"
             next_section_and_step: "jupiter:jupiter_moon_menu"
+          back_to_planet:
+            ai_feedback:
+              tokens_for_ai: "Returning to Jupiter!"
+            next_section_and_step: "jupiter:jupiter_details"
           leave_jupiter:
             ai_feedback:
               tokens_for_ai: "Continuing your solar system journey!"
@@ -1202,9 +1212,10 @@ sections:
           - 'callisto' if they mention callisto, ancient, next
           - 'other_moons' if they mention other, small moons
           - 'moon_menu' if they want the menu
-          - 'leave_jupiter' if leaving Jupiter
+          - 'back_to_planet' if they want to see Jupiter, back to jupiter, planet
+          - 'leave_jupiter' if leaving Jupiter entirely, other planets
           - 'stay' for Ganymede questions
-        buckets: [io, europa, callisto, other_moons, moon_menu, leave_jupiter, stay]
+        buckets: [io, europa, callisto, other_moons, moon_menu, back_to_planet, leave_jupiter, stay]
         transitions:
           io:
             ai_feedback:
@@ -1226,6 +1237,10 @@ sections:
             ai_feedback:
               tokens_for_ai: "Back to moon selection!"
             next_section_and_step: "jupiter:jupiter_moon_menu"
+          back_to_planet:
+            ai_feedback:
+              tokens_for_ai: "Returning to Jupiter!"
+            next_section_and_step: "jupiter:jupiter_details"
           leave_jupiter:
             ai_feedback:
               tokens_for_ai: "Continuing your journey!"
@@ -1278,9 +1293,10 @@ sections:
           - 'ganymede' if they mention ganymede
           - 'other_moons' if they mention other moons, small, irregular
           - 'moon_menu' if they want menu
-          - 'leave_jupiter' if leaving
+          - 'back_to_planet' if they want to see Jupiter, back to jupiter, planet
+          - 'leave_jupiter' if leaving entirely, other planets
           - 'stay' for Callisto questions
-        buckets: [io, europa, ganymede, other_moons, moon_menu, leave_jupiter, stay]
+        buckets: [io, europa, ganymede, other_moons, moon_menu, back_to_planet, leave_jupiter, stay]
         transitions:
           io:
             ai_feedback:
@@ -1302,6 +1318,10 @@ sections:
             ai_feedback:
               tokens_for_ai: "Back to the menu!"
             next_section_and_step: "jupiter:jupiter_moon_menu"
+          back_to_planet:
+            ai_feedback:
+              tokens_for_ai: "Returning to Jupiter!"
+            next_section_and_step: "jupiter:jupiter_details"
           leave_jupiter:
             ai_feedback:
               tokens_for_ai: "Onward!"
@@ -1352,9 +1372,10 @@ sections:
           - 'ganymede' if ganymede mentioned
           - 'callisto' if callisto mentioned
           - 'moon_menu' if they want the moon menu
-          - 'leave_jupiter' if leaving Jupiter, other planets
+          - 'back_to_planet' if they want to see Jupiter, back to jupiter, planet
+          - 'leave_jupiter' if leaving Jupiter entirely, other planets
           - 'stay' for questions about other moons
-        buckets: [io, europa, ganymede, callisto, moon_menu, leave_jupiter, stay]
+        buckets: [io, europa, ganymede, callisto, moon_menu, back_to_planet, leave_jupiter, stay]
         transitions:
           io:
             ai_feedback:
@@ -1376,6 +1397,10 @@ sections:
             ai_feedback:
               tokens_for_ai: "Back to moon selection!"
             next_section_and_step: "jupiter:jupiter_moon_menu"
+          back_to_planet:
+            ai_feedback:
+              tokens_for_ai: "Returning to Jupiter!"
+            next_section_and_step: "jupiter:jupiter_details"
           leave_jupiter:
             ai_feedback:
               tokens_for_ai: "Continuing your journey!"
