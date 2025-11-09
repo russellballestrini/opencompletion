@@ -90,6 +90,7 @@
 // Constants
 const API_KEY = "dummy-api-key";
 const TTS_API_URL = "https://speech.ai.unturf.com/v1/audio/speech";
+const VOICES_API_URL = "https://speech.ai.unturf.com/v1/voices";
 const CODE_EXEC_URL = "https://code.ai.unturf.com"; // Code execution service URL (served via Caddy)
 const urlParams = new URLSearchParams(window.location.search);
 let username = urlParams.get("username") || "guest"; // Default to "guest" if no username in URL
@@ -211,7 +212,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     // Initialize auto-play TTS button state from localStorage
     updateAutoPlayTTSDisplay();
 
-    // Function to populate the dropdown
+    // Function to populate the model dropdown
     function populateModelDropdown(models) {
         // Clear options starting from index 1 (preserve "None" at index 0)
         while (modelSelectDesktop.options.length > 1) {
@@ -228,6 +229,46 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const urlParams = new URLSearchParams(window.location.search);
         const initialModel = urlParams.get("model") || "None";
         modelSelectDesktop.value = initialModel;
+    }
+
+    // Function to populate the voice dropdown
+    function populateVoiceDropdown(voicesData) {
+        // Clear existing options
+        voiceSelectDesktop.innerHTML = '';
+        if (voiceSelectMobile) voiceSelectMobile.innerHTML = '';
+
+        // Group voices by model
+        const voicesByModel = {};
+        voicesData.data.forEach(modelData => {
+            const modelId = modelData.id;
+            voicesByModel[modelId] = modelData.voices || [];
+        });
+
+        // Create optgroups for each model
+        Object.entries(voicesByModel).forEach(([modelId, voices]) => {
+            if (voices.length > 0) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = modelId;
+
+                voices.forEach(voice => {
+                    const option = document.createElement('option');
+                    option.value = `${modelId}:${voice}`;
+                    option.textContent = `${modelId} - ${voice}`;
+                    optgroup.appendChild(option);
+                });
+
+                voiceSelectDesktop.appendChild(optgroup);
+                if (voiceSelectMobile) {
+                    voiceSelectMobile.appendChild(optgroup.cloneNode(true));
+                }
+            }
+        });
+
+        // Set initial value from URL or default to first option
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialVoice = urlParams.get("voice") || localStorage.getItem('selectedVoice') || voiceSelectDesktop.options[0]?.value || "tts-1:onyx";
+        voiceSelectDesktop.value = initialVoice;
+        if (voiceSelectMobile) voiceSelectMobile.value = initialVoice;
     }
 
     // Memoization with localStorage (1-minute cache)
@@ -256,6 +297,40 @@ document.addEventListener('DOMContentLoaded', (event) => {
             .catch(error => console.error("Error fetching models:", error));
     }
 
+    // Fetch and populate voices with caching
+    const voicesCacheKey = 'voicesList';
+    const voicesCacheExpirationKey = 'voicesListExpiration';
+
+    const cachedVoices = localStorage.getItem(voicesCacheKey);
+    const cachedVoicesExpiration = localStorage.getItem(voicesCacheExpirationKey);
+
+    if (cachedVoices && cachedVoicesExpiration && Date.now() < parseInt(cachedVoicesExpiration)) {
+        // Use cached voices data
+        const voicesData = JSON.parse(cachedVoices);
+        populateVoiceDropdown(voicesData);
+    } else {
+        // Fetch voices from API
+        fetch(VOICES_API_URL, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`
+            }
+        })
+            .then(response => response.json())
+            .then(voicesData => {
+                populateVoiceDropdown(voicesData);
+                // Store in localStorage with expiration
+                localStorage.setItem(voicesCacheKey, JSON.stringify(voicesData));
+                localStorage.setItem(voicesCacheExpirationKey, Date.now() + cacheDuration);
+            })
+            .catch(error => {
+                console.error("Error fetching voices:", error);
+                // Fallback to default voice if fetch fails
+                voiceSelectDesktop.innerHTML = '<option value="tts-1:onyx">tts-1 - onyx</option>';
+                if (voiceSelectMobile) voiceSelectMobile.innerHTML = '<option value="tts-1:onyx">tts-1 - onyx</option>';
+            });
+    }
+
     chatContainer.addEventListener('scroll', () => {
         const distanceFromBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
         userHasScrolledUp = distanceFromBottom > 5;
@@ -264,16 +339,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
     // Load model and voice from localStorage if not in URL
     const storedModel = localStorage.getItem('selectedModel');
     const storedVoice = localStorage.getItem('selectedVoice');
-    
+
     // Set initial model, voice, and username from URL, localStorage, or defaults
     const initialModel = urlParams.get("model") || storedModel || "None";
-    const initialVoice = urlParams.get("voice") || storedVoice || "onyx";
+    const initialVoice = urlParams.get("voice") || storedVoice || "tts-1:onyx";
     const initialUsername = username; // Already set to URL param or "guest"
-    
+
     modelSelectDesktop.value = initialModel;
-    voiceSelectDesktop.value = initialVoice;
+    // Voice is set by populateVoiceDropdown after voices are fetched
     modelSelectMobile.value = initialModel;
-    voiceSelectMobile.value = initialVoice;
     
     // Set initial username values
     const usernameInputDesktop = document.getElementById("username-input");
@@ -473,8 +547,11 @@ socket.on('update_room_list', function(updatedRoom) {
 // Function to read text using TTS (for manual button clicks)
 async function speakText(text, playButton, messageId) {
     console.log("speakText called with:", {text: text, messageId, autoPlay: autoPlayTTS});
-    const voice = document.getElementById("voice-select").value;
-    const cacheKey = `${messageId}-${voice}`; // Unique cache key for each message and voice
+    const voiceSelectValue = document.getElementById("voice-select").value;
+
+    // Parse model and voice from the dropdown value (format: "model:voice")
+    const [model, voice] = voiceSelectValue.includes(':') ? voiceSelectValue.split(':') : ['tts-1', voiceSelectValue];
+    const cacheKey = `${messageId}-${voiceSelectValue}`; // Unique cache key for each message and voice
 
     // Clean the text to include only alphanumeric characters, spaces, and key punctuation
     const cleanText = text.replace(/[^a-zA-Z0-9\s.,!?]/g, '');
@@ -498,7 +575,7 @@ async function speakText(text, playButton, messageId) {
                 'Authorization': `Bearer ${API_KEY}`
             },
             body: JSON.stringify({
-                model: 'tts-1',
+                model: model,
                 voice: voice,
                 input: cleanText // Use the cleaned text
             })
@@ -529,8 +606,11 @@ async function speakText(text, playButton, messageId) {
 // Function to read text using TTS (for queued auto-play)
 async function speakTextQueued(text, playButton, messageId) {
     return new Promise((resolve, reject) => {
-        const voice = document.getElementById("voice-select").value;
-        const cacheKey = `${messageId}-${voice}`;
+        const voiceSelectValue = document.getElementById("voice-select").value;
+
+        // Parse model and voice from the dropdown value (format: "model:voice")
+        const [model, voice] = voiceSelectValue.includes(':') ? voiceSelectValue.split(':') : ['tts-1', voiceSelectValue];
+        const cacheKey = `${messageId}-${voiceSelectValue}`;
         const cleanText = text.replace(/[^a-zA-Z0-9\s.,!?]/g, '');
 
         const playAudio = (audio) => {
@@ -562,7 +642,7 @@ async function speakTextQueued(text, playButton, messageId) {
                 'Authorization': `Bearer ${API_KEY}`
             },
             body: JSON.stringify({
-                model: 'tts-1',
+                model: model,
                 voice: voice,
                 input: cleanText
             })
