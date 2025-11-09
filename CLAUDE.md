@@ -694,6 +694,7 @@ feedback_tokens_for_ai: |
 | **Generic feedback** | "Good job!" isn't helpful | Reference specific parts of their answer |
 | **Dead-end paths** | User stuck, can't progress | Always provide a way forward (even if it's restarting) |
 | **Ignoring the rubric** | Global `tokens_for_ai_rubric` tells AI how to evaluate | Define it for consistency across steps |
+| **Showing answers before questions** | Users copy-paste instead of learning | Explain CONCEPTS in content_blocks, provide CODE EXAMPLES only in ai_feedback |
 
 ### Activity Development Workflow
 
