@@ -103,9 +103,6 @@ if (!urlParams.get("username")) {
 }
 const room_name = "{{ room_name }}";
 
-// Global constants for valid voices
-const VALID_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
-
 // Configuration for DOMPurify to specify which tags and attributes are allowed
 const dompurify_config = {
   ADD_TAGS: ["iframe", "img", "video"],
@@ -164,7 +161,7 @@ function syncInputsAndQueryString() {
     // Get current values
     const currentUsername = usernameInputDesktop?.value || username || "guest";
     const currentModel = modelSelectDesktop.value;
-    const currentVoice = VALID_VOICES.includes(voiceSelectDesktop.value) ? voiceSelectDesktop.value : 'onyx';
+    const currentVoice = voiceSelectDesktop.value || 'tts-1:onyx';
 
     // Update global username variable
     username = currentUsername;
@@ -183,14 +180,14 @@ function syncInputsAndQueryString() {
     // Save to localStorage for persistence
     localStorage.setItem('selectedModel', currentModel);
     localStorage.setItem('selectedVoice', currentVoice);
-    
+
     // Update URL
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.set("username", sanitizedUsername);
     newUrl.searchParams.set("model", currentModel);
     newUrl.searchParams.set("voice", currentVoice);
     window.history.replaceState({}, '', newUrl);
-    
+
     // Update room links with new parameters
     if (typeof updateRoomLinksWithCurrentParams === 'function') {
         updateRoomLinksWithCurrentParams();
