@@ -1,0 +1,1300 @@
+default_max_attempts_per_step: 5
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+
+tokens_for_ai_rubric: |
+  You are the AI guide of a time machine that travels through Earth's prehistoric eras.
+  Be enthusiastic, educational, and vivid in descriptions.
+  Use emojis and paint pictures with words.
+  When users express interest in specific creatures, periods, or topics, provide detailed,
+  fascinating information. Make learning fun and immersive!
+
+  Always allow users to:
+  - Ask about specific dinosaurs or creatures
+  - Explore different aspects (climate, plants, animals)
+  - Jump to different time periods
+  - Return to the control room
+
+  Track their journey in metadata for a personalized experience.
+
+sections:
+  # ============================================================================
+  # TIME MACHINE CONTROL ROOM - Central Hub
+  # ============================================================================
+  - section_id: "control_room"
+    title: "Time Machine Control Room"
+    steps:
+      - step_id: "welcome"
+        title: "Welcome to the Dinosaur Time Machine"
+        content_blocks:
+          - "# 🦕 Welcome to the DINOSAUR TIME MACHINE! 🦖"
+          - ""
+          - "```"
+          - "╔═══════════════════════════════════════════════════════╗"
+          - "║                                                       ║"
+          - "║           TEMPORAL DISPLACEMENT ENGINE v1.0           ║"
+          - "║              Status: ✓ ONLINE                         ║"
+          - "║                                                       ║"
+          - "║  Warning: You are about to travel millions of years   ║"
+          - "║  into Earth's past. Prepare for adventure!           ║"
+          - "║                                                       ║"
+          - "╚═══════════════════════════════════════════════════════╝"
+          - "```"
+          - ""
+          - "I'm your AI guide through prehistory! Together we'll explore three magnificent eras:"
+          - ""
+          - "🌋 **TRIASSIC PERIOD** (252-201 million years ago)"
+          - "   - The dawn of the dinosaurs"
+          - "   - A world recovering from the Great Dying"
+          - "   - Early reptiles and first dinosaurs emerge"
+          - ""
+          - "🌿 **JURASSIC PERIOD** (201-145 million years ago)"
+          - "   - The golden age of dinosaurs"
+          - "   - Giant sauropods dominate"
+          - "   - Lush forests and shallow seas"
+          - ""
+          - "🦖 **CRETACEOUS PERIOD** (145-66 million years ago)"
+          - "   - The age of giants and diversity"
+          - "   - T-Rex, Triceratops, and Velociraptors"
+          - "   - Ends with the K-T extinction event"
+          - ""
+          - "Each era is a different world with unique climates, landscapes, and creatures!"
+
+      - step_id: "choose_era"
+        title: "Choose Your Destination"
+        question: "Which era would you like to visit first? Or ask me anything about dinosaurs!"
+        tokens_for_ai: |
+          Detect what the user wants to explore:
+
+          - If they mention "Triassic" or early dinosaurs (Herrerasaurus, Coelophysis, Plateosaurus, Eoraptor)
+            → bucket: go_triassic
+
+          - If they mention "Jurassic" or famous Jurassic dinosaurs (Brachiosaurus, Stegosaurus,
+            Allosaurus, Diplodocus, Apatosaurus, Archaeopteryx)
+            → bucket: go_jurassic
+
+          - If they mention "Cretaceous" or famous Cretaceous dinosaurs (T-Rex, Tyrannosaurus,
+            Triceratops, Velociraptor, Spinosaurus, Ankylosaurus)
+            → bucket: go_cretaceous
+
+          - If they want an overview, timeline, or general information
+            → bucket: explain_timeline
+
+          - If they ask about extinction, asteroid, or what happened to dinosaurs
+            → bucket: extinction_event
+
+          - If they ask about specific dinosaurs not categorized above, or general questions
+            → bucket: general_question
+
+        buckets: [go_triassic, go_jurassic, go_cretaceous, explain_timeline, extinction_event, general_question]
+
+        transitions:
+          go_triassic:
+            content_blocks:
+              - "🌋 **INITIATING TEMPORAL JUMP...**"
+              - "```"
+              - "⚡ Setting coordinates: 230 million years ago"
+              - "⚡ Calibrating atmospheric composition..."
+              - "⚡ Engaging temporal displacement..."
+              - "✓ JUMP COMPLETE"
+              - "```"
+              - ""
+              - "Welcome to the **TRIASSIC PERIOD**!"
+            metadata_add:
+              eras_visited: "Triassic"
+              current_era: "Triassic"
+            next_section_and_step: "triassic:overview"
+
+          go_jurassic:
+            content_blocks:
+              - "🌿 **INITIATING TEMPORAL JUMP...**"
+              - "```"
+              - "⚡ Setting coordinates: 165 million years ago"
+              - "⚡ Calibrating oxygen levels..."
+              - "⚡ Engaging temporal displacement..."
+              - "✓ JUMP COMPLETE"
+              - "```"
+              - ""
+              - "Welcome to the **JURASSIC PERIOD**!"
+            metadata_add:
+              eras_visited: "Jurassic"
+              current_era: "Jurassic"
+            next_section_and_step: "jurassic:overview"
+
+          go_cretaceous:
+            content_blocks:
+              - "🦖 **INITIATING TEMPORAL JUMP...**"
+              - "```"
+              - "⚡ Setting coordinates: 75 million years ago"
+              - "⚡ Calibrating for flowering plants..."
+              - "⚡ Engaging temporal displacement..."
+              - "✓ JUMP COMPLETE"
+              - "```"
+              - ""
+              - "Welcome to the **CRETACEOUS PERIOD**!"
+            metadata_add:
+              eras_visited: "Cretaceous"
+              current_era: "Cretaceous"
+            next_section_and_step: "cretaceous:overview"
+
+          explain_timeline:
+            ai_feedback:
+              tokens_for_ai: |
+                Provide a fascinating overview of the Mesozoic Era timeline:
+                - Explain the three periods and their durations
+                - Mention how Earth changed across these eras
+                - Highlight the evolution of dinosaurs from small creatures to giants
+                - Note that dinosaurs ruled for 165 million years!
+                - End by asking which era they'd like to visit
+            counts_as_attempt: false
+            next_section_and_step: "control_room:choose_era"
+
+          extinction_event:
+            content_blocks:
+              - "💥 **Fast-forwarding to the K-T extinction event...**"
+            metadata_add:
+              current_era: "Extinction"
+            next_section_and_step: "cretaceous:extinction"
+
+          general_question:
+            ai_feedback:
+              tokens_for_ai: |
+                Answer their question with enthusiasm and detail!
+                If they asked about a specific dinosaur, provide:
+                - Which period it lived in
+                - Its size and diet
+                - Unique features
+                - Cool facts
+
+                Then suggest visiting that dinosaur's era to learn more.
+                Always end by asking what they'd like to explore next.
+            counts_as_attempt: false
+            next_section_and_step: "control_room:choose_era"
+
+  # ============================================================================
+  # TRIASSIC PERIOD (252-201 MYA) - The Beginning
+  # ============================================================================
+  - section_id: "triassic"
+    title: "Triassic Period - The Dawn of Dinosaurs"
+    steps:
+      - step_id: "overview"
+        title: "Triassic Period Overview"
+        content_blocks:
+          - "# 🌋 TRIASSIC PERIOD (252-201 million years ago)"
+          - ""
+          - "You've arrived at the **dawn of the dinosaur age**!"
+          - ""
+          - "## 🌍 The World You See:"
+          - ""
+          - "**Climate:** Hot and dry! Much of Earth is desert. Temperatures can reach 104°F (40°C)."
+          - ""
+          - "**Geography:** All continents are joined in one supercontinent called **PANGAEA**."
+          - "No Atlantic Ocean yet! You could walk from North America to Africa."
+          - ""
+          - "**Atmosphere:** Less oxygen than modern Earth. You might feel a bit short of breath!"
+          - ""
+          - "## 🦎 Life in the Triassic:"
+          - ""
+          - "This period begins right after the **Permian-Triassic Extinction** (the Great Dying) which killed 96% of all species!"
+          - "Life is recovering and evolving rapidly."
+          - ""
+          - "**Early Dinosaurs (small and quick):**"
+          - "- 🦎 Herrerasaurus - One of the earliest predators (6 ft / 2m long)"
+          - "- 🦕 Plateosaurus - Early long-necked herbivore (26 ft / 8m)"
+          - "- 🦖 Coelophysis - Small, fast hunter (10 ft / 3m)"
+          - "- 🦎 Eoraptor - Tiny early dinosaur (3 ft / 1m)"
+          - ""
+          - "**Other Creatures:**"
+          - "- Cynodonts - Mammal-like reptiles (ancestors of mammals!)"
+          - "- Archosaurs - \"Ruling reptiles\" (ancestors of dinosaurs and crocodiles)"
+          - "- Giant amphibians still exist"
+          - "- Early turtles and crocodile relatives"
+          - ""
+          - "**Plant Life:**"
+          - "- 🌲 Conifer forests (early pine trees)"
+          - "- 🌿 Ferns everywhere"
+          - "- 🍃 Cycads (palm-like plants)"
+          - "- 🌾 Horsetails and mosses"
+          - "- ❌ NO flowering plants yet!"
+          - ""
+          - "**Fun Fact:** Dinosaurs started small! The earliest dinosaurs were about the size of a turkey or dog."
+
+      - step_id: "explore_triassic"
+        title: "Explore the Triassic"
+        question: "What would you like to explore here in the Triassic? (Ask about specific dinosaurs, climate, plants, other creatures, or jump to another era!)"
+        tokens_for_ai: |
+          Detect what the user wants to explore:
+
+          SPECIFIC DINOSAURS/CREATURES:
+          - Herrerasaurus, Coelophysis, Plateosaurus, Eoraptor, or other Triassic dinosaurs
+            → bucket: learn_creature
+          - Cynodonts, archosaurs, early mammals, amphibians, other creatures
+            → bucket: learn_creature
+
+          TOPICS:
+          - Climate, weather, temperature, desert, hot
+            → bucket: climate_geography
+          - Plants, vegetation, trees, ferns, cycads
+            → bucket: plant_life
+          - Pangaea, geography, continents, map, supercontinent
+            → bucket: climate_geography
+          - Evolution, origin, beginning, first dinosaurs, why dinosaurs
+            → bucket: evolution_topic
+
+          NAVIGATION:
+          - Jurassic, next period, forward in time, future
+            → bucket: go_jurassic
+          - Cretaceous, T-Rex, skip ahead
+            → bucket: go_cretaceous
+          - Control room, back, return, leave, menu, different era
+            → bucket: back_to_control
+          - Continue, more, keep exploring, what else
+            → bucket: continue_exploring
+
+          DEFAULT:
+          - Any other question or interest
+            → bucket: general_inquiry
+
+        buckets: [learn_creature, climate_geography, plant_life, evolution_topic, go_jurassic, go_cretaceous, back_to_control, continue_exploring, general_inquiry]
+
+        transitions:
+          learn_creature:
+            ai_feedback:
+              tokens_for_ai: |
+                Provide a DETAILED, fascinating description of the creature they asked about:
+
+                Structure your response:
+                1. **Greeting:** "Excellent choice! Let me tell you about [creature]..."
+                2. **Basic Info:** Name meaning, size, diet, when it lived
+                3. **Physical Description:** What it looked like, unique features
+                4. **Behavior:** How it lived, hunted, or survived
+                5. **Cool Facts:** 2-3 amazing facts that bring it to life
+                6. **Context:** How it fits into Triassic ecosystem
+
+                Use vivid language and emojis! Make it feel like you're watching it.
+
+                End with: "What else would you like to explore in the Triassic?"
+            counts_as_attempt: false
+            next_section_and_step: "triassic:explore_triassic"
+
+          climate_geography:
+            ai_feedback:
+              tokens_for_ai: |
+                Explain the Triassic climate and geography in vivid detail:
+                - Describe how hot and dry it was
+                - Explain Pangaea and what that meant for life
+                - Describe the landscapes: deserts, dry river valleys, monsoons
+                - Explain why there were fewer fossils (dry conditions)
+                - Mention the beginning of the breakup toward the end
+
+                Paint a picture with words! Make them feel the heat and vastness.
+                End by asking what they'd like to explore next.
+            counts_as_attempt: false
+            next_section_and_step: "triassic:explore_triassic"
+
+          plant_life:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Triassic plant life vividly:
+                - Conifers dominated (early pines, firs)
+                - Ferns covered the ground
+                - Cycads looked like palms but weren't
+                - Ginkgo trees (still exist today!)
+                - Horsetails along waterways
+                - NO GRASS - grass didn't evolve until much later!
+                - NO FLOWERS - those come in the Cretaceous
+
+                Explain how this affected herbivorous dinosaurs.
+                End by asking what else they'd like to learn.
+            counts_as_attempt: false
+            next_section_and_step: "triassic:explore_triassic"
+
+          evolution_topic:
+            ai_feedback:
+              tokens_for_ai: |
+                Explain the evolution of dinosaurs in the Triassic:
+                - Life recovering from the Permian extinction
+                - Archosaurs split into different groups
+                - First true dinosaurs evolved around 230 MYA
+                - Started small (dog-sized), walked on two legs
+                - Gradually got bigger and more diverse
+                - By end of Triassic, dinosaurs dominated
+
+                Emphasize that dinosaurs "won" because they were better adapted
+                than other reptiles - more efficient hips, upright stance, etc.
+
+                End by asking if they want to see how dinosaurs evolved by jumping to the Jurassic.
+            counts_as_attempt: false
+            next_section_and_step: "triassic:explore_triassic"
+
+          go_jurassic:
+            content_blocks:
+              - "🌿 **TEMPORAL JUMP INITIATED...**"
+              - "⏩ Moving forward 50 million years..."
+              - "✓ Welcome to the JURASSIC PERIOD!"
+            metadata_add:
+              eras_visited: "Triassic, Jurassic"
+              current_era: "Jurassic"
+            next_section_and_step: "jurassic:overview"
+
+          go_cretaceous:
+            content_blocks:
+              - "🦖 **TEMPORAL JUMP INITIATED...**"
+              - "⏩ Moving forward 100+ million years..."
+              - "✓ Welcome to the CRETACEOUS PERIOD!"
+            metadata_add:
+              eras_visited: "Triassic, Cretaceous"
+              current_era: "Cretaceous"
+            next_section_and_step: "cretaceous:overview"
+
+          back_to_control:
+            content_blocks:
+              - "⚡ **Returning to Time Machine Control Room...**"
+            next_section_and_step: "control_room:choose_era"
+
+          continue_exploring:
+            ai_feedback:
+              tokens_for_ai: |
+                Give them more fascinating Triassic facts they haven't heard yet!
+                Topics you can cover:
+                - The Triassic-Jurassic extinction event (end of the period)
+                - Marine life (ichthyosaurs, nothosaurs)
+                - The first pterosaurs (flying reptiles)
+                - Early crocodile relatives
+                - Volcanic activity and climate changes
+
+                Pick something exciting and explain it vividly.
+                End by asking what they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "triassic:explore_triassic"
+
+          general_inquiry:
+            ai_feedback:
+              tokens_for_ai: |
+                Answer their question enthusiastically with accurate details!
+                If you don't know, be honest but offer related information.
+                Always relate answers back to the Triassic Period context.
+                End by asking what else they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "triassic:explore_triassic"
+
+  # ============================================================================
+  # JURASSIC PERIOD (201-145 MYA) - The Golden Age
+  # ============================================================================
+  - section_id: "jurassic"
+    title: "Jurassic Period - The Golden Age of Dinosaurs"
+    steps:
+      - step_id: "overview"
+        title: "Jurassic Period Overview"
+        content_blocks:
+          - "# 🌿 JURASSIC PERIOD (201-145 million years ago)"
+          - ""
+          - "Welcome to the **GOLDEN AGE OF DINOSAURS**!"
+          - ""
+          - "## 🌍 The World You See:"
+          - ""
+          - "**Climate:** Warm and HUMID! Tropical conditions spread across most of Earth."
+          - "Frequent rainfall creates lush forests. Perfect for life!"
+          - ""
+          - "**Geography:** Pangaea is breaking apart! The Atlantic Ocean is forming."
+          - "Shallow seas divide the continents. More coastline = more diversity."
+          - ""
+          - "**Atmosphere:** Higher oxygen levels than Triassic. Easier to breathe!"
+          - ""
+          - "## 🦕 Life in the Jurassic:"
+          - ""
+          - "Dinosaurs have truly arrived! They're everywhere, and they're getting BIG."
+          - ""
+          - "**Giant Sauropods (the long-necks):**"
+          - "- 🦕 Brachiosaurus - 85 feet (26m) long, 40 tons! Giraffe-like posture"
+          - "- 🦕 Diplodocus - 90 feet (27m) long, whip-like tail"
+          - "- 🦕 Apatosaurus - 75 feet (23m), the iconic 'Brontosaurus'"
+          - "- 🦕 Camarasaurus - Most common Jurassic sauropod"
+          - ""
+          - "**Armored Dinosaurs:**"
+          - "- 🦴 Stegosaurus - Distinctive back plates and spiked tail"
+          - "- 🦴 Kentrosaurus - African cousin of Stegosaurus"
+          - ""
+          - "**Theropods (meat-eaters):**"
+          - "- 🦖 Allosaurus - Top predator, 28 feet (8.5m) long"
+          - "- 🦖 Ceratosaurus - Distinctive horn on nose"
+          - "- 🦖 Compsognathus - Tiny chicken-sized hunter"
+          - ""
+          - "**The First Bird:**"
+          - "- 🦅 Archaeopteryx - Feathered dinosaur/early bird!"
+          - ""
+          - "**Marine Reptiles (NOT dinosaurs, but contemporaries):**"
+          - "- 🐋 Ichthyosaurs - Dolphin-like \"fish lizards\""
+          - "- 🐋 Plesiosaurs - Long-necked marine hunters"
+          - "- 🐋 Pliosaurs - Short-necked, massive jaws"
+          - ""
+          - "**Flying Reptiles (pterosaurs):**"
+          - "- 🦇 Rhamphorhynchus - Long tail, fish-eater"
+          - "- 🦇 Pterodactylus - Small, agile flyer"
+          - ""
+          - "**Plant Life:**"
+          - "- 🌲 Dense conifer forests (redwoods, araucarias)"
+          - "- 🌿 Ferns carpeting the forest floor"
+          - "- 🍃 Cycads and ginkgos abundant"
+          - "- 🌾 Horsetails along waterways"
+          - "- ❌ Still NO flowering plants!"
+          - ""
+          - "**Fun Fact:** The largest dinosaurs EVER lived in the Jurassic! Sauropods could weigh 80+ tons - heavier than 12 elephants!"
+
+      - step_id: "explore_jurassic"
+        title: "Explore the Jurassic"
+        question: "What fascinates you about the Jurassic? (Ask about any dinosaur, marine reptiles, pterosaurs, plants, climate, or jump to another era!)"
+        tokens_for_ai: |
+          Detect what the user wants to explore:
+
+          SPECIFIC DINOSAURS:
+          - Brachiosaurus, Diplodocus, Apatosaurus, Brontosaurus, Camarasaurus (sauropods)
+            → bucket: learn_creature
+          - Stegosaurus, Kentrosaurus (armored)
+            → bucket: learn_creature
+          - Allosaurus, Ceratosaurus, Compsognathus (theropods)
+            → bucket: learn_creature
+          - Archaeopteryx (first bird)
+            → bucket: learn_creature
+          - Other Jurassic dinosaurs
+            → bucket: learn_creature
+
+          MARINE AND FLYING LIFE:
+          - Ichthyosaur, Plesiosaur, Pliosaur, marine reptiles, ocean, sea
+            → bucket: marine_life
+          - Pterosaur, Rhamphorhynchus, Pterodactylus, flying, wings
+            → bucket: flying_reptiles
+
+          TOPICS:
+          - Climate, weather, rain, tropical, humid
+            → bucket: climate_geography
+          - Plants, forest, trees, vegetation
+            → bucket: plant_life
+          - Size, biggest, largest, giant, how big
+            → bucket: size_topic
+          - Pangaea breaking, continents, geography, ocean forming
+            → bucket: climate_geography
+
+          NAVIGATION:
+          - Triassic, back, earlier, before
+            → bucket: go_triassic
+          - Cretaceous, forward, next, T-Rex, forward in time
+            → bucket: go_cretaceous
+          - Control room, return, leave, menu
+            → bucket: back_to_control
+          - More, continue, what else, keep exploring
+            → bucket: continue_exploring
+
+          DEFAULT:
+          - Any other question
+            → bucket: general_inquiry
+
+        buckets: [learn_creature, marine_life, flying_reptiles, climate_geography, plant_life, size_topic, go_triassic, go_cretaceous, back_to_control, continue_exploring, general_inquiry]
+
+        transitions:
+          learn_creature:
+            ai_feedback:
+              tokens_for_ai: |
+                Provide a DETAILED, awe-inspiring description of the creature:
+
+                For sauropods, emphasize:
+                - Mind-boggling size (use comparisons: school buses, etc.)
+                - How they ate so much (special digestive systems)
+                - Why they had long necks (reaching high vegetation)
+                - Social behavior (herds for protection)
+
+                For theropods, emphasize:
+                - Hunting strategies
+                - Speed and agility
+                - Comparison to modern animals
+
+                For Archaeopteryx, emphasize:
+                - The link between dinosaurs and birds
+                - Feathers AND teeth AND claws
+                - Could it fly? (Still debated!)
+
+                Use vivid descriptions! Make them SEE the creature.
+                End by asking what else they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "jurassic:explore_jurassic"
+
+          marine_life:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Jurassic marine reptiles with wonder:
+
+                ICHTHYOSAURS:
+                - Looked like dolphins but were reptiles!
+                - Fast swimmers, air-breathers
+                - Gave birth to live young (not eggs!)
+                - Some had HUGE eyes for deep-water hunting
+
+                PLESIOSAURS:
+                - Long necks, four flippers
+                - "Flew" through water like penguins
+                - Ambush predators
+
+                PLIOSAURS:
+                - SHORT necks, MASSIVE heads
+                - Some of the most powerful bite forces ever
+                - Apex predators of the seas
+
+                Emphasize: These were NOT dinosaurs! They were marine reptiles.
+                Dinosaurs lived on land (and some evolved into birds).
+
+                End by asking what else they'd like to learn.
+            counts_as_attempt: false
+            next_section_and_step: "jurassic:explore_jurassic"
+
+          flying_reptiles:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Jurassic pterosaurs (flying reptiles) with excitement:
+
+                KEY POINTS:
+                - NOT dinosaurs! Separate group of reptiles
+                - NOT birds! Completely different evolution
+                - Hollow bones for lightweight flight
+                - Wings made of skin membrane (like bats)
+                - Covered in fur-like fibers (pycnofibers)
+
+                JURASSIC PTEROSAURS:
+                - Ranged from sparrow-sized to eagle-sized
+                - Long tails with diamond-shaped vanes (for steering)
+                - Sharp teeth for catching fish
+                - Some lived on cliffs, others in forests
+
+                Compare to Cretaceous pterosaurs (like Quetzalcoatlus) which got MUCH bigger!
+
+                End by asking what else they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "jurassic:explore_jurassic"
+
+          climate_geography:
+            ai_feedback:
+              tokens_for_ai: |
+                Paint a vivid picture of the Jurassic world:
+
+                CLIMATE:
+                - Warm and humid everywhere
+                - Tropical conditions even at high latitudes
+                - Frequent rain created lush forests
+                - No ice caps at the poles!
+                - Perfect conditions for giant plant-eaters
+
+                GEOGRAPHY:
+                - Pangaea breaking up into Laurasia (north) and Gondwana (south)
+                - Atlantic Ocean forming as a narrow sea
+                - Shallow seas covering parts of continents
+                - More coastline = more ecological niches = more diversity
+
+                This breakup of Pangaea meant different dinosaurs evolved
+                in different regions - the beginning of regional differences!
+
+                End by asking what they'd like to explore next.
+            counts_as_attempt: false
+            next_section_and_step: "jurassic:explore_jurassic"
+
+          plant_life:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Jurassic plant life vividly:
+
+                FORESTS:
+                - Dense conifer forests (think redwood forests!)
+                - Some trees reached 200+ feet (60m) tall
+                - Araucaria trees (like modern monkey puzzle trees)
+                - Ginkgo trees with fan-shaped leaves
+
+                UNDERSTORY:
+                - Ferns everywhere - some tree-sized!
+                - Cycads with palm-like fronds
+                - Horsetails along streams
+                - Mosses and liverworts
+
+                IMPORTANT:
+                - NO GRASS - the ground was covered in ferns and low plants
+                - NO FLOWERS - flowering plants haven't evolved yet
+                - This affected how herbivores ate - they needed special teeth
+                  to process tough, fibrous vegetation
+
+                End by asking what else they'd like to learn.
+            counts_as_attempt: false
+            next_section_and_step: "jurassic:explore_jurassic"
+
+          size_topic:
+            ai_feedback:
+              tokens_for_ai: |
+                Blow their minds with SIZE FACTS:
+
+                LARGEST DINOSAURS:
+                - Brachiosaurus: 85 feet long, 40-50 tons (8-10 elephants!)
+                - Diplodocus: 90 feet long (longer than 2 school buses!)
+                - Supersaurus: 110+ feet long, 40-50 tons
+
+                WHY SO BIG?
+                - High oxygen levels
+                - Abundant food (lush forests)
+                - Efficient respiratory systems (like birds)
+                - Long necks let them eat more without moving
+                - Size protected them from predators
+
+                HOW DID THEY SUPPORT THEIR WEIGHT?
+                - Hollow bones (like birds!)
+                - Column-like legs (like elephants)
+                - Strong, reinforced vertebrae
+                - Massive muscles
+
+                SIZE COMPARISONS:
+                - A Brachiosaurus could look into a 4th-story window!
+                - One Diplodocus egg weighed about 1 pound
+                - A human would barely reach their ankles
+
+                End by asking what else they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "jurassic:explore_jurassic"
+
+          go_triassic:
+            content_blocks:
+              - "🌋 **TEMPORAL JUMP INITIATED...**"
+              - "⏪ Moving backward 50 million years..."
+              - "✓ Welcome back to the TRIASSIC PERIOD!"
+            metadata_add:
+              current_era: "Triassic"
+            next_section_and_step: "triassic:overview"
+
+          go_cretaceous:
+            content_blocks:
+              - "🦖 **TEMPORAL JUMP INITIATED...**"
+              - "⏩ Moving forward 60 million years..."
+              - "✓ Welcome to the CRETACEOUS PERIOD!"
+            metadata_add:
+              eras_visited: "Jurassic, Cretaceous"
+              current_era: "Cretaceous"
+            next_section_and_step: "cretaceous:overview"
+
+          back_to_control:
+            content_blocks:
+              - "⚡ **Returning to Time Machine Control Room...**"
+            next_section_and_step: "control_room:choose_era"
+
+          continue_exploring:
+            ai_feedback:
+              tokens_for_ai: |
+                Share more fascinating Jurassic facts they haven't heard yet:
+
+                Topics you can cover:
+                - Social behavior (herds, family groups)
+                - Fossilization process (Morrison Formation - famous fossil site)
+                - Day in the life of a sauropod
+                - Predator-prey relationships
+                - Trackways and footprints
+                - Eggs and nests
+                - Growth rates (baby to adult in 10-15 years!)
+
+                Pick something exciting and make it vivid!
+                End by asking what they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "jurassic:explore_jurassic"
+
+          general_inquiry:
+            ai_feedback:
+              tokens_for_ai: |
+                Answer their question with enthusiasm and accuracy!
+                Connect the answer to the Jurassic Period context.
+                Use specific examples and comparisons.
+                Be honest if you don't know something.
+                End by asking what else they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "jurassic:explore_jurassic"
+
+  # ============================================================================
+  # CRETACEOUS PERIOD (145-66 MYA) - The Grand Finale
+  # ============================================================================
+  - section_id: "cretaceous"
+    title: "Cretaceous Period - The Age of Giants and Diversity"
+    steps:
+      - step_id: "overview"
+        title: "Cretaceous Period Overview"
+        content_blocks:
+          - "# 🦖 CRETACEOUS PERIOD (145-66 million years ago)"
+          - ""
+          - "Welcome to the **GRAND FINALE** of the Age of Dinosaurs!"
+          - ""
+          - "## 🌍 The World You See:"
+          - ""
+          - "**Climate:** Warm and varied! Tropical near equator, temperate further north/south."
+          - "Sea levels are VERY high - much of the continents are underwater!"
+          - ""
+          - "**Geography:** Continents look more familiar! North and South America are separated."
+          - "Africa and South America have split. India is an island heading toward Asia."
+          - ""
+          - "**Atmosphere:** High oxygen levels. Very pleasant for breathing!"
+          - ""
+          - "## 🦖 Life in the Cretaceous:"
+          - ""
+          - "This is peak dinosaur diversity! More species than ever before."
+          - ""
+          - "**Famous Theropods (meat-eaters):**"
+          - "- 🦖 Tyrannosaurus Rex - THE apex predator, 40 feet (12m) long, 9 tons!"
+          - "- 🦖 Spinosaurus - Even BIGGER than T-Rex! Semi-aquatic with a sail on its back"
+          - "- 🦖 Giganotosaurus - South American giant, 43 feet (13m)"
+          - "- 🦖 Velociraptor - Smart pack hunter (chicken-sized, not movie-sized!)"
+          - "- 🦖 Carnotaurus - \"Meat bull\" with tiny arms and horns"
+          - ""
+          - "**Herbivores (plant-eaters):**"
+          - "- 🦕 Triceratops - Three-horned face, massive frill"
+          - "- 🦕 Ankylosaurus - Living tank with club tail"
+          - "- 🦕 Parasaurolophus - Duck-billed with tube-shaped crest"
+          - "- 🦕 Iguanodon - Thumb spikes for defense"
+          - "- 🦕 Argentinosaurus - Possibly the LARGEST dinosaur ever (100+ feet/30m)"
+          - ""
+          - "**Pack Hunters:**"
+          - "- 🦖 Deinonychus - Intelligent raptor (inspired Jurassic Park's Velociraptors)"
+          - "- 🦖 Utahraptor - Large raptor, 20 feet (6m) long"
+          - ""
+          - "**Marine Reptiles:**"
+          - "- 🐋 Mosasaurus - Massive marine lizard, 50 feet (15m) long"
+          - "- 🐋 Elasmosaurus - Extremely long-necked plesiosaur"
+          - ""
+          - "**Flying Reptiles (pterosaurs):**"
+          - "- 🦅 Pteranodon - Iconic toothless flyer, 20-foot wingspan"
+          - "- 🦅 Quetzalcoatlus - ENORMOUS! 35-foot wingspan (size of a small plane!)"
+          - ""
+          - "**Plant Life - THE BIG CHANGE:**"
+          - "- 🌸 **FLOWERING PLANTS APPEAR!** (Around 130 MYA)"
+          - "- 🌸 Magnolias, water lilies, sycamores"
+          - "- 🌲 Still plenty of conifers and ferns"
+          - "- 🌾 Grasses start to appear late in the period"
+          - "- 🐝 Bees and butterflies evolve alongside flowers!"
+          - ""
+          - "**Fun Fact:** T-Rex lived closer in time to US than to Stegosaurus! (T-Rex: 68-66 MYA, Stegosaurus: 150 MYA)"
+
+      - step_id: "explore_cretaceous"
+        title: "Explore the Cretaceous"
+        question: "What would you like to discover in the Cretaceous? (Ask about any dinosaur, marine reptiles, pterosaurs, flowering plants, or jump to another era!)"
+        tokens_for_ai: |
+          Detect what the user wants to explore:
+
+          SPECIFIC DINOSAURS:
+          - Tyrannosaurus, T-Rex, T. Rex, Rex
+            → bucket: learn_trex
+          - Velociraptor, raptor, Deinonychus, Utahraptor (pack hunters)
+            → bucket: learn_creature
+          - Spinosaurus (special - water-dwelling)
+            → bucket: learn_creature
+          - Triceratops, Ankylosaurus, Parasaurolophus, Iguanodon, Argentinosaurus
+            → bucket: learn_creature
+          - Giganotosaurus, Carnotaurus, or other Cretaceous dinosaurs
+            → bucket: learn_creature
+
+          MARINE AND FLYING:
+          - Mosasaurus, Elasmosaurus, marine reptiles, ocean
+            → bucket: marine_life
+          - Pteranodon, Quetzalcoatlus, pterosaurs, flying
+            → bucket: flying_reptiles
+
+          TOPICS:
+          - Flowers, flowering plants, angiosperms, bees, evolution of flowers
+            → bucket: flowering_plants
+          - Climate, geography, continents, seas
+            → bucket: climate_geography
+          - Extinction, asteroid, meteor, what happened, end of dinosaurs, K-T event
+            → bucket: extinction_event
+          - Feathers, birds, evolution to birds
+            → bucket: feathers_birds
+
+          NAVIGATION:
+          - Triassic, beginning, start
+            → bucket: go_triassic
+          - Jurassic, back, before, earlier
+            → bucket: go_jurassic
+          - Control room, return, menu, leave
+            → bucket: back_to_control
+          - More, continue, what else, keep exploring
+            → bucket: continue_exploring
+
+          DEFAULT:
+          - Any other question
+            → bucket: general_inquiry
+
+        buckets: [learn_trex, learn_creature, marine_life, flying_reptiles, flowering_plants, climate_geography, extinction_event, feathers_birds, go_triassic, go_jurassic, back_to_control, continue_exploring, general_inquiry]
+
+        transitions:
+          learn_trex:
+            ai_feedback:
+              tokens_for_ai: |
+                Give them the FULL, AMAZING story of Tyrannosaurus Rex!
+
+                BASICS:
+                - Name means "Tyrant Lizard King" 👑
+                - 40 feet (12m) long, 12-15 feet (4m) tall at the hips
+                - Weighed 9 tons (18,000 pounds!)
+                - Lived 68-66 million years ago (very end of Cretaceous)
+
+                INCREDIBLE FEATURES:
+                - 🦷 60 teeth, some 12 inches (30cm) long!
+                - 👀 EXCELLENT eyesight (better than eagles!) - 13x better than humans
+                - 👃 Amazing sense of smell (could smell prey from miles away)
+                - 🦴 Bite force: 12,800 pounds (strongest of any land animal ever!)
+                - 🏃 Could run 25 mph (40 km/h) - fast for its size!
+
+                HUNTING:
+                - Apex predator - ate Triceratops, Edmontosaurus, and other large dinosaurs
+                - Possibly hunted in family groups
+                - Could crush bone with its bite
+                - Both hunter AND scavenger (ate whatever it could!)
+
+                TINY ARMS:
+                - Yes, its arms were small (3 feet / 1m)
+                - BUT very strong! Could lift 400 pounds each
+                - Likely used for gripping prey while biting
+                - Two-fingered hands with claws
+
+                COOL FACTS:
+                - Only lived for 2 million years before extinction
+                - Grew incredibly fast (4,000 pounds per year during teenage years!)
+                - Some had feathers or fuzz (debated)
+                - Close relative to modern chickens and ostriches!
+
+                Make it vivid and exciting! End by asking what else they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:explore_cretaceous"
+
+          learn_creature:
+            ai_feedback:
+              tokens_for_ai: |
+                Provide detailed, exciting information about the creature:
+
+                For RAPTORS (Velociraptor, Deinonychus):
+                - Real size (much smaller than movies!)
+                - Sickle claws on feet - their main weapon
+                - Pack hunting behavior
+                - High intelligence (for dinosaurs)
+                - Covered in FEATHERS! (Yes, really!)
+
+                For SPINOSAURUS:
+                - Even larger than T-Rex (50+ feet)
+                - Sail on back (for display or temperature regulation?)
+                - Semi-aquatic lifestyle - hunted fish!
+                - Crocodile-like snout
+                - First truly aquatic dinosaur discovered
+
+                For HERBIVORES:
+                - Defense mechanisms (horns, armor, clubs, herds)
+                - What they ate and how
+                - Size and behavior
+                - Unique features
+
+                Use vivid descriptions and comparisons!
+                End by asking what else they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:explore_cretaceous"
+
+          marine_life:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Cretaceous marine reptiles with awe:
+
+                MOSASAURUS:
+                - The ultimate marine predator of the Cretaceous!
+                - 50 feet (15m) long - longer than a humpback whale
+                - Gigantic jaws with hundreds of teeth
+                - Ate EVERYTHING: fish, turtles, plesiosaurs, even other mosasaurs
+                - Could swallow prey whole
+                - Ruled the seas for 20 million years
+
+                ELASMOSAURUS:
+                - Ridiculously long neck (26 feet / 8m!)
+                - 72 vertebrae in the neck alone
+                - Total length: 34 feet (10m)
+                - Swam using four flippers like a sea turtle
+                - Ambush predator - would raise head quickly to catch fish
+
+                CONTEXT:
+                - The seas were warm and shallow
+                - Abundant fish and ammonites (spiral-shelled creatures)
+                - These weren't dinosaurs - they were marine reptiles
+                - All went extinct with the dinosaurs 66 MYA
+
+                Paint a picture of the ancient seas!
+                End by asking what else they'd like to learn.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:explore_cretaceous"
+
+          flying_reptiles:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe the AMAZING pterosaurs of the Cretaceous:
+
+                PTERANODON:
+                - Most famous pterosaur
+                - 20-foot (6m) wingspan
+                - Distinctive head crest (for display or steering?)
+                - Toothless beak
+                - Soared over oceans catching fish
+                - Light as a turkey despite huge size!
+
+                QUETZALCOATLUS:
+                - The LARGEST flying animal EVER! 🤯
+                - 35-40 foot (10-12m) wingspan!
+                - As tall as a giraffe when standing
+                - Weighed 500 pounds (like a male lion)
+                - How did it fly? Incredible lightweight skeleton
+                - Likely hunted on ground too (ate baby dinosaurs?)
+
+                HOW THEY FLEW:
+                - Wings made of skin membrane (like bats)
+                - Covered in fur-like pycnofibers
+                - Hollow bones (even more hollow than birds!)
+                - Enormous flight muscles
+                - Could soar for hours without flapping
+
+                Emphasize the SCALE - Quetzalcoatlus had wingspan of a small airplane!
+                End by asking what they'd like to explore next.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:explore_cretaceous"
+
+          flowering_plants:
+            ai_feedback:
+              tokens_for_ai: |
+                Explain the REVOLUTION of flowering plants:
+
+                THE BIG CHANGE:
+                - Around 130 million years ago, flowers appeared!
+                - This changed EVERYTHING about life on Earth
+                - Charles Darwin called it an "abominable mystery" (happened so fast!)
+
+                EARLY FLOWERS:
+                - Magnolias (still exist today!)
+                - Water lilies
+                - Small daisy-like flowers
+                - Eventually: roses, orchids, oaks, maples
+
+                WHY IT MATTERED:
+                - Flowers = fruits and seeds
+                - More nutritious food for herbivores
+                - Led to evolution of bees, butterflies, and other pollinators
+                - Faster reproduction than conifers
+                - Quickly dominated the landscape
+
+                EFFECTS ON DINOSAURS:
+                - Duck-billed dinosaurs evolved to eat flowering plants
+                - More diverse food sources = more diverse dinosaurs
+                - Some dinosaurs may have helped spread seeds (like modern elephants)
+
+                THE CASCADE:
+                - Flowers → insects → small mammals thrived
+                - This set the stage for mammal dominance after dinosaurs
+
+                Make it feel like the evolutionary revolution it was!
+                End by asking what else they'd like to learn.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:explore_cretaceous"
+
+          climate_geography:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe the Cretaceous world vividly:
+
+                GEOGRAPHY:
+                - Continents starting to look familiar!
+                - Atlantic Ocean wide and growing
+                - India is an island moving toward Asia
+                - North America split by Western Interior Seaway
+                - South America and Africa separated
+
+                CLIMATE:
+                - Very warm globally - no ice caps!
+                - Tropical conditions extended far north/south
+                - Sea levels 550 feet (170m) higher than today!
+                - Shallow seas covered 40% of the continents
+                - Seasonal monsoons in some regions
+
+                REGIONAL DIFFERENCES:
+                - Different dinosaurs on different continents
+                - North America: T-Rex, Triceratops
+                - South America: Giganotosaurus, Argentinosaurus
+                - Africa: Spinosaurus, Carcharodontosaurus
+                - Asia: Velociraptor, Protoceratops
+
+                This geographic isolation led to incredible diversity!
+                End by asking what they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:explore_cretaceous"
+
+          extinction_event:
+            content_blocks:
+              - "💥 **Fast-forwarding to 66 million years ago...**"
+              - "⚠️ **WARNING: You are approaching the K-T extinction event!**"
+            next_section_and_step: "cretaceous:extinction"
+
+          feathers_birds:
+            ai_feedback:
+              tokens_for_ai: |
+                Explain the dinosaur-to-bird connection with excitement:
+
+                THE DISCOVERY:
+                - In the 1990s-2000s, fossils from China revealed FEATHERED dinosaurs!
+                - Many theropods (meat-eaters) had feathers
+                - Some just for warmth, some for display, some for flight
+
+                FEATHERED DINOSAURS:
+                - Velociraptors had feathers! (movie got it wrong)
+                - Microraptor had four wings!
+                - Yutyrannus - a feathered tyrannosaur relative
+                - Even baby T-Rexes may have been fuzzy
+
+                EVOLUTION TO BIRDS:
+                - Birds ARE dinosaurs (specifically, avian dinosaurs)
+                - They evolved from small theropods
+                - Hollow bones, wishbones, three-toed feet
+                - The first birds appeared in the Jurassic (Archaeopteryx)
+                - By Cretaceous, many modern bird groups existed
+
+                SURVIVORS:
+                - When the asteroid hit, only bird dinosaurs survived
+                - Why? Small size, could fly, ate seeds/insects
+                - Every bird today is a living dinosaur!
+                - You're looking at a dinosaur when you see a chicken
+
+                This means dinosaurs DIDN'T go extinct - they're all around us!
+                End by asking what else they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:explore_cretaceous"
+
+          go_triassic:
+            content_blocks:
+              - "🌋 **TEMPORAL JUMP INITIATED...**"
+              - "⏪ Moving backward 140+ million years..."
+              - "✓ Welcome back to the TRIASSIC PERIOD!"
+            metadata_add:
+              current_era: "Triassic"
+            next_section_and_step: "triassic:overview"
+
+          go_jurassic:
+            content_blocks:
+              - "🌿 **TEMPORAL JUMP INITIATED...**"
+              - "⏪ Moving backward 70 million years..."
+              - "✓ Welcome back to the JURASSIC PERIOD!"
+            metadata_add:
+              current_era: "Jurassic"
+            next_section_and_step: "jurassic:overview"
+
+          back_to_control:
+            content_blocks:
+              - "⚡ **Returning to Time Machine Control Room...**"
+            next_section_and_step: "control_room:choose_era"
+
+          continue_exploring:
+            ai_feedback:
+              tokens_for_ai: |
+                Share more fascinating Cretaceous facts:
+
+                Topics you can cover:
+                - Parenting behavior (nests, eggs, protecting young)
+                - Social structures (herds, packs, territorial behavior)
+                - Communication (calls, visual displays)
+                - Growth rates and lifespans
+                - Diseases and injuries (healed bones show survival)
+                - Famous fossil sites (Hell Creek, Montana)
+                - Regional differences in dinosaur species
+                - The rise of mammals (small but getting smarter)
+
+                Pick something fascinating and bring it to life!
+                End by asking what they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:explore_cretaceous"
+
+          general_inquiry:
+            ai_feedback:
+              tokens_for_ai: |
+                Answer their question with enthusiasm and accuracy!
+                Use specific Cretaceous examples.
+                Make connections between different aspects of the era.
+                Be honest if uncertain about something.
+                End by asking what else they'd like to discover.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:explore_cretaceous"
+
+      # ========================================================================
+      # THE EXTINCTION EVENT
+      # ========================================================================
+      - step_id: "extinction"
+        title: "The K-T Extinction Event"
+        content_blocks:
+          - "# 💥 66 MILLION YEARS AGO - THE K-T EXTINCTION EVENT"
+          - ""
+          - "```"
+          - "⚠️  TEMPORAL ALERT!"
+          - "⚠️  Catastrophic event detected!"
+          - "⚠️  Recommendation: Observe from safe distance"
+          - "```"
+          - ""
+          - "## 🌍 What You're Witnessing:"
+          - ""
+          - "### THE ASTEROID:"
+          - "- A rock 6 miles (10 km) wide"
+          - "- Traveling at 45,000 mph (72,000 km/h)"
+          - "- Slams into what is now the Yucatán Peninsula, Mexico"
+          - "- Creates the **Chicxulub crater** - 93 miles (150 km) wide!"
+          - ""
+          - "### IMMEDIATE EFFECTS (First Hours):"
+          - "- 💥 Impact energy = 10 BILLION atomic bombs"
+          - "- 🌊 Mega-tsunamis 300+ feet (100m) high sweep across oceans"
+          - "- 🌋 Shockwave triggers volcanic eruptions worldwide"
+          - "- 🔥 Debris rains back down as red-hot rock, starting global wildfires"
+          - "- 🌪️ Hurricane-force winds circle the planet"
+          - ""
+          - "### FIRST WEEKS:"
+          - "- ☁️ Dust and soot block out the sun (impact winter)"
+          - "- 🌡️ Global temperatures drop 50°F (28°C)"
+          - "- ❄️ Darkness lasts for months to years"
+          - "- 🌱 Photosynthesis stops - plants die"
+          - "- ⛈️ Acid rain from vaporized rock"
+          - ""
+          - "### LONG-TERM (Months to Years):"
+          - "- 🥶 Impact winter lasts 1-3 years"
+          - "- 🍂 75% of all species go extinct"
+          - "- 🦖 ALL non-avian dinosaurs die"
+          - "- 🐊 Crocodiles and turtles survive (can hibernate/go without food)"
+          - "- 🐦 Small birds survive (eat seeds)"
+          - "- 🐭 Small mammals survive (burrow underground)"
+          - ""
+          - "## 💀 Who Died:"
+          - "- ALL non-avian dinosaurs (including T-Rex, Triceratops)"
+          - "- ALL pterosaurs (flying reptiles)"
+          - "- ALL marine reptiles (mosasaurs, plesiosaurs)"
+          - "- Many fish, plants, insects"
+          - "- Ammonites (spiral-shelled marine animals)"
+          - ""
+          - "## ✅ Who Survived:"
+          - "- Birds (small, could eat seeds/insects, some could swim)"
+          - "- Small mammals (could burrow, hibernate, eat anything)"
+          - "- Crocodiles and alligators (could go months without food)"
+          - "- Turtles and lizards"
+          - "- Frogs and salamanders"
+          - "- Many fish and sharks"
+          - "- Insects (incredibly resilient)"
+          - ""
+          - "## 🧬 The Aftermath:"
+          - ""
+          - "With dinosaurs gone, mammals evolved rapidly to fill empty ecological niches."
+          - "Within 10 million years, mammals went from mouse-sized to cow-sized."
+          - "This extinction event made room for US - primates evolved from small mammals."
+          - ""
+          - "**In a sense, we owe our existence to that asteroid.**"
+
+      - step_id: "reflection"
+        title: "Journey Complete"
+        question: "You've witnessed the entire Age of Dinosaurs - 165 million years of evolution and dominance, ending in a cosmic catastrophe. What amazes you most? What would you like to explore more?"
+        tokens_for_ai: |
+          This is the reflection step. Detect what they're interested in:
+
+          - If they want to revisit a period (Triassic, Jurassic, Cretaceous)
+            → bucket: revisit_era
+
+          - If they want to learn more about the extinction
+            → bucket: more_extinction
+
+          - If they want to learn about what came after (mammals, humans)
+            → bucket: after_dinosaurs
+
+          - If they want to ask more questions or explore specific topics
+            → bucket: continue_learning
+
+          - If they're done and want to end
+            → bucket: farewell
+
+        buckets: [revisit_era, more_extinction, after_dinosaurs, continue_learning, farewell]
+
+        transitions:
+          revisit_era:
+            ai_feedback:
+              tokens_for_ai: |
+                Great! Identify which era they want to revisit and explain you're
+                jumping them back there. Be enthusiastic about their curiosity!
+            next_section_and_step: "control_room:choose_era"
+
+          more_extinction:
+            ai_feedback:
+              tokens_for_ai: |
+                Provide more details about the K-T extinction:
+                - The debate about what killed them (asteroid confirmed in 1980s)
+                - How we know (iridium layer worldwide, shocked quartz, tektites)
+                - Chicxulub crater discovery
+                - Why it affected different animals differently
+                - Alternative theories that were disproven
+                - Whether it could happen again (yes, but rare)
+
+                End by asking if they want to explore more or return to control room.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:reflection"
+
+          after_dinosaurs:
+            ai_feedback:
+              tokens_for_ai: |
+                Explain what happened after the dinosaurs:
+
+                THE PALEOGENE (66-23 MYA):
+                - Mammals rapidly evolved to fill ecological niches
+                - From mouse-sized to elephant-sized in 10 million years
+                - Early whales, early horses, early primates
+                - Birds diversified into modern groups
+                - Earth cooled down, forests recovered
+
+                THE AGE OF MAMMALS:
+                - Primates evolved from small shrew-like mammals
+                - First apes appeared ~20 MYA
+                - First humans ~2 MYA
+                - Modern humans ~300,000 years ago
+
+                PERSPECTIVE:
+                - Dinosaurs ruled for 165 million years
+                - Humans have only existed for 300,000 years
+                - We're VERY new to this planet!
+
+                End by asking what else they'd like to explore.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:reflection"
+
+          continue_learning:
+            ai_feedback:
+              tokens_for_ai: |
+                Answer their question or point them toward relevant sections!
+                Encourage their curiosity. Offer to take them back to any era
+                or to the control room to choose a new adventure.
+            counts_as_attempt: false
+            next_section_and_step: "cretaceous:reflection"
+
+          farewell:
+            content_blocks:
+              - "# 🦕 Thank You for Your Journey! 🦖"
+              - ""
+              - "You've traveled through 165 million years of Earth's history."
+              - "You've witnessed the rise and fall of the most magnificent creatures ever to walk our planet."
+              - ""
+              - "```"
+              - "╔═══════════════════════════════════════════════════════╗"
+              - "║                                                       ║"
+              - "║           TEMPORAL DISPLACEMENT ENGINE v1.0           ║"
+              - "║              Status: ✓ MISSION COMPLETE               ║"
+              - "║                                                       ║"
+              - "║  Journey Summary:                                     ║"
+              - "║  - Eras Visited: check your metadata                 ║"
+              - "║  - Time Traveled: 252 million years                  ║"
+              - "║  - Dinosaurs Discovered: Countless!                  ║"
+              - "║                                                       ║"
+              - "║  Thank you for exploring Earth's prehistoric past!   ║"
+              - "║                                                       ║"
+              - "╚═══════════════════════════════════════════════════════╝"
+              - "```"
+              - ""
+              - "**Remember:** Birds are living dinosaurs! Every time you see a bird,"
+              - "you're looking at a descendant of the mighty creatures you just studied."
+              - ""
+              - "**Fun fact:** A chicken's closest extinct relative is... Tyrannosaurus Rex! 🐔🦖"
+              - ""
+              - "Come back anytime to explore more of prehistoric Earth! 🌍"
+            metadata_add:
+              activity_completed: "true"
