@@ -958,13 +958,56 @@ sections:
           - "**The Galilean Moons** (discovered by Galileo in 1610):"
           - "These four large moons are worlds unto themselves, visible with binoculars from Earth."
           - ""
-          - "We'll explore each of the Galilean moons, plus other notable satellites:"
+          - "You can explore any of these moons:"
           - "- **Io** - Most volcanically active body in the solar system"
           - "- **Europa** - Icy moon with subsurface ocean (possible life!)"
           - "- **Ganymede** - Largest moon in the solar system"
           - "- **Callisto** - Ancient, heavily cratered world"
-          - ""
-          - "Plus dozens of smaller irregular moons, many captured asteroids!"
+          - "- **Other moons** - Dozens of smaller irregular moons"
+
+      - step_id: "jupiter_moon_menu"
+        title: "Choose a Jovian Moon"
+        question: "Which of Jupiter's moons would you like to explore?"
+        tokens_for_ai: |
+          Categorize based on which moon they want to visit:
+          - 'io' if they mention: io, volcanic, lava, most active
+          - 'europa' if they mention: europa, ocean, subsurface, life
+          - 'ganymede' if they mention: ganymede, largest, biggest
+          - 'callisto' if they mention: callisto, ancient, cratered
+          - 'other_moons' if they mention: other, small, irregular, amalthea, himalia
+          - 'done_with_moons' if they want to leave Jupiter or go elsewhere
+          - 'stay' if they need more info about the moons
+        buckets: [io, europa, ganymede, callisto, other_moons, done_with_moons, stay]
+        transitions:
+          io:
+            ai_feedback:
+              tokens_for_ai: "Great choice! Warping to Io, the volcanic pizza moon!"
+            next_section_and_step: "jupiter:moon_io"
+          europa:
+            ai_feedback:
+              tokens_for_ai: "Excellent! Heading to Europa, the ocean world!"
+            next_section_and_step: "jupiter:moon_europa"
+          ganymede:
+            ai_feedback:
+              tokens_for_ai: "Let's visit Ganymede, the giant moon!"
+            next_section_and_step: "jupiter:moon_ganymede"
+          callisto:
+            ai_feedback:
+              tokens_for_ai: "Traveling to Callisto, the ancient world!"
+            next_section_and_step: "jupiter:moon_callisto"
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "Let's explore Jupiter's other fascinating moons!"
+            next_section_and_step: "jupiter:jupiter_other_moons"
+          done_with_moons:
+            ai_feedback:
+              tokens_for_ai: "Ready to continue your journey through the solar system!"
+            next_section_and_step: "jupiter:jupiter_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about Jupiter's moons! Then ask which moon they want to visit."
+            counts_as_attempt: false
+            next_section_and_step: "jupiter:jupiter_moon_menu"
 
       - step_id: "moon_io"
         title: "Io - The Volcanic Moon"
@@ -994,6 +1037,50 @@ sections:
           - "- **Internal Heat**: More heat per area than any body in solar system"
           - ""
           - "**Atmosphere**: Thin sulfur dioxide atmosphere from volcanic outgassing"
+
+      - step_id: "moon_io_nav"
+        title: "Explore More Moons"
+        question: "What would you like to do next?"
+        tokens_for_ai: |
+          Categorize their choice:
+          - 'europa' if they mention europa, ocean moon, next moon
+          - 'ganymede' if they mention ganymede, largest
+          - 'callisto' if they mention callisto
+          - 'other_moons' if they mention other moons, small moons
+          - 'moon_menu' if they want to choose from menu, see list, back to moons
+          - 'leave_jupiter' if they want to leave Jupiter, go elsewhere, other planets
+          - 'stay' if they have questions about Io
+        buckets: [europa, ganymede, callisto, other_moons, moon_menu, leave_jupiter, stay]
+        transitions:
+          europa:
+            ai_feedback:
+              tokens_for_ai: "Jumping to Europa!"
+            next_section_and_step: "jupiter:moon_europa"
+          ganymede:
+            ai_feedback:
+              tokens_for_ai: "Warping to Ganymede!"
+            next_section_and_step: "jupiter:moon_ganymede"
+          callisto:
+            ai_feedback:
+              tokens_for_ai: "Heading to Callisto!"
+            next_section_and_step: "jupiter:moon_callisto"
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "Let's check out Jupiter's other moons!"
+            next_section_and_step: "jupiter:jupiter_other_moons"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to the moon selection menu!"
+            next_section_and_step: "jupiter:jupiter_moon_menu"
+          leave_jupiter:
+            ai_feedback:
+              tokens_for_ai: "Ready to continue your journey!"
+            next_section_and_step: "jupiter:jupiter_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Io question! Then ask what they want to do next."
+            counts_as_attempt: false
+            next_section_and_step: "jupiter:moon_io_nav"
 
       - step_id: "moon_europa"
         title: "Europa - The Ocean Moon"
@@ -1028,6 +1115,50 @@ sections:
           - "- ESA's JUICE mission (arrived 2031)"
           - "- Potential lander/submarine missions being planned"
 
+      - step_id: "moon_europa_nav"
+        title: "Continue Moon Exploration"
+        question: "Where to next?"
+        tokens_for_ai: |
+          Categorize their choice:
+          - 'io' if they mention io, volcanic
+          - 'ganymede' if they mention ganymede, largest, next moon
+          - 'callisto' if they mention callisto
+          - 'other_moons' if they mention other moons, small moons
+          - 'moon_menu' if they want moon menu, choose from list
+          - 'leave_jupiter' if they want to leave Jupiter
+          - 'stay' if they have Europa questions
+        buckets: [io, ganymede, callisto, other_moons, moon_menu, leave_jupiter, stay]
+        transitions:
+          io:
+            ai_feedback:
+              tokens_for_ai: "Back to Io!"
+            next_section_and_step: "jupiter:moon_io"
+          ganymede:
+            ai_feedback:
+              tokens_for_ai: "Off to Ganymede!"
+            next_section_and_step: "jupiter:moon_ganymede"
+          callisto:
+            ai_feedback:
+              tokens_for_ai: "Heading to Callisto!"
+            next_section_and_step: "jupiter:moon_callisto"
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "Let's explore the other moons!"
+            next_section_and_step: "jupiter:jupiter_other_moons"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to the moon menu!"
+            next_section_and_step: "jupiter:jupiter_moon_menu"
+          leave_jupiter:
+            ai_feedback:
+              tokens_for_ai: "Continuing your solar system journey!"
+            next_section_and_step: "jupiter:jupiter_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Europa question! Then ask where they want to go."
+            counts_as_attempt: false
+            next_section_and_step: "jupiter:moon_europa_nav"
+
       - step_id: "moon_ganymede"
         title: "Ganymede - The Giant Moon"
         content_blocks:
@@ -1061,6 +1192,50 @@ sections:
           - "- **Ice Layers**: Multiple ice/water layers"
           - "- **Possible Ocean**: 150 km beneath surface"
 
+      - step_id: "moon_ganymede_nav"
+        title: "Next Moon?"
+        question: "Which moon would you like to visit next?"
+        tokens_for_ai: |
+          Categorize:
+          - 'io' if they mention io
+          - 'europa' if they mention europa
+          - 'callisto' if they mention callisto, ancient, next
+          - 'other_moons' if they mention other, small moons
+          - 'moon_menu' if they want the menu
+          - 'leave_jupiter' if leaving Jupiter
+          - 'stay' for Ganymede questions
+        buckets: [io, europa, callisto, other_moons, moon_menu, leave_jupiter, stay]
+        transitions:
+          io:
+            ai_feedback:
+              tokens_for_ai: "Traveling to Io!"
+            next_section_and_step: "jupiter:moon_io"
+          europa:
+            ai_feedback:
+              tokens_for_ai: "Heading to Europa!"
+            next_section_and_step: "jupiter:moon_europa"
+          callisto:
+            ai_feedback:
+              tokens_for_ai: "Off to Callisto!"
+            next_section_and_step: "jupiter:moon_callisto"
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "Exploring other moons!"
+            next_section_and_step: "jupiter:jupiter_other_moons"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to moon selection!"
+            next_section_and_step: "jupiter:jupiter_moon_menu"
+          leave_jupiter:
+            ai_feedback:
+              tokens_for_ai: "Continuing your journey!"
+            next_section_and_step: "jupiter:jupiter_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Ganymede question!"
+            counts_as_attempt: false
+            next_section_and_step: "jupiter:moon_ganymede_nav"
+
       - step_id: "moon_callisto"
         title: "Callisto - The Ancient Moon"
         content_blocks:
@@ -1093,6 +1268,50 @@ sections:
           - "- Safest location for crewed missions to Jupiter system"
           - "- Potential subsurface ocean for astrobiology"
 
+      - step_id: "moon_callisto_nav"
+        title: "More Moons to Explore?"
+        question: "Where would you like to go?"
+        tokens_for_ai: |
+          Categorize:
+          - 'io' if they mention io
+          - 'europa' if they mention europa
+          - 'ganymede' if they mention ganymede
+          - 'other_moons' if they mention other moons, small, irregular
+          - 'moon_menu' if they want menu
+          - 'leave_jupiter' if leaving
+          - 'stay' for Callisto questions
+        buckets: [io, europa, ganymede, other_moons, moon_menu, leave_jupiter, stay]
+        transitions:
+          io:
+            ai_feedback:
+              tokens_for_ai: "To Io!"
+            next_section_and_step: "jupiter:moon_io"
+          europa:
+            ai_feedback:
+              tokens_for_ai: "To Europa!"
+            next_section_and_step: "jupiter:moon_europa"
+          ganymede:
+            ai_feedback:
+              tokens_for_ai: "To Ganymede!"
+            next_section_and_step: "jupiter:moon_ganymede"
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "Exploring the smaller moons!"
+            next_section_and_step: "jupiter:jupiter_other_moons"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to the menu!"
+            next_section_and_step: "jupiter:jupiter_moon_menu"
+          leave_jupiter:
+            ai_feedback:
+              tokens_for_ai: "Onward!"
+            next_section_and_step: "jupiter:jupiter_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Callisto question!"
+            counts_as_attempt: false
+            next_section_and_step: "jupiter:moon_callisto_nav"
+
       - step_id: "jupiter_other_moons"
         title: "Other Jovian Moons"
         content_blocks:
@@ -1122,6 +1341,50 @@ sections:
           - "- **Himalia** (170 km) - Largest irregular moon"
           - "- **Amalthea** (167 km) - Gives off more heat than it receives!"
           - "- **Valetudo** (1 km) - 'Wrong-way driver' moon with odd orbit"
+
+      - step_id: "jupiter_other_moons_nav"
+        title: "Explore Galilean Moons?"
+        question: "Want to visit the major moons or continue elsewhere?"
+        tokens_for_ai: |
+          Categorize:
+          - 'io' if io mentioned
+          - 'europa' if europa mentioned
+          - 'ganymede' if ganymede mentioned
+          - 'callisto' if callisto mentioned
+          - 'moon_menu' if they want the moon menu
+          - 'leave_jupiter' if leaving Jupiter, other planets
+          - 'stay' for questions about other moons
+        buckets: [io, europa, ganymede, callisto, moon_menu, leave_jupiter, stay]
+        transitions:
+          io:
+            ai_feedback:
+              tokens_for_ai: "To Io!"
+            next_section_and_step: "jupiter:moon_io"
+          europa:
+            ai_feedback:
+              tokens_for_ai: "To Europa!"
+            next_section_and_step: "jupiter:moon_europa"
+          ganymede:
+            ai_feedback:
+              tokens_for_ai: "To Ganymede!"
+            next_section_and_step: "jupiter:moon_ganymede"
+          callisto:
+            ai_feedback:
+              tokens_for_ai: "To Callisto!"
+            next_section_and_step: "jupiter:moon_callisto"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to moon selection!"
+            next_section_and_step: "jupiter:jupiter_moon_menu"
+          leave_jupiter:
+            ai_feedback:
+              tokens_for_ai: "Continuing your journey!"
+            next_section_and_step: "jupiter:jupiter_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about Jupiter's smaller moons!"
+            counts_as_attempt: false
+            next_section_and_step: "jupiter:jupiter_other_moons_nav"
 
       - step_id: "jupiter_explore_more"
         title: "Journey Onward"
@@ -1289,6 +1552,45 @@ sections:
           - ""
           - "Plus many smaller moons, moonlets in the rings, and irregular captured objects!"
 
+      - step_id: "saturn_moon_menu"
+        title: "Choose a Saturnian Moon"
+        question: "Which of Saturn's moons would you like to explore?"
+        tokens_for_ai: |
+          Categorize based on moon choice:
+          - 'titan' if they mention: titan, largest, atmosphere, lakes, methane
+          - 'enceladus' if they mention: enceladus, geysers, ocean, life, ice
+          - 'mimas' if they mention: mimas, death star, crater
+          - 'other_moons' if they mention: other, iapetus, rhea, dione, tethys, hyperion, small
+          - 'done_with_moons' if they want to leave Saturn
+          - 'stay' if they need more info
+        buckets: [titan, enceladus, mimas, other_moons, done_with_moons, stay]
+        transitions:
+          titan:
+            ai_feedback:
+              tokens_for_ai: "Warping to Titan, the moon with atmosphere and lakes!"
+            next_section_and_step: "saturn:moon_titan"
+          enceladus:
+            ai_feedback:
+              tokens_for_ai: "Heading to Enceladus, the geyser moon!"
+            next_section_and_step: "saturn:moon_enceladus"
+          mimas:
+            ai_feedback:
+              tokens_for_ai: "Visiting Mimas, the Death Star lookalike!"
+            next_section_and_step: "saturn:moon_mimas"
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "Exploring Saturn's other fascinating moons!"
+            next_section_and_step: "saturn:saturn_other_moons"
+          done_with_moons:
+            ai_feedback:
+              tokens_for_ai: "Ready to continue your journey!"
+            next_section_and_step: "saturn:saturn_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about Saturn's moons! Then ask which to visit."
+            counts_as_attempt: false
+            next_section_and_step: "saturn:saturn_moon_menu"
+
       - step_id: "moon_titan"
         title: "Titan - The Giant Moon"
         content_blocks:
@@ -1331,6 +1633,45 @@ sections:
           - "- **Huygens Lander**: First landing on outer solar system moon (2005)"
           - "- **Dragonfly Mission**: Nuclear-powered drone planned for 2027 launch!"
 
+      - step_id: "moon_titan_nav"
+        title: "More Saturn Moons"
+        question: "Where would you like to go next?"
+        tokens_for_ai: |
+          Categorize:
+          - 'enceladus' if enceladus, geysers, next
+          - 'mimas' if mimas, death star
+          - 'other_moons' if other moons
+          - 'moon_menu' if menu, choose
+          - 'leave_saturn' if leaving Saturn
+          - 'stay' for Titan questions
+        buckets: [enceladus, mimas, other_moons, moon_menu, leave_saturn, stay]
+        transitions:
+          enceladus:
+            ai_feedback:
+              tokens_for_ai: "To Enceladus!"
+            next_section_and_step: "saturn:moon_enceladus"
+          mimas:
+            ai_feedback:
+              tokens_for_ai: "To Mimas!"
+            next_section_and_step: "saturn:moon_mimas"
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "Exploring other moons!"
+            next_section_and_step: "saturn:saturn_other_moons"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to moon menu!"
+            next_section_and_step: "saturn:saturn_moon_menu"
+          leave_saturn:
+            ai_feedback:
+              tokens_for_ai: "Onward!"
+            next_section_and_step: "saturn:saturn_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Titan question!"
+            counts_as_attempt: false
+            next_section_and_step: "saturn:moon_titan_nav"
+
       - step_id: "moon_enceladus"
         title: "Enceladus - The Geyser Moon"
         content_blocks:
@@ -1368,6 +1709,45 @@ sections:
           - ""
           - "**Future Missions**: Proposed lander/orbiter to sample plumes and search for biosignatures"
 
+      - step_id: "moon_enceladus_nav"
+        title: "Continue Exploring"
+        question: "Where to next?"
+        tokens_for_ai: |
+          Categorize:
+          - 'titan' if titan mentioned
+          - 'mimas' if mimas, death star, next
+          - 'other_moons' if other moons
+          - 'moon_menu' if menu
+          - 'leave_saturn' if leaving
+          - 'stay' for Enceladus questions
+        buckets: [titan, mimas, other_moons, moon_menu, leave_saturn, stay]
+        transitions:
+          titan:
+            ai_feedback:
+              tokens_for_ai: "To Titan!"
+            next_section_and_step: "saturn:moon_titan"
+          mimas:
+            ai_feedback:
+              tokens_for_ai: "To Mimas!"
+            next_section_and_step: "saturn:moon_mimas"
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "To other moons!"
+            next_section_and_step: "saturn:saturn_other_moons"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to menu!"
+            next_section_and_step: "saturn:saturn_moon_menu"
+          leave_saturn:
+            ai_feedback:
+              tokens_for_ai: "Continuing journey!"
+            next_section_and_step: "saturn:saturn_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Enceladus question!"
+            counts_as_attempt: false
+            next_section_and_step: "saturn:moon_enceladus_nav"
+
       - step_id: "moon_mimas"
         title: "Mimas - The Death Star Moon"
         content_blocks:
@@ -1397,6 +1777,45 @@ sections:
           - "**Recent Discovery (2024):**"
           - "- **Possible Subsurface Ocean**: Unexpected wobble suggests liquid layer!"
           - "- **Young Ocean**: May have formed recently (geologically)"
+
+      - step_id: "moon_mimas_nav"
+        title: "More Moons?"
+        question: "Where next?"
+        tokens_for_ai: |
+          Categorize:
+          - 'titan' if titan
+          - 'enceladus' if enceladus
+          - 'other_moons' if other moons, more
+          - 'moon_menu' if menu
+          - 'leave_saturn' if leaving
+          - 'stay' for Mimas questions
+        buckets: [titan, enceladus, other_moons, moon_menu, leave_saturn, stay]
+        transitions:
+          titan:
+            ai_feedback:
+              tokens_for_ai: "To Titan!"
+            next_section_and_step: "saturn:moon_titan"
+          enceladus:
+            ai_feedback:
+              tokens_for_ai: "To Enceladus!"
+            next_section_and_step: "saturn:moon_enceladus"
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "To other moons!"
+            next_section_and_step: "saturn:saturn_other_moons"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to menu!"
+            next_section_and_step: "saturn:saturn_moon_menu"
+          leave_saturn:
+            ai_feedback:
+              tokens_for_ai: "Onward!"
+            next_section_and_step: "saturn:saturn_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Mimas question!"
+            counts_as_attempt: false
+            next_section_and_step: "saturn:moon_mimas_nav"
 
       - step_id: "saturn_other_moons"
         title: "Other Saturnian Moons"
@@ -1437,6 +1856,45 @@ sections:
           - "- **Pan & Daphnis**: Clear gaps in A ring"
           - "- **Phoebe**: Large irregular moon, likely captured object"
           - "- **Many tiny moons**: 100+ irregular moons and moonlets"
+
+      - step_id: "saturn_other_moons_nav"
+        title: "Visit Major Moons?"
+        question: "Want to visit the major moons or continue?"
+        tokens_for_ai: |
+          Categorize:
+          - 'titan' if titan
+          - 'enceladus' if enceladus
+          - 'mimas' if mimas
+          - 'moon_menu' if menu
+          - 'leave_saturn' if leaving
+          - 'stay' for questions
+        buckets: [titan, enceladus, mimas, moon_menu, leave_saturn, stay]
+        transitions:
+          titan:
+            ai_feedback:
+              tokens_for_ai: "To Titan!"
+            next_section_and_step: "saturn:moon_titan"
+          enceladus:
+            ai_feedback:
+              tokens_for_ai: "To Enceladus!"
+            next_section_and_step: "saturn:moon_enceladus"
+          mimas:
+            ai_feedback:
+              tokens_for_ai: "To Mimas!"
+            next_section_and_step: "saturn:moon_mimas"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to menu!"
+            next_section_and_step: "saturn:saturn_moon_menu"
+          leave_saturn:
+            ai_feedback:
+              tokens_for_ai: "Continuing journey!"
+            next_section_and_step: "saturn:saturn_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their question!"
+            counts_as_attempt: false
+            next_section_and_step: "saturn:saturn_other_moons_nav"
 
       - step_id: "saturn_explore_more"
         title: "Onward Through the Solar System"
@@ -1586,6 +2044,35 @@ sections:
           - "- 10 small irregular moons (likely captured)"
           - "- Distant, eccentric orbits"
 
+      - step_id: "uranus_moon_menu"
+        title: "Choose a Uranian Moon"
+        question: "Which moon would you like to explore?"
+        tokens_for_ai: |
+          Categorize:
+          - 'miranda' if they mention: miranda, patchwork, cliff, tallest, verona rupes
+          - 'other_moons' if they mention: ariel, umbriel, titania, oberon, other, major moons
+          - 'done_with_moons' if leaving Uranus
+          - 'stay' for questions
+        buckets: [miranda, other_moons, done_with_moons, stay]
+        transitions:
+          miranda:
+            ai_feedback:
+              tokens_for_ai: "Warping to Miranda, the patchwork moon!"
+            next_section_and_step: "uranus:moon_miranda"
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "Exploring Uranus's other moons!"
+            next_section_and_step: "uranus:uranus_other_moons"
+          done_with_moons:
+            ai_feedback:
+              tokens_for_ai: "Continuing your journey!"
+            next_section_and_step: "uranus:uranus_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about Uranus's moons!"
+            counts_as_attempt: false
+            next_section_and_step: "uranus:uranus_moon_menu"
+
       - step_id: "moon_miranda"
         title: "Miranda - The Patchwork Moon"
         content_blocks:
@@ -1611,6 +2098,35 @@ sections:
           - "- Mix of old cratered terrain and young grooved terrain"
           - "- Possibly active cryovolcanism in the past"
           - "- Surface like a jigsaw puzzle of different terrains"
+
+      - step_id: "moon_miranda_nav"
+        title: "More Uranus Moons?"
+        question: "Where to next?"
+        tokens_for_ai: |
+          Categorize:
+          - 'other_moons' if other moons, ariel, titania, oberon, umbriel
+          - 'moon_menu' if menu
+          - 'leave_uranus' if leaving
+          - 'stay' for Miranda questions
+        buckets: [other_moons, moon_menu, leave_uranus, stay]
+        transitions:
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "To other Uranian moons!"
+            next_section_and_step: "uranus:uranus_other_moons"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to moon menu!"
+            next_section_and_step: "uranus:uranus_moon_menu"
+          leave_uranus:
+            ai_feedback:
+              tokens_for_ai: "Onward!"
+            next_section_and_step: "uranus:uranus_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Miranda question!"
+            counts_as_attempt: false
+            next_section_and_step: "uranus:moon_miranda_nav"
 
       - step_id: "uranus_other_moons"
         title: "Other Uranian Moons"
@@ -1648,6 +2164,35 @@ sections:
           - "- **Cordelia & Ophelia**: Shepherd moons for epsilon ring"
           - "- **Mab**: Supplies material to outer ring"
           - "- Many tiny irregular moons discovered by Voyager 2"
+
+      - step_id: "uranus_other_moons_nav"
+        title: "Visit Miranda?"
+        question: "Want to see Miranda or continue?"
+        tokens_for_ai: |
+          Categorize:
+          - 'miranda' if miranda mentioned
+          - 'moon_menu' if menu
+          - 'leave_uranus' if leaving
+          - 'stay' for questions
+        buckets: [miranda, moon_menu, leave_uranus, stay]
+        transitions:
+          miranda:
+            ai_feedback:
+              tokens_for_ai: "To Miranda!"
+            next_section_and_step: "uranus:moon_miranda"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to menu!"
+            next_section_and_step: "uranus:uranus_moon_menu"
+          leave_uranus:
+            ai_feedback:
+              tokens_for_ai: "Continuing journey!"
+            next_section_and_step: "uranus:uranus_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their question!"
+            counts_as_attempt: false
+            next_section_and_step: "uranus:uranus_other_moons_nav"
 
       - step_id: "uranus_explore_more"
         title: "Continue Your Journey"
@@ -1798,6 +2343,35 @@ sections:
           - "- Distant, captured objects"
           - "- Some in retrograde orbits"
 
+      - step_id: "neptune_moon_menu"
+        title: "Choose a Neptunian Moon"
+        question: "Which moon would you like to explore?"
+        tokens_for_ai: |
+          Categorize:
+          - 'triton' if they mention: triton, largest, backward, retrograde, geysers
+          - 'other_moons' if they mention: other, proteus, nereid, small
+          - 'done_with_moons' if leaving Neptune
+          - 'stay' for questions
+        buckets: [triton, other_moons, done_with_moons, stay]
+        transitions:
+          triton:
+            ai_feedback:
+              tokens_for_ai: "Warping to Triton, the backward moon!"
+            next_section_and_step: "neptune:moon_triton"
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "Exploring Neptune's other moons!"
+            next_section_and_step: "neptune:neptune_other_moons"
+          done_with_moons:
+            ai_feedback:
+              tokens_for_ai: "Continuing your journey!"
+            next_section_and_step: "neptune:neptune_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about Neptune's moons!"
+            counts_as_attempt: false
+            next_section_and_step: "neptune:neptune_moon_menu"
+
       - step_id: "moon_triton"
         title: "Triton - The Captured Giant"
         content_blocks:
@@ -1839,6 +2413,35 @@ sections:
           - "- **Active World**: Despite distance from Sun"
           - "- **Pluto's Twin**: Similar composition and origin"
 
+      - step_id: "moon_triton_nav"
+        title: "More Neptune Moons?"
+        question: "Where to next?"
+        tokens_for_ai: |
+          Categorize:
+          - 'other_moons' if other moons, proteus, nereid
+          - 'moon_menu' if menu
+          - 'leave_neptune' if leaving
+          - 'stay' for Triton questions
+        buckets: [other_moons, moon_menu, leave_neptune, stay]
+        transitions:
+          other_moons:
+            ai_feedback:
+              tokens_for_ai: "To other Neptune moons!"
+            next_section_and_step: "neptune:neptune_other_moons"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to menu!"
+            next_section_and_step: "neptune:neptune_moon_menu"
+          leave_neptune:
+            ai_feedback:
+              tokens_for_ai: "Onward!"
+            next_section_and_step: "neptune:neptune_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Triton question!"
+            counts_as_attempt: false
+            next_section_and_step: "neptune:moon_triton_nav"
+
       - step_id: "neptune_other_moons"
         title: "Other Neptunian Moons"
         content_blocks:
@@ -1876,6 +2479,35 @@ sections:
           - "**Hippocamp** (Discovered 2013)"
           - "- Smallest known moon (18 km)"
           - "- Likely fragment broken off from Proteus"
+
+      - step_id: "neptune_other_moons_nav"
+        title: "Visit Triton?"
+        question: "Want to see Triton or continue?"
+        tokens_for_ai: |
+          Categorize:
+          - 'triton' if triton mentioned
+          - 'moon_menu' if menu
+          - 'leave_neptune' if leaving
+          - 'stay' for questions
+        buckets: [triton, moon_menu, leave_neptune, stay]
+        transitions:
+          triton:
+            ai_feedback:
+              tokens_for_ai: "To Triton!"
+            next_section_and_step: "neptune:moon_triton"
+          moon_menu:
+            ai_feedback:
+              tokens_for_ai: "Back to menu!"
+            next_section_and_step: "neptune:neptune_moon_menu"
+          leave_neptune:
+            ai_feedback:
+              tokens_for_ai: "Continuing journey!"
+            next_section_and_step: "neptune:neptune_explore_more"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their question!"
+            counts_as_attempt: false
+            next_section_and_step: "neptune:neptune_other_moons_nav"
 
       - step_id: "neptune_explore_more"
         title: "Final Destination Choice"
