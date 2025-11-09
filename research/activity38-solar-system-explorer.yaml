@@ -1,0 +1,2162 @@
+# Solar System Explorer - Comprehensive Interactive Journey
+# Explore the Sun, planets, moons, asteroid belt, and beyond!
+
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+
+tokens_for_ai_rubric: |
+  You are an enthusiastic astronomy guide helping students explore our solar system.
+  Be engaging, use emojis, and share fascinating facts.
+  When they want to explore a location, confirm their choice and prepare them for the journey.
+  When they ask questions, provide accurate scientific information in an accessible way.
+  Always offer them choices of where to explore next.
+
+sections:
+  # ============================================================================
+  # INTRODUCTION & OVERVIEW
+  # ============================================================================
+  - section_id: "introduction"
+    title: "Welcome to the Solar System"
+    steps:
+      - step_id: "welcome"
+        title: "Welcome Aboard!"
+        content_blocks:
+          - "# 🚀 Welcome to the Solar System Explorer! 🌌"
+          - ""
+          - "Prepare for an epic journey through our cosmic neighborhood!"
+          - ""
+          - "You'll discover:"
+          - "- ☀️ Our magnificent Sun"
+          - "- 🪐 Eight incredible planets"
+          - "- 🌙 Over 200 fascinating moons"
+          - "- ☄️ Asteroid belts and distant objects"
+          - ""
+          - "This is an **open exploration** - you can visit any location in any order!"
+
+      - step_id: "navigation_intro"
+        title: "How to Navigate"
+        content_blocks:
+          - "# 🗺️ Navigation Guide"
+          - ""
+          - "At any location, you can:"
+          - "- **Explore details** about where you are"
+          - "- **Jump to** any other celestial body"
+          - "- **Ask questions** about what you're seeing"
+          - "- **Exit** when you're ready to end your journey"
+          - ""
+          - "Just tell me where you'd like to go, and we'll warp there instantly!"
+
+      - step_id: "start_location"
+        title: "Choose Your Starting Point"
+        question: "Where would you like to begin your exploration?"
+        tokens_for_ai: |
+          Categorize based on what celestial body they want to explore:
+          - 'sun' if they mention: sun, star, solar, center
+          - 'mercury' if they mention: mercury, first planet, closest planet
+          - 'venus' if they mention: venus, second planet, morning star, evening star
+          - 'earth' if they mention: earth, home, our planet, third planet
+          - 'mars' if they mention: mars, red planet, fourth planet
+          - 'asteroid_belt' if they mention: asteroid, asteroids, belt, ceres
+          - 'jupiter' if they mention: jupiter, largest planet, gas giant, fifth planet
+          - 'saturn' if they mention: saturn, rings, ringed planet, sixth planet
+          - 'uranus' if they mention: uranus, ice giant, seventh planet
+          - 'neptune' if they mention: neptune, eighth planet, farthest planet
+          - 'kuiper_belt' if they mention: kuiper, pluto, dwarf planet, outer solar system
+          - 'exit' if they clearly want to exit or end
+          - 'help' if they need guidance or seem unsure
+        buckets: [sun, mercury, venus, earth, mars, asteroid_belt, jupiter, saturn, uranus, neptune, kuiper_belt, help, exit]
+        transitions:
+          sun:
+            ai_feedback:
+              tokens_for_ai: "Confirm their choice to visit the Sun and build excitement! Mention we'll need special protection from the intense heat and radiation."
+            next_section_and_step: "sun:arrival"
+          mercury:
+            ai_feedback:
+              tokens_for_ai: "Confirm their choice to visit Mercury. Mention the extreme temperature swings and lack of atmosphere."
+            next_section_and_step: "mercury:arrival"
+          venus:
+            ai_feedback:
+              tokens_for_ai: "Confirm their choice to visit Venus. Mention the thick atmosphere and extreme greenhouse effect."
+            next_section_and_step: "venus:arrival"
+          earth:
+            ai_feedback:
+              tokens_for_ai: "Confirm their choice to visit Earth. Mention our unique water world and the Moon."
+            next_section_and_step: "earth:arrival"
+          mars:
+            ai_feedback:
+              tokens_for_ai: "Confirm their choice to visit Mars. Mention the red surface, polar ice caps, and two small moons."
+            next_section_and_step: "mars:arrival"
+          asteroid_belt:
+            ai_feedback:
+              tokens_for_ai: "Confirm their choice to visit the Asteroid Belt. Mention millions of rocky objects between Mars and Jupiter."
+            next_section_and_step: "asteroid_belt:arrival"
+          jupiter:
+            ai_feedback:
+              tokens_for_ai: "Confirm their choice to visit Jupiter. Mention it's the largest planet with dozens of moons and the Great Red Spot."
+            next_section_and_step: "jupiter:arrival"
+          saturn:
+            ai_feedback:
+              tokens_for_ai: "Confirm their choice to visit Saturn. Mention the spectacular ring system and many moons."
+            next_section_and_step: "saturn:arrival"
+          uranus:
+            ai_feedback:
+              tokens_for_ai: "Confirm their choice to visit Uranus. Mention it rotates on its side and has a pale blue color."
+            next_section_and_step: "uranus:arrival"
+          neptune:
+            ai_feedback:
+              tokens_for_ai: "Confirm their choice to visit Neptune. Mention the deep blue color and supersonic winds."
+            next_section_and_step: "neptune:arrival"
+          kuiper_belt:
+            ai_feedback:
+              tokens_for_ai: "Confirm their choice to visit the Kuiper Belt. Mention Pluto and other dwarf planets in the outer reaches."
+            next_section_and_step: "kuiper_belt:arrival"
+          help:
+            content_blocks:
+              - "No problem! Here are some popular destinations:"
+              - "- **The Sun** - Our star at the center of everything"
+              - "- **Earth** - Our home planet"
+              - "- **Jupiter** - The largest planet with amazing moons"
+              - "- **Saturn** - Famous for its beautiful rings"
+              - "- **Mars** - The red planet humans want to visit"
+            counts_as_attempt: false
+            next_section_and_step: "introduction:start_location"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # THE SUN
+  # ============================================================================
+  - section_id: "sun"
+    title: "The Sun - Our Star"
+    steps:
+      - step_id: "arrival"
+        title: "Approaching the Sun"
+        content_blocks:
+          - "# ☀️ The Sun - Heart of Our Solar System"
+          - ""
+          - "**Distance from you**: Currently at safe observation distance (1 AU)"
+          - "**Type**: G-type Main-Sequence Star (Yellow Dwarf)"
+          - "**Age**: ~4.6 billion years old"
+          - "**Temperature**: Surface: 5,500°C (9,932°F) | Core: 15 million°C"
+          - "**Mass**: 99.86% of the entire solar system's mass!"
+          - "**Diameter**: 1,391,000 km (109 times Earth's diameter)"
+          - "**Composition**: 73% Hydrogen, 25% Helium, 2% other elements"
+          - ""
+          - "The Sun is a massive ball of plasma, constantly fusing hydrogen into helium in its core, releasing the energy that makes life on Earth possible!"
+
+      - step_id: "sun_details"
+        title: "Sun Details"
+        content_blocks:
+          - "# ☀️ Amazing Sun Facts"
+          - ""
+          - "**Structure:**"
+          - "- **Core**: Where nuclear fusion occurs (15 million°C)"
+          - "- **Radiative Zone**: Energy moves outward via radiation"
+          - "- **Convective Zone**: Hot plasma churns and bubbles"
+          - "- **Photosphere**: Visible surface (~5,500°C)"
+          - "- **Chromosphere**: Lower atmosphere (reddish layer)"
+          - "- **Corona**: Outer atmosphere (visible during eclipses, millions of degrees!)"
+          - ""
+          - "**Solar Activity:**"
+          - "- **Sunspots**: Dark, cooler regions caused by magnetic activity"
+          - "- **Solar Flares**: Explosive bursts of radiation"
+          - "- **Coronal Mass Ejections**: Huge plasma eruptions"
+          - "- **Solar Wind**: Stream of charged particles flowing throughout the solar system"
+          - ""
+          - "**Life Cycle**: The Sun is about halfway through its 10-billion-year life. In ~5 billion years, it will expand into a red giant, potentially engulfing Mercury and Venus!"
+
+      - step_id: "sun_explore_more"
+        title: "Continue Exploring"
+        question: "Where would you like to go next?"
+        tokens_for_ai: |
+          Categorize based on their destination choice:
+          - 'mercury' if they mention mercury, closest planet, first planet
+          - 'venus' if they mention venus
+          - 'earth' if they mention earth, home
+          - 'mars' if they mention mars, red planet
+          - 'asteroid_belt' if they mention asteroid
+          - 'jupiter' if they mention jupiter
+          - 'saturn' if they mention saturn, rings
+          - 'uranus' if they mention uranus
+          - 'neptune' if they mention neptune
+          - 'kuiper_belt' if they mention kuiper, pluto
+          - 'stay' if they want to learn more about the Sun or ask questions
+          - 'exit' if they want to end their journey
+        buckets: [mercury, venus, earth, mars, asteroid_belt, jupiter, saturn, uranus, neptune, kuiper_belt, stay, exit]
+        transitions:
+          mercury:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their choice and prepare for warp to Mercury!"
+            next_section_and_step: "mercury:arrival"
+          venus:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their choice and prepare for warp to Venus!"
+            next_section_and_step: "venus:arrival"
+          earth:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their choice and prepare for warp to Earth!"
+            next_section_and_step: "earth:arrival"
+          mars:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their choice and prepare for warp to Mars!"
+            next_section_and_step: "mars:arrival"
+          asteroid_belt:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their choice and prepare for warp to the Asteroid Belt!"
+            next_section_and_step: "asteroid_belt:arrival"
+          jupiter:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their choice and prepare for warp to Jupiter!"
+            next_section_and_step: "jupiter:arrival"
+          saturn:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their choice and prepare for warp to Saturn!"
+            next_section_and_step: "saturn:arrival"
+          uranus:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their choice and prepare for warp to Uranus!"
+            next_section_and_step: "uranus:arrival"
+          neptune:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their choice and prepare for warp to Neptune!"
+            next_section_and_step: "neptune:arrival"
+          kuiper_belt:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge their choice and prepare for warp to the Kuiper Belt!"
+            next_section_and_step: "kuiper_belt:arrival"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their question about the Sun with enthusiasm and scientific accuracy! Then ask where they'd like to go next."
+            counts_as_attempt: false
+            next_section_and_step: "sun:sun_explore_more"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # MERCURY
+  # ============================================================================
+  - section_id: "mercury"
+    title: "Mercury - The Swift Planet"
+    steps:
+      - step_id: "arrival"
+        title: "Arriving at Mercury"
+        content_blocks:
+          - "# ☿️ Mercury - The Swift Messenger"
+          - ""
+          - "**Distance from Sun**: 57.9 million km (0.39 AU)"
+          - "**Diameter**: 4,879 km (38% of Earth's diameter)"
+          - "**Mass**: 0.055 Earths"
+          - "**Gravity**: 38% of Earth's gravity"
+          - "**Day Length**: 59 Earth days (one rotation)"
+          - "**Year Length**: 88 Earth days (one orbit)"
+          - "**Temperature**: -173°C to 427°C (-279°F to 801°F)"
+          - "**Moons**: None"
+          - "**Atmosphere**: Virtually none (thin exosphere)"
+          - ""
+          - "Mercury is the smallest planet and closest to the Sun. It has extreme temperature variations because it has almost no atmosphere to retain heat!"
+
+      - step_id: "mercury_details"
+        title: "Mercury Details"
+        content_blocks:
+          - "# ☿️ Mercury's Unique Features"
+          - ""
+          - "**Surface Features:**"
+          - "- **Heavily Cratered**: Looks similar to our Moon"
+          - "- **Caloris Basin**: Huge impact crater 1,550 km across"
+          - "- **Scarps (Cliffs)**: Hundreds of kilometers long, formed as planet cooled and shrank"
+          - "- **No Tectonic Plates**: Surface is ancient and unchanged"
+          - ""
+          - "**Composition:**"
+          - "- **Large Iron Core**: Takes up ~75% of the planet's radius"
+          - "- **Thin Rocky Mantle**: Only ~600 km thick"
+          - "- **Highest Density**: Second only to Earth (due to large core)"
+          - ""
+          - "**Strange Facts:**"
+          - "- **3:2 Spin-Orbit Resonance**: Rotates 3 times for every 2 orbits"
+          - "- **Water Ice**: Found in permanently shadowed craters at poles!"
+          - "- **Magnetic Field**: Weak but present (unusual for small rocky planets)"
+          - "- **No Moons**: Too close to Sun's gravity"
+          - ""
+          - "**Exploration**: Visited by Mariner 10 (1974-75) and MESSENGER (2011-2015). BepiColombo mission currently en route!"
+
+      - step_id: "mercury_explore_more"
+        title: "Continue Your Journey"
+        question: "Where to next in your exploration?"
+        tokens_for_ai: |
+          Categorize based on their destination:
+          - 'sun' if they mention sun, star, go back
+          - 'venus' if they mention venus, next planet
+          - 'earth' if they mention earth
+          - 'mars' if they mention mars
+          - 'asteroid_belt' if they mention asteroid
+          - 'jupiter' if they mention jupiter
+          - 'saturn' if they mention saturn
+          - 'uranus' if they mention uranus
+          - 'neptune' if they mention neptune
+          - 'kuiper_belt' if they mention kuiper, pluto
+          - 'stay' if they want more info about Mercury
+          - 'exit' if done exploring
+        buckets: [sun, venus, earth, mars, asteroid_belt, jupiter, saturn, uranus, neptune, kuiper_belt, stay, exit]
+        transitions:
+          sun:
+            ai_feedback:
+              tokens_for_ai: "Confirm and warp to the Sun!"
+            next_section_and_step: "sun:arrival"
+          venus:
+            ai_feedback:
+              tokens_for_ai: "Confirm and warp to Venus!"
+            next_section_and_step: "venus:arrival"
+          earth:
+            ai_feedback:
+              tokens_for_ai: "Confirm and warp to Earth!"
+            next_section_and_step: "earth:arrival"
+          mars:
+            ai_feedback:
+              tokens_for_ai: "Confirm and warp to Mars!"
+            next_section_and_step: "mars:arrival"
+          asteroid_belt:
+            ai_feedback:
+              tokens_for_ai: "Confirm and warp to the Asteroid Belt!"
+            next_section_and_step: "asteroid_belt:arrival"
+          jupiter:
+            ai_feedback:
+              tokens_for_ai: "Confirm and warp to Jupiter!"
+            next_section_and_step: "jupiter:arrival"
+          saturn:
+            ai_feedback:
+              tokens_for_ai: "Confirm and warp to Saturn!"
+            next_section_and_step: "saturn:arrival"
+          uranus:
+            ai_feedback:
+              tokens_for_ai: "Confirm and warp to Uranus!"
+            next_section_and_step: "uranus:arrival"
+          neptune:
+            ai_feedback:
+              tokens_for_ai: "Confirm and warp to Neptune!"
+            next_section_and_step: "neptune:arrival"
+          kuiper_belt:
+            ai_feedback:
+              tokens_for_ai: "Confirm and warp to the Kuiper Belt!"
+            next_section_and_step: "kuiper_belt:arrival"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Mercury question enthusiastically! Then ask where next."
+            counts_as_attempt: false
+            next_section_and_step: "mercury:mercury_explore_more"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # VENUS
+  # ============================================================================
+  - section_id: "venus"
+    title: "Venus - Earth's Twin"
+    steps:
+      - step_id: "arrival"
+        title: "Arriving at Venus"
+        content_blocks:
+          - "# ♀️ Venus - The Hellish Twin"
+          - ""
+          - "**Distance from Sun**: 108.2 million km (0.72 AU)"
+          - "**Diameter**: 12,104 km (95% of Earth's diameter)"
+          - "**Mass**: 0.815 Earths"
+          - "**Gravity**: 91% of Earth's gravity"
+          - "**Day Length**: 243 Earth days (one rotation - longer than its year!)"
+          - "**Year Length**: 225 Earth days"
+          - "**Temperature**: 462°C (864°F) - hottest planet!"
+          - "**Atmospheric Pressure**: 92 times Earth's (like being 900m underwater)"
+          - "**Moons**: None"
+          - "**Atmosphere**: 96% CO₂, thick sulfuric acid clouds"
+          - ""
+          - "Venus is Earth's twin in size, but a hellish world with crushing pressure, scorching heat, and acid rain!"
+
+      - step_id: "venus_details"
+        title: "Venus Details"
+        content_blocks:
+          - "# ♀️ Venus's Extreme Environment"
+          - ""
+          - "**Atmospheric Features:**"
+          - "- **Runaway Greenhouse Effect**: Thick CO₂ atmosphere traps heat"
+          - "- **Sulfuric Acid Clouds**: Reflect sunlight, making Venus brightest planet from Earth"
+          - "- **Super-Rotation**: Atmosphere circles planet in 4 days (faster than planet rotates!)"
+          - "- **Lightning**: Frequent electrical storms"
+          - ""
+          - "**Surface Features:**"
+          - "- **Volcanic Plains**: Cover 80% of surface"
+          - "- **Maxwell Montes**: Highest mountain (11 km tall)"
+          - "- **Ishtar Terra**: Continent-sized highland"
+          - "- **Pancake Domes**: Unique volcanic formations"
+          - "- **Impact Craters**: Relatively few (atmosphere burns up small meteors)"
+          - ""
+          - "**Rotation Oddities:**"
+          - "- **Retrograde Rotation**: Spins backwards compared to most planets"
+          - "- **Slow Spin**: Takes 243 Earth days for one rotation"
+          - "- **Shorter Year**: One orbit takes 225 Earth days"
+          - "- **Sun Rise**: Rises in west, sets in east!"
+          - ""
+          - "**Exploration**: Visited by numerous Soviet Venera landers (some survived ~2 hours on surface!), NASA's Magellan orbiter mapped surface with radar."
+
+      - step_id: "venus_explore_more"
+        title: "Next Destination"
+        question: "Where would you like to explore next?"
+        tokens_for_ai: |
+          Categorize their destination choice:
+          - 'sun' if they mention sun
+          - 'mercury' if they mention mercury
+          - 'earth' if they mention earth, home, next planet
+          - 'mars' if they mention mars
+          - 'asteroid_belt' if they mention asteroid
+          - 'jupiter' if they mention jupiter
+          - 'saturn' if they mention saturn
+          - 'uranus' if they mention uranus
+          - 'neptune' if they mention neptune
+          - 'kuiper_belt' if they mention kuiper, pluto
+          - 'stay' if they want more Venus info
+          - 'exit' if ending journey
+        buckets: [sun, mercury, earth, mars, asteroid_belt, jupiter, saturn, uranus, neptune, kuiper_belt, stay, exit]
+        transitions:
+          sun:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Sun!"
+            next_section_and_step: "sun:arrival"
+          mercury:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mercury!"
+            next_section_and_step: "mercury:arrival"
+          earth:
+            ai_feedback:
+              tokens_for_ai: "Warping to Earth!"
+            next_section_and_step: "earth:arrival"
+          mars:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mars!"
+            next_section_and_step: "mars:arrival"
+          asteroid_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Asteroid Belt!"
+            next_section_and_step: "asteroid_belt:arrival"
+          jupiter:
+            ai_feedback:
+              tokens_for_ai: "Warping to Jupiter!"
+            next_section_and_step: "jupiter:arrival"
+          saturn:
+            ai_feedback:
+              tokens_for_ai: "Warping to Saturn!"
+            next_section_and_step: "saturn:arrival"
+          uranus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Uranus!"
+            next_section_and_step: "uranus:arrival"
+          neptune:
+            ai_feedback:
+              tokens_for_ai: "Warping to Neptune!"
+            next_section_and_step: "neptune:arrival"
+          kuiper_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Kuiper Belt!"
+            next_section_and_step: "kuiper_belt:arrival"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Venus question with scientific detail! Then ask where to go next."
+            counts_as_attempt: false
+            next_section_and_step: "venus:venus_explore_more"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # EARTH
+  # ============================================================================
+  - section_id: "earth"
+    title: "Earth - Our Home"
+    steps:
+      - step_id: "arrival"
+        title: "Arriving at Earth"
+        content_blocks:
+          - "# 🌍 Earth - The Pale Blue Dot"
+          - ""
+          - "**Distance from Sun**: 149.6 million km (1.00 AU - this is our baseline!)"
+          - "**Diameter**: 12,742 km"
+          - "**Mass**: 5.972 × 10²⁴ kg (1 Earth mass by definition)"
+          - "**Gravity**: 9.8 m/s² (1 G)"
+          - "**Day Length**: 24 hours (23h 56m 4s sidereal day)"
+          - "**Year Length**: 365.25 days"
+          - "**Temperature**: Average 15°C (59°F)"
+          - "**Moons**: 1 (The Moon)"
+          - "**Atmosphere**: 78% N₂, 21% O₂, 1% other gases"
+          - ""
+          - "Earth is the only known planet with life, liquid water on its surface, and an oxygen-rich atmosphere. Our home is truly special!"
+
+      - step_id: "earth_details"
+        title: "Earth Details"
+        content_blocks:
+          - "# 🌍 What Makes Earth Unique"
+          - ""
+          - "**Life-Supporting Features:**"
+          - "- **Liquid Water**: Covers 71% of surface (oceans, lakes, rivers)"
+          - "- **Oxygen Atmosphere**: Produced and maintained by photosynthetic life"
+          - "- **Magnetic Field**: Protects from solar radiation (generated by iron core)"
+          - "- **Plate Tectonics**: Recycles crust, regulates CO₂, creates diverse terrain"
+          - "- **Perfect Distance**: In the 'Goldilocks Zone' - not too hot, not too cold"
+          - ""
+          - "**Structure:**"
+          - "- **Inner Core**: Solid iron-nickel (5,200°C)"
+          - "- **Outer Core**: Liquid iron-nickel (generates magnetic field)"
+          - "- **Mantle**: Hot, flowing rock (2,900 km thick)"
+          - "- **Crust**: Thin outer shell (5-70 km thick)"
+          - ""
+          - "**Surface Features:**"
+          - "- **Continents**: 7 major landmasses"
+          - "- **Oceans**: Pacific, Atlantic, Indian, Southern, Arctic"
+          - "- **Highest Point**: Mt. Everest (8,849 m)"
+          - "- **Deepest Point**: Mariana Trench (10,994 m)"
+          - ""
+          - "**Biosphere**: Home to ~8.7 million species (and counting!)"
+
+      - step_id: "earth_moon_intro"
+        title: "Earth's Moon"
+        content_blocks:
+          - "# 🌙 The Moon - Earth's Faithful Companion"
+          - ""
+          - "**Distance from Earth**: 384,400 km average"
+          - "**Diameter**: 3,474 km (27% of Earth's diameter)"
+          - "**Mass**: 0.012 Earths (1/81 of Earth's mass)"
+          - "**Orbital Period**: 27.3 days (sidereal month)"
+          - "**Rotation**: Tidally locked (same side always faces Earth)"
+          - "**Surface Gravity**: 16.5% of Earth's"
+          - "**Temperature**: -173°C to 127°C"
+          - "**Atmosphere**: None (exosphere only)"
+          - ""
+          - "The Moon is the fifth largest moon in the solar system and the largest relative to its planet. It's also the only celestial body humans have walked on!"
+
+      - step_id: "moon_details"
+        title: "Moon Features"
+        content_blocks:
+          - "# 🌙 Lunar Features and History"
+          - ""
+          - "**Surface Features:**"
+          - "- **Maria (Seas)**: Dark basaltic plains from ancient lava flows"
+          - "- **Highlands**: Bright, heavily cratered regions (older)"
+          - "- **Craters**: Millions from impacts (no erosion to erase them)"
+          - "- **Tycho Crater**: Prominent crater with bright ray system"
+          - "- **South Pole-Aitken Basin**: Largest, deepest, oldest impact basin"
+          - ""
+          - "**Formation Theory:**"
+          - "- **Giant Impact Hypothesis**: Mars-sized object hit early Earth ~4.5 billion years ago"
+          - "- Debris from impact coalesced to form the Moon"
+          - "- Explains Moon's composition (similar to Earth's mantle)"
+          - ""
+          - "**Effects on Earth:**"
+          - "- **Tides**: Moon's gravity creates ocean tides"
+          - "- **Axial Stability**: Keeps Earth's tilt stable (~23.5°)"
+          - "- **Day Length**: Gradually slowing Earth's rotation (days getting longer)"
+          - ""
+          - "**Human Exploration:**"
+          - "- **Apollo Program**: 12 humans walked on the Moon (1969-1972)"
+          - "- **Apollo 11**: Neil Armstrong and Buzz Aldrin - first humans (July 20, 1969)"
+          - "- **Samples Returned**: 382 kg of lunar rocks and soil"
+          - "- **Future Plans**: Artemis program planning return missions"
+
+      - step_id: "earth_explore_more"
+        title: "Continue Exploring"
+        question: "Where would you like to go next?"
+        tokens_for_ai: |
+          Categorize destination:
+          - 'sun' if sun mentioned
+          - 'mercury' if mercury mentioned
+          - 'venus' if venus mentioned
+          - 'mars' if mars, red planet, next planet mentioned
+          - 'asteroid_belt' if asteroid mentioned
+          - 'jupiter' if jupiter mentioned
+          - 'saturn' if saturn mentioned
+          - 'uranus' if uranus mentioned
+          - 'neptune' if neptune mentioned
+          - 'kuiper_belt' if kuiper, pluto mentioned
+          - 'stay' if they want more Earth/Moon info
+          - 'exit' if ending
+        buckets: [sun, mercury, venus, mars, asteroid_belt, jupiter, saturn, uranus, neptune, kuiper_belt, stay, exit]
+        transitions:
+          sun:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Sun!"
+            next_section_and_step: "sun:arrival"
+          mercury:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mercury!"
+            next_section_and_step: "mercury:arrival"
+          venus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Venus!"
+            next_section_and_step: "venus:arrival"
+          mars:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mars!"
+            next_section_and_step: "mars:arrival"
+          asteroid_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Asteroid Belt!"
+            next_section_and_step: "asteroid_belt:arrival"
+          jupiter:
+            ai_feedback:
+              tokens_for_ai: "Warping to Jupiter!"
+            next_section_and_step: "jupiter:arrival"
+          saturn:
+            ai_feedback:
+              tokens_for_ai: "Warping to Saturn!"
+            next_section_and_step: "saturn:arrival"
+          uranus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Uranus!"
+            next_section_and_step: "uranus:arrival"
+          neptune:
+            ai_feedback:
+              tokens_for_ai: "Warping to Neptune!"
+            next_section_and_step: "neptune:arrival"
+          kuiper_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Kuiper Belt!"
+            next_section_and_step: "kuiper_belt:arrival"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Earth/Moon question with detail! Then ask where next."
+            counts_as_attempt: false
+            next_section_and_step: "earth:earth_explore_more"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # MARS
+  # ============================================================================
+  - section_id: "mars"
+    title: "Mars - The Red Planet"
+    steps:
+      - step_id: "arrival"
+        title: "Arriving at Mars"
+        content_blocks:
+          - "# ♂️ Mars - The Red Planet"
+          - ""
+          - "**Distance from Sun**: 227.9 million km (1.52 AU)"
+          - "**Diameter**: 6,779 km (53% of Earth's diameter)"
+          - "**Mass**: 0.107 Earths"
+          - "**Gravity**: 38% of Earth's"
+          - "**Day Length**: 24.6 hours (1 sol)"
+          - "**Year Length**: 687 Earth days (1.88 Earth years)"
+          - "**Temperature**: -140°C to 20°C (-220°F to 68°F)"
+          - "**Moons**: 2 (Phobos and Deimos)"
+          - "**Atmosphere**: 95% CO₂, very thin (1% of Earth's pressure)"
+          - ""
+          - "Mars is the most explored planet besides Earth, and our best candidate for future human colonization!"
+
+      - step_id: "mars_details"
+        title: "Mars Details"
+        content_blocks:
+          - "# ♂️ The Red Planet's Features"
+          - ""
+          - "**Surface Features:**"
+          - "- **Olympus Mons**: Largest volcano in solar system (21 km high - 2.5x Mt. Everest!)"
+          - "- **Valles Marineris**: Canyon system 4,000 km long, 7 km deep"
+          - "- **Polar Ice Caps**: Water ice and dry ice (frozen CO₂)"
+          - "- **Impact Basins**: Hellas Planitia (2,300 km wide, 7 km deep)"
+          - "- **Red Color**: Iron oxide (rust) covering the surface"
+          - ""
+          - "**Evidence of Water:**"
+          - "- **Dry River Valleys**: Ancient water carved the landscape"
+          - "- **Lake Beds**: Gale Crater once held a lake"
+          - "- **Subsurface Ice**: Detected by orbiters and landers"
+          - "- **Polar Ice**: Water ice at both poles"
+          - "- **Seasonal Flows**: Possible liquid water brines"
+          - ""
+          - "**Atmosphere & Climate:**"
+          - "- **Thin Atmosphere**: Lost most of it billions of years ago"
+          - "- **Dust Storms**: Can cover entire planet!"
+          - "- **Seasons**: Has seasons like Earth (tilted 25°)"
+          - "- **Cold & Dry**: Average -60°C, no liquid water on surface"
+          - ""
+          - "**Exploration:**"
+          - "- **Rovers**: Spirit, Opportunity, Curiosity, Perseverance, Zhurong"
+          - "- **Helicopter**: Ingenuity (first powered flight on another planet!)"
+          - "- **Orbiters**: Multiple spacecraft mapping surface"
+          - "- **Sample Return**: Perseverance collecting samples for future return to Earth"
+
+      - step_id: "mars_moons_intro"
+        title: "Mars's Moons"
+        content_blocks:
+          - "# 🌑 Phobos and Deimos - The Twin Moons"
+          - ""
+          - "Mars has two small, irregularly shaped moons that may be captured asteroids!"
+          - ""
+          - "## Phobos (Fear)"
+          - "**Distance from Mars**: 9,376 km (very close!)"
+          - "**Diameter**: 22.2 km (average)"
+          - "**Orbital Period**: 7.6 hours (orbits Mars 3 times per day!)"
+          - "**Shape**: Potato-shaped"
+          - "**Features**: Stickney Crater (9 km wide), grooves across surface"
+          - "**Future**: Spiraling inward ~1.8 cm/year - will crash into Mars in ~50 million years!"
+          - ""
+          - "## Deimos (Panic)"
+          - "**Distance from Mars**: 23,460 km"
+          - "**Diameter**: 12.6 km (average)"
+          - "**Orbital Period**: 30.3 hours"
+          - "**Shape**: Lumpy potato"
+          - "**Features**: Smoother surface than Phobos (covered in regolith)"
+          - ""
+          - "Both moons are likely captured asteroids from the nearby asteroid belt, trapped by Mars's gravity long ago."
+
+      - step_id: "mars_explore_more"
+        title: "Next Stop"
+        question: "Where to next?"
+        tokens_for_ai: |
+          Categorize destination:
+          - 'sun' if sun
+          - 'mercury' if mercury
+          - 'venus' if venus
+          - 'earth' if earth
+          - 'asteroid_belt' if asteroid, belt, next, ceres
+          - 'jupiter' if jupiter
+          - 'saturn' if saturn
+          - 'uranus' if uranus
+          - 'neptune' if neptune
+          - 'kuiper_belt' if kuiper, pluto
+          - 'stay' for more Mars info
+          - 'exit' to end
+        buckets: [sun, mercury, venus, earth, asteroid_belt, jupiter, saturn, uranus, neptune, kuiper_belt, stay, exit]
+        transitions:
+          sun:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Sun!"
+            next_section_and_step: "sun:arrival"
+          mercury:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mercury!"
+            next_section_and_step: "mercury:arrival"
+          venus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Venus!"
+            next_section_and_step: "venus:arrival"
+          earth:
+            ai_feedback:
+              tokens_for_ai: "Warping to Earth!"
+            next_section_and_step: "earth:arrival"
+          asteroid_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Asteroid Belt!"
+            next_section_and_step: "asteroid_belt:arrival"
+          jupiter:
+            ai_feedback:
+              tokens_for_ai: "Warping to Jupiter!"
+            next_section_and_step: "jupiter:arrival"
+          saturn:
+            ai_feedback:
+              tokens_for_ai: "Warping to Saturn!"
+            next_section_and_step: "saturn:arrival"
+          uranus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Uranus!"
+            next_section_and_step: "uranus:arrival"
+          neptune:
+            ai_feedback:
+              tokens_for_ai: "Warping to Neptune!"
+            next_section_and_step: "neptune:arrival"
+          kuiper_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Kuiper Belt!"
+            next_section_and_step: "kuiper_belt:arrival"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Mars question! Then ask where to next."
+            counts_as_attempt: false
+            next_section_and_step: "mars:mars_explore_more"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # ASTEROID BELT
+  # ============================================================================
+  - section_id: "asteroid_belt"
+    title: "The Asteroid Belt"
+    steps:
+      - step_id: "arrival"
+        title: "Entering the Asteroid Belt"
+        content_blocks:
+          - "# ☄️ The Asteroid Belt - River of Rocks"
+          - ""
+          - "**Location**: Between Mars and Jupiter (2.2 to 3.2 AU from Sun)"
+          - "**Total Mass**: ~4% of Moon's mass"
+          - "**Number of Objects**: Millions (1.1-1.9 million larger than 1 km)"
+          - "**Largest Object**: Ceres (dwarf planet, 939 km diameter)"
+          - "**Spacing**: Despite movies, asteroids are millions of km apart!"
+          - ""
+          - "The asteroid belt is a region filled with rocky remnants from the solar system's formation, prevented from forming a planet by Jupiter's massive gravity!"
+
+      - step_id: "asteroid_belt_details"
+        title: "Asteroid Belt Details"
+        content_blocks:
+          - "# ☄️ Major Asteroids and Features"
+          - ""
+          - "**Largest Objects:**"
+          - ""
+          - "**1. Ceres** (Dwarf Planet)"
+          - "- Diameter: 939 km (largest object in belt)"
+          - "- Mass: 30% of belt's total mass"
+          - "- Shape: Spherical (has enough gravity to be round)"
+          - "- Surface: Ice beneath rocky crust, possible subsurface ocean"
+          - "- Features: Bright spots (salt deposits), Ahuna Mons (ice volcano)"
+          - "- Visited by: Dawn spacecraft (2015-2018)"
+          - ""
+          - "**2. Vesta**"
+          - "- Diameter: 525 km"
+          - "- Mass: 12% of belt's total mass"
+          - "- Features: Huge impact crater (Rheasilvia, 500 km wide!)"
+          - "- Special: Only asteroid visible to naked eye from Earth"
+          - "- Visited by: Dawn spacecraft (2011-2012)"
+          - ""
+          - "**3. Pallas**"
+          - "- Diameter: 512 km"
+          - "- Highly inclined orbit (34.8°)"
+          - "- Third most massive asteroid"
+          - ""
+          - "**4. Hygiea**"
+          - "- Diameter: 434 km"
+          - "- Nearly spherical (possible dwarf planet)"
+          - "- Fourth largest asteroid"
+          - ""
+          - "**Asteroid Types:**"
+          - "- **C-type (Carbonaceous)**: Dark, carbon-rich (75% of asteroids)"
+          - "- **S-type (Silicaceous)**: Stony, silicate-rich (17%)"
+          - "- **M-type (Metallic)**: Mostly iron and nickel (8%)"
+          - ""
+          - "**Origin**: Failed to form a planet due to Jupiter's gravitational influence stirring the region and preventing accretion."
+
+      - step_id: "asteroid_explore_more"
+        title: "Navigate to..."
+        question: "Where would you like to go?"
+        tokens_for_ai: |
+          Categorize destination:
+          - 'sun' if sun
+          - 'mercury' if mercury
+          - 'venus' if venus
+          - 'earth' if earth
+          - 'mars' if mars
+          - 'jupiter' if jupiter, next, gas giant
+          - 'saturn' if saturn
+          - 'uranus' if uranus
+          - 'neptune' if neptune
+          - 'kuiper_belt' if kuiper, pluto
+          - 'stay' for more asteroid info
+          - 'exit' to end
+        buckets: [sun, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, kuiper_belt, stay, exit]
+        transitions:
+          sun:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Sun!"
+            next_section_and_step: "sun:arrival"
+          mercury:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mercury!"
+            next_section_and_step: "mercury:arrival"
+          venus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Venus!"
+            next_section_and_step: "venus:arrival"
+          earth:
+            ai_feedback:
+              tokens_for_ai: "Warping to Earth!"
+            next_section_and_step: "earth:arrival"
+          mars:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mars!"
+            next_section_and_step: "mars:arrival"
+          jupiter:
+            ai_feedback:
+              tokens_for_ai: "Warping to Jupiter - hold on, it's huge!"
+            next_section_and_step: "jupiter:arrival"
+          saturn:
+            ai_feedback:
+              tokens_for_ai: "Warping to Saturn!"
+            next_section_and_step: "saturn:arrival"
+          uranus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Uranus!"
+            next_section_and_step: "uranus:arrival"
+          neptune:
+            ai_feedback:
+              tokens_for_ai: "Warping to Neptune!"
+            next_section_and_step: "neptune:arrival"
+          kuiper_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Kuiper Belt!"
+            next_section_and_step: "kuiper_belt:arrival"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their asteroid question! Then ask where next."
+            counts_as_attempt: false
+            next_section_and_step: "asteroid_belt:asteroid_explore_more"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # JUPITER
+  # ============================================================================
+  - section_id: "jupiter"
+    title: "Jupiter - King of Planets"
+    steps:
+      - step_id: "arrival"
+        title: "Arriving at Jupiter"
+        content_blocks:
+          - "# ♃ Jupiter - The Gas Giant King"
+          - ""
+          - "**Distance from Sun**: 778.5 million km (5.20 AU)"
+          - "**Diameter**: 139,820 km (11 times Earth's diameter)"
+          - "**Mass**: 317.8 Earths (2.5x all other planets combined!)"
+          - "**Gravity**: 2.5x Earth's (at cloud tops)"
+          - "**Day Length**: 9.9 hours (fastest rotation of any planet!)"
+          - "**Year Length**: 11.86 Earth years"
+          - "**Temperature**: -145°C at cloud tops"
+          - "**Moons**: 95 confirmed (4 large Galilean moons)"
+          - "**Atmosphere**: 90% H₂, 10% He, traces of methane, ammonia"
+          - "**Rings**: Yes! Faint ring system"
+          - ""
+          - "Jupiter is the largest planet in our solar system and acts as a cosmic shield, protecting inner planets from asteroids with its massive gravity!"
+
+      - step_id: "jupiter_details"
+        title: "Jupiter Details"
+        content_blocks:
+          - "# ♃ Jupiter's Amazing Features"
+          - ""
+          - "**Atmospheric Features:**"
+          - "- **Great Red Spot**: Massive storm larger than Earth, raging for 350+ years!"
+          - "- **Bands**: Alternating dark (belts) and light (zones) cloud bands"
+          - "- **Wind Speed**: Up to 640 km/h at equator"
+          - "- **Lightning**: Super-bolts more powerful than Earth's"
+          - "- **Auroras**: Strongest in the solar system"
+          - ""
+          - "**Interior Structure:**"
+          - "- **No Solid Surface**: Gas transitions to liquid hydrogen"
+          - "- **Metallic Hydrogen**: Core surrounded by liquid metallic hydrogen layer"
+          - "- **Possible Rocky Core**: May have Earth-sized rock/ice core"
+          - "- **Intense Pressure**: Core pressure ~2 million Earth atmospheres"
+          - "- **Hot Core**: ~24,000°C"
+          - ""
+          - "**Magnetic Field:**"
+          - "- **Strongest in Solar System**: 20,000x stronger than Earth's"
+          - "- **Magnetosphere**: Extends millions of km, reaches Saturn's orbit!"
+          - "- **Radiation**: Intense radiation belts would kill unshielded humans in hours"
+          - ""
+          - "**Exploration:**"
+          - "- Pioneer 10 & 11 (first flybys, 1973-74)"
+          - "- Voyager 1 & 2 (detailed imagery, 1979)"
+          - "- Galileo (orbiter, 1995-2003)"
+          - "- Juno (current orbiter, 2016-present)"
+
+      - step_id: "jupiter_moons_intro"
+        title: "Jupiter's Moon System"
+        content_blocks:
+          - "# 🌙 Jupiter's 95 Moons!"
+          - ""
+          - "Jupiter has the largest moon system in the solar system with 95 confirmed moons!"
+          - ""
+          - "**The Galilean Moons** (discovered by Galileo in 1610):"
+          - "These four large moons are worlds unto themselves, visible with binoculars from Earth."
+          - ""
+          - "We'll explore each of the Galilean moons, plus other notable satellites:"
+          - "- **Io** - Most volcanically active body in the solar system"
+          - "- **Europa** - Icy moon with subsurface ocean (possible life!)"
+          - "- **Ganymede** - Largest moon in the solar system"
+          - "- **Callisto** - Ancient, heavily cratered world"
+          - ""
+          - "Plus dozens of smaller irregular moons, many captured asteroids!"
+
+      - step_id: "moon_io"
+        title: "Io - The Volcanic Moon"
+        content_blocks:
+          - "# 🌋 Io - Pizza Moon"
+          - ""
+          - "**Distance from Jupiter**: 421,700 km"
+          - "**Diameter**: 3,643 km (slightly larger than Earth's Moon)"
+          - "**Orbital Period**: 1.77 days"
+          - "**Mass**: 0.015 Earths"
+          - ""
+          - "**Volcanic Activity:**"
+          - "- **Most Volcanically Active**: Over 400 active volcanoes!"
+          - "- **Lava Fountains**: Erupt up to 500 km high"
+          - "- **Surface Renewal**: Completely resurfaces every ~1 million years"
+          - "- **Lava Lakes**: Larger than any on Earth"
+          - "- **Plumes**: Sulfur dioxide gas plumes reach space"
+          - ""
+          - "**Appearance:**"
+          - "- **Colorful Surface**: Yellow, orange, red, white, black (sulfur compounds)"
+          - "- **No Impact Craters**: All erased by volcanic activity"
+          - "- **Mountains**: Some taller than Mt. Everest"
+          - ""
+          - "**Heat Source:**"
+          - "- **Tidal Heating**: Jupiter's gravity squeezes and flexes Io"
+          - "- **Orbital Resonance**: With Europa and Ganymede keeps orbit elliptical"
+          - "- **Internal Heat**: More heat per area than any body in solar system"
+          - ""
+          - "**Atmosphere**: Thin sulfur dioxide atmosphere from volcanic outgassing"
+
+      - step_id: "moon_europa"
+        title: "Europa - The Ocean Moon"
+        content_blocks:
+          - "# 🧊 Europa - Potential Life Haven"
+          - ""
+          - "**Distance from Jupiter**: 671,100 km"
+          - "**Diameter**: 3,122 km (slightly smaller than Earth's Moon)"
+          - "**Orbital Period**: 3.55 days"
+          - "**Mass**: 0.008 Earths"
+          - ""
+          - "**Icy Surface:**"
+          - "- **Smoothest in Solar System**: Few craters, very young surface"
+          - "- **Ice Crust**: 15-25 km thick water ice shell"
+          - "- **Cracks and Lineae**: Reddish-brown fracture lines (possibly salts)"
+          - "- **Chaos Terrain**: Broken, refrozen ice blocks"
+          - ""
+          - "**Subsurface Ocean:**"
+          - "- **Global Ocean**: 100 km deep liquid water ocean beneath ice!"
+          - "- **More Water Than Earth**: 2-3 times all of Earth's oceans"
+          - "- **Salty Ocean**: Likely contains salts (magnesium sulfate)"
+          - "- **Energy Source**: Tidal heating from Jupiter keeps water liquid"
+          - ""
+          - "**Astrobiological Potential:**"
+          - "- **Liquid Water**: Essential for life as we know it"
+          - "- **Energy**: Tidal heating provides energy"
+          - "- **Chemistry**: Organic compounds likely present"
+          - "- **Hydrothermal Vents**: Possibly similar to Earth's ocean floors"
+          - ""
+          - "**Future Exploration:**"
+          - "- NASA's Europa Clipper (launching 2024)"
+          - "- ESA's JUICE mission (arrived 2031)"
+          - "- Potential lander/submarine missions being planned"
+
+      - step_id: "moon_ganymede"
+        title: "Ganymede - The Giant Moon"
+        content_blocks:
+          - "# 🌕 Ganymede - Largest Moon in Solar System"
+          - ""
+          - "**Distance from Jupiter**: 1,070,400 km"
+          - "**Diameter**: 5,268 km (larger than Mercury!)"
+          - "**Orbital Period**: 7.15 days"
+          - "**Mass**: 0.025 Earths"
+          - ""
+          - "**Unique Features:**"
+          - "- **Largest Moon**: Bigger than Mercury, would be a planet if it orbited the Sun"
+          - "- **Only Moon with Magnetic Field**: Generated by liquid iron core"
+          - "- **Differentiated Interior**: Iron core, rocky mantle, ice shell"
+          - "- **Subsurface Ocean**: Liquid water ocean beneath surface (like Europa)"
+          - ""
+          - "**Surface:**"
+          - "- **Two Terrain Types**:"
+          - "  - **Dark Regions**: Ancient, heavily cratered (40% of surface)"
+          - "  - **Bright Regions**: Younger, grooved terrain"
+          - "- **Ice Crust**: ~800 km thick (thickest of Galilean moons)"
+          - "- **Grooves**: Mysterious parallel ridges and valleys"
+          - ""
+          - "**Atmosphere:**"
+          - "- Thin oxygen atmosphere (very tenuous)"
+          - "- Created by radiation breaking apart water ice"
+          - ""
+          - "**Interior Structure:**"
+          - "- **Iron Core**: Like a terrestrial planet"
+          - "- **Rocky Mantle**: Silicate rock layer"
+          - "- **Ice Layers**: Multiple ice/water layers"
+          - "- **Possible Ocean**: 150 km beneath surface"
+
+      - step_id: "moon_callisto"
+        title: "Callisto - The Ancient Moon"
+        content_blocks:
+          - "# 🌑 Callisto - Most Cratered World"
+          - ""
+          - "**Distance from Jupiter**: 1,882,700 km (farthest Galilean moon)"
+          - "**Diameter**: 4,821 km (third largest moon in solar system)"
+          - "**Orbital Period**: 16.69 days"
+          - "**Mass**: 0.018 Earths"
+          - ""
+          - "**Surface Features:**"
+          - "- **Most Heavily Cratered**: Surface is ancient (~4 billion years old)"
+          - "- **Valhalla**: Massive multi-ring impact basin (3,800 km across!)"
+          - "- **Dark Surface**: Ice mixed with rocky material"
+          - "- **No Geological Activity**: Surface unchanged for billions of years"
+          - ""
+          - "**Interior:**"
+          - "- **Least Differentiated**: Mix of ice and rock throughout"
+          - "- **Possible Ocean**: May have subsurface liquid layer"
+          - "- **No Magnetic Field**: Unlike Ganymede"
+          - ""
+          - "**Radiation:**"
+          - "- **Low Radiation**: Far enough from Jupiter to have less radiation"
+          - "- **Best Base Location**: Safest Galilean moon for future human base"
+          - ""
+          - "**Atmosphere**: Extremely thin CO₂ atmosphere"
+          - ""
+          - "**Why Important:**"
+          - "- Pristine ancient surface tells story of early solar system"
+          - "- Safest location for crewed missions to Jupiter system"
+          - "- Potential subsurface ocean for astrobiology"
+
+      - step_id: "jupiter_other_moons"
+        title: "Other Jovian Moons"
+        content_blocks:
+          - "# 🌙 Jupiter's Other Moons"
+          - ""
+          - "Jupiter has 91 other confirmed moons besides the Galilean four!"
+          - ""
+          - "**Inner Moons (Inside Io's Orbit):**"
+          - "- **Metis** (43 km) - Closest moon, orbits in 7 hours"
+          - "- **Adrastea** (16 km) - Supplies material to Jupiter's rings"
+          - "- **Amalthea** (167 km) - Reddish, potato-shaped"
+          - "- **Thebe** (98 km) - Heavily cratered"
+          - ""
+          - "**Irregular Moons (Far from Jupiter):**"
+          - "- **Himalia Group**: ~150 km orbit, prograde"
+          - "- **Carpo**: Unusual orbit"
+          - "- **Ananke Group**: Retrograde orbits"
+          - "- **Carme Group**: Retrograde, dark surface"
+          - "- **Pasiphae Group**: Retrograde, distant"
+          - ""
+          - "**Recently Discovered:**"
+          - "- Many tiny moons (1-3 km) discovered 2017-2023"
+          - "- Likely captured asteroids or fragments from collisions"
+          - "- Retrograde orbits suggest captured objects"
+          - ""
+          - "**Notable Small Moons:**"
+          - "- **Himalia** (170 km) - Largest irregular moon"
+          - "- **Amalthea** (167 km) - Gives off more heat than it receives!"
+          - "- **Valetudo** (1 km) - 'Wrong-way driver' moon with odd orbit"
+
+      - step_id: "jupiter_explore_more"
+        title: "Journey Onward"
+        question: "Where to next, space explorer?"
+        tokens_for_ai: |
+          Categorize destination:
+          - 'sun' if sun
+          - 'mercury' if mercury
+          - 'venus' if venus
+          - 'earth' if earth
+          - 'mars' if mars
+          - 'asteroid_belt' if asteroid
+          - 'saturn' if saturn, next planet, rings
+          - 'uranus' if uranus
+          - 'neptune' if neptune
+          - 'kuiper_belt' if kuiper, pluto
+          - 'stay' for more Jupiter/moon info
+          - 'exit' to end
+        buckets: [sun, mercury, venus, earth, mars, asteroid_belt, saturn, uranus, neptune, kuiper_belt, stay, exit]
+        transitions:
+          sun:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Sun!"
+            next_section_and_step: "sun:arrival"
+          mercury:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mercury!"
+            next_section_and_step: "mercury:arrival"
+          venus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Venus!"
+            next_section_and_step: "venus:arrival"
+          earth:
+            ai_feedback:
+              tokens_for_ai: "Warping to Earth!"
+            next_section_and_step: "earth:arrival"
+          mars:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mars!"
+            next_section_and_step: "mars:arrival"
+          asteroid_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Asteroid Belt!"
+            next_section_and_step: "asteroid_belt:arrival"
+          saturn:
+            ai_feedback:
+              tokens_for_ai: "Warping to Saturn - prepare for ring view!"
+            next_section_and_step: "saturn:arrival"
+          uranus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Uranus!"
+            next_section_and_step: "uranus:arrival"
+          neptune:
+            ai_feedback:
+              tokens_for_ai: "Warping to Neptune!"
+            next_section_and_step: "neptune:arrival"
+          kuiper_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Kuiper Belt!"
+            next_section_and_step: "kuiper_belt:arrival"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Jupiter question! Then ask where next."
+            counts_as_attempt: false
+            next_section_and_step: "jupiter:jupiter_explore_more"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # SATURN
+  # ============================================================================
+  - section_id: "saturn"
+    title: "Saturn - Lord of the Rings"
+    steps:
+      - step_id: "arrival"
+        title: "Arriving at Saturn"
+        content_blocks:
+          - "# ♄ Saturn - The Ringed Wonder"
+          - ""
+          - "**Distance from Sun**: 1.43 billion km (9.54 AU)"
+          - "**Diameter**: 116,460 km (9.4 times Earth's diameter)"
+          - "**Mass**: 95.2 Earths"
+          - "**Gravity**: 1.06x Earth's (at cloud tops)"
+          - "**Day Length**: 10.7 hours"
+          - "**Year Length**: 29.4 Earth years"
+          - "**Temperature**: -178°C at cloud tops"
+          - "**Moons**: 146 confirmed!"
+          - "**Atmosphere**: 96% H₂, 3% He, traces of methane"
+          - "**Rings**: Spectacular and extensive!"
+          - ""
+          - "Saturn is the second-largest planet and has the most spectacular ring system in the solar system!"
+
+      - step_id: "saturn_details"
+        title: "Saturn Details"
+        content_blocks:
+          - "# ♄ Saturn's Features"
+          - ""
+          - "**Atmosphere:**"
+          - "- **Bands**: Similar to Jupiter but fainter (haze layer obscures them)"
+          - "- **Hexagonal Storm**: Permanent hexagon at north pole (each side is wider than Earth!)"
+          - "- **South Pole Vortex**: Hurricane-like storm with eye"
+          - "- **Wind Speeds**: Up to 1,800 km/h at equator (fastest in solar system)"
+          - ""
+          - "**Interior:**"
+          - "- **Low Density**: Would float in water (only planet that would!)"
+          - "- **Mostly Hydrogen**: Gas transitions to liquid, then metallic hydrogen"
+          - "- **Possible Rocky Core**: 10-20 Earth masses"
+          - "- **Heat Source**: Radiates 2.5x more energy than receives from Sun"
+          - ""
+          - "**Magnetic Field:**"
+          - "- **Strong**: 578x stronger than Earth's"
+          - "- **Nearly Aligned**: Axis almost matches rotation axis (unusual)"
+          - "- **Magnetosphere**: Extends 1-2 million km"
+
+      - step_id: "saturn_rings"
+        title: "Saturn's Magnificent Rings"
+        content_blocks:
+          - "# 💍 The Ring System"
+          - ""
+          - "Saturn's rings are its most famous feature and the most extensive ring system of any planet!"
+          - ""
+          - "**Ring Structure:**"
+          - "- **Span**: 282,000 km wide (from inner D ring to outer E ring)"
+          - "- **Thickness**: Only 10 meters thick on average!"
+          - "- **Mass**: ~40% of Mimas's mass (not much for their size)"
+          - "- **Composition**: 99% water ice, 1% rocky material"
+          - ""
+          - "**Major Rings (from innermost out):**"
+          - "- **D Ring**: Faint, innermost"
+          - "- **C Ring**: 'Crepe Ring', translucent"
+          - "- **B Ring**: Brightest and widest, 25,500 km wide!"
+          - "- **Cassini Division**: 4,800 km gap (not empty, but less dense)"
+          - "- **A Ring**: Second brightest, contains Encke Gap"
+          - "- **F Ring**: Narrow, braided, shepherd moons keep it in place"
+          - "- **G Ring**: Very faint"
+          - "- **E Ring**: Widest (300,000 km), fed by Enceladus's geysers!"
+          - ""
+          - "**Ring Origin:**"
+          - "- **Theory 1**: Remnants of destroyed moon"
+          - "- **Theory 2**: Leftover material from formation"
+          - "- **Age**: May be 10-100 million years old (relatively young!)"
+          - "- **Future**: Rings may disappear in 100 million years (falling into Saturn)"
+          - ""
+          - "**Moonlets in Rings:**"
+          - "- **Pan**: Clears Encke Gap in A Ring"
+          - "- **Daphnis**: Clears Keeler Gap, creates waves"
+          - "- **Propeller Moonlets**: Tiny embedded moons create propeller shapes"
+
+      - step_id: "saturn_moons_intro"
+        title: "Saturn's 146 Moons"
+        content_blocks:
+          - "# 🌙 Saturn's Incredible Moon System"
+          - ""
+          - "Saturn has 146 confirmed moons - the most of any planet!"
+          - ""
+          - "**Major Moons We'll Explore:**"
+          - "- **Titan** - Larger than Mercury, has atmosphere and lakes!"
+          - "- **Enceladus** - Ice geysers, subsurface ocean, potential life"
+          - "- **Mimas** - 'Death Star' moon with giant crater"
+          - "- **Iapetus** - Two-toned moon (one side bright, one dark)"
+          - "- **Rhea** - Second largest, icy, heavily cratered"
+          - "- **Dione** - Ice cliffs and wispy terrain"
+          - "- **Tethys** - Huge canyon and crater"
+          - "- **Hyperion** - Chaotic rotation, sponge-like appearance"
+          - ""
+          - "Plus many smaller moons, moonlets in the rings, and irregular captured objects!"
+
+      - step_id: "moon_titan"
+        title: "Titan - The Giant Moon"
+        content_blocks:
+          - "# 🌍 Titan - Earth-Like Moon"
+          - ""
+          - "**Distance from Saturn**: 1,221,870 km"
+          - "**Diameter**: 5,150 km (larger than Mercury, second largest moon)"
+          - "**Orbital Period**: 15.95 days"
+          - "**Mass**: 0.0225 Earths"
+          - ""
+          - "**Atmosphere:**"
+          - "- **Only Moon with Dense Atmosphere**: 1.5x Earth's pressure!"
+          - "- **Composition**: 95% nitrogen, 5% methane"
+          - "- **Thick Haze**: Opaque orange haze obscures surface"
+          - "- **Greenhouse Effect**: Surface ~15°C warmer than without atmosphere"
+          - "- **Weather**: Methane clouds, rain, and storms"
+          - ""
+          - "**Surface Features:**"
+          - "- **Hydrocarbon Lakes**: Liquid methane and ethane lakes and seas!"
+          - "- **Ligeia Mare**: Second largest lake, pure methane"
+          - "- **Kraken Mare**: Largest sea (bigger than Caspian Sea!)"
+          - "- **Dunes**: Vast equatorial dune fields (hydrocarbons, not sand)"
+          - "- **Mountains**: Ice mountains (water ice is the 'rock')"
+          - "- **Cryovolcanoes**: Possible ice volcanoes"
+          - ""
+          - "**Methane Cycle:**"
+          - "- **Earth-Like Cycle**: Methane does what water does on Earth"
+          - "- **Evaporation**: Methane evaporates from lakes"
+          - "- **Clouds**: Forms clouds in atmosphere"
+          - "- **Rain**: Falls as methane rain"
+          - "- **Rivers**: Flows in river channels back to lakes"
+          - ""
+          - "**Astrobiology:**"
+          - "- **Organic Chemistry**: Complex carbon-based molecules"
+          - "- **Potential for Life**: Different from Earth (methane-based?)"
+          - "- **Subsurface Ocean**: Liquid water ocean beneath surface"
+          - ""
+          - "**Exploration:**"
+          - "- **Cassini Orbiter**: 127 flybys (2004-2017)"
+          - "- **Huygens Lander**: First landing on outer solar system moon (2005)"
+          - "- **Dragonfly Mission**: Nuclear-powered drone planned for 2027 launch!"
+
+      - step_id: "moon_enceladus"
+        title: "Enceladus - The Geyser Moon"
+        content_blocks:
+          - "# 💨 Enceladus - Icy Ocean World"
+          - ""
+          - "**Distance from Saturn**: 237,948 km"
+          - "**Diameter**: 504 km (small enough to fit across Arizona)"
+          - "**Orbital Period**: 1.37 days"
+          - "**Mass**: 0.00018 Earths"
+          - ""
+          - "**Surface:**"
+          - "- **Brightest Object**: Reflects 99% of sunlight (fresh ice)"
+          - "- **Two Terrains**: Old cratered regions and young smooth areas"
+          - "- **Tiger Stripes**: Parallel fractures at south pole"
+          - "- **Temperature**: -201°C average, but -100°C at tiger stripes!"
+          - ""
+          - "**Ice Geysers:**"
+          - "- **Water Plumes**: Shoot 500 km into space from south pole!"
+          - "- **Composition**: Water vapor, ice particles, salts, organics"
+          - "- **E Ring Source**: Geysers feed Saturn's E ring"
+          - "- **Cassini Flew Through**: Sampled plume material directly"
+          - ""
+          - "**Subsurface Ocean:**"
+          - "- **Global Ocean**: 10 km deep, beneath 20-25 km ice shell"
+          - "- **Liquid Water**: Contact with rocky core"
+          - "- **Hydrothermal Activity**: Hot water vents on ocean floor (like Earth!)"
+          - "- **Organic Molecules**: Complex carbon compounds detected"
+          - "- **Energy Source**: Tidal heating from Saturn"
+          - ""
+          - "**Astrobiological Significance:**"
+          - "- **All Ingredients for Life**: Water, energy, chemistry"
+          - "- **Hydrothermal Vents**: Similar to where life may have started on Earth"
+          - "- **Accessible**: Plumes bring ocean material to space"
+          - "- **Top Target**: One of the best places to search for life in solar system"
+          - ""
+          - "**Future Missions**: Proposed lander/orbiter to sample plumes and search for biosignatures"
+
+      - step_id: "moon_mimas"
+        title: "Mimas - The Death Star Moon"
+        content_blocks:
+          - "# ⭕ Mimas - Death Star Lookalike"
+          - ""
+          - "**Distance from Saturn**: 185,539 km"
+          - "**Diameter**: 396 km"
+          - "**Orbital Period**: 0.94 days (22.5 hours)"
+          - "**Mass**: 0.000063 Earths"
+          - ""
+          - "**Herschel Crater:**"
+          - "- **Giant Impact**: Crater 130 km wide (1/3 of moon's diameter!)"
+          - "- **Death Star Resemblance**: Looks like Star Wars space station"
+          - "- **Nearly Destroyed**: Impact almost shattered the moon"
+          - "- **Central Peak**: 6 km high"
+          - "- **Shockwaves**: Antipodal disrupted terrain on opposite side"
+          - ""
+          - "**Surface:**"
+          - "- **Heavily Cratered**: Very old surface"
+          - "- **Icy Composition**: Water ice"
+          - "- **No Geological Activity**: Dead world"
+          - ""
+          - "**Orbital Influence:**"
+          - "- **Cassini Division**: Mimas's gravity creates gap in Saturn's rings"
+          - "- **2:1 Resonance**: Particles at Cassini Division orbit 2x per Mimas orbit"
+          - ""
+          - "**Recent Discovery (2024):**"
+          - "- **Possible Subsurface Ocean**: Unexpected wobble suggests liquid layer!"
+          - "- **Young Ocean**: May have formed recently (geologically)"
+
+      - step_id: "saturn_other_moons"
+        title: "Other Saturnian Moons"
+        content_blocks:
+          - "# 🌙 More Saturn Moons"
+          - ""
+          - "**Large Icy Moons:**"
+          - ""
+          - "**Rhea** (1,527 km)"
+          - "- Second largest Saturnian moon"
+          - "- Heavily cratered, icy surface"
+          - "- Tenuous oxygen atmosphere"
+          - "- Possible ring system (unconfirmed)"
+          - ""
+          - "**Iapetus** (1,469 km)"
+          - "- Two-toned: One side bright ice, other side dark material"
+          - "- Equatorial Ridge: 20 km high, circles entire moon!"
+          - "- Heavily cratered"
+          - "- Mystery: Why is one side so dark?"
+          - ""
+          - "**Dione** (1,123 km)"
+          - "- Wispy terrain (ice cliffs)"
+          - "- Possible subsurface ocean"
+          - "- Thin oxygen atmosphere"
+          - ""
+          - "**Tethys** (1,062 km)"
+          - "- Odysseus Crater: 450 km wide (huge!)"
+          - "- Ithaca Chasma: Canyon 2,000 km long"
+          - "- Very icy, low density"
+          - ""
+          - "**Hyperion** (270 km)"
+          - "- Irregular, sponge-like appearance"
+          - "- Chaotic rotation (tumbles unpredictably)"
+          - "- Very low density (half ice, half air!)"
+          - ""
+          - "**Small Moons:**"
+          - "- **Prometheus & Pandora**: Shepherd moons for F ring"
+          - "- **Pan & Daphnis**: Clear gaps in A ring"
+          - "- **Phoebe**: Large irregular moon, likely captured object"
+          - "- **Many tiny moons**: 100+ irregular moons and moonlets"
+
+      - step_id: "saturn_explore_more"
+        title: "Onward Through the Solar System"
+        question: "Where shall we travel next?"
+        tokens_for_ai: |
+          Categorize destination:
+          - 'sun' if sun
+          - 'mercury' if mercury
+          - 'venus' if venus
+          - 'earth' if earth
+          - 'mars' if mars
+          - 'asteroid_belt' if asteroid
+          - 'jupiter' if jupiter
+          - 'uranus' if uranus, next, ice giant
+          - 'neptune' if neptune
+          - 'kuiper_belt' if kuiper, pluto
+          - 'stay' for more Saturn info
+          - 'exit' to end
+        buckets: [sun, mercury, venus, earth, mars, asteroid_belt, jupiter, uranus, neptune, kuiper_belt, stay, exit]
+        transitions:
+          sun:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Sun!"
+            next_section_and_step: "sun:arrival"
+          mercury:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mercury!"
+            next_section_and_step: "mercury:arrival"
+          venus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Venus!"
+            next_section_and_step: "venus:arrival"
+          earth:
+            ai_feedback:
+              tokens_for_ai: "Warping to Earth!"
+            next_section_and_step: "earth:arrival"
+          mars:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mars!"
+            next_section_and_step: "mars:arrival"
+          asteroid_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Asteroid Belt!"
+            next_section_and_step: "asteroid_belt:arrival"
+          jupiter:
+            ai_feedback:
+              tokens_for_ai: "Warping to Jupiter!"
+            next_section_and_step: "jupiter:arrival"
+          uranus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Uranus - the sideways planet!"
+            next_section_and_step: "uranus:arrival"
+          neptune:
+            ai_feedback:
+              tokens_for_ai: "Warping to Neptune!"
+            next_section_and_step: "neptune:arrival"
+          kuiper_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Kuiper Belt!"
+            next_section_and_step: "kuiper_belt:arrival"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Saturn question! Then ask where next."
+            counts_as_attempt: false
+            next_section_and_step: "saturn:saturn_explore_more"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # URANUS
+  # ============================================================================
+  - section_id: "uranus"
+    title: "Uranus - The Tilted Giant"
+    steps:
+      - step_id: "arrival"
+        title: "Arriving at Uranus"
+        content_blocks:
+          - "# ⛢ Uranus - The Sideways Planet"
+          - ""
+          - "**Distance from Sun**: 2.87 billion km (19.2 AU)"
+          - "**Diameter**: 50,724 km (4 times Earth's diameter)"
+          - "**Mass**: 14.5 Earths"
+          - "**Gravity**: 0.89x Earth's"
+          - "**Day Length**: 17.2 hours (retrograde)"
+          - "**Year Length**: 84 Earth years"
+          - "**Temperature**: -224°C at cloud tops (coldest planetary atmosphere)"
+          - "**Moons**: 28 confirmed"
+          - "**Atmosphere**: 83% H₂, 15% He, 2% methane (gives blue-green color)"
+          - "**Rings**: 13 known rings"
+          - "**Axial Tilt**: 98° (essentially on its side!)"
+          - ""
+          - "Uranus is the only planet that rotates on its side, possibly due to a massive collision early in its history!"
+
+      - step_id: "uranus_details"
+        title: "Uranus Details"
+        content_blocks:
+          - "# ⛢ The Ice Giant's Features"
+          - ""
+          - "**Extreme Tilt:**"
+          - "- **98° Axial Tilt**: Rotates on its side"
+          - "- **Cause**: Likely massive collision early in formation"
+          - "- **Seasons**: Each pole gets 42 years of sunlight, then 42 years of darkness!"
+          - "- **Magnetic Field**: Tilted 59° from axis, offset from center"
+          - ""
+          - "**Atmosphere:**"
+          - "- **Methane**: Absorbs red light, makes planet blue-green"
+          - "- **Coldest Atmosphere**: -224°C (coldest of any planet)"
+          - "- **Minimal Weather**: Much calmer than other gas giants"
+          - "- **Clouds**: Very faint banding (rarely visible)"
+          - ""
+          - "**Interior Structure:**"
+          - "- **Ice Giant**: Not a gas giant like Jupiter/Saturn"
+          - "- **'Ices'**: Water, methane, ammonia compounds (in superionic state)"
+          - "- **Rocky Core**: Possibly silicate/iron core"
+          - "- **No Heat Source**: Radiates very little internal heat (unlike other giants)"
+          - ""
+          - "**Rings:**"
+          - "- **13 Rings**: Faint, dark rings (discovered 1977)"
+          - "- **Inner Rings**: Narrow and dark"
+          - "- **Outer Rings**: Two outer rings are blue and red"
+          - "- **Composition**: Dark material, possibly organic compounds"
+          - ""
+          - "**Exploration:**"
+          - "- **Voyager 2**: Only spacecraft to visit (1986)"
+          - "- **Future**: No missions currently planned (NASA considering orbiter)"
+
+      - step_id: "uranus_moons_intro"
+        title: "Uranus's 28 Moons"
+        content_blocks:
+          - "# 🌙 The Moons of Uranus"
+          - ""
+          - "Uranus has 28 known moons, all named after characters from Shakespeare and Alexander Pope!"
+          - ""
+          - "**The Five Major Moons:**"
+          - "- **Miranda** - Patchwork moon with extreme features"
+          - "- **Ariel** - Brightest moon, youngest surface"
+          - "- **Umbriel** - Darkest moon, ancient surface"
+          - "- **Titania** - Largest moon, icy canyons"
+          - "- **Oberon** - Second largest, heavily cratered"
+          - ""
+          - "**Small Inner Moons:**"
+          - "- 13 small moons inside Miranda's orbit"
+          - "- Likely fragments from collisions"
+          - "- Shepherd moons for the rings"
+          - ""
+          - "**Irregular Outer Moons:**"
+          - "- 10 small irregular moons (likely captured)"
+          - "- Distant, eccentric orbits"
+
+      - step_id: "moon_miranda"
+        title: "Miranda - The Patchwork Moon"
+        content_blocks:
+          - "# 🧩 Miranda - Frankenstein Moon"
+          - ""
+          - "**Distance from Uranus**: 129,390 km"
+          - "**Diameter**: 471 km"
+          - "**Orbital Period**: 1.41 days"
+          - ""
+          - "**Bizarre Surface:**"
+          - "- **Most Geologically Diverse**: Extreme variety of terrain types"
+          - "- **Coronae**: Three large oval features (mismatched terrain)"
+          - "- **Verona Rupes**: Tallest cliff in solar system (20 km high!)"
+          - "  - Would take 12 minutes to fall from top to bottom (in low gravity)"
+          - "- **Grooves and Ridges**: Parallel features across surface"
+          - ""
+          - "**Formation Theories:**"
+          - "- **Reassembly Theory**: Shattered by impact, reformed from pieces"
+          - "- **Tidal Heating**: Past orbital resonance caused internal heating"
+          - "- **Partial Differentiation**: Never fully separated into layers"
+          - ""
+          - "**Unique Features:**"
+          - "- Mix of old cratered terrain and young grooved terrain"
+          - "- Possibly active cryovolcanism in the past"
+          - "- Surface like a jigsaw puzzle of different terrains"
+
+      - step_id: "uranus_other_moons"
+        title: "Other Uranian Moons"
+        content_blocks:
+          - "# 🌙 Uranus's Other Moons"
+          - ""
+          - "**Major Moons:**"
+          - ""
+          - "**Ariel** (1,158 km)"
+          - "- Brightest Uranian moon"
+          - "- Youngest surface (least cratered)"
+          - "- Extensive canyon system"
+          - "- Possible past geological activity"
+          - ""
+          - "**Umbriel** (1,169 km)"
+          - "- Darkest major moon"
+          - "- Heavily cratered, ancient surface"
+          - "- Mysterious bright ring (Wunda crater)"
+          - "- No signs of geological activity"
+          - ""
+          - "**Titania** (1,578 km)"
+          - "- Largest Uranian moon"
+          - "- Huge canyon system (rifts up to 1,500 km long)"
+          - "- Mix of old and young terrain"
+          - "- Possible subsurface ocean"
+          - ""
+          - "**Oberon** (1,523 km)"
+          - "- Second largest, outermost major moon"
+          - "- Heavily cratered"
+          - "- Dark surface with bright crater rays"
+          - "- Possible subsurface ocean"
+          - ""
+          - "**Small Moons:**"
+          - "- **Puck**: Largest inner moon (162 km)"
+          - "- **Cordelia & Ophelia**: Shepherd moons for epsilon ring"
+          - "- **Mab**: Supplies material to outer ring"
+          - "- Many tiny irregular moons discovered by Voyager 2"
+
+      - step_id: "uranus_explore_more"
+        title: "Continue Your Journey"
+        question: "Where would you like to explore next?"
+        tokens_for_ai: |
+          Categorize destination:
+          - 'sun' if sun
+          - 'mercury' if mercury
+          - 'venus' if venus
+          - 'earth' if earth
+          - 'mars' if mars
+          - 'asteroid_belt' if asteroid
+          - 'jupiter' if jupiter
+          - 'saturn' if saturn
+          - 'neptune' if neptune, next, last planet
+          - 'kuiper_belt' if kuiper, pluto
+          - 'stay' for more Uranus info
+          - 'exit' to end
+        buckets: [sun, mercury, venus, earth, mars, asteroid_belt, jupiter, saturn, neptune, kuiper_belt, stay, exit]
+        transitions:
+          sun:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Sun!"
+            next_section_and_step: "sun:arrival"
+          mercury:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mercury!"
+            next_section_and_step: "mercury:arrival"
+          venus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Venus!"
+            next_section_and_step: "venus:arrival"
+          earth:
+            ai_feedback:
+              tokens_for_ai: "Warping to Earth!"
+            next_section_and_step: "earth:arrival"
+          mars:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mars!"
+            next_section_and_step: "mars:arrival"
+          asteroid_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Asteroid Belt!"
+            next_section_and_step: "asteroid_belt:arrival"
+          jupiter:
+            ai_feedback:
+              tokens_for_ai: "Warping to Jupiter!"
+            next_section_and_step: "jupiter:arrival"
+          saturn:
+            ai_feedback:
+              tokens_for_ai: "Warping to Saturn!"
+            next_section_and_step: "saturn:arrival"
+          neptune:
+            ai_feedback:
+              tokens_for_ai: "Warping to Neptune - the final planet!"
+            next_section_and_step: "neptune:arrival"
+          kuiper_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Kuiper Belt!"
+            next_section_and_step: "kuiper_belt:arrival"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Uranus question! Then ask where next."
+            counts_as_attempt: false
+            next_section_and_step: "uranus:uranus_explore_more"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # NEPTUNE
+  # ============================================================================
+  - section_id: "neptune"
+    title: "Neptune - The Windswept Giant"
+    steps:
+      - step_id: "arrival"
+        title: "Arriving at Neptune"
+        content_blocks:
+          - "# ♆ Neptune - The Deep Blue Giant"
+          - ""
+          - "**Distance from Sun**: 4.5 billion km (30.1 AU)"
+          - "**Diameter**: 49,244 km (3.9 times Earth's diameter)"
+          - "**Mass**: 17.1 Earths"
+          - "**Gravity**: 1.14x Earth's"
+          - "**Day Length**: 16.1 hours"
+          - "**Year Length**: 164.8 Earth years (hasn't completed one orbit since discovery!)"
+          - "**Temperature**: -214°C at cloud tops"
+          - "**Moons**: 16 confirmed"
+          - "**Atmosphere**: 80% H₂, 19% He, 1% methane (gives deep blue color)"
+          - "**Rings**: 5 main rings, several faint ones"
+          - "**Wind Speed**: Fastest in solar system (2,100 km/h)!"
+          - ""
+          - "Neptune is the outermost planet and has the most dynamic atmosphere of any giant planet, with supersonic winds and massive storms!"
+
+      - step_id: "neptune_details"
+        title: "Neptune Details"
+        content_blocks:
+          - "# ♆ The Windy Ice Giant"
+          - ""
+          - "**Atmosphere & Weather:**"
+          - "- **Supersonic Winds**: Up to 2,100 km/h (1.5x speed of sound!)"
+          - "- **Great Dark Spot**: Earth-sized storm (comes and goes)"
+          - "- **Small Dark Spot**: Another massive storm system"
+          - "- **Scooter**: Fast-moving bright cloud"
+          - "- **Dynamic**: Weather changes rapidly (storms form and dissipate)"
+          - "- **Deep Blue**: Methane absorbs red light strongly"
+          - ""
+          - "**Interior:**"
+          - "- **Ice Giant**: Similar to Uranus"
+          - "- **Superionic Ice**: Water, methane, ammonia in exotic state"
+          - "- **Rocky Core**: Possibly Earth-sized"
+          - "- **Heat Source**: Radiates 2.6x more energy than receives from Sun"
+          - "  - Where does this heat come from? Still mysterious!"
+          - ""
+          - "**Magnetic Field:**"
+          - "- **Tilted**: 47° from rotation axis"
+          - "- **Offset**: Center offset from planet's center"
+          - "- **Similar to Uranus**: Suggests common interior structure"
+          - ""
+          - "**Rings:**"
+          - "- **5 Main Rings**: Galle, Le Verrier, Lassell, Arago, Adams"
+          - "- **Adams Ring**: Has 'arcs' (clumps of material)"
+          - "- **Faint**: Much darker and fainter than Saturn's"
+          - ""
+          - "**Discovery:**"
+          - "- First planet discovered by mathematical prediction (1846)"
+          - "- Uranus's orbit anomalies revealed Neptune's existence"
+          - ""
+          - "**Exploration:**"
+          - "- **Voyager 2**: Only spacecraft to visit (1989)"
+          - "- **Future**: No missions currently planned"
+
+      - step_id: "neptune_moons_intro"
+        title: "Neptune's 16 Moons"
+        content_blocks:
+          - "# 🌙 Neptune's Moon System"
+          - ""
+          - "Neptune has 16 known moons, dominated by the giant Triton!"
+          - ""
+          - "**Major Moon:**"
+          - "- **Triton** - Largest moon, captured from Kuiper Belt, active geysers!"
+          - ""
+          - "**Regular Moons (Inside Triton):**"
+          - "- **Proteus** - Second largest, irregular shape"
+          - "- **Nereid** - Highly eccentric orbit"
+          - "- Several small inner moons"
+          - ""
+          - "**Irregular Moons:**"
+          - "- Distant, captured objects"
+          - "- Some in retrograde orbits"
+
+      - step_id: "moon_triton"
+        title: "Triton - The Captured Giant"
+        content_blocks:
+          - "# 🌊 Triton - The Backward Moon"
+          - ""
+          - "**Distance from Neptune**: 354,759 km"
+          - "**Diameter**: 2,706 km (7th largest moon in solar system)"
+          - "**Orbital Period**: 5.88 days (retrograde!)"
+          - "**Mass**: 0.0036 Earths"
+          - ""
+          - "**Unique Characteristics:**"
+          - "- **Retrograde Orbit**: Only large moon that orbits backward!"
+          - "- **Captured Object**: Almost certainly a captured Kuiper Belt object (like Pluto)"
+          - "- **Spiraling Inward**: Tidal forces slowly pulling it toward Neptune"
+          - "- **Future Fate**: Will be torn apart in ~3.6 billion years (forming ring system)"
+          - "- **Coldest Surface**: -235°C (coldest measured in solar system)"
+          - ""
+          - "**Active Geology:**"
+          - "- **Nitrogen Geysers**: Active ice geysers (cryovolcanism)!"
+          - "- **Plumes**: Shoot nitrogen gas/ice 8 km high"
+          - "- **Young Surface**: Few craters, indicates recent resurfacing"
+          - "- **Cantaloupe Terrain**: Unique pitted landscape"
+          - "- **Polar Ice Cap**: Nitrogen and methane ice"
+          - ""
+          - "**Composition:**"
+          - "- **Rocky Core**: Similar to Pluto"
+          - "- **Water Ice Mantle**: Thick ice layer"
+          - "- **Nitrogen Ice**: Surface coating"
+          - "- **Thin Atmosphere**: Nitrogen atmosphere (14 microbar)"
+          - ""
+          - "**Surface Features:**"
+          - "- **Smooth Plains**: Recently resurfaced areas"
+          - "- **Ridges and Valleys**: Tectonic features"
+          - "- **Dark Streaks**: From geyser deposits"
+          - "- **Very Reflective**: Reflects 70% of sunlight"
+          - ""
+          - "**Significance:**"
+          - "- **Only Large Captured Moon**: Unique in solar system"
+          - "- **Active World**: Despite distance from Sun"
+          - "- **Pluto's Twin**: Similar composition and origin"
+
+      - step_id: "neptune_other_moons"
+        title: "Other Neptunian Moons"
+        content_blocks:
+          - "# 🌙 Neptune's Other Moons"
+          - ""
+          - "**Large Irregular Moons:**"
+          - ""
+          - "**Proteus** (420 km)"
+          - "- Second largest Neptunian moon"
+          - "- Irregular, potato-like shape"
+          - "- Heavily cratered"
+          - "- One of the largest non-spherical bodies in solar system"
+          - ""
+          - "**Nereid** (340 km)"
+          - "- Third largest moon"
+          - "- Highly eccentric orbit (most eccentric of any large moon)"
+          - "- Possibly captured object"
+          - "- Takes 360 days to orbit Neptune"
+          - ""
+          - "**Inner Moons:**"
+          - "- **Naiad** (66 km) - Closest moon"
+          - "- **Thalassa** (82 km)"
+          - "- **Despina** (150 km)"
+          - "- **Galatea** (176 km)"
+          - "- **Larissa** (194 km)"
+          - "- All discovered by Voyager 2"
+          - "- Likely formed from collision debris"
+          - ""
+          - "**Outer Irregular Moons:**"
+          - "- **Halimede, Sao, Laomedeia, Psamathe, Neso**"
+          - "- Very small (< 60 km)"
+          - "- Distant, eccentric orbits"
+          - "- Likely captured from Kuiper Belt"
+          - ""
+          - "**Hippocamp** (Discovered 2013)"
+          - "- Smallest known moon (18 km)"
+          - "- Likely fragment broken off from Proteus"
+
+      - step_id: "neptune_explore_more"
+        title: "Final Destination Choice"
+        question: "Where would you like to go now?"
+        tokens_for_ai: |
+          Categorize destination:
+          - 'sun' if sun
+          - 'mercury' if mercury
+          - 'venus' if venus
+          - 'earth' if earth
+          - 'mars' if mars
+          - 'asteroid_belt' if asteroid
+          - 'jupiter' if jupiter
+          - 'saturn' if saturn
+          - 'uranus' if uranus
+          - 'kuiper_belt' if kuiper, pluto, beyond, outer
+          - 'stay' for more Neptune info
+          - 'exit' to end
+        buckets: [sun, mercury, venus, earth, mars, asteroid_belt, jupiter, saturn, uranus, kuiper_belt, stay, exit]
+        transitions:
+          sun:
+            ai_feedback:
+              tokens_for_ai: "Warping back to the Sun!"
+            next_section_and_step: "sun:arrival"
+          mercury:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mercury!"
+            next_section_and_step: "mercury:arrival"
+          venus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Venus!"
+            next_section_and_step: "venus:arrival"
+          earth:
+            ai_feedback:
+              tokens_for_ai: "Warping home to Earth!"
+            next_section_and_step: "earth:arrival"
+          mars:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mars!"
+            next_section_and_step: "mars:arrival"
+          asteroid_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Asteroid Belt!"
+            next_section_and_step: "asteroid_belt:arrival"
+          jupiter:
+            ai_feedback:
+              tokens_for_ai: "Warping to Jupiter!"
+            next_section_and_step: "jupiter:arrival"
+          saturn:
+            ai_feedback:
+              tokens_for_ai: "Warping to Saturn!"
+            next_section_and_step: "saturn:arrival"
+          uranus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Uranus!"
+            next_section_and_step: "uranus:arrival"
+          kuiper_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Kuiper Belt - to the edge of the solar system!"
+            next_section_and_step: "kuiper_belt:arrival"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Neptune question! Then ask where next."
+            counts_as_attempt: false
+            next_section_and_step: "neptune:neptune_explore_more"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # KUIPER BELT
+  # ============================================================================
+  - section_id: "kuiper_belt"
+    title: "The Kuiper Belt - Edge of the Solar System"
+    steps:
+      - step_id: "arrival"
+        title: "Entering the Kuiper Belt"
+        content_blocks:
+          - "# 🌠 The Kuiper Belt - Frozen Frontier"
+          - ""
+          - "**Location**: Beyond Neptune (30-55 AU from Sun)"
+          - "**Composition**: Icy bodies, frozen volatiles, rock"
+          - "**Number of Objects**: Estimated 100,000+ objects > 100 km"
+          - "**Total Mass**: Estimated 1/10 to 1/100 of Earth's mass"
+          - "**Temperature**: -230°C (only 40° above absolute zero)"
+          - ""
+          - "The Kuiper Belt is a vast region of icy remnants from the solar system's formation, home to Pluto and many other dwarf planets!"
+
+      - step_id: "kuiper_belt_details"
+        title: "Kuiper Belt Details"
+        content_blocks:
+          - "# 🌠 The Frozen Reservoir"
+          - ""
+          - "**What Is It?**"
+          - "- **Disk-Shaped Region**: Similar to asteroid belt but much larger"
+          - "- **Leftover Material**: Planetary building blocks that never formed a planet"
+          - "- **Comets Source**: Short-period comets originate here"
+          - "- **Cold Storage**: Pristine material from solar system's birth"
+          - ""
+          - "**Major Dwarf Planets:**"
+          - ""
+          - "**Pluto** (2,377 km)"
+          - "- Most famous Kuiper Belt object"
+          - "- 5 moons: Charon, Styx, Nix, Kerberos, Hydra"
+          - "- Heart-shaped Tombaugh Regio (nitrogen ice plain)"
+          - "- Active geology despite distance from Sun"
+          - "- Visited by New Horizons (2015)"
+          - ""
+          - "**Eris** (2,326 km)"
+          - "- Slightly smaller than Pluto but more massive"
+          - "- Very distant (68 AU average)"
+          - "- One moon: Dysnomia"
+          - "- Discovery triggered Pluto's reclassification as dwarf planet"
+          - ""
+          - "**Makemake** (1,430 km)"
+          - "- Third largest known Kuiper Belt object"
+          - "- Bright surface (frozen methane)"
+          - "- One small moon: MK 2"
+          - ""
+          - "**Haumea** (1,960 km)"
+          - "- Elongated, egg-shaped (extremely fast rotation)"
+          - "- Two moons: Hi'iaka and Namaka"
+          - "- Ring system (only known dwarf planet with rings!)"
+          - ""
+          - "**Other Notable Objects:**"
+          - "- **Quaoar** (1,110 km) - Has ring system"
+          - "- **Orcus** (910 km) - 'Anti-Pluto' (opposite orbital phase)"
+          - "- **Sedna** (995 km) - Extremely distant, unusual orbit"
+          - "- **Gonggong** (1,230 km) - Red surface"
+          - ""
+          - "**Object Types:**"
+          - "- **Classical KBOs**: Relatively circular orbits"
+          - "- **Resonant Objects**: Orbital resonance with Neptune (like Pluto)"
+          - "- **Scattered Disk Objects**: Highly elliptical orbits"
+
+      - step_id: "pluto_details"
+        title: "Pluto - King of the Kuiper Belt"
+        content_blocks:
+          - "# 💙 Pluto - The Heart of Ice"
+          - ""
+          - "**Distance from Sun**: 39.5 AU average (5.9 billion km)"
+          - "**Diameter**: 2,377 km (2/3 size of Earth's Moon)"
+          - "**Orbital Period**: 248 Earth years"
+          - "**Day Length**: 6.4 Earth days (retrograde)"
+          - "**Moons**: 5 (Charon, Styx, Nix, Kerberos, Hydra)"
+          - "**Atmosphere**: Thin nitrogen atmosphere (freezes when farther from Sun)"
+          - ""
+          - "**New Horizons Discoveries (2015):**"
+          - ""
+          - "**Tombaugh Regio (The Heart):**"
+          - "- Bright heart-shaped region"
+          - "- **Sputnik Planitia**: Nitrogen ice plain (left heart lobe)"
+          - "- Active convection cells (ice 'lava lamp')"
+          - "- No craters (surface less than 10 million years old!)"
+          - ""
+          - "**Other Surface Features:**"
+          - "- **Mountains**: Water ice mountains 3.5 km high"
+          - "- **Cthulhu Macula**: Dark equatorial region (tholins)"
+          - "- **Tartarus Dorsa**: Methane ice blades ('penitentes')"
+          - "- **Spider Features**: Radiating fracture patterns"
+          - ""
+          - "**Active Geology:**"
+          - "- **Cryovolcanism**: Possible ice volcanoes"
+          - "- **Nitrogen Glaciers**: Flowing frozen nitrogen"
+          - "- **Haze Layers**: Blue atmospheric haze"
+          - "- **Weather**: Frost cycles, ice sublimation"
+          - ""
+          - "**Charon (Pluto's Largest Moon):**"
+          - "- **Diameter**: 1,212 km (half of Pluto's size!)"
+          - "- **Double Planet**: Pluto-Charon is a binary system"
+          - "- **Tidal Lock**: Both always show same face to each other"
+          - "- **Red North Pole**: Methane from Pluto trapped and irradiated"
+          - "- **Canyons**: Serenity Chasma (deeper than Grand Canyon)"
+          - ""
+          - "**Why Pluto Is Amazing:**"
+          - "- Active geology 4 billion miles from Sun!"
+          - "- Diverse terrain types"
+          - "- Complex atmosphere"
+          - "- Fascinating moon system"
+          - "- Changed our understanding of Kuiper Belt"
+
+      - step_id: "kuiper_explore_more"
+        title: "End of Solar System"
+        question: "You've reached the edge! What now?"
+        tokens_for_ai: |
+          Categorize choice:
+          - 'sun' if they want to go to sun
+          - 'mercury' if mercury
+          - 'venus' if venus
+          - 'earth' if earth, home
+          - 'mars' if mars
+          - 'asteroid_belt' if asteroid
+          - 'jupiter' if jupiter
+          - 'saturn' if saturn
+          - 'uranus' if uranus
+          - 'neptune' if neptune
+          - 'stay' for more Kuiper Belt info
+          - 'exit' to end journey
+        buckets: [sun, mercury, venus, earth, mars, asteroid_belt, jupiter, saturn, uranus, neptune, stay, exit]
+        transitions:
+          sun:
+            ai_feedback:
+              tokens_for_ai: "Warping back to the Sun!"
+            next_section_and_step: "sun:arrival"
+          mercury:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mercury!"
+            next_section_and_step: "mercury:arrival"
+          venus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Venus!"
+            next_section_and_step: "venus:arrival"
+          earth:
+            ai_feedback:
+              tokens_for_ai: "Warping home to Earth!"
+            next_section_and_step: "earth:arrival"
+          mars:
+            ai_feedback:
+              tokens_for_ai: "Warping to Mars!"
+            next_section_and_step: "mars:arrival"
+          asteroid_belt:
+            ai_feedback:
+              tokens_for_ai: "Warping to the Asteroid Belt!"
+            next_section_and_step: "asteroid_belt:arrival"
+          jupiter:
+            ai_feedback:
+              tokens_for_ai: "Warping to Jupiter!"
+            next_section_and_step: "jupiter:arrival"
+          saturn:
+            ai_feedback:
+              tokens_for_ai: "Warping to Saturn!"
+            next_section_and_step: "saturn:arrival"
+          uranus:
+            ai_feedback:
+              tokens_for_ai: "Warping to Uranus!"
+            next_section_and_step: "uranus:arrival"
+          neptune:
+            ai_feedback:
+              tokens_for_ai: "Warping to Neptune!"
+            next_section_and_step: "neptune:arrival"
+          stay:
+            ai_feedback:
+              tokens_for_ai: "Answer their Kuiper Belt question! Then ask what they want to do."
+            counts_as_attempt: false
+            next_section_and_step: "kuiper_belt:kuiper_explore_more"
+          exit:
+            next_section_and_step: "conclusion:farewell"
+
+  # ============================================================================
+  # CONCLUSION
+  # ============================================================================
+  - section_id: "conclusion"
+    title: "Journey's End"
+    steps:
+      - step_id: "farewell"
+        title: "Thank You for Exploring"
+        content_blocks:
+          - "# 🌌 Thank You for Exploring Our Solar System!"
+          - ""
+          - "You've journeyed from the blazing Sun to the frozen Kuiper Belt!"
+          - ""
+          - "**What You've Discovered:**"
+          - "- ☀️ 1 magnificent star"
+          - "- 🪐 8 diverse planets"
+          - "- 🌙 Over 200 fascinating moons"
+          - "- ☄️ Countless asteroids and comets"
+          - "- 🌠 Dwarf planets at the solar system's edge"
+          - ""
+          - "**Amazing Facts to Remember:**"
+          - "- The Sun contains 99.86% of the solar system's mass"
+          - "- Jupiter's Great Red Spot is a storm larger than Earth"
+          - "- Saturn has 146 known moons (and counting!)"
+          - "- Enceladus shoots water geysers 500 km into space"
+          - "- Europa and Enceladus may harbor life in subsurface oceans"
+          - "- Titan has lakes of liquid methane"
+          - "- Miranda has the tallest cliff in the solar system (20 km)"
+          - "- Neptune has winds faster than the speed of sound"
+          - "- Pluto has a heart-shaped nitrogen ice plain"
+          - "- Triton orbits Neptune backwards!"
+          - ""
+          - "**The Universe Awaits:**"
+          - "Our solar system is just one of billions in the Milky Way galaxy."
+          - "Keep looking up, keep exploring, and never stop wondering!"
+          - ""
+          - "Clear skies, space explorer! 🚀✨"
