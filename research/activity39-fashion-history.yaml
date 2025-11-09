@@ -1,0 +1,1161 @@
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+tokens_for_ai_rubric: |
+  Evaluate the student's understanding of fashion history.
+
+  Consider:
+  - Recognition of fashion trends across decades
+  - Understanding of historical context influencing fashion
+  - Ability to identify iconic fashion moments
+  - Appreciation for how fashion evolves with society
+
+  Provide engaging, informative feedback with historical context.
+
+sections:
+  - section_id: introduction
+    title: Welcome to Fashion Through Time
+    steps:
+      - step_id: welcome
+        title: Time Travel Through Fashion
+        content_blocks:
+          - "# Fashion History: 1800-2025 🕰️👗"
+          - ""
+          - "**Welcome to a journey through 225 years of fashion!**"
+          - ""
+          - "Fashion isn't just about clothes—it's a mirror of society, politics, technology, and culture."
+          - ""
+          - "**You'll explore:**"
+          - "- How fashion reflected social changes"
+          - "- Iconic styles from each era"
+          - "- Revolutionary fashion moments"
+          - "- The evolution from corsets to comfort"
+          - "- How we got to today's diverse fashion landscape"
+          - ""
+          - "**Get ready to travel through time!** ⏰✨"
+        question: Are you ready to explore fashion history from the 1800s to today?
+        tokens_for_ai: |
+          Accept any positive response as 'ready'.
+          Language preference as 'set_language'.
+          Otherwise 'off_topic'.
+        buckets:
+          - ready
+          - set_language
+          - off_topic
+        transitions:
+          ready:
+            content_blocks:
+              - "Excellent! Let's begin in the 1800s... ⏰"
+            next_section_and_step: era_1800s:step_1
+          set_language:
+            content_blocks:
+              - "Language preference updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: introduction:welcome
+          off_topic:
+            content_blocks:
+              - "Let's explore fashion history together! Ready to begin?"
+            counts_as_attempt: false
+            next_section_and_step: introduction:welcome
+
+  - section_id: era_1800s
+    title: "1800s-1900: The Victorian Era"
+    steps:
+      - step_id: step_1
+        title: Victorian Fashion
+        content_blocks:
+          - "## The 1800s: Victorian Elegance & Restriction 👑"
+          - ""
+          - "**The Era of Corsets and Crinolines**"
+          - ""
+          - "**Women's Fashion:**"
+          - "- **Tight corsets** creating the coveted hourglass figure"
+          - "- **Crinolines and bustles** making skirts impossibly wide"
+          - "- **High collars, long sleeves** - modesty was paramount"
+          - "- **Layers upon layers** - up to 20 pounds of clothing!"
+          - "- **Pale skin** was desirable (sign of wealth - no outdoor labor)"
+          - ""
+          - "**Men's Fashion:**"
+          - "- **Tailcoats and top hats** for formal occasions"
+          - "- **Three-piece suits** became the standard"
+          - "- **Waistcoats (vests)** in rich fabrics"
+          - "- **Strict dress codes** by time of day and occasion"
+          - ""
+          - "**Historical Context:**"
+          - "- Industrial Revolution changing fabric production"
+          - "- Strict social hierarchies reflected in dress"
+          - "- Women's restricted movement mirrored restricted rights"
+          - "- Fashion was about status and propriety"
+          - ""
+          - "**Late 1800s Change:**"
+          - "By the 1890s, the 'Gibson Girl' emerged—more active, athletic ideal"
+        question: What do you think Victorian fashion reveals about society at that time? Consider the tight corsets, heavy layers, and strict dress codes.
+        tokens_for_ai: |
+          Student analyzing Victorian fashion's social meaning.
+
+          Look for understanding of:
+          - Gender roles and restrictions
+          - Social class divisions
+          - Values of modesty/propriety
+          - Women's limited freedom
+
+          Categorize as:
+          - insightful_analysis: Connects fashion to social restrictions, gender roles, or class
+          - basic_observation: Notes the restrictive or formal nature
+          - curious_question: Asks questions or expresses interest
+          - brief_response: Short but relevant
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Provide historical context to their observation!
+
+          If they note restrictions:
+          - Affirm connection to women's limited rights
+          - Mention fashion as social control
+          - Note the health impacts of corsets
+
+          Add interesting facts about the era.
+          Transition to the coming changes in the 1920s.
+        buckets:
+          - insightful_analysis
+          - basic_observation
+          - curious_question
+          - brief_response
+          - set_language
+          - off_topic
+        transitions:
+          insightful_analysis:
+            ai_feedback:
+              tokens_for_ai: |
+                Excellent historical analysis!
+                Affirm their insight about fashion reflecting social values.
+                Add: Corsets caused health problems, women couldn't even breathe deeply.
+                Fashion was literally restricting women's bodies and lives.
+                But change was coming...
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1920s:step_1
+          basic_observation:
+            ai_feedback:
+              tokens_for_ai: |
+                Good observation!
+                Expand on it: The clothing reflected rigid social rules.
+                Women had few rights and fashion physically restricted them.
+                Mention this would dramatically change in coming decades.
+            next_section_and_step: era_1920s:step_1
+          curious_question:
+            ai_feedback:
+              tokens_for_ai: |
+                Great curiosity!
+                Answer their question if they asked one.
+                Provide context about social restrictions and women's roles.
+                Tease upcoming dramatic fashion changes.
+            next_section_and_step: era_1920s:step_1
+          brief_response:
+            ai_feedback:
+              tokens_for_ai: |
+                Yes! The Victorian era was about strict social control.
+                Fashion would soon undergo a revolution...
+            next_section_and_step: era_1920s:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: era_1800s:step_1
+          off_topic:
+            content_blocks:
+              - "Think about what the restrictive clothing tells us about how society viewed women and social class in the 1800s."
+            next_section_and_step: era_1800s:step_1
+
+  - section_id: era_1920s
+    title: "1920s: The Roaring Twenties"
+    steps:
+      - step_id: step_1
+        title: Flappers and Freedom
+        content_blocks:
+          - "## The 1920s: Revolution! ✨💃"
+          - ""
+          - "**The Flapper Era - Fashion Liberation**"
+          - ""
+          - "**What Changed:**"
+          - "- **Hemlines rose** from ankles to KNEES (scandalous!)"
+          - "- **Corsets disappeared** - loose, dropped-waist dresses"
+          - "- **Bobbed hair** - women cut their long hair short"
+          - "- **Makeup became acceptable** - dark lips, dramatic eyes"
+          - "- **Flat chests were 'in'** - goodbye hourglass, hello boyish figure"
+          - ""
+          - "**The Flapper Look:**"
+          - "- Beaded, fringed dresses that moved when dancing"
+          - "- Cloche hats worn low on the forehead"
+          - "- Long pearl necklaces"
+          - "- T-strap heels for dancing the Charleston"
+          - "- Fur stoles and cigarette holders"
+          - ""
+          - "**Why It Happened:**"
+          - "- WWI changed women's roles (they worked in factories)"
+          - "- Women gained the right to vote (1920 in US)"
+          - "- Jazz culture and speakeasies (Prohibition)"
+          - "- Young women rebelling against Victorian values"
+          - "- New freedom, new fashion!"
+          - ""
+          - "**Men's Fashion:**"
+          - "- Wide-legged Oxford bags (pants)"
+          - "- Raccoon fur coats"
+          - "- Two-tone spectator shoes"
+          - "- The 'Great Gatsby' look"
+        question: The 1920s saw dramatic fashion changes in just a few years. Why do you think fashion changed so radically after WWI?
+        tokens_for_ai: |
+          Student analyzing why 1920s fashion changed so dramatically.
+
+          Look for mentions of:
+          - Women's changed roles/rights
+          - Post-war social change
+          - Rebellion against old values
+          - New freedoms and attitudes
+          - Technology/modernity
+
+          Categorize as:
+          - connects_to_rights: Mentions women's suffrage, changing roles, or liberation
+          - social_change: Notes post-war society changes or rebellion
+          - freedom_theme: Talks about wanting freedom or rejecting restrictions
+          - basic_answer: Notes it changed but limited analysis
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Validate their historical thinking!
+
+          Key points to include:
+          - Women worked during war, gained independence
+          - Hard to go back to corsets after freedom
+          - Voting rights changed everything
+          - Young generation rejected parents' restrictive values
+          - Fashion reflected newfound freedom
+
+          Add excitement about this revolutionary era!
+        buckets:
+          - connects_to_rights
+          - social_change
+          - freedom_theme
+          - basic_answer
+          - set_language
+          - off_topic
+        transitions:
+          connects_to_rights:
+            ai_feedback:
+              tokens_for_ai: |
+                Brilliant connection!
+                Yes - once women had the vote and independence, fashion HAD to change.
+                Can't fight for equality in a corset!
+                The flapper was a symbol of the "New Woman."
+                Fashion and freedom went hand in hand.
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1940s:step_1
+          social_change:
+            ai_feedback:
+              tokens_for_ai: |
+                Exactly right!
+                Post-war, everything changed - women had tasted freedom.
+                The younger generation rejected Victorian restrictions.
+                Jazz, voting rights, and short skirts all represented liberation!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1940s:step_1
+          freedom_theme:
+            ai_feedback:
+              tokens_for_ai: |
+                Absolutely - it was all about freedom!
+                Women wanted to move, dance, work, vote, LIVE freely.
+                Fashion reflected that dramatic shift.
+                The 1920s flapper was a revolution in fabric form!
+            next_section_and_step: era_1940s:step_1
+          basic_answer:
+            ai_feedback:
+              tokens_for_ai: |
+                Good thinking!
+                The key was women's changing roles after WWI.
+                They worked, gained the vote, and refused to go back to restrictions.
+                Fashion became a form of rebellion and freedom!
+            next_section_and_step: era_1940s:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: era_1920s:step_1
+          off_topic:
+            content_blocks:
+              - "Think about how World War I changed women's roles in society. How might that affect what they wanted to wear?"
+            next_section_and_step: era_1920s:step_1
+
+  - section_id: era_1940s
+    title: "1940s: War & Rationing"
+    steps:
+      - step_id: step_1
+        title: Fashion During WWII
+        content_blocks:
+          - "## The 1940s: Utility Fashion & Rosie the Riveter 💪"
+          - ""
+          - "**Fashion During World War II**"
+          - ""
+          - "**Fabric Rationing:**"
+          - "- Fabric, metal, leather all needed for war effort"
+          - "- Shorter hemlines (to save fabric)"
+          - "- No cuffs on pants, no extra pockets"
+          - "- Simple, practical designs"
+          - "- Women drew 'stocking seams' on bare legs (nylon was rationed!)"
+          - ""
+          - "**Women's Wartime Fashion:**"
+          - "- **Broad shoulders, nipped waist** - military influence"
+          - "- **A-line skirts** to conserve fabric"
+          - "- **Practical separates** - could mix and match"
+          - "- **Turbans and headscarves** (factory workers needed hair tied back)"
+          - "- **Overalls and trousers** became acceptable for women (work in factories)"
+          - ""
+          - "**'Rosie the Riveter' Style:**"
+          - "- Denim work clothes"
+          - "- Red bandana/headscarf"
+          - "- Practical, strong, capable"
+          - "- Fashion met function"
+          - ""
+          - "**Post-War (Late 1940s):**"
+          - "- 1947: Christian Dior's 'New Look' - celebration!"
+          - "- Full skirts, tiny waists, abundance of fabric"
+          - "- Return to ultra-femininity after wartime practicality"
+        question: How did WWII change what was considered acceptable for women to wear? Think about practical necessities versus fashion ideals.
+        tokens_for_ai: |
+          Analyzing how war changed women's fashion norms.
+
+          Look for understanding of:
+          - Practicality over decoration
+          - Women wearing pants/work clothes
+          - Breaking gender norms out of necessity
+          - Resourcefulness during rationing
+
+          Categorize as:
+          - practical_insight: Notes shift to practical, functional clothing
+          - gender_norms: Recognizes breaking of traditional women's dress codes
+          - resourceful_theme: Mentions rationing, making do, creativity
+          - good_observation: Relevant but general
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Affirm their understanding!
+
+          Key points:
+          - Women in factories needed practical clothes - pants became acceptable
+          - Rationing meant simple, versatile pieces
+          - Fashion took a back seat to winning the war
+          - But this permanently changed what women could wear
+          - Paved the way for women's pants becoming mainstream
+
+          Note the irony of the post-war "New Look" trying to put women back in ultra-feminine clothes.
+        buckets:
+          - practical_insight
+          - gender_norms
+          - resourceful_theme
+          - good_observation
+          - set_language
+          - off_topic
+        transitions:
+          practical_insight:
+            ai_feedback:
+              tokens_for_ai: |
+                Excellent insight!
+                Yes - function over fashion was the rule.
+                Women working in factories couldn't wear frilly dresses!
+                This practical shift lasted beyond the war.
+                Once women wore pants, there was no going back!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1950s:step_1
+          gender_norms:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect observation!
+                The war shattered the idea that women couldn't wear pants or work clothes.
+                Necessity broke gender dress codes.
+                While the 1950s tried to push femininity again, the barrier was broken.
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1950s:step_1
+          resourceful_theme:
+            ai_feedback:
+              tokens_for_ai: |
+                Great point about rationing!
+                Women got creative - drawing stocking seams, repurposing fabric, making do.
+                Simple, versatile pieces became the norm.
+                Less was more out of necessity!
+            next_section_and_step: era_1950s:step_1
+          good_observation:
+            ai_feedback:
+              tokens_for_ai: |
+                Good thinking!
+                The war made practical work clothes acceptable for women.
+                This was a major shift - women in pants, working, active!
+                Fashion adapted to women's new roles.
+            next_section_and_step: era_1950s:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: era_1940s:step_1
+          off_topic:
+            content_blocks:
+              - "Consider: Women worked in factories during the war. How did that change what they could wear compared to before?"
+            next_section_and_step: era_1940s:step_1
+
+  - section_id: era_1950s
+    title: "1950s: Post-War Glamour"
+    steps:
+      - step_id: step_1
+        title: The New Look Era
+        content_blocks:
+          - "## The 1950s: Full Skirts & Hollywood Glamour 💃✨"
+          - ""
+          - "**The Return to Ultra-Femininity**"
+          - ""
+          - "**Dior's 'New Look' Dominates:**"
+          - "- **Full circle skirts** with layers of petticoats"
+          - "- **Tiny cinched waists** (belts and girdles)"
+          - "- **Soft shoulders** replacing the military look"
+          - "- **Mid-calf 'New Look' length**"
+          - "- Abundance of fabric = post-war optimism"
+          - ""
+          - "**Iconic 1950s Looks:**"
+          - "- **Poodle skirts** for teenagers"
+          - "- **Pencil skirts** for the office"
+          - "- **Sweater sets with pearls** - the suburban ideal"
+          - "- **Cat-eye glasses** and red lips"
+          - "- **Saddle shoes** and kitten heels"
+          - ""
+          - "**Youth Culture Emerges:**"
+          - "- Teenagers became a distinct group with their own fashion!"
+          - "- Rock 'n' roll influence (Elvis, leather jackets)"
+          - "- Rebels: James Dean's jeans and white t-shirt"
+          - ""
+          - "**The Ideal:**"
+          - "- Perfect housewife in pearls and heels (TV image)"
+          - "- Polished, proper, put-together"
+          - "- But... rebellion was brewing underneath"
+        question: The 1950s pushed ultra-feminine fashion after women worked in factories during WWII. Why do you think society wanted women to dress this way again?
+        tokens_for_ai: |
+          Critical thinking about post-war gender politics through fashion.
+
+          Look for understanding of:
+          - Returning to traditional gender roles
+          - Taking jobs back for returning soldiers
+          - Social pressure/idealization of domesticity
+          - Push-back against women's independence
+
+          Categorize as:
+          - critical_analysis: Recognizes social/political push to return women to traditional roles
+          - gender_politics: Notes attempt to make women more 'feminine' again
+          - cultural_observation: Comments on societal ideals or expectations
+          - basic_response: Notes the change without deep analysis
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Validate their critical thinking!
+
+          Historical context:
+          - Men returning from war needed jobs - women pushed out of factories
+          - Society wanted to return to 'normal' (pre-war gender roles)
+          - The perfect housewife was heavily promoted
+          - Fashion was used to reinforce traditional femininity
+          - But the 1960s would explode this ideal...
+
+          Praise their analysis if sophisticated.
+        buckets:
+          - critical_analysis
+          - gender_politics
+          - cultural_observation
+          - basic_response
+          - set_language
+          - off_topic
+        transitions:
+          critical_analysis:
+            ai_feedback:
+              tokens_for_ai: |
+                Brilliant critical thinking!
+                Exactly - society wanted women back in traditional roles after the war.
+                Returning soldiers needed jobs, so women were pushed back to domesticity.
+                Ultra-feminine fashion was part of that push.
+                The "perfect housewife" image was propaganda!
+                But women had tasted freedom... the 1960s would change everything!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1960s_70s:step_1
+          gender_politics:
+            ai_feedback:
+              tokens_for_ai: |
+                Yes! This was absolutely about gender politics.
+                Society tried to make women more 'feminine' = more domestic.
+                Full skirts and pearls while vacuuming was the ideal.
+                Fashion reflected the pressure to conform.
+                The rebellion was coming...
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1960s_70s:step_1
+          cultural_observation:
+            ai_feedback:
+              tokens_for_ai: |
+                Good observation!
+                The 1950s idealized the perfect housewife and mother.
+                Fashion was part of creating that image.
+                But not everyone bought into it - change was brewing!
+            next_section_and_step: era_1960s_70s:step_1
+          basic_response:
+            ai_feedback:
+              tokens_for_ai: |
+                True!
+                After the war, society pushed traditional gender roles again.
+                Fashion was used to make women look ultra-feminine and domestic.
+                But the 1960s would rebel against all of this!
+            next_section_and_step: era_1960s_70s:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: era_1950s:step_1
+          off_topic:
+            content_blocks:
+              - "Think about: After women proved they could do factory work, why would society want them in full skirts and heels again?"
+            next_section_and_step: era_1950s:step_1
+
+  - section_id: era_1960s_70s
+    title: "1960s-70s: Revolution & Expression"
+    steps:
+      - step_id: step_1
+        title: Mod, Hippie, and Disco
+        content_blocks:
+          - "## The 1960s-70s: Fashion Revolution! ✌️🌼"
+          - ""
+          - "**The 1960s: Youth Rebellion**"
+          - ""
+          - "**Mod Fashion (Early 60s):**"
+          - "- **Mini skirts!** Mary Quant raised hemlines to mid-thigh (scandal!)"
+          - "- **Shift dresses** - simple, geometric, youthful"
+          - "- **Go-go boots** - white, knee-high"
+          - "- **Bold patterns** - geometric, colorful"
+          - "- **Twiggy** - thin, androgynous model became icon"
+          - ""
+          - "**Hippie Fashion (Late 60s-Early 70s):**"
+          - "- **Bell-bottoms and flares**"
+          - "- **Tie-dye, paisley, fringe**"
+          - "- **Long, natural hair** (men and women)"
+          - "- **Peasant blouses, maxi skirts**"
+          - "- **Peace symbols, flowers** - anti-war message in clothing"
+          - "- Rejection of mainstream 'establishment' fashion"
+          - ""
+          - "**The 1970s: Disco & Diversity**"
+          - ""
+          - "**Disco Era:**"
+          - "- **Platform shoes** - incredibly high!"
+          - "- **Jumpsuits** in shiny fabrics"
+          - "- **Hot pants** (very short shorts)"
+          - "- **Polyester everything**"
+          - "- **Studio 54** glamour"
+          - ""
+          - "**Punk Emerges (Late 70s):**"
+          - "- Ripped clothing, safety pins, DIY aesthetic"
+          - "- Anti-fashion as fashion"
+          - "- Vivienne Westwood and Malcolm McLaren"
+          - ""
+          - "**Key Theme:** Fashion became about IDENTITY and REBELLION"
+        question: The 1960s-70s saw more fashion diversity than ever before (mod, hippie, disco, punk). What does this variety tell you about society at that time?
+        tokens_for_ai: |
+          Analyzing connection between fashion diversity and social change.
+
+          Look for understanding of:
+          - Individual expression becoming valued
+          - Counter-culture movements
+          - Rejection of conformity
+          - Social/political upheaval
+          - Youth culture power
+
+          Categorize as:
+          - connects_to_freedom: Links fashion diversity to individual freedom/expression
+          - social_movements: Connects to civil rights, anti-war, counter-culture
+          - rebellion_theme: Notes rejection of conformity or establishment
+          - diversity_observation: Comments on variety and choice
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Celebrate their analysis!
+
+          Key themes:
+          - "Don't trust anyone over 30" - youth culture dominated
+          - Civil rights, women's rights, anti-war movements
+          - Fashion became a form of protest and identity
+          - You could tell someone's values from their clothes
+          - End of one-size-fits-all fashion
+          - Beginning of modern diversity in style
+
+          Transition to how this continues...
+        buckets:
+          - connects_to_freedom
+          - social_movements
+          - rebellion_theme
+          - diversity_observation
+          - set_language
+          - off_topic
+        transitions:
+          connects_to_freedom:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect insight!
+                Yes - individual expression became paramount!
+                "Be yourself" was the message.
+                Fashion diversity reflected the belief everyone should be free to be different.
+                This era changed fashion forever - no going back to conformity!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1980s_90s:step_1
+          social_movements:
+            ai_feedback:
+              tokens_for_ai: |
+                Excellent connection to social movements!
+                Civil rights, feminism, anti-war protests all influenced fashion.
+                Hippies wore their politics (peace symbols, natural styles).
+                Punk was anti-establishment.
+                Fashion became a powerful form of protest!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1980s_90s:step_1
+          rebellion_theme:
+            ai_feedback:
+              tokens_for_ai: |
+                Exactly - rebellion against the conformist 1950s!
+                Young people rejected their parents' values and fashion.
+                Mini skirts, long hair, wild patterns - all shocking to the older generation.
+                Fashion became a generation gap battleground!
+            next_section_and_step: era_1980s_90s:step_1
+          diversity_observation:
+            ai_feedback:
+              tokens_for_ai: |
+                Great observation!
+                For the first time, there wasn't ONE correct way to dress.
+                You could be mod, hippie, disco, preppy - all valid!
+                This diversity in fashion reflected a more diverse, pluralistic society.
+            next_section_and_step: era_1980s_90s:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: era_1960s_70s:step_1
+          off_topic:
+            content_blocks:
+              - "Think about: When fashion becomes diverse, what does that say about society's values around conformity and individual expression?"
+            next_section_and_step: era_1960s_70s:step_1
+
+  - section_id: era_1980s_90s
+    title: "1980s-90s: Excess to Minimalism"
+    steps:
+      - step_id: step_1
+        title: Power Dressing to Grunge
+        content_blocks:
+          - "## The 1980s: MORE IS MORE! 💼💎"
+          - ""
+          - "**Power Dressing:**"
+          - "- **Shoulder pads** - HUGE! (Women in the workplace needed to look powerful)"
+          - "- **Bold colors** - bright, neon, eye-catching"
+          - "- **Designer labels** showing - status symbols"
+          - "- **'Dynasty' and 'Dallas'** TV fashion influence"
+          - "- **Athletic wear as fashion** - leg warmers, leotards (Jane Fonda!)"
+          - ""
+          - "**Men's 1980s:**"
+          - "- Oversized suits with shoulder pads"
+          - "- Suspenders, bold ties"
+          - "- Miami Vice pastels"
+          - ""
+          - "**Youth Culture:**"
+          - "- Punk and New Wave (Mohawks, leather, chains)"
+          - "- Preppy (Ralph Lauren, Lacoste)"
+          - "- Hip-hop influence emerging (Adidas, gold chains, Kangol hats)"
+          - ""
+          - "---"
+          - ""
+          - "## The 1990s: Anti-Fashion Backlash 🎸"
+          - ""
+          - "**Grunge Revolution:**"
+          - "- **Reaction against 1980s excess**"
+          - "- **Flannel shirts, ripped jeans, combat boots**"
+          - "- **Thrift store aesthetic** - deliberately anti-glamorous"
+          - "- **Nirvana, Pearl Jam** - Seattle music scene influence"
+          - "- Messy, 'I don't care' attitude"
+          - ""
+          - "**Minimalism:**"
+          - "- **Calvin Klein, simple lines**"
+          - "- **'Heroin chic'** - Kate Moss"
+          - "- Neutral colors, slip dresses"
+          - "- Less is more (opposite of 80s)"
+          - ""
+          - "**Also Popular:**"
+          - "- Hip-hop baggy jeans, oversized everything"
+          - "- Girl Power/Spice Girls platform shoes"
+          - "- 'Friends' Rachel haircut influence"
+          - "- Tattoos and piercings going mainstream"
+        question: The 1990s grunge fashion was deliberately anti-glamorous (thrift store clothes, 'I don't care' attitude). Why do you think this style became popular after the flashy 1980s?
+        tokens_for_ai: |
+          Analyzing the cultural shift from 80s excess to 90s grunge.
+
+          Look for:
+          - Backlash/reaction to 80s materialism
+          - Authenticity over image
+          - Economic factors (recession)
+          - Alternative/indie culture rise
+          - Rejection of superficiality
+
+          Categorize as:
+          - backlash_insight: Recognizes reaction against 80s excess/materialism
+          - authenticity_theme: Notes desire for 'realness' or authenticity
+          - cultural_shift: Understands broader cultural change
+          - basic_answer: Notes the difference
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Affirm their understanding!
+
+          Key points:
+          - Backlash against 1980s materialism and excess
+          - Early 90s recession made flashy wealth seem tasteless
+          - Generation X rejected Baby Boomer values
+          - Desire for authenticity over image
+          - Music (grunge, alternative) influenced fashion
+          - "Selling out" was the worst insult
+
+          Note how fashion reflects economic and cultural shifts.
+        buckets:
+          - backlash_insight
+          - authenticity_theme
+          - cultural_shift
+          - basic_answer
+          - set_language
+          - off_topic
+        transitions:
+          backlash_insight:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect analysis!
+                The 90s was absolutely a backlash against 80s greed and flash.
+                The recession made conspicuous consumption seem gross.
+                Grunge was anti-materialist - thrift stores over designer labels.
+                "Selling out" was the ultimate insult!
+                Fashion reflected a cultural rejection of superficiality.
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_2000s_2010s:step_1
+          authenticity_theme:
+            ai_feedback:
+              tokens_for_ai: |
+                Excellent point about authenticity!
+                The 90s valued 'real' over polished.
+                Grunge was about being yourself, not following trends.
+                Looking like you tried too hard was bad!
+                This anti-fashion became THE fashion.
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_2000s_2010s:step_1
+          cultural_shift:
+            ai_feedback:
+              tokens_for_ai: |
+                Great observation!
+                Culture shifted from 'greed is good' to alternative values.
+                Generation X rejected their parents' materialism.
+                Music, economics, and attitudes all changed.
+                Fashion always reflects these broader shifts!
+            next_section_and_step: era_2000s_2010s:step_1
+          basic_answer:
+            ai_feedback:
+              tokens_for_ai: |
+                Good thinking!
+                The 90s rejected 80s excess.
+                People wanted authenticity and simplicity instead of flash.
+                Grunge reflected that cultural shift perfectly!
+            next_section_and_step: era_2000s_2010s:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: era_1980s_90s:step_1
+          off_topic:
+            content_blocks:
+              - "Consider: After a decade of bright colors, designer labels, and excess, why would the opposite (thrift stores, 'I don't care') become cool?"
+            next_section_and_step: era_1980s_90s:step_1
+
+  - section_id: era_2000s_2010s
+    title: "2000s-2010s: Digital Age Fashion"
+    steps:
+      - step_id: step_1
+        title: Fast Fashion and Social Media
+        content_blocks:
+          - "## The 2000s: Y2K & Fast Fashion 📱✨"
+          - ""
+          - "**Early 2000s Trends:**"
+          - "- **Low-rise jeans** (very low!)"
+          - "- **Velour tracksuits** (Juicy Couture)"
+          - "- **Trucker hats, Von Dutch**"
+          - "- **Ugg boots** everywhere"
+          - "- **'Bling'** - Paris Hilton, celebrity culture"
+          - "- **Skinny everything** - jeans, ties, scarves"
+          - ""
+          - "**Fast Fashion Explosion:**"
+          - "- H&M, Zara, Forever 21 dominate"
+          - "- Runway trends to stores in weeks"
+          - "- Cheap, disposable fashion"
+          - "- More consumption than ever"
+          - ""
+          - "---"
+          - ""
+          - "## The 2010s: Social Media Changes Everything 📸"
+          - ""
+          - "**Instagram Fashion:**"
+          - "- **Athleisure** - yoga pants everywhere (lululemon)"
+          - "- **Fast fashion faster** - trend cycles in days"
+          - "- **Influencer culture** - bloggers become more powerful than magazines"
+          - "- **'Instagram-worthy'** outfits"
+          - "- **Festival fashion** - Coachella as fashion event"
+          - ""
+          - "**Normcore (2010s):**"
+          - "- Deliberately boring, average clothes"
+          - "- Reaction to constant trend cycles"
+          - "- Steve Jobs turtleneck aesthetic"
+          - ""
+          - "**Streetwear Boom:**"
+          - "- Supreme, Off-White, sneaker culture"
+          - "- Hoodies become high fashion"
+          - "- Collaborations (designer x streetwear)"
+          - "- Hype culture and limited drops"
+          - ""
+          - "**Body Positivity Begins:**"
+          - "- Plus-size models gain visibility"
+          - "- Diversity slowly increasing"
+          - "- Challenging beauty standards"
+        question: Social media (Instagram, TikTok) dramatically changed fashion in the 2010s. How do you think social media affects what people wear compared to earlier eras?
+        tokens_for_ai: |
+          Analyzing social media's impact on fashion.
+
+          Look for:
+          - Speed of trends
+          - Influence of regular people/influencers
+          - Constant exposure/comparison
+          - Democratization of fashion
+          - Pressure to constantly have new looks
+
+          Categorize as:
+          - speed_and_trends: Notes faster trend cycles, constant newness
+          - democratization: Notes regular people can influence, not just designers/magazines
+          - pressure_awareness: Mentions pressure, comparison, or negative aspects
+          - influence_shift: Notes shift from magazines/designers to influencers/individuals
+          - basic_observation: Notes social media changed things
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Validate their media literacy!
+
+          Key impacts of social media on fashion:
+          - Trends move at light speed (viral in hours)
+          - Anyone can be a fashion influencer
+          - Constant visual exposure = pressure to look good
+          - FOMO and comparison culture
+          - But also: more diverse representation
+          - Direct-to-consumer brands
+          - Democratization but also anxiety
+
+          Transition to current era (2020s)...
+        buckets:
+          - speed_and_trends
+          - democratization
+          - pressure_awareness
+          - influence_shift
+          - basic_observation
+          - set_language
+          - off_topic
+        transitions:
+          speed_and_trends:
+            ai_feedback:
+              tokens_for_ai: |
+                Exactly right!
+                Trends that used to last years now last weeks or days.
+                TikTok can make something viral overnight.
+                Fast fashion tries to keep up - environmental disaster!
+                The constant newness creates pressure and waste.
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_2020s:step_1
+          democratization:
+            ai_feedback:
+              tokens_for_ai: |
+                Great insight!
+                Social media democratized fashion influence.
+                No longer just Vogue telling us what to wear!
+                Regular people, influencers, anyone can set trends.
+                More diverse voices and styles than ever.
+                Power shifted from gatekeepers to the crowd!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_2020s:step_1
+          pressure_awareness:
+            ai_feedback:
+              tokens_for_ai: |
+                Important observation!
+                Social media creates constant comparison and pressure.
+                Everyone curates their best looks online.
+                FOMO about trends, outfits, appearing 'on point.'
+                This has mental health impacts, especially for young people.
+                Fashion should be fun, not stressful!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_2020s:step_1
+          influence_shift:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect analysis!
+                Influencers replaced fashion magazines as authorities.
+                A YouTuber with a million followers has more impact than Vogue!
+                This shifted power in the fashion industry.
+                More democratic, but also more commercial in new ways.
+            next_section_and_step: era_2020s:step_1
+          basic_observation:
+            ai_feedback:
+              tokens_for_ai: |
+                True!
+                Social media made trends move faster and gave regular people fashion influence.
+                Instagram and TikTok changed the whole industry!
+            next_section_and_step: era_2020s:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: era_2000s_2010s:step_1
+          off_topic:
+            content_blocks:
+              - "Think about how seeing everyone's outfits constantly on Instagram or TikTok might change fashion compared to just seeing magazines once a month."
+            next_section_and_step: era_2000s_2010s:step_1
+
+  - section_id: era_2020s
+    title: "2020s: Now and Future"
+    steps:
+      - step_id: step_1
+        title: Fashion Today and Tomorrow
+        content_blocks:
+          - "## The 2020s: Sustainability, Inclusivity, Individuality 🌍💚"
+          - ""
+          - "**The Pandemic Effect (2020-2021):**"
+          - "- **Comfort became king** - loungewear, sweats, pajamas all day"
+          - "- **'Zoom tops'** - dressed up top, casual bottom"
+          - "- **Masks as fashion accessories**"
+          - "- Working from home changed what we wear"
+          - ""
+          - "**Current Major Trends (2020-2025):**"
+          - ""
+          - "**1. Sustainability & Ethics:**"
+          - "- Backlash against fast fashion waste"
+          - "- Thrifting, vintage, secondhand cool again"
+          - "- Rental fashion platforms"
+          - "- Transparent supply chains"
+          - "- Upcycling and repair becoming trendy"
+          - ""
+          - "**2. Radical Inclusivity:**"
+          - "- Plus-size fashion finally mainstream"
+          - "- Adaptive clothing for disabilities"
+          - "- Gender-neutral fashion growing"
+          - "- Diverse models and representation"
+          - "- Beauty standards expanding"
+          - ""
+          - "**3. Extreme Individuality:**"
+          - "- Mix of ALL eras (Y2K revival, 90s, 80s, cottagecore)"
+          - "- Micro-trends everywhere"
+          - "- Personal style over following trends"
+          - "- Maximalism AND minimalism both valid"
+          - "- Algorithm-driven personal style"
+          - ""
+          - "**4. Technology Integration:**"
+          - "- Digital fashion (NFTs, gaming skins)"
+          - "- AR try-ons"
+          - "- 3D printed clothing"
+          - "- Smart fabrics"
+          - ""
+          - "**5. Comfort & Function:**"
+          - "- Athleisure still dominant"
+          - "- Practical, versatile pieces"
+          - "- 'Dopamine dressing' (colors that make you happy)"
+          - "- Wellness integrated with fashion"
+        question: After learning this history, where do you think fashion is heading in the next 10-20 years? What changes or trends do you predict?
+        tokens_for_ai: |
+          Student predicting future fashion based on historical patterns.
+
+          Look for:
+          - Sustainability/environmental focus
+          - Technology integration
+          - Continued inclusivity
+          - Personalization
+          - Reaction to current trends
+
+          Categorize as:
+          - sustainability_focus: Predicts environmental/ethical fashion
+          - tech_integration: Mentions technology, digital fashion, innovation
+          - inclusivity_expansion: Predicts more diversity and accessibility
+          - individualism_theme: Predicts personal expression over trends
+          - creative_prediction: Unique or interesting ideas
+          - general_future: Mentions future without specific predictions
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Engage with their predictions enthusiastically!
+
+          Validate plausible predictions.
+          Add expert predictions if appropriate:
+          - Circular fashion (rental, resale, repair)
+          - Lab-grown materials
+          - AI-personalized recommendations
+          - Even more gender-neutral options
+          - Continued vintage/thrift dominance
+          - Local/small brands vs global corporations
+
+          Celebrate their future thinking!
+        buckets:
+          - sustainability_focus
+          - tech_integration
+          - inclusivity_expansion
+          - individualism_theme
+          - creative_prediction
+          - general_future
+          - set_language
+          - off_topic
+        transitions:
+          sustainability_focus:
+            ai_feedback:
+              tokens_for_ai: |
+                Excellent prediction!
+                Sustainability is THE major trend of the future.
+                Gen Z demands ethical fashion.
+                Experts predict circular economy - rental, resale, repair!
+                Lab-grown materials, zero-waste design.
+                Fast fashion's days may be numbered!
+            metadata_add:
+              score: "n+1"
+              activity_completed: "true"
+            next_section_and_step: conclusion:step_1
+          tech_integration:
+            ai_feedback:
+              tokens_for_ai: |
+                Great future thinking!
+                Technology will absolutely transform fashion!
+                Digital clothing, virtual try-ons, AI personalization.
+                3D printing custom garments at home?
+                Smart fabrics that adapt to temperature?
+                The possibilities are exciting!
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: conclusion:step_1
+          inclusivity_expansion:
+            ai_feedback:
+              tokens_for_ai: |
+                Wonderful prediction!
+                Inclusivity will only grow.
+                Every body, every gender, every ability represented.
+                Fashion for everyone, not just one ideal type.
+                This is one of the most positive trends!
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: conclusion:step_1
+          individualism_theme:
+            ai_feedback:
+              tokens_for_ai: |
+                Insightful prediction!
+                The future is hyper-personalized style.
+                Algorithms that understand YOUR specific taste.
+                No more 'everyone wearing the same thing.'
+                Fashion reflecting infinite individual identities!
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: conclusion:step_1
+          creative_prediction:
+            ai_feedback:
+              tokens_for_ai: |
+                Creative thinking!
+                Reference their specific prediction.
+                Discuss plausibility and how it might happen.
+                Celebrate their imagination about fashion's future!
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: conclusion:step_1
+          general_future:
+            ai_feedback:
+              tokens_for_ai: |
+                The future of fashion is exciting!
+                Based on history: sustainability, technology, and inclusivity seem key.
+                But fashion always surprises us!
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: conclusion:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: era_2020s:step_1
+          off_topic:
+            content_blocks:
+              - "Based on the patterns you've seen through history, what do you think fashion will look like in 2035 or 2040?"
+            next_section_and_step: era_2020s:step_1
+
+  - section_id: conclusion
+    title: Fashion History Complete
+    steps:
+      - step_id: step_1
+        title: Congratulations, Fashion Historian!
+        content_blocks:
+          - "## Congratulations, Fashion Historian! 🎓👗⏰"
+          - ""
+          - "**You've journeyed through 225 years of fashion!**"
+          - ""
+          - "**What You've Learned:**"
+          - "✓ 1800s: Restrictive Victorian corsets reflected women's limited rights"
+          - "✓ 1920s: Flappers liberated fashion along with suffrage"
+          - "✓ 1940s: War made practical clothing necessary for women"
+          - "✓ 1950s: Post-war push for traditional femininity"
+          - "✓ 1960s-70s: Fashion became protest and individual expression"
+          - "✓ 1980s: Excess, power dressing, status symbols"
+          - "✓ 1990s: Grunge rejected materialism"
+          - "✓ 2000s-2010s: Fast fashion and social media acceleration"
+          - "✓ 2020s: Sustainability, inclusivity, technology"
+          - ""
+          - "**The Big Lesson:**"
+          - "Fashion is NEVER just about clothes!"
+          - ""
+          - "Fashion reflects:"
+          - "- Social and political movements"
+          - "- Economic conditions"
+          - "- Technology and innovation"
+          - "- Cultural values and rebellion"
+          - "- Gender politics and identity"
+          - "- Individual and collective expression"
+          - ""
+          - "**Every outfit tells a story about its time!**"
+          - ""
+          - "**Your Fashion Journey Continues:**"
+          - "- Look at historical photos with new eyes"
+          - "- Consider what current fashion says about today"
+          - "- Think about your own style choices and what they express"
+          - "- Maybe explore vintage fashion from your favorite era!"
+          - ""
+          - "**Fashion is history you can WEAR! 💫**"
