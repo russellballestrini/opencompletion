@@ -1,0 +1,964 @@
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+
+tokens_for_ai_rubric: |
+  Evaluate the student's code and understanding based on:
+  - Does their code implement the required functionality?
+  - Is their logic sound, even if syntax has minor issues?
+  - Do they demonstrate understanding of the underlying concepts?
+  - For conceptual questions, do they explain the key ideas correctly?
+
+  Be encouraging! They're building a real game from scratch.
+  Always reference their chosen programming language from metadata.programming_language.
+
+sections:
+  - section_id: "introduction"
+    title: "Welcome to Connect Four!"
+    steps:
+      - step_id: "welcome"
+        title: "Introduction"
+        content_blocks:
+          - "# 🎮 Build Your Own Connect Four Game!"
+          - ""
+          - "Connect Four is a classic two-player strategy game where players take turns dropping colored discs into a 7-column, 6-row grid."
+          - ""
+          - "**The Goal:** Connect four of your discs in a row - horizontally, vertically, or diagonally - before your opponent does!"
+          - ""
+          - "**What You'll Learn:**"
+          - "- 2D arrays and nested data structures"
+          - "- Game state management"
+          - "- Input validation"
+          - "- Algorithm design (win detection is surprisingly interesting!)"
+          - "- Modular code with functions"
+          - ""
+          - "By the end, you'll have a working Connect Four game you can play!"
+
+  - section_id: "language_choice"
+    title: "Choose Your Programming Language"
+    steps:
+      - step_id: "choose_language"
+        title: "Language Selection"
+        question: "What programming language would you like to use? (Python, JavaScript, Java, C++, C, Ruby, Go, or any other language you prefer)"
+        tokens_for_ai: |
+          The student is selecting their programming language.
+          Store whatever language they choose in metadata.programming_language.
+          Categorize as 'language_selected' if they provide any programming language name.
+          Categorize as 'unclear' if their response is ambiguous or doesn't mention a language.
+        buckets: [language_selected, unclear]
+        transitions:
+          language_selected:
+            content_blocks:
+              - "Excellent choice! All code examples and feedback will be tailored to your language."
+            metadata_add:
+              programming_language: "the-users-response"
+            next_section_and_step: "board_representation:explain_board"
+          unclear:
+            content_blocks:
+              - "I didn't catch which language you'd like to use."
+              - "Please specify a programming language like Python, JavaScript, Java, C++, etc."
+            next_section_and_step: "language_choice:choose_language"
+
+  - section_id: "board_representation"
+    title: "Step 1: Representing the Board"
+    steps:
+      - step_id: "explain_board"
+        title: "Board Data Structure"
+        content_blocks:
+          - "# 📊 Step 1: How Do We Represent the Board?"
+          - ""
+          - "Connect Four uses a 7-column by 6-row grid. We need a data structure to store:"
+          - "- Empty spaces"
+          - "- Player 1's pieces (let's use 'X')"
+          - "- Player 2's pieces (let's use 'O')"
+          - ""
+          - "**The Key Concept: 2D Arrays**"
+          - ""
+          - "A 2D array (or nested list) is like a grid - it has rows and columns. Think of it as a list of lists:"
+          - "- The outer list contains rows"
+          - "- Each inner list contains the columns for that row"
+          - ""
+          - "For Connect Four, we typically use 6 rows (index 0-5) and 7 columns (index 0-6)."
+          - ""
+          - "**Convention:** We'll index from top (row 0) to bottom (row 5), left (column 0) to right (column 6)."
+
+      - step_id: "implement_board"
+        title: "Create the Board"
+        question: "Write code to create an empty Connect Four board (6 rows, 7 columns). Use a 2D array/list and fill it with empty spaces or a placeholder like '.' or ' '."
+        tokens_for_ai: |
+          Get the programming language from metadata.programming_language.
+
+          The student should create a 2D array/list representing a 6x7 board.
+
+          Categorize as 'excellent' if they:
+          - Create a 6x7 2D structure (rows x columns)
+          - Initialize all positions with empty markers
+          - Use appropriate syntax for their language
+
+          Categorize as 'correct' if they:
+          - Create the right dimensions
+          - Minor syntax issues but concept is clear
+
+          Categorize as 'wrong_dimensions' if they:
+          - Mix up rows/columns (7x6 instead of 6x7)
+          - But otherwise have the right idea
+
+          Categorize as 'needs_guidance' if they:
+          - Don't understand 2D arrays
+          - Need help with the concept
+
+          Categorize as 'set_language' if they want to switch languages.
+        feedback_tokens_for_ai: |
+          Provide feedback based on their code in metadata.programming_language.
+
+          If excellent/correct:
+          - Praise their implementation
+          - Show them their code could be used to initialize: board = create_empty_board()
+          - Mention this is the foundation for everything else
+
+          If wrong_dimensions:
+          - Gently correct: "Close! Remember, 6 ROWS (height) by 7 COLUMNS (width)"
+          - Explain the difference between board[row][col] indexing
+
+          If needs_guidance:
+          - Show a SMALL example of a 2x3 board (not the full solution!)
+          - Explain nested lists/arrays conceptually
+          - Encourage them to try again
+        buckets: [excellent, correct, wrong_dimensions, needs_guidance, set_language]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              board_created: "true"
+              progress_score: "1"
+            next_section_and_step: "display_board:explain_display"
+          correct:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              board_created: "true"
+              progress_score: "1"
+            next_section_and_step: "display_board:explain_display"
+          wrong_dimensions:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "board_representation:implement_board"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "board_representation:implement_board"
+          set_language:
+            content_blocks:
+              - "Language preference updated!"
+            metadata_add:
+              programming_language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "board_representation:implement_board"
+
+  - section_id: "display_board"
+    title: "Step 2: Displaying the Board"
+    steps:
+      - step_id: "explain_display"
+        title: "Print the Board"
+        content_blocks:
+          - "# 🖨️ Step 2: Displaying the Board"
+          - ""
+          - "Great! You've created the data structure. Now we need to visualize it."
+          - ""
+          - "**The Challenge:** Turn your 2D array into a readable game board on screen."
+          - ""
+          - "**Concept: Nested Loops**"
+          - "- Outer loop: iterate through each row"
+          - "- Inner loop: iterate through each column in that row"
+          - "- Print each cell, then move to the next line after each row"
+          - ""
+          - "**Bonus Points:** Add column numbers (0-6) at the top or bottom to help players choose where to drop!"
+
+      - step_id: "implement_display"
+        title: "Write Display Function"
+        question: "Write a function called display_board (or similar) that takes your board as a parameter and prints it in a readable format. Show each row and make it clear which positions are empty."
+        tokens_for_ai: |
+          Get the programming language from metadata.programming_language.
+
+          The student should write a function that displays the board.
+
+          Categorize as 'excellent' if they:
+          - Use nested loops correctly
+          - Print all rows and columns
+          - Make it readable (spacing, separators, column labels)
+          - Proper function syntax
+
+          Categorize as 'correct' if they:
+          - Core logic is right (nested loops)
+          - Displays the board even if formatting is basic
+          - Function structure is correct
+
+          Categorize as 'partial' if they:
+          - Have the concept but loops are wrong
+          - Or miss the function wrapper but logic exists
+
+          Categorize as 'needs_help' if they're stuck on nested loops.
+
+          Categorize as 'set_language' if switching languages.
+        feedback_tokens_for_ai: |
+          Provide feedback in metadata.programming_language.
+
+          If excellent/correct:
+          - Celebrate: "Your board looks great! 🎨"
+          - Suggest enhancements like separators between cells: | or borders
+          - Note this function will be called after every move
+
+          If partial:
+          - Identify what's working
+          - Guide them on the nested loop structure
+          - Explain outer loop = rows, inner loop = columns
+
+          If needs_help:
+          - Explain nested loop concept clearly
+          - Give pseudocode (not full code):
+            for each row in board:
+              for each cell in row:
+                print cell
+              print newline
+          - Encourage them to try
+        buckets: [excellent, correct, partial, needs_help, set_language]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              display_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "drop_piece:explain_drop"
+          correct:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              display_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "drop_piece:explain_drop"
+          partial:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "display_board:implement_display"
+          needs_help:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "display_board:implement_display"
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              programming_language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "display_board:implement_display"
+
+  - section_id: "drop_piece"
+    title: "Step 3: Dropping a Piece"
+    steps:
+      - step_id: "explain_drop"
+        title: "Understanding Gravity"
+        content_blocks:
+          - "# 🪂 Step 3: Dropping a Piece (Gravity!)"
+          - ""
+          - "Now for the fun part: actually playing the game!"
+          - ""
+          - "**The Physics:** When you drop a piece in a column, it falls to the lowest empty space in that column."
+          - ""
+          - "**Algorithm Challenge:**"
+          - "1. Given a column number (0-6)"
+          - "2. Start from the BOTTOM row (row 5)"
+          - "3. Move UP until you find an empty space"
+          - "4. Place the piece there"
+          - ""
+          - "**Think about it:** If column 3 has pieces in rows 5, 4, and 3 (bottom three rows), the next piece drops into row 2."
+          - ""
+          - "**Tip:** You can iterate from the bottom up, or from top down and find the first empty, then check the one below is occupied."
+
+      - step_id: "implement_drop"
+        title: "Write Drop Function"
+        question: "Write a function drop_piece(board, column, player) that drops a player's piece (e.g., 'X' or 'O') into the specified column. It should find the lowest empty row in that column and place the piece there. Return True if successful, False if the column is full."
+        tokens_for_ai: |
+          Get the programming language from metadata.programming_language.
+
+          The student should implement the drop logic with gravity.
+
+          Categorize as 'excellent' if they:
+          - Iterate through rows correctly (bottom-up or top-down)
+          - Find the lowest empty space
+          - Place the piece
+          - Return True/False or similar success indicator
+          - Handle full column edge case
+
+          Categorize as 'correct' if they:
+          - Core gravity logic works
+          - Minor issues with iteration direction
+          - Concept is clearly understood
+
+          Categorize as 'wrong_direction' if they:
+          - Place pieces at the top instead of letting them fall
+          - But understand they need to find an empty space
+
+          Categorize as 'needs_guidance' if they're struggling with the algorithm.
+
+          Categorize as 'set_language' for language changes.
+        feedback_tokens_for_ai: |
+          Provide feedback in metadata.programming_language.
+
+          If excellent/correct:
+          - Celebrate: "Perfect! Gravity works! 🌍"
+          - Explain how this function will be called each turn
+          - Mention: "This is the core game mechanic working!"
+          - Suggest they could add error checking (invalid column numbers)
+
+          If wrong_direction:
+          - Point out pieces should FALL to the bottom
+          - Suggest: "Start checking from row 5 (bottom) and move up"
+          - Or: "Check from row 0 (top) down, but place in the LAST empty row"
+
+          If needs_guidance:
+          - Walk through an example: "Column 2 is empty. Where does the first piece go? Row 5 (bottom)."
+          - "Second piece? Row 4. Third piece? Row 3."
+          - Give pseudocode for the loop structure
+        buckets: [excellent, correct, wrong_direction, needs_guidance, set_language]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              drop_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "validate_moves:explain_validation"
+          correct:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              drop_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "validate_moves:explain_validation"
+          wrong_direction:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "drop_piece:implement_drop"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "drop_piece:implement_drop"
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              programming_language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "drop_piece:implement_drop"
+
+  - section_id: "validate_moves"
+    title: "Step 4: Validating Moves"
+    steps:
+      - step_id: "explain_validation"
+        title: "Input Validation"
+        content_blocks:
+          - "# ✅ Step 4: Validating Moves"
+          - ""
+          - "Before dropping a piece, we need to check if the move is legal!"
+          - ""
+          - "**Invalid Moves:**"
+          - "1. Column number is out of range (< 0 or > 6)"
+          - "2. Column is already full (all 6 rows occupied)"
+          - ""
+          - "**Why This Matters:** Without validation, your game will crash or behave unexpectedly when players make mistakes."
+          - ""
+          - "**Good User Experience:** Tell players WHY their move was invalid and let them try again."
+
+      - step_id: "implement_validation"
+        title: "Write Validation Function"
+        question: "Write a function is_valid_move(board, column) that returns True if the move is valid (column is in range 0-6 and not full), False otherwise. Bonus: Write a function get_player_move() that keeps asking until the player enters a valid column."
+        tokens_for_ai: |
+          Get the programming language from metadata.programming_language.
+
+          Categorize as 'excellent' if they:
+          - Check column range (0-6)
+          - Check if column has any empty space
+          - Return boolean correctly
+          - Bonus: Implement get_player_move with retry loop
+
+          Categorize as 'correct' if they:
+          - Have validation logic for both conditions
+          - Function structure is correct
+          - Minor syntax issues okay
+
+          Categorize as 'partial' if they:
+          - Only check one condition (range OR fullness)
+          - Concept understood but incomplete
+
+          Categorize as 'needs_help' if struggling with the logic.
+
+          Categorize as 'set_language' for language changes.
+        feedback_tokens_for_ai: |
+          Provide feedback in metadata.programming_language.
+
+          If excellent:
+          - Celebrate: "Excellent validation! Your game is robust! 💪"
+          - If they did the bonus: "Love the input loop - great UX!"
+          - Point out how this prevents crashes and improves player experience
+
+          If correct:
+          - Praise: "Great! Your validation works!"
+          - If they didn't do the bonus, mention it would be a nice addition
+
+          If partial:
+          - Identify what they got right
+          - Explain what's missing (range check or fullness check)
+          - Encourage them to add the missing piece
+
+          If needs_help:
+          - Break it down: "Two checks needed:"
+          - "1. Is 0 <= column <= 6?"
+          - "2. Is the top row (row 0) of that column empty?"
+          - Provide pseudocode structure
+        buckets: [excellent, correct, partial, needs_help, set_language]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              validation_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "horizontal_win:explain_horizontal"
+          correct:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              validation_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "horizontal_win:explain_horizontal"
+          partial:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "validate_moves:implement_validation"
+          needs_help:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "validate_moves:implement_validation"
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              programming_language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "validate_moves:implement_validation"
+
+  - section_id: "horizontal_win"
+    title: "Step 5: Checking Horizontal Wins"
+    steps:
+      - step_id: "explain_horizontal"
+        title: "Win Detection - Horizontal"
+        content_blocks:
+          - "# 🏆 Step 5: Detecting Horizontal Wins"
+          - ""
+          - "Now for the game logic - determining when someone wins!"
+          - ""
+          - "**Horizontal Win:** 4 identical pieces in a row (same row, consecutive columns)"
+          - ""
+          - "**Algorithm Strategy:**"
+          - "1. For each row (0-5)"
+          - "2. For each starting column (0-3) - why only 0-3? Because you need 4 consecutive!"
+          - "3. Check if board[row][col], board[row][col+1], board[row][col+2], board[row][col+3] are all the same player"
+          - ""
+          - "**Key Insight:** You only need to check columns 0-3 as starting positions. If you start at column 4, you can't fit 4 pieces!"
+
+      - step_id: "implement_horizontal"
+        title: "Write Horizontal Check"
+        question: "Write a function check_horizontal_win(board, player) that returns True if the specified player has 4 in a row horizontally, False otherwise. Iterate through all rows and check consecutive columns."
+        tokens_for_ai: |
+          Get the programming language from metadata.programming_language.
+
+          Categorize as 'excellent' if they:
+          - Iterate rows (0-5) correctly
+          - Iterate columns (0-3) as starting positions
+          - Check 4 consecutive positions
+          - Compare against player symbol
+          - Return True when found, False at end
+
+          Categorize as 'correct' if they:
+          - Logic is sound
+          - Might iterate all columns but still works
+          - Core concept demonstrated
+
+          Categorize as 'wrong_bounds' if they:
+          - Iterate columns 0-6 (causing index errors)
+          - But understand the consecutive checking concept
+
+          Categorize as 'needs_guidance' if struggling with the nested loops or logic.
+
+          Categorize as 'set_language' for language changes.
+        feedback_tokens_for_ai: |
+          Provide feedback in metadata.programming_language.
+
+          If excellent:
+          - Celebrate: "Perfect! Horizontal wins are detected! 🎉"
+          - Mention: "Your optimization (only checking columns 0-3) is smart!"
+          - Hint at what's next: "Vertical and diagonal will use similar patterns"
+
+          If correct:
+          - Praise: "Great logic!"
+          - If they checked all columns unnecessarily, gently suggest the optimization
+          - Still move them forward
+
+          If wrong_bounds:
+          - Point out the index error: "Checking column 6 means accessing [row][6+3] which doesn't exist!"
+          - Explain: "If you start at column 4, you check positions 4,5,6,7 - but column 7 doesn't exist"
+          - Suggest: "Only iterate columns 0-3"
+
+          If needs_guidance:
+          - Walk through a concrete example
+          - "Row 2, starting at column 1: check [2][1], [2][2], [2][3], [2][4]"
+          - Provide pseudocode structure
+        buckets: [excellent, correct, wrong_bounds, needs_guidance, set_language]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              horizontal_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "vertical_win:explain_vertical"
+          correct:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              horizontal_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "vertical_win:explain_vertical"
+          wrong_bounds:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "horizontal_win:implement_horizontal"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "horizontal_win:implement_horizontal"
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              programming_language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "horizontal_win:implement_horizontal"
+
+  - section_id: "vertical_win"
+    title: "Step 6: Checking Vertical Wins"
+    steps:
+      - step_id: "explain_vertical"
+        title: "Win Detection - Vertical"
+        content_blocks:
+          - "# 📏 Step 6: Detecting Vertical Wins"
+          - ""
+          - "Similar to horizontal, but now we're checking columns instead of rows!"
+          - ""
+          - "**Vertical Win:** 4 identical pieces stacked vertically (same column, consecutive rows)"
+          - ""
+          - "**Algorithm Strategy:**"
+          - "1. For each column (0-6)"
+          - "2. For each starting row (0-2) - why only 0-2? Same reason as before!"
+          - "3. Check if board[row][col], board[row+1][col], board[row+2][col], board[row+3][col] are all the same player"
+          - ""
+          - "**Pattern Recognition:** Notice how this mirrors the horizontal check, just with rows and columns swapped?"
+
+      - step_id: "implement_vertical"
+        title: "Write Vertical Check"
+        question: "Write a function check_vertical_win(board, player) that returns True if the specified player has 4 in a row vertically. Use the same logic as horizontal, but swap rows and columns."
+        tokens_for_ai: |
+          Get the programming language from metadata.programming_language.
+
+          Categorize as 'excellent' if they:
+          - Iterate columns (0-6) correctly
+          - Iterate rows (0-2) as starting positions
+          - Check 4 consecutive rows in same column
+          - Compare against player symbol
+          - Return boolean correctly
+
+          Categorize as 'correct' if they:
+          - Logic works
+          - Might iterate all rows but function still works
+          - Understand the pattern
+
+          Categorize as 'wrong_bounds' if they:
+          - Iterate rows 0-5 (causing index errors on row+3)
+          - But the checking logic is right
+
+          Categorize as 'needs_guidance' if struggling.
+
+          Categorize as 'set_language' for language changes.
+        feedback_tokens_for_ai: |
+          Provide feedback in metadata.programming_language.
+
+          If excellent:
+          - Celebrate: "Vertical wins detected! 📏 You're seeing the patterns!"
+          - Mention: "Notice how similar this is to horizontal? Same algorithm, different direction!"
+          - Build anticipation: "Diagonal is the trickiest one next!"
+
+          If correct:
+          - Praise: "Great work!"
+          - If they checked all rows, gently suggest the optimization
+          - Acknowledge they're building momentum
+
+          If wrong_bounds:
+          - Explain the index issue with row+3 exceeding bounds
+          - Suggest: "Only start from rows 0-2"
+
+          If needs_guidance:
+          - Remind them of horizontal logic
+          - "It's the same pattern, just checking board[row+i][col] instead of board[row][col+i]"
+          - Provide structure
+        buckets: [excellent, correct, wrong_bounds, needs_guidance, set_language]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              vertical_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "diagonal_win:explain_diagonal"
+          correct:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              vertical_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "diagonal_win:explain_diagonal"
+          wrong_bounds:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "vertical_win:implement_vertical"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "vertical_win:implement_vertical"
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              programming_language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "vertical_win:implement_vertical"
+
+  - section_id: "diagonal_win"
+    title: "Step 7: Checking Diagonal Wins"
+    steps:
+      - step_id: "explain_diagonal"
+        title: "Win Detection - Diagonals"
+        content_blocks:
+          - "# ↗️ Step 7: Detecting Diagonal Wins (The Tricky One!)"
+          - ""
+          - "Diagonals are the most challenging because there are TWO directions to check!"
+          - ""
+          - "**Two Types of Diagonals:**"
+          - "1. **Down-Right (↘️):** row increases, column increases (row+1, col+1)"
+          - "2. **Up-Right (↗️):** row decreases, column increases (row-1, col+1)"
+          - ""
+          - "**Down-Right Diagonal:**"
+          - "- Starting row range: 0-2 (need room to go down 3 rows)"
+          - "- Starting column range: 0-3 (need room to go right 3 columns)"
+          - "- Check: [row][col], [row+1][col+1], [row+2][col+2], [row+3][col+3]"
+          - ""
+          - "**Up-Right Diagonal:**"
+          - "- Starting row range: 3-5 (need room to go up 3 rows)"
+          - "- Starting column range: 0-3 (need room to go right 3 columns)"
+          - "- Check: [row][col], [row-1][col+1], [row-2][col+2], [row-3][col+3]"
+
+      - step_id: "implement_diagonal"
+        title: "Write Diagonal Check"
+        question: "Write a function check_diagonal_win(board, player) that returns True if the player has 4 in a row diagonally (either direction). You need to check both down-right (↘️) and up-right (↗️) diagonals."
+        tokens_for_ai: |
+          Get the programming language from metadata.programming_language.
+
+          This is the hardest check! Be generous with partial credit.
+
+          Categorize as 'excellent' if they:
+          - Check BOTH diagonal directions
+          - Correct row/column bounds for each direction
+          - Proper indexing (row±i, col+i)
+          - Return True when found
+
+          Categorize as 'correct' if they:
+          - Have both directions
+          - Logic is mostly right
+          - Minor boundary or indexing issues but concept clear
+
+          Categorize as 'one_direction' if they:
+          - Only implement one diagonal direction
+          - But that direction is implemented correctly
+
+          Categorize as 'needs_guidance' if they're struggling with the concept.
+
+          Categorize as 'set_language' for language changes.
+        feedback_tokens_for_ai: |
+          Provide feedback in metadata.programming_language.
+
+          If excellent:
+          - Celebrate enthusiastically: "🎉 You conquered diagonals! This is the hardest part!"
+          - Praise: "Both directions working correctly - impressive!"
+          - Mention: "Win detection is now COMPLETE! Your game knows when someone wins!"
+
+          If correct:
+          - Praise: "Great work on the tricky diagonal logic!"
+          - If minor issues, point them out gently
+          - Still acknowledge this is hard and they did well
+
+          If one_direction:
+          - Praise what they did: "Excellent work on [direction] diagonals!"
+          - Explain: "Connect Four needs both directions: ↘️ and ↗️"
+          - Guide them on the second direction's bounds and indexing
+
+          If needs_guidance:
+          - Break down one diagonal type completely
+          - "Down-right example: start at [0][0], check [0][0], [1][1], [2][2], [3][3]"
+          - "Start at [1][2], check [1][2], [2][3], [3][4], [4][5]"
+          - Provide pseudocode structure
+        buckets: [excellent, correct, one_direction, needs_guidance, set_language]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              diagonal_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "game_loop:explain_loop"
+          correct:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              diagonal_implemented: "true"
+              progress_score: "n+1"
+            next_section_and_step: "game_loop:explain_loop"
+          one_direction:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "diagonal_win:implement_diagonal"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "diagonal_win:implement_diagonal"
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              programming_language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "diagonal_win:implement_diagonal"
+
+  - section_id: "game_loop"
+    title: "Step 8: Building the Game Loop"
+    steps:
+      - step_id: "explain_loop"
+        title: "Putting It All Together"
+        content_blocks:
+          - "# 🔄 Step 8: The Game Loop"
+          - ""
+          - "You have ALL the pieces! Now let's assemble them into a playable game."
+          - ""
+          - "**Game Loop Structure:**"
+          - "1. Initialize the board"
+          - "2. Set current player (start with Player 1)"
+          - "3. **Loop until game ends:**"
+          - "   - Display the board"
+          - "   - Get current player's move (with validation)"
+          - "   - Drop the piece"
+          - "   - Check if current player won (all 3 directions)"
+          - "   - Check if board is full (tie)"
+          - "   - Switch to other player"
+          - "4. Display final board and announce winner"
+          - ""
+          - "**Key Concepts:**"
+          - "- **Game state:** The board changes each turn"
+          - "- **Turn alternation:** Switch between players"
+          - "- **Exit condition:** Win or tie breaks the loop"
+
+      - step_id: "implement_loop"
+        title: "Write Game Loop"
+        question: "Write the main game loop that brings everything together. Initialize the board, alternate between two players, validate moves, drop pieces, check for wins, and announce the winner. You can write this as a play_game() function or as main program logic."
+        tokens_for_ai: |
+          Get the programming language from metadata.programming_language.
+
+          They're writing the FULL game now! Be encouraging.
+
+          Categorize as 'excellent' if they:
+          - Initialize board
+          - Have a game loop (while/for loop until game ends)
+          - Alternate between players
+          - Call display, input, validation, drop, and win check functions
+          - Handle both win and tie conditions
+          - Announce results
+
+          Categorize as 'correct' if they:
+          - Have the main structure
+          - Loop with turn alternation
+          - Call their functions appropriately
+          - Minor logic issues okay if concept is clear
+
+          Categorize as 'partial' if they:
+          - Have some of the structure
+          - Missing key parts (like win checking or player switching)
+          - On the right track but incomplete
+
+          Categorize as 'needs_guidance' if they're struggling to put it together.
+
+          Categorize as 'set_language' for language changes.
+        feedback_tokens_for_ai: |
+          Provide feedback in metadata.programming_language.
+
+          If excellent:
+          - CELEBRATE BIG: "🎉🎮 YOU DID IT! You built a complete Connect Four game!"
+          - List what they've accomplished:
+            * Board representation with 2D arrays
+            * Display with nested loops
+            * Gravity simulation for dropping pieces
+            * Input validation
+            * Win detection in 3 directions
+            * Full game loop with turn management
+          - Suggest enhancements: AI opponent, GUI, undo moves, score tracking
+          - Congratulate them on completing a non-trivial project!
+
+          If correct:
+          - Celebrate: "Your game works! Excellent job! 🎉"
+          - Point out any minor improvements
+          - Still emphasize they built something real and playable
+
+          If partial:
+          - Praise what's working
+          - Identify what's missing
+          - Guide them: "You have X and Y working. Now add Z to complete the loop."
+          - Encourage: "You're so close!"
+
+          If needs_guidance:
+          - Break down the loop structure
+          - "Think of it as: setup -> loop (input, validate, drop, check, switch) -> end"
+          - Provide high-level pseudocode
+          - Encourage them to try integrating one piece at a time
+        buckets: [excellent, correct, partial, needs_guidance, set_language]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              game_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "conclusion:reflection"
+          correct:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              game_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "conclusion:reflection"
+          partial:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "game_loop:implement_loop"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            next_section_and_step: "game_loop:implement_loop"
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              programming_language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "game_loop:implement_loop"
+
+  - section_id: "conclusion"
+    title: "Conclusion & Reflection"
+    steps:
+      - step_id: "reflection"
+        title: "What You've Learned"
+        question: "Reflect on what you learned. What was the most challenging part? What concepts (2D arrays, loops, algorithms, etc.) do you feel more confident about now? What would you add to your game next?"
+        tokens_for_ai: |
+          This is a reflection question. Accept any thoughtful response.
+
+          Categorize as 'thoughtful' if they:
+          - Reflect on specific challenges (likely diagonals!)
+          - Mention concepts they learned
+          - Show understanding of what they built
+          - Maybe mention enhancements
+
+          Categorize as 'brief' if they:
+          - Give a short but genuine response
+          - Show they completed the project
+
+          Categorize as 'off_topic' if they:
+          - Don't engage with the reflection
+          - Are completely off-topic
+
+          Categorize as 'set_language' for language changes (though activity is ending).
+        feedback_tokens_for_ai: |
+          Provide encouraging, celebratory feedback.
+
+          For thoughtful responses:
+          - Acknowledge their specific insights
+          - Validate that diagonals ARE the hardest part
+          - Encourage them to implement their enhancement ideas
+          - Mention how these concepts (2D arrays, nested loops, algorithms) apply to many other programs
+          - Celebrate their achievement of building a complete game from scratch
+
+          For brief responses:
+          - Thank them for their time
+          - Celebrate their completion
+          - Encourage them to keep coding
+
+          For off_topic:
+          - Gently redirect to the question
+          - Ask them to reflect on the experience
+        buckets: [thoughtful, brief, off_topic, set_language]
+        transitions:
+          thoughtful:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:goodbye"
+          brief:
+            ai_feedback:
+              tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:goodbye"
+          off_topic:
+            content_blocks:
+              - "Let's take a moment to reflect on what you learned building Connect Four."
+            next_section_and_step: "conclusion:reflection"
+          set_language:
+            content_blocks:
+              - "Language updated! Though we're at the end of the activity."
+            metadata_add:
+              programming_language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "conclusion:reflection"
+
+      - step_id: "goodbye"
+        title: "Congratulations!"
+        content_blocks:
+          - "# 🎉 Congratulations! You Built Connect Four! 🎮"
+          - ""
+          - "You've successfully created a fully functional Connect Four game from scratch!"
+          - ""
+          - "**What You Accomplished:**"
+          - "✅ Mastered 2D arrays and nested data structures"
+          - "✅ Implemented game physics (gravity!)"
+          - "✅ Wrote input validation"
+          - "✅ Designed win-detection algorithms in 3 directions"
+          - "✅ Built a complete game loop with state management"
+          - "✅ Created something you can actually play!"
+          - ""
+          - "**Next Steps:**"
+          - "- Add an AI opponent (minimax algorithm?)"
+          - "- Create a graphical interface (GUI)"
+          - "- Add animations for falling pieces"
+          - "- Implement undo/redo"
+          - "- Add different board sizes"
+          - ""
+          - "Keep building! Every complex program is just these same concepts combined in creative ways. 🚀"
+          - ""
+          - "Happy coding!"

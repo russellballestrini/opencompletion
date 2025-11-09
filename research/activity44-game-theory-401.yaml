@@ -1,0 +1,71 @@
+default_max_attempts_per_step: 3
+sections:
+  - section_id: introduction
+    title: Game Theory 401
+    steps:
+      - step_id: welcome
+        title: Information Games
+        content_blocks:
+          - "# Game Theory 401: Information Asymmetry 🔍"
+          - "**When players have different information!**"
+          - "✓ Signaling (revealing information)"
+          - "✓ Screening (eliciting information)"
+          - "✓ Adverse selection"
+          - "✓ Moral hazard"
+        question: Ready to explore strategic information problems?
+        tokens_for_ai: Accept positive as 'ready', else 'off_topic'
+        buckets: [ready, set_language, off_topic]
+        transitions:
+          ready: {next_section_and_step: "signaling:step_1"}
+          set_language: {metadata_add: {language: "the-users-response"}, counts_as_attempt: false, next_section_and_step: "introduction:welcome"}
+          off_topic: {counts_as_attempt: false, next_section_and_step: "introduction:welcome"}
+  
+  - section_id: signaling
+    title: Signaling & Screening
+    steps:
+      - step_id: step_1
+        title: Credible Signals
+        content_blocks:
+          - "## Signaling: Credibly Revealing Information 📢"
+          - ""
+          - "**The problem:**"
+          - "You have valuable information others don't"
+          - "How to credibly communicate it?"
+          - ""
+          - "**Education as Signal:**"
+          - "- Degree signals ability/work ethic"
+          - "- Costly to obtain (time, money, effort)"
+          - "- Harder for low-ability workers"
+          - "- Separates high from low types"
+          - ""
+          - "**Key: Must be costly for low types!**"
+          - "Otherwise everyone signals, signal loses meaning"
+          - ""
+          - "**Other examples:**"
+          - "- Warranties (signal quality)"
+          - "- Money-back guarantees"
+          - "- Certifications"
+          - "- Peacock's tail (biological signaling)"
+          - ""
+          - "**Adverse Selection:**"
+          - "When information asymmetry leads to market failure"
+          - "Example: Used car market (lemons problem)"
+        question: Why must a signal be costly to be credible? What happens if it's cheap for everyone?
+        tokens_for_ai: |
+          Key insight: if signal is cheap for all types, everyone signals.
+          Signal loses informational value (pooling).
+          Must be differentially costly to separate types.
+          Categorize: excellent_understanding, understands_cost, partial, set_language, off_topic
+        buckets: [excellent_understanding, understands_cost, partial, set_language, off_topic]
+        transitions:
+          excellent_understanding:
+            ai_feedback: {tokens_for_ai: "Perfect! If everyone can signal cheaply, everyone does. Signal becomes meaningless. Must be differentially costly to separate types!"}
+            metadata_add: {score: "n+2", activity_completed: "true"}
+          understands_cost:
+            ai_feedback: {tokens_for_ai: "Exactly! Cheap signals lose meaning. Everyone would claim to be high quality. Cost creates separation!"}
+            metadata_add: {score: "n+1", activity_completed: "true"}
+          partial:
+            ai_feedback: {tokens_for_ai: "Right direction! If signal is free, everyone sends it. Becomes noise. Cost differentiates high from low quality!"}
+            metadata_add: {activity_completed: "true"}
+          set_language: {metadata_add: {language: "the-users-response"}, counts_as_attempt: false, next_section_and_step: "signaling:step_1"}
+          off_topic: {metadata_add: {activity_completed: "true"}}

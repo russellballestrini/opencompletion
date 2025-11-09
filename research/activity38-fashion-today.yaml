@@ -1,0 +1,591 @@
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+tokens_for_ai_rubric: |
+  Evaluate the student's engagement with fashion concepts.
+
+  Consider:
+  - Their understanding of personal style
+  - Creativity in fashion choices
+  - Awareness of fashion principles (color, fit, occasion)
+  - Confidence in expressing their style
+
+  Provide encouraging, personalized fashion advice.
+  Be supportive of all style preferences and body types.
+
+sections:
+  - section_id: introduction
+    title: Welcome to Fashion Today
+    steps:
+      - step_id: welcome
+        title: Fashion Journey Begins
+        content_blocks:
+          - "# Welcome to Fashion Today! 👗✨"
+          - "Fashion is more than clothes—it's self-expression, confidence, and creativity!"
+          - ""
+          - "**In this journey, you'll:**"
+          - "- Discover your personal style"
+          - "- Learn fashion principles"
+          - "- Build outfits for different occasions"
+          - "- Get personalized style advice"
+          - ""
+          - "**Remember:** Fashion has no rules, only guidelines. The best style is what makes YOU feel confident!"
+        question: Are you ready to explore the exciting world of fashion?
+        tokens_for_ai: |
+          Accept any positive response as 'ready'.
+          If setting language preference, categorize as 'set_language'.
+          Otherwise 'off_topic'.
+        buckets:
+          - ready
+          - set_language
+          - off_topic
+        transitions:
+          ready:
+            content_blocks:
+              - "Fantastic! Let's discover your unique style! 🌟"
+            next_section_and_step: style_discovery:step_1
+          set_language:
+            content_blocks:
+              - "Language preference updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: introduction:welcome
+          off_topic:
+            content_blocks:
+              - "Let's focus on fashion! Are you excited to begin?"
+            counts_as_attempt: false
+            next_section_and_step: introduction:welcome
+
+  - section_id: style_discovery
+    title: Discover Your Style
+    steps:
+      - step_id: step_1
+        title: Fashion Inspiration
+        content_blocks:
+          - "## What's Your Style Vibe? 🎨"
+          - ""
+          - "**Popular fashion styles:**"
+          - ""
+          - "**Classic/Timeless** 🎩 - Elegant, tailored pieces; neutral colors; quality over trends"
+          - "**Casual/Comfortable** 👟 - Relaxed fits, denim, sneakers, effortless cool"
+          - "**Bohemian/Boho** 🌸 - Flowy fabrics, earthy tones, layered accessories, free-spirited"
+          - "**Streetwear/Urban** 🛹 - Bold graphics, sneakers, hoodies, influenced by music and skate culture"
+          - "**Romantic/Feminine** 🌹 - Soft colors, ruffles, lace, delicate details"
+          - "**Edgy/Alternative** 🖤 - Dark colors, leather, unconventional cuts, statement pieces"
+          - "**Minimalist** ⚪ - Clean lines, monochrome, simple silhouettes, 'less is more'"
+          - "**Preppy/Collegiate** 📚 - Polished, structured, blazers, button-downs, classic patterns"
+          - "**Glamorous/Luxe** ✨ - Sparkle, bold jewelry, luxurious fabrics, red carpet vibes"
+          - "**Eclectic/Mix-and-Match** 🎭 - Combining different styles, unique combinations, personal flair"
+          - ""
+          - "You can love multiple styles or create your own unique blend!"
+        question: Which style (or styles) resonates with you? Describe what you love about fashion or what you'd like to wear!
+        tokens_for_ai: |
+          The student is describing their fashion preferences.
+
+          Store their response in metadata.style_preference.
+
+          Categorize based on engagement level:
+          - detailed_response: They describe specific styles, colors, or preferences
+          - general_interest: They mention a style category or general interest
+          - exploring: They're unsure but curious
+          - set_language: Setting language preference
+          - off_topic: Unrelated to fashion
+        feedback_tokens_for_ai: |
+          Acknowledge their style preferences enthusiastically!
+
+          If they mentioned specific styles:
+          - Validate their choices
+          - Mention how that style expresses personality
+          - Suggest complementary elements
+
+          If they're exploring:
+          - Encourage experimentation
+          - Mention that style evolves
+          - Suggest trying different looks
+        buckets:
+          - detailed_response
+          - general_interest
+          - exploring
+          - set_language
+          - off_topic
+        transitions:
+          detailed_response:
+            ai_feedback:
+              tokens_for_ai: |
+                Celebrate their detailed style knowledge!
+                Reference specific elements they mentioned.
+                Tell them their style sounds amazing and expresses their personality.
+            metadata_add:
+              style_preference: "the-users-response"
+              score: "n+1"
+            next_section_and_step: style_discovery:step_2
+          general_interest:
+            ai_feedback:
+              tokens_for_ai: |
+                Great starting point!
+                Acknowledge their style interest.
+                Encourage them to explore further.
+            metadata_add:
+              style_preference: "the-users-response"
+            next_section_and_step: style_discovery:step_2
+          exploring:
+            content_blocks:
+              - "Exploring is wonderful! Fashion is about discovery."
+              - "Think about: What colors make you happy? What fabrics feel good? What makes you feel confident?"
+            metadata_add:
+              style_preference: "exploring different styles"
+            next_section_and_step: style_discovery:step_2
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: style_discovery:step_1
+          off_topic:
+            content_blocks:
+              - "Let's talk fashion! What kind of clothes do you enjoy wearing?"
+            next_section_and_step: style_discovery:step_1
+
+      - step_id: step_2
+        title: Color and You
+        content_blocks:
+          - "## The Power of Color 🌈"
+          - ""
+          - "Colors affect mood and perception!"
+          - ""
+          - "**Color Psychology:**"
+          - "- **Red** ❤️ - Bold, confident, passionate, attention-grabbing"
+          - "- **Blue** 💙 - Calm, trustworthy, professional, serene"
+          - "- **Black** 🖤 - Sophisticated, elegant, powerful, versatile"
+          - "- **White** 🤍 - Clean, fresh, minimalist, peaceful"
+          - "- **Yellow** 💛 - Happy, energetic, optimistic, cheerful"
+          - "- **Green** 💚 - Natural, balanced, refreshing, growth"
+          - "- **Pink** 💗 - Playful, romantic, soft, youthful"
+          - "- **Purple** 💜 - Creative, luxurious, mysterious, royal"
+          - "- **Neutrals** (beige, gray, brown) - Versatile, timeless, easy to mix"
+          - ""
+          - "**Pro Tip:** Wear colors near your face that complement your skin tone!"
+        question: What colors do you love to wear? What colors make you feel most confident or happy?
+        tokens_for_ai: |
+          Student is sharing color preferences.
+
+          Categorize as:
+          - specific_colors: Names specific colors and why they like them
+          - color_mentioned: Mentions colors without detail
+          - neutral_preference: Prefers neutrals or all colors
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Validate their color choices!
+
+          Reference color psychology for their chosen colors.
+          Suggest how to incorporate those colors.
+          Mention complementary colors if appropriate.
+        buckets:
+          - specific_colors
+          - color_mentioned
+          - neutral_preference
+          - set_language
+          - off_topic
+        transitions:
+          specific_colors:
+            ai_feedback:
+              tokens_for_ai: |
+                Excellent color awareness!
+                Reference the psychology/meaning of their chosen colors.
+                Suggest outfit combinations or accent pieces.
+                Celebrate their color confidence!
+            metadata_add:
+              color_preference: "the-users-response"
+              score: "n+1"
+            next_section_and_step: outfit_building:step_1
+          color_mentioned:
+            ai_feedback:
+              tokens_for_ai: |
+                Great choices!
+                Explain what those colors convey.
+                Encourage experimenting with different shades.
+            metadata_add:
+              color_preference: "the-users-response"
+            next_section_and_step: outfit_building:step_1
+          neutral_preference:
+            ai_feedback:
+              tokens_for_ai: |
+                Neutrals are timeless and versatile!
+                Perfect base for any wardrobe.
+                Suggest adding pops of color through accessories.
+            metadata_add:
+              color_preference: "neutrals and versatile colors"
+            next_section_and_step: outfit_building:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: style_discovery:step_2
+          off_topic:
+            content_blocks:
+              - "Think about your wardrobe! What colors do you reach for most often?"
+            next_section_and_step: style_discovery:step_2
+
+  - section_id: outfit_building
+    title: Build Your Wardrobe
+    steps:
+      - step_id: step_1
+        title: Dressing for Occasions
+        content_blocks:
+          - "## Fashion for Every Occasion 👔👗"
+          - ""
+          - "**The Fashion Formula:** Occasion + Personal Style = Perfect Outfit"
+          - ""
+          - "**Key Principles:**"
+          - ""
+          - "1. **Dress Code Awareness**"
+          - "   - Casual: Comfort meets style (jeans, sneakers, t-shirts)"
+          - "   - Business Casual: Polished but approachable (slacks, blouses, loafers)"
+          - "   - Formal: Sophisticated elegance (suits, dresses, dress shoes)"
+          - ""
+          - "2. **Fit is Everything**"
+          - "   - Clothes should fit your body, not the other way around"
+          - "   - Tailoring can transform any piece"
+          - "   - Comfort = Confidence"
+          - ""
+          - "3. **The Power of Accessories**"
+          - "   - Jewelry, bags, shoes, scarves"
+          - "   - Can transform a basic outfit"
+          - "   - Express personality"
+          - ""
+          - "**Let's practice outfit building!**"
+        question: "Imagine you're going to a casual coffee date with friends. What would you wear? Describe your outfit!"
+        tokens_for_ai: |
+          Student is describing a casual outfit.
+
+          Look for:
+          - Specific clothing items
+          - Color coordination
+          - Style consistency
+          - Occasion appropriateness
+
+          Categorize as:
+          - detailed_outfit: Describes multiple pieces with thought to coordination
+          - basic_outfit: Mentions clothing items appropriately casual
+          - creative_outfit: Unique or interesting combinations
+          - needs_guidance: Very brief or doesn't match occasion
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Evaluate their outfit for the casual coffee date scenario.
+
+          If well thought out:
+          - Praise specific choices
+          - Mention what works well
+          - Suggest one accessory or detail to elevate it
+
+          If creative:
+          - Celebrate their unique style
+          - Encourage personal expression
+
+          If needs work:
+          - Gently guide toward casual appropriate pieces
+          - Give specific suggestions
+          - Be encouraging
+        buckets:
+          - detailed_outfit
+          - basic_outfit
+          - creative_outfit
+          - needs_guidance
+          - set_language
+          - off_topic
+        transitions:
+          detailed_outfit:
+            ai_feedback:
+              tokens_for_ai: |
+                Excellent outfit planning!
+                Reference their style preference from metadata if stored.
+                Praise specific elements (color choices, coordination, etc.).
+                Suggest one perfect accessory to complete the look.
+            metadata_add:
+              score: "n+1"
+              outfits_created: "n+1"
+            next_section_and_step: outfit_building:step_2
+          basic_outfit:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect for a casual coffee date!
+                Reference what they chose.
+                Suggest how to add personal flair (accessories, colors, etc.).
+            metadata_add:
+              outfits_created: "n+1"
+            next_section_and_step: outfit_building:step_2
+          creative_outfit:
+            ai_feedback:
+              tokens_for_ai: |
+                Love the creativity!
+                Celebrate their unique fashion sense.
+                Encourage them to own their style.
+            metadata_add:
+              score: "n+1"
+              outfits_created: "n+1"
+            next_section_and_step: outfit_building:step_2
+          needs_guidance:
+            content_blocks:
+              - "Let's think casual and comfortable!"
+              - "**Suggestions:** Jeans or casual pants, a nice top or sweater, comfortable shoes (sneakers, boots, flats)"
+              - "Add your personal touch with accessories or colors you love!"
+            next_section_and_step: outfit_building:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: outfit_building:step_1
+          off_topic:
+            content_blocks:
+              - "Imagine your perfect casual outfit! What would you choose to wear for coffee with friends?"
+            next_section_and_step: outfit_building:step_1
+
+      - step_id: step_2
+        title: Statement Pieces
+        content_blocks:
+          - "## The Power of Statement Pieces 💎"
+          - ""
+          - "**What's a Statement Piece?**"
+          - "An item that stands out and defines your outfit!"
+          - ""
+          - "**Examples:**"
+          - "- Bold jacket (leather, colorful blazer, denim)"
+          - "- Eye-catching shoes (colored sneakers, boots, heels)"
+          - "- Unique bag (vintage, designer, handmade)"
+          - "- Dramatic jewelry (chunky necklace, statement earrings)"
+          - "- Printed/patterned piece (floral dress, graphic tee, plaid pants)"
+          - ""
+          - "**The Rule:** Let your statement piece shine!"
+          - "- Keep other items simpler"
+          - "- Build outfit around the statement piece"
+          - "- One or two statement pieces max"
+        question: What's your favorite statement piece you own (or would love to own)? Describe it and how you'd style it!
+        tokens_for_ai: |
+          Student describing a statement piece.
+
+          Categorize as:
+          - detailed_vision: Describes the piece AND how they'd wear it
+          - piece_described: Describes a statement item
+          - aspirational: Talks about wanting certain pieces
+          - minimalist_approach: Prefers subtle/no statement pieces
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Respond to their statement piece choice!
+
+          If they described styling:
+          - Praise their fashion vision
+          - Suggest complementary pieces
+          - Encourage them to rock it
+
+          If minimalist:
+          - Validate that style too
+          - Mention statement can be subtle
+          - Quality basics are statements too
+        buckets:
+          - detailed_vision
+          - piece_described
+          - aspirational
+          - minimalist_approach
+          - set_language
+          - off_topic
+        transitions:
+          detailed_vision:
+            ai_feedback:
+              tokens_for_ai: |
+                Wow, you have a great fashion eye!
+                Love how you described both the piece and the styling.
+                Reference specific elements they mentioned.
+                Encourage them to wear it with confidence!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: fashion_wisdom:step_1
+          piece_described:
+            ai_feedback:
+              tokens_for_ai: |
+                Great statement piece choice!
+                Suggest how to style it.
+                Mention what type of outfit it would elevate.
+            next_section_and_step: fashion_wisdom:step_1
+          aspirational:
+            ai_feedback:
+              tokens_for_ai: |
+                Great fashion goals!
+                Encourage saving/hunting for that perfect piece.
+                Mention alternatives or similar items to explore.
+                Fashion dreams are fun!
+            next_section_and_step: fashion_wisdom:step_1
+          minimalist_approach:
+            ai_feedback:
+              tokens_for_ai: |
+                Minimalism is a powerful statement!
+                Quality over quantity is wise.
+                Mention how simple pieces can be impactful.
+            next_section_and_step: fashion_wisdom:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: outfit_building:step_2
+          off_topic:
+            content_blocks:
+              - "Think about your wardrobe! Do you have a favorite bold piece that makes an outfit special?"
+            next_section_and_step: outfit_building:step_2
+
+  - section_id: fashion_wisdom
+    title: Fashion Tips & Confidence
+    steps:
+      - step_id: step_1
+        title: Your Fashion Philosophy
+        content_blocks:
+          - "## Fashion Wisdom 🌟"
+          - ""
+          - "**Universal Fashion Truths:**"
+          - ""
+          - "1. **Confidence is Your Best Accessory**"
+          - "   - Wear what makes YOU feel amazing"
+          - "   - Own your choices"
+          - ""
+          - "2. **Fashion Has No Size**"
+          - "   - Every body is a fashion body"
+          - "   - Dress for YOUR shape and comfort"
+          - ""
+          - "3. **Break the Rules**"
+          - "   - Fashion 'rules' are just suggestions"
+          - "   - Mix patterns, clash colors, be YOU"
+          - ""
+          - "4. **Sustainable Choices Matter**"
+          - "   - Quality over quantity"
+          - "   - Thrift, swap, upcycle"
+          - "   - Fashion can be ethical"
+          - ""
+          - "5. **Express Yourself**"
+          - "   - Your clothes tell your story"
+          - "   - Change your style as you grow"
+          - "   - Have fun with it!"
+        question: What does fashion mean to you? How do you want to express yourself through clothing?
+        tokens_for_ai: |
+          This is a reflection question about their fashion philosophy.
+
+          Categorize as:
+          - thoughtful_reflection: Shares personal connection to fashion
+          - self_expression: Talks about expressing personality/identity
+          - practical_view: Focuses on function, comfort, practicality
+          - creative_view: Sees fashion as art/creativity
+          - brief_response: Short but genuine
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Provide personalized, encouraging feedback!
+
+          Reference their style_preference from metadata if available.
+          Celebrate their unique perspective on fashion.
+          Encourage them to continue expressing themselves.
+          Mention that fashion is a journey, not a destination.
+        buckets:
+          - thoughtful_reflection
+          - self_expression
+          - practical_view
+          - creative_view
+          - brief_response
+          - set_language
+          - off_topic
+        transitions:
+          thoughtful_reflection:
+            ai_feedback:
+              tokens_for_ai: |
+                Beautiful reflection on fashion!
+                Acknowledge their personal connection.
+                Reference their journey through this activity.
+                Encourage continued self-expression.
+            metadata_add:
+              score: "n+1"
+              activity_completed: "true"
+            next_section_and_step: conclusion:step_1
+          self_expression:
+            ai_feedback:
+              tokens_for_ai: |
+                Fashion is the perfect medium for self-expression!
+                Celebrate their desire to show their personality.
+                Encourage authenticity in their style choices.
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: conclusion:step_1
+          practical_view:
+            ai_feedback:
+              tokens_for_ai: |
+                Practical fashion is smart fashion!
+                Function and style can coexist beautifully.
+                Acknowledge the value of comfort and versatility.
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: conclusion:step_1
+          creative_view:
+            ai_feedback:
+              tokens_for_ai: |
+                Fashion IS art!
+                Celebrate their creative perspective.
+                Encourage experimenting and pushing boundaries.
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: conclusion:step_1
+          brief_response:
+            ai_feedback:
+              tokens_for_ai: |
+                Thank them for sharing!
+                Summarize key fashion principles from this activity.
+                Encourage them to keep exploring their style.
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: conclusion:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: fashion_wisdom:step_1
+          off_topic:
+            content_blocks:
+              - "Let's reflect on fashion! What role do clothes play in your life and how you present yourself?"
+            next_section_and_step: fashion_wisdom:step_1
+
+  - section_id: conclusion
+    title: Your Fashion Journey Continues
+    steps:
+      - step_id: step_1
+        title: Keep Shining
+        content_blocks:
+          - "## You're a Fashion Star! ⭐✨"
+          - ""
+          - "**What You've Explored:**"
+          - "✓ Discovered your personal style"
+          - "✓ Learned about colors and their power"
+          - "✓ Built outfits for different occasions"
+          - "✓ Explored statement pieces"
+          - "✓ Defined your fashion philosophy"
+          - ""
+          - "**Remember:**"
+          - "- Fashion is about feeling good in your skin"
+          - "- Confidence is the key to any outfit"
+          - "- Your style will evolve—embrace it!"
+          - "- There are no mistakes in fashion, only experiments"
+          - ""
+          - "**Next Steps:**"
+          - "- Clean out your closet (donate what doesn't serve you)"
+          - "- Try one new style element this week"
+          - "- Mix pieces you've never combined before"
+          - "- Take photos of outfits you love"
+          - "- Follow fashion inspiration that resonates with YOU"
+          - ""
+          - "**Your style is uniquely YOURS. Wear it proudly! 💖**"

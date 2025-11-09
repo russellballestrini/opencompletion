@@ -1,0 +1,740 @@
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+tokens_for_ai_rubric: |
+  Evaluate understanding of basic game theory concepts.
+
+  Consider:
+  - Grasp of strategic interaction
+  - Understanding of Nash equilibrium
+  - Recognition of dominant strategies
+  - Ability to analyze simple games
+  - Application to real-world scenarios
+
+  Provide clear explanations with examples.
+
+sections:
+  - section_id: introduction
+    title: Welcome to Game Theory
+    steps:
+      - step_id: welcome
+        title: Strategic Thinking
+        content_blocks:
+          - "# Game Theory 101: The Science of Strategy 🎮🧠"
+          - ""
+          - "**Welcome to game theory!**"
+          - ""
+          - "Game theory is the study of strategic interaction - how people make decisions when their outcomes depend on others' choices."
+          - ""
+          - "**Not just for games:**"
+          - "- Business competition (pricing, market entry)"
+          - "- International relations (nuclear deterrence, trade)"
+          - "- Biology (evolution, animal behavior)"
+          - "- Economics (auctions, bargaining)"
+          - "- Everyday life (traffic, cooperation)"
+          - ""
+          - "**You'll learn:**"
+          - "✓ The Prisoner's Dilemma (cooperation vs self-interest)"
+          - "✓ Nash Equilibrium (stable strategies)"
+          - "✓ Dominant strategies (always-best moves)"
+          - "✓ Zero-sum vs positive-sum games"
+          - "✓ How to analyze strategic situations"
+          - ""
+          - "**Real applications:**"
+          - "- Why cartels are unstable"
+          - "- Why arms races happen"
+          - "- When cooperation emerges"
+          - "- How auctions should be designed"
+        question: Ready to learn how to think strategically about interactive decisions?
+        tokens_for_ai: |
+          Accept positive responses as 'ready'.
+          Language preference as 'set_language'.
+          Otherwise 'off_topic'.
+        buckets:
+          - ready
+          - set_language
+          - off_topic
+        transitions:
+          ready:
+            content_blocks:
+              - "Excellent! Let's start with the most famous game in game theory! 🎯"
+            next_section_and_step: prisoners_dilemma:step_1
+          set_language:
+            content_blocks:
+              - "Language preference updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: introduction:welcome
+          off_topic:
+            content_blocks:
+              - "Let's learn strategic thinking together! Ready to begin?"
+            counts_as_attempt: false
+            next_section_and_step: introduction:welcome
+
+  - section_id: prisoners_dilemma
+    title: The Prisoner's Dilemma
+    steps:
+      - step_id: step_1
+        title: The Classic Dilemma
+        content_blocks:
+          - "## The Prisoner's Dilemma: Cooperation vs Self-Interest 🚔"
+          - ""
+          - "**The Scenario:**"
+          - ""
+          - "Two criminals are arrested and interrogated separately. The prosecutor offers each the same deal:"
+          - ""
+          - "**If you both stay silent:**"
+          - "- Each gets 1 year in prison (light sentence, lack of evidence)"
+          - ""
+          - "**If you betray your partner but they stay silent:**"
+          - "- You go free (0 years)"
+          - "- Your partner gets 3 years"
+          - ""
+          - "**If you both betray each other:**"
+          - "- Each gets 2 years"
+          - ""
+          - "**Payoff matrix (years in prison - lower is better):**"
+          - ""
+          - "```"
+          - "                Player B"
+          - "                Silent  Betray"
+          - "Player A  Silent  (-1,-1)  (-3,0)"
+          - "          Betray  (0,-3)   (-2,-2)"
+          - "```"
+          - ""
+          - "**The dilemma:**"
+          - "- **Collectively best:** Both stay silent (-1 each)"
+          - "- **Individually rational:** Both betray (-2 each)"
+          - ""
+          - "**Why betray dominates:**"
+          - "- If partner stays silent: Betray gets you 0 vs 1 year (betray better!)"
+          - "- If partner betrays: Betray gets you 2 vs 3 years (betray better!)"
+          - "- No matter what partner does, betraying is better for YOU"
+          - ""
+          - "**The tragedy:** Both act rationally, both end up worse off (-2 each) than if they'd cooperated (-1 each)!"
+        question: "You're playing prisoner's dilemma once with a stranger you'll never meet again. What should you do from a purely self-interested perspective, and why?"
+        tokens_for_ai: |
+          Correct answer: Betray (or defect/confess)
+
+          Reasoning: Betraying is a DOMINANT STRATEGY
+          - Dominates silence regardless of what partner does
+          - If partner silent: 0 years better than 1 year
+          - If partner betrays: 2 years better than 3 years
+
+          Look for understanding of dominant strategy.
+
+          Categorize as:
+          - correct_with_reasoning: Says betray AND explains dominant strategy
+          - correct_answer: Says betray without full explanation
+          - says_cooperate: Says stay silent (cooperative but not rational in one-shot)
+          - game_theory_aware: Mentions dilemma nature even if wrong choice
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct:
+          - Excellent! Betraying is the DOMINANT STRATEGY.
+          - No matter what the other player does, betraying is better for YOU.
+          - This is rational but leads to both getting -2 instead of -1.
+          - That's the tragedy of the Prisoner's Dilemma!
+
+          If says cooperate:
+          - Noble but not strategically optimal in a one-shot game!
+          - Betraying DOMINATES: better outcome regardless of partner's choice.
+          - In one-shot games with strangers, defection is predicted.
+          - (Later we'll see when cooperation can emerge in repeated games!)
+
+          Explain dominant strategy concept clearly.
+        buckets:
+          - correct_with_reasoning
+          - correct_answer
+          - says_cooperate
+          - game_theory_aware
+          - set_language
+          - off_topic
+        transitions:
+          correct_with_reasoning:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect strategic analysis!
+                Betraying is the DOMINANT STRATEGY - always better for you.
+                Even though both cooperating would be better collectively (-1 each),
+                individual rationality leads to mutual defection (-2 each).
+                This is the fundamental insight of game theory!
+            metadata_add:
+              score: "n+2"
+              concepts_mastered: "n+1"
+            next_section_and_step: prisoners_dilemma:step_2
+          correct_answer:
+            ai_feedback:
+              tokens_for_ai: |
+                Correct! Betraying is the rational choice.
+                Why? It's a DOMINANT STRATEGY.
+                No matter what your partner does, betraying gives YOU a better outcome.
+                If they stay silent: 0 < 1. If they betray: 2 < 3.
+                This individual rationality creates the dilemma!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: prisoners_dilemma:step_2
+          says_cooperate:
+            ai_feedback:
+              tokens_for_ai: |
+                Cooperation would be great if you could trust them!
+                But from pure self-interest in a ONE-SHOT game:
+                Betraying DOMINATES staying silent.
+                If they're silent: 0 years (betray) beats 1 year (silent).
+                If they betray: 2 years (betray) beats 3 years (silent).
+                Betraying is always better for YOU - that's the dilemma!
+            next_section_and_step: prisoners_dilemma:step_2
+          game_theory_aware:
+            ai_feedback:
+              tokens_for_ai: |
+                You sense the dilemma!
+                From pure self-interest: betraying DOMINATES.
+                It's better for you no matter what they do.
+                Both thinking this way → both defect → both get -2.
+                Could've gotten -1 each if they cooperated. That's the tragedy!
+            next_section_and_step: prisoners_dilemma:step_2
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: prisoners_dilemma:step_1
+          off_topic:
+            content_blocks:
+              - "Think strategically: What gives YOU the best outcome regardless of what your partner does?"
+            next_section_and_step: prisoners_dilemma:step_1
+
+      - step_id: step_2
+        title: Real-World Dilemmas
+        content_blocks:
+          - "## Prisoner's Dilemma Everywhere! 🌍"
+          - ""
+          - "The Prisoner's Dilemma structure appears constantly:"
+          - ""
+          - "**Business cartels:**"
+          - "- Cooperate: Keep prices high (both profit)"
+          - "- Defect: Undercut price (steal market share)"
+          - "- Problem: Undercutting is always tempting!"
+          - "- Result: Cartels are unstable"
+          - ""
+          - "**Arms races:**"
+          - "- Cooperate: Don't build weapons (both save money)"
+          - "- Defect: Build weapons (get advantage if opponent doesn't)"
+          - "- Problem: Building weapons dominates"
+          - "- Result: Costly arms races"
+          - ""
+          - "**Environmental pollution:**"
+          - "- Cooperate: Reduce emissions (collective good)"
+          - "- Defect: Pollute freely (save costs)"
+          - "- Problem: Individual incentive to pollute"
+          - "- Result: Tragedy of the commons"
+          - ""
+          - "**Doping in sports:**"
+          - "- Cooperate: Stay clean (fair competition)"
+          - "- Defect: Dope (gain advantage)"
+          - "- Problem: If others dope, you must too to compete"
+          - "- Result: Widespread doping"
+          - ""
+          - "**The pattern:**"
+          - "Individual rationality → collectively bad outcome"
+        question: "Can you think of another real-world situation that has Prisoner's Dilemma structure? Describe what cooperation and defection look like."
+        tokens_for_ai: |
+          Look for recognition of the PD structure:
+          - Two or more parties
+          - Temptation to defect while others cooperate
+          - Mutual defection worse than mutual cooperation
+          - Defection is individually rational
+
+          Examples: cheating in class, tax evasion, littering, free-riding,
+          overfishing, etc.
+
+          Categorize as:
+          - excellent_example: Clear PD structure with cooperation/defection explained
+          - good_example: Recognizes PD structure
+          - vague_example: Right idea but unclear
+          - not_quite_pd: Example doesn't fit structure
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If they identify a good example:
+          - Validate it! Explain how it fits PD structure.
+          - Point out: cooperation better collectively, defection individually rational.
+          - This recognition helps understand so many social problems!
+
+          If example doesn't quite fit:
+          - Acknowledge the thinking.
+          - Explain what makes something a PD: mutual defection < mutual cooperation < defection while others cooperate.
+          - Offer a clearer example.
+
+          Celebrate their application of game theory!
+        buckets:
+          - excellent_example
+          - good_example
+          - vague_example
+          - not_quite_pd
+          - set_language
+          - off_topic
+        transitions:
+          excellent_example:
+            ai_feedback:
+              tokens_for_ai: |
+                Brilliant example!
+                Reference their specific example and confirm the PD structure.
+                Point out: cooperation collectively better, but defection individually tempting.
+                This is why so many social problems are hard to solve!
+                Game theory helps us recognize these structures!
+            metadata_add:
+              score: "n+2"
+              concepts_mastered: "n+1"
+            next_section_and_step: nash_equilibrium:step_1
+          good_example:
+            ai_feedback:
+              tokens_for_ai: |
+                Great example!
+                Confirm it has PD structure: defection tempting, but mutual defection worse.
+                This pattern is everywhere once you see it!
+                Understanding the structure helps design solutions (regulations, incentives, reputation).
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: nash_equilibrium:step_1
+          vague_example:
+            ai_feedback:
+              tokens_for_ai: |
+                Good thinking! Clarify how their example fits:
+                Cooperation = ? (collectively better)
+                Defection = ? (individually tempting)
+                Help them sharpen the structure identification.
+            next_section_and_step: nash_equilibrium:step_1
+          not_quite_pd:
+            ai_feedback:
+              tokens_for_ai: |
+                Interesting example but not quite Prisoner's Dilemma structure.
+                PD needs: mutual cooperation > mutual defection, but defection dominates.
+                Their example might be a different game structure.
+                Acknowledge their thinking, explain the distinction.
+            next_section_and_step: nash_equilibrium:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: prisoners_dilemma:step_2
+          off_topic:
+            content_blocks:
+              - "Think of situations where everyone would be better off cooperating, but individuals are tempted to cheat."
+            next_section_and_step: prisoners_dilemma:step_2
+
+  - section_id: nash_equilibrium
+    title: Nash Equilibrium
+    steps:
+      - step_id: step_1
+        title: Stable Strategies
+        content_blocks:
+          - "## Nash Equilibrium: The Stability Concept 🎯"
+          - ""
+          - "**Named after John Nash (Nobel Prize, 1994)**"
+          - ""
+          - "**Definition:**"
+          - "A Nash Equilibrium is a set of strategies where no player can improve their outcome by unilaterally changing their strategy."
+          - ""
+          - "**In simpler terms:**"
+          - "Everyone is playing their best response to what others are doing. No one wants to deviate."
+          - ""
+          - "**In Prisoner's Dilemma:**"
+          - "Both betraying is a Nash Equilibrium!"
+          - "- If A betrays, B's best response is betray (2 < 3 years)"
+          - "- If B betrays, A's best response is betray (2 < 3 years)"
+          - "- Neither wants to switch to silence unilaterally"
+          - ""
+          - "**Key insight:**"
+          - "Nash Equilibrium ≠ Best outcome for everyone"
+          - "It's just stable (self-enforcing)"
+          - ""
+          - "**Example: Coordination Game**"
+          - ""
+          - "Two friends picking where to meet:"
+          - "```"
+          - "              Friend B"
+          - "              Coffee  Bar"
+          - "Friend A Coffee (2,2)  (0,0)"
+          - "         Bar    (0,0)  (1,1)"
+          - "```"
+          - ""
+          - "**Two Nash Equilibria:**"
+          - "1. Both go to Coffee (2,2)"
+          - "2. Both go to Bar (1,1)"
+          - ""
+          - "Meeting anywhere > missing each other!"
+          - "Coordination problems have multiple equilibria."
+        question: "In a game where two drivers approach an intersection, each can either Stop or Go. If both Go, they crash (payoff -10 each). If one Stops and one Goes, the goer gets +1 and the stopper gets 0. If both Stop, they're delayed (payoff -1 each). What are the Nash Equilibrium outcomes?"
+        tokens_for_ai: |
+          Payoff matrix:
+                  Driver B
+                  Stop  Go
+          Driver A Stop (-1,-1)  (0,+1)
+                  Go   (+1,0)   (-10,-10)
+
+          Nash Equilibria: (Stop, Go) and (Go, Stop)
+          - If A stops, B's best response is Go
+          - If B goes, A's best response is Stop
+          - And vice versa for (Go, Stop)
+
+          NOT Nash Equilibrium:
+          - (Stop, Stop): Either could improve by switching to Go
+          - (Go, Go): Both would improve by switching to Stop
+
+          Look for identification of the two equilibria.
+
+          Categorize as:
+          - correct_both: Identifies both (Stop,Go) and (Go,Stop)
+          - identifies_one: Gets one of the two equilibria
+          - identifies_pattern: Recognizes one stops, one goes
+          - says_both_stop: Says (Stop,Stop) - incorrect
+          - confused: Other answers
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Correct equilibria: (Stop, Go) and (Go, Stop)
+
+          If correct:
+          - Excellent! Two Nash Equilibria where one stops, one goes.
+          - Neither wants to unilaterally change.
+          - This is like traffic lights solving coordination!
+
+          If says both stop:
+          - That seems safe but it's NOT Nash Equilibrium!
+          - If both stop, either could switch to Go and get +1 instead of -1.
+          - Nash requires no one wants to unilaterally deviate.
+
+          Explain why the two asymmetric outcomes are stable.
+        buckets:
+          - correct_both
+          - identifies_one
+          - identifies_pattern
+          - says_both_stop
+          - confused
+          - set_language
+          - off_topic
+        transitions:
+          correct_both:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect! Two Nash Equilibria: (Stop,Go) and (Go,Stop).
+                In each, no driver wants to unilaterally change.
+                Both stopping is NOT equilibrium - either would want to go!
+                This coordination problem is solved by traffic lights in reality!
+            metadata_add:
+              score: "n+2"
+              concepts_mastered: "n+1"
+            next_section_and_step: dominant_strategies:step_1
+          identifies_one:
+            ai_feedback:
+              tokens_for_ai: |
+                Good! You found one equilibrium.
+                But there's symmetry - also a Nash Equilibrium where roles reverse!
+                Both (Stop,Go) and (Go,Stop) are stable.
+                In each, neither wants to unilaterally change.
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: dominant_strategies:step_1
+          identifies_pattern:
+            ai_feedback:
+              tokens_for_ai: |
+                Right idea - one stops, one goes!
+                Specifically: (Stop,Go) and (Go,Stop) are both Nash Equilibria.
+                Neither driver wants to change their strategy given the other's.
+                This is a coordination game solved by conventions (like traffic lights!).
+            next_section_and_step: dominant_strategies:step_1
+          says_both_stop:
+            ai_feedback:
+              tokens_for_ai: |
+                Seems safe, but NOT Nash Equilibrium!
+                At (Stop,Stop), either driver could switch to Go:
+                Get +1 instead of -1 while other stays stopped.
+                Nash requires no one wants to deviate.
+                The equilibria are (Stop,Go) and (Go,Stop).
+            next_section_and_step: nash_equilibrium:step_1
+          confused:
+            content_blocks:
+              - "Check each outcome: Can any player improve by switching?"
+              - "Nash Equilibrium: No player wants to unilaterally change strategy"
+              - "Hint: One driver stops, one goes (two ways to do this)"
+            next_section_and_step: nash_equilibrium:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: nash_equilibrium:step_1
+          off_topic:
+            content_blocks:
+              - "Find outcomes where neither driver would want to change their choice given what the other is doing."
+            next_section_and_step: nash_equilibrium:step_1
+
+  - section_id: dominant_strategies
+    title: Dominant Strategies
+    steps:
+      - step_id: step_1
+        title: Always-Best Strategies
+        content_blocks:
+          - "## Dominant Strategies: No-Brainer Moves 💪"
+          - ""
+          - "**Definition:**"
+          - "A dominant strategy is one that's best regardless of what other players do."
+          - ""
+          - "**If you have a dominant strategy, PLAY IT!**"
+          - ""
+          - "**In Prisoner's Dilemma:**"
+          - "Betraying is a dominant strategy for both players."
+          - "- Better if opponent stays silent: 0 < 1"
+          - "- Better if opponent betrays: 2 < 3"
+          - "- Always better!"
+          - ""
+          - "**Dominant Strategy Equilibrium:**"
+          - "When all players have dominant strategies, the outcome is certain!"
+          - "- Everyone plays their dominant strategy"
+          - "- This is always a Nash Equilibrium"
+          - "- But Nash Equilibrium doesn't always involve dominant strategies"
+          - ""
+          - "**Example without dominant strategies:**"
+          - ""
+          - "Rock-Paper-Scissors:"
+          - "- No strategy is always best"
+          - "- Best strategy depends on opponent's choice"
+          - "- Optimal: Randomize (mixed strategy)"
+          - ""
+          - "**Why dominant strategies matter:**"
+          - "- Simplify analysis (easy to predict)"
+          - "- Stable and robust"
+          - "- Used in mechanism design (incentive compatibility)"
+        question: "A company must choose High Price or Low Price. If both choose High, each earns $100. If both choose Low, each earns $50. If one chooses Low and other High, the low pricer earns $120 and the high pricer earns $20. Does either company have a dominant strategy? If so, what is it?"
+        tokens_for_ai: |
+          Payoff matrix:
+                    Company B
+                    High  Low
+          Company A High (100,100) (20,120)
+                    Low  (120,20)  (50,50)
+
+          For Company A:
+          - If B plays High: Low gives 120 > High gives 100 → Low better
+          - If B plays Low: Low gives 50 > High gives 20 → Low better
+          - Low DOMINATES High
+
+          Same logic for Company B.
+          Both have dominant strategy: Low Price
+
+          Look for recognition that Low dominates High.
+
+          Categorize as:
+          - correct_both_low: Says Low is dominant strategy for both
+          - says_low: Identifies Low without full explanation
+          - says_high: Says High (incorrect - not dominant)
+          - says_no_dominant: Says no dominant strategy exists
+          - unclear: Confused answer
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Correct: Low is dominant strategy for BOTH companies.
+
+          If correct:
+          - Excellent! Low dominates High for both.
+          - If opponent prices High: 120 > 100 (Low better)
+          - If opponent prices Low: 50 > 20 (Low better)
+          - Result: Both price low, earn 50 each (could've earned 100 each!)
+          - This is another Prisoner's Dilemma structure!
+
+          If wrong:
+          - Check each scenario.
+          - Show that Low always outperforms High regardless of opponent.
+          - Explain this leads to (Low,Low) equilibrium.
+
+          Connect to PD structure.
+        buckets:
+          - correct_both_low
+          - says_low
+          - says_high
+          - says_no_dominant
+          - unclear
+          - set_language
+          - off_topic
+        transitions:
+          correct_both_low:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect analysis!
+                Low DOMINATES High for both companies.
+                No matter what opponent does, Low is better.
+                Result: (Low,Low) = $50 each.
+                If they could cooperate: (High,High) = $100 each!
+                This is Prisoner's Dilemma in business form!
+            metadata_add:
+              score: "n+2"
+              concepts_mastered: "n+1"
+            next_section_and_step: conclusion:step_1
+          says_low:
+            ai_feedback:
+              tokens_for_ai: |
+                Correct! Low is the dominant strategy.
+                Why? Check both scenarios:
+                If opponent prices High: 120 (Low) > 100 (High)
+                If opponent prices Low: 50 (Low) > 20 (High)
+                Always better! This is another PD structure.
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: conclusion:step_1
+          says_high:
+            ai_feedback:
+              tokens_for_ai: |
+                High would be great if both could commit!
+                But it's NOT dominant. Check:
+                If opponent prices Low: 20 (High) < 120 (Low)
+                Low is better regardless of opponent.
+                This is why cartels are unstable!
+            next_section_and_step: dominant_strategies:step_1
+          says_no_dominant:
+            ai_feedback:
+              tokens_for_ai: |
+                Actually, there IS a dominant strategy!
+                Compare for Company A:
+                - If B plays High: Low(120) > High(100)
+                - If B plays Low: Low(50) > High(20)
+                Low is always better! Same for Company B.
+            next_section_and_step: dominant_strategies:step_1
+          unclear:
+            content_blocks:
+              - "For dominant strategy, check: Is one choice ALWAYS better than the other?"
+              - "Compare Low vs High when opponent plays High, then when opponent plays Low"
+            next_section_and_step: dominant_strategies:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: dominant_strategies:step_1
+          off_topic:
+            content_blocks:
+              - "For each company, which strategy is better regardless of what the opponent does?"
+            next_section_and_step: dominant_strategies:step_1
+
+  - section_id: conclusion
+    title: Game Theory Foundations
+    steps:
+      - step_id: step_1
+        title: Strategic Thinking
+        content_blocks:
+          - "## Congratulations, Game Theorist! 🎓🎮"
+          - ""
+          - "**You've mastered the fundamentals!**"
+          - ""
+          - "**What you've learned:**"
+          - "✓ Prisoner's Dilemma (cooperation vs self-interest)"
+          - "✓ Nash Equilibrium (stable strategy profiles)"
+          - "✓ Dominant strategies (always-best moves)"
+          - "✓ How to analyze strategic situations"
+          - "✓ Why individually rational choices can lead to bad collective outcomes"
+          - ""
+          - "**Key insights:**"
+          - "- Strategic thinking requires considering others' incentives"
+          - "- Equilibrium ≠ optimal (Prisoner's Dilemma!)"
+          - "- Dominant strategies simplify prediction"
+          - "- Coordination problems have multiple equilibria"
+          - "- Institutions and repeated play can enable cooperation"
+          - ""
+          - "**Real-world applications:**"
+          - "- Understanding why cartels fail"
+          - "- Recognizing arms race dynamics"
+          - "- Designing better mechanisms (auctions, voting)"
+          - "- Building institutions that align incentives"
+          - ""
+          - "**Next steps:**"
+          - "- Game Theory 201: Mixed strategies and repeated games"
+          - "- Look for strategic interactions in daily life"
+          - "- Think about how to align individual and collective interests"
+        question: "How has learning game theory changed how you think about strategic situations? Give an example where you might apply these concepts."
+        tokens_for_ai: |
+          This is a reflection question.
+
+          Look for:
+          - Recognition of strategic interdependence
+          - Understanding that others' incentives matter
+          - Application to real situations
+          - Appreciation of conflict between individual/collective rationality
+
+          Categorize as:
+          - excellent_reflection: Insightful application showing deep understanding
+          - practical_application: Good real-world example
+          - general_reflection: Acknowledges usefulness
+          - brief_response: Short but relevant
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Provide encouraging feedback!
+
+          Validate their example/reflection.
+          Emphasize key takeaway: think about others' incentives!
+          Game theory helps predict behavior and design better systems.
+
+          Mention Game Theory 201 for deeper concepts.
+          Celebrate their foundational understanding!
+        buckets:
+          - excellent_reflection
+          - practical_application
+          - general_reflection
+          - brief_response
+          - set_language
+          - off_topic
+        transitions:
+          excellent_reflection:
+            ai_feedback:
+              tokens_for_ai: |
+                Fantastic insight!
+                Reference their example specifically.
+                You now think strategically about interdependent decisions!
+                This foundation enables understanding mechanism design, auctions, bargaining.
+                Ready for Game Theory 201 when you are!
+            metadata_add:
+              activity_completed: "true"
+          practical_application:
+            ai_feedback:
+              tokens_for_ai: |
+                Great application!
+                Acknowledge their example.
+                Game theory is everywhere once you start looking!
+                Understanding incentives helps predict and influence behavior.
+                Excellent work mastering the fundamentals!
+            metadata_add:
+              activity_completed: "true"
+          general_reflection:
+            ai_feedback:
+              tokens_for_ai: |
+                Good reflection!
+                The core lesson: always consider others' incentives.
+                Strategic interactions are everywhere - business, politics, daily life.
+                You've built a strong foundation in game theory!
+            metadata_add:
+              activity_completed: "true"
+          brief_response:
+            ai_feedback:
+              tokens_for_ai: |
+                Thank you for completing Game Theory 101!
+                You've learned to think strategically about interactive decisions.
+                These concepts underpin economics, politics, and much more!
+            metadata_add:
+              activity_completed: "true"
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: conclusion:step_1
+          off_topic:
+            content_blocks:
+              - "Reflect: How might understanding incentives and strategic interaction help you in real-world situations?"
+            next_section_and_step: conclusion:step_1

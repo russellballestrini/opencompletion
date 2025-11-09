@@ -1,0 +1,65 @@
+default_max_attempts_per_step: 3
+sections:
+  - section_id: introduction
+    title: Game Theory 301
+    steps:
+      - step_id: welcome
+        title: Cooperative Games
+        content_blocks:
+          - "# Game Theory 301: Cooperative Games & Coalitions 🤝"
+          - "**Beyond zero-sum thinking!**"
+          - "✓ Cooperative game theory"
+          - "✓ Coalition formation"
+          - "✓ Shapley value (fair division)"
+          - "✓ Core stability"
+        question: Ready to learn about cooperation and coalition building?
+        tokens_for_ai: Accept positive as 'ready', else 'off_topic'
+        buckets: [ready, set_language, off_topic]
+        transitions:
+          ready: {next_section_and_step: "coalitions:step_1"}
+          set_language: {metadata_add: {language: "the-users-response"}, counts_as_attempt: false, next_section_and_step: "introduction:welcome"}
+          off_topic: {counts_as_attempt: false, next_section_and_step: "introduction:welcome"}
+  
+  - section_id: coalitions
+    title: Coalition Formation
+    steps:
+      - step_id: step_1
+        title: Coalition Building
+        content_blocks:
+          - "## Coalitions: Strength in Numbers 💪"
+          - ""
+          - "**Characteristic function form:**"
+          - "v(Coalition) = value coalition can guarantee"
+          - ""
+          - "**Example: Three companies**"
+          - "- Alone: A=$10M, B=$15M, C=$20M"
+          - "- A+B together: $30M"
+          - "- A+C together: $35M"  
+          - "- B+C together: $40M"
+          - "- All three: $60M"
+          - ""
+          - "**Questions:**"
+          - "- Which coalition forms?"
+          - "- How to split the gains fairly?"
+          - ""
+          - "**Shapley Value:**"
+          - "Fair division based on marginal contributions"
+          - "Each player gets average of their marginal value across all orderings"
+        question: If three players create $60M together but would create $0 individually, how should they split the gains to be fair?
+        tokens_for_ai: |
+          Equal split ($20M each) is one fair answer.
+          Shapley value would calculate based on marginal contributions.
+          Categorize: says_equal, considers_contributions, unclear, set_language, off_topic
+        buckets: [says_equal, considers_contributions, unclear, set_language, off_topic]
+        transitions:
+          says_equal:
+            ai_feedback: {tokens_for_ai: "Equal split is fair! Each contributed equally to coalition. Shapley value would give $20M each too."}
+            metadata_add: {score: "n+2", activity_completed: "true"}
+          considers_contributions:
+            ai_feedback: {tokens_for_ai: "Good thinking about contributions! With symmetric players, equal split is the Shapley value."}
+            metadata_add: {score: "n+1", activity_completed: "true"}
+          unclear:
+            ai_feedback: {tokens_for_ai: "Fair approach: equal split since all contributed equally. Each gets $20M. This is the Shapley value!"}
+            metadata_add: {activity_completed: "true"}
+          set_language: {metadata_add: {language: "the-users-response"}, counts_as_attempt: false, next_section_and_step: "coalitions:step_1"}
+          off_topic: {metadata_add: {activity_completed: "true"}}

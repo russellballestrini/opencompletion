@@ -1,0 +1,134 @@
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+sections:
+  - section_id: introduction
+    title: Welcome to Game Theory 201
+    steps:
+      - step_id: welcome
+        title: Beyond Pure Strategies
+        content_blocks:
+          - "# Game Theory 201: Mixed Strategies & Repeated Games 🎲🔄"
+          - "**Building on Game Theory 101!**"
+          - ""
+          - "**You'll learn:**"
+          - "✓ Mixed strategies (randomization)"
+          - "✓ When and why to randomize"
+          - "✓ Repeated games (shadow of the future)"
+          - "✓ How cooperation emerges"
+          - "✓ Tit-for-Tat and winning strategies"
+        question: Ready to explore more advanced strategic concepts?
+        tokens_for_ai: Accept positive as 'ready', language as 'set_language', else 'off_topic'
+        buckets: [ready, set_language, off_topic]
+        transitions:
+          ready:
+            next_section_and_step: mixed_strategies:step_1
+          set_language:
+            metadata_add: {language: "the-users-response"}
+            counts_as_attempt: false
+            next_section_and_step: introduction:welcome
+          off_topic:
+            counts_as_attempt: false
+            next_section_and_step: introduction:welcome
+  
+  - section_id: mixed_strategies
+    title: Mixed Strategies  
+    steps:
+      - step_id: step_1
+        title: Randomization as Strategy
+        content_blocks:
+          - "## Mixed Strategies: The Power of Unpredictability 🎲"
+          - ""
+          - "**Pure vs Mixed Strategies:**"
+          - "- Pure: Always play the same action"
+          - "- Mixed: Randomize between actions with specific probabilities"
+          - ""
+          - "**Rock-Paper-Scissors:**"
+          - "No pure strategy works - opponent can exploit patterns!"
+          - "Solution: Randomize equally (1/3, 1/3, 1/3)"
+          - ""
+          - "**Penalty Kicks in Soccer:**"
+          - "- Kicker: Left or Right?"
+          - "- Goalie: Dive Left or Right?"
+          - "- Must be unpredictable!"
+          - "- Data shows pros randomize ~50/50"
+          - ""
+          - "**When to use mixed strategies:**"
+          - "- No dominant pure strategy"
+          - "- Opponent can exploit predictability"
+          - "- Matching Pennies, Hide and Seek, Security games"
+        question: In Rock-Paper-Scissors, why can't you always play Rock? What happens if you're predictable?
+        tokens_for_ai: |
+          Should recognize: predictability allows exploitation.
+          If always Rock, opponent plays Paper and wins.
+          Categorize: understands_exploitation, recognizes_problem, vague, set_language, off_topic
+        buckets: [understands_exploitation, recognizes_problem, vague, set_language, off_topic]
+        transitions:
+          understands_exploitation:
+            ai_feedback: {tokens_for_ai: "Perfect! Predictability = exploitation. Opponent plays Paper, you lose. Randomization prevents exploitation!"}
+            metadata_add: {score: "n+2"}
+            next_section_and_step: repeated_games:step_1
+          recognizes_problem:
+            ai_feedback: {tokens_for_ai: "Right! If you always play Rock, smart opponent plays Paper every time. Randomization is the solution!"}
+            metadata_add: {score: "n+1"}
+            next_section_and_step: repeated_games:step_1
+          vague:
+            ai_feedback: {tokens_for_ai: "If you always play Rock, opponent learns and always plays Paper. You lose every time! Must randomize."}
+            next_section_and_step: repeated_games:step_1
+          set_language:
+            metadata_add: {language: "the-users-response"}
+            counts_as_attempt: false
+            next_section_and_step: mixed_strategies:step_1
+          off_topic:
+            next_section_and_step: mixed_strategies:step_1
+  
+  - section_id: repeated_games
+    title: Repeated Games
+    steps:
+      - step_id: step_1
+        title: The Shadow of the Future
+        content_blocks:
+          - "## Repeated Games: When Tomorrow Matters 🔄"
+          - ""
+          - "**One-shot vs Repeated:**"
+          - "- One-shot PD: Defect dominates"
+          - "- Repeated PD: Cooperation can emerge!"
+          - ""
+          - "**Why repetition changes everything:**"
+          - "- Reputation matters"
+          - "- Retaliation is possible"
+          - "- Future gains can outweigh immediate temptation"
+          - ""
+          - "**Tit-for-Tat Strategy:**"
+          - "1. Start with cooperation"
+          - "2. Then copy opponent's previous move"
+          - "- Nice (never defects first)"
+          - "- Retaliatory (punishes defection)"
+          - "- Forgiving (returns to cooperation)"
+          - "- Clear (easy to understand)"
+          - ""
+          - "**Axelrod's Tournament:**"
+          - "Tit-for-Tat won! Simplest, most effective."
+          - "Beat complex strategies through cooperation + accountability"
+        question: Why can cooperation emerge in repeated Prisoner's Dilemma but not in one-shot games?
+        tokens_for_ai: |
+          Key insight: future interactions create incentive to cooperate.
+          Fear of retaliation, value of reputation, shadow of future.
+          Categorize: excellent_understanding, identifies_repetition, partial, set_language, off_topic
+        buckets: [excellent_understanding, identifies_repetition, partial, set_language, off_topic]
+        transitions:
+          excellent_understanding:
+            ai_feedback: {tokens_for_ai: "Brilliant! Future interactions change incentives. Retaliation possible, reputation matters. Short-term gain < long-term cooperation!"}
+            metadata_add: {score: "n+2", activity_completed: "true"}
+          identifies_repetition:
+            ai_feedback: {tokens_for_ai: "Exactly! Repeated games allow punishment and reward. Cooperation becomes rational when future matters!"}
+            metadata_add: {score: "n+1", activity_completed: "true"}
+          partial:
+            ai_feedback: {tokens_for_ai: "Right direction! Key: future interactions create accountability. Can punish defectors, reward cooperators. Changes incentives!"}
+            metadata_add: {activity_completed: "true"}
+          set_language:
+            metadata_add: {language: "the-users-response"}
+            counts_as_attempt: false
+            next_section_and_step: repeated_games:step_1
+          off_topic:
+            metadata_add: {activity_completed: "true"}

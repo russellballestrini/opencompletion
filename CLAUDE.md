@@ -219,3 +219,621 @@ ollama run unsloth/qwen3-coder:30b-instruct-q4_K_M
 export MODEL_ENDPOINT_3=http://localhost:11434/v1
 export MODEL_API_KEY_3=dummy
 ```
+
+## Creating Activity YAML Files - Expert Guide
+
+When creating activities for OpenCompletion, follow these expert guidelines to ensure your activities **validate properly**, are **FUN and engaging**, and **terminate correctly**.
+
+### Core Activity Structure
+
+Every activity YAML file consists of:
+
+```yaml
+# Optional: Global settings
+default_max_attempts_per_step: 3  # Default retry limit
+classifier_model: "MODEL_1"       # Model for categorizing responses
+feedback_model: "MODEL_1"         # Model for generating feedback
+tokens_for_ai_rubric: |           # Global rubric for all steps
+  Evaluate the student's understanding...
+
+# Required: Sections contain steps
+sections:
+  - section_id: "introduction"    # Must be unique
+    title: "Welcome"              # Descriptive title
+    steps:
+      - step_id: "welcome"        # Must be unique within section
+        title: "Getting Started"
+        # Either content_blocks OR question (or both)
+        content_blocks:           # Display-only content
+          - "Welcome message"
+        question: "Ready?"        # Interactive question
+        buckets: [ready, not_ready]  # Response categories
+        transitions:              # One per bucket
+          ready:
+            next_section_and_step: "section_1:step_1"
+```
+
+**Two Types of Steps:**
+
+1. **Content-Only Steps** - Display information, automatically advance
+   ```yaml
+   - step_id: "info"
+     title: "Information"
+     content_blocks:
+       - "This is informational content."
+       - "It displays and auto-advances."
+   ```
+
+2. **Question Steps** - Interactive, require user response
+   ```yaml
+   - step_id: "quiz"
+     title: "Question"
+     question: "What is 2+2?"
+     tokens_for_ai: |
+       Categorize as 'correct' if answer is 4 or 'four'.
+       Otherwise 'incorrect'.
+     buckets: [correct, incorrect]
+     transitions:
+       correct:
+         content_blocks: ["Great job!"]
+         next_section_and_step: "next_section:next_step"
+       incorrect:
+         content_blocks: ["Try again!"]
+         next_section_and_step: "quiz_section:quiz"
+   ```
+
+### CRITICAL: Validation Requirements
+
+**MUST-PASS Checklist** (from activity_yaml_validator.py):
+
+#### Structure Requirements
+- ✅ **Every activity must have `sections`** (at least one)
+- ✅ **Every section needs**: `section_id`, `title`, `steps`
+- ✅ **Every step needs**: `step_id`, `title`, and either `content_blocks` OR `question`
+- ✅ **Section IDs must be unique** within the activity
+- ✅ **Step IDs must be unique** within each section
+
+#### Bucket & Transition Requirements
+- ✅ **Every bucket MUST have a corresponding transition** (CRITICAL!)
+  ```yaml
+  # WRONG - Missing transition for 'maybe' bucket
+  buckets: [yes, no, maybe]
+  transitions:
+    yes: {...}
+    no: {...}
+    # ❌ ERROR: No transition for 'maybe'
+
+  # CORRECT - All buckets have transitions
+  buckets: [yes, no, maybe]
+  transitions:
+    yes: {...}
+    no: {...}
+    maybe: {...}  # ✅ Every bucket covered
+  ```
+
+#### Termination Requirements
+- ✅ **Terminal steps (last step of last section with no next_section_and_step) CANNOT have questions**
+  ```yaml
+  # WRONG - Terminal step with question
+  - section_id: "conclusion"
+    steps:
+      - step_id: "final"
+        question: "How did you like it?"  # ❌ ERROR
+        buckets: [good, bad]
+        transitions:
+          good: {}  # No next_section_and_step = terminal
+          bad: {}
+
+  # CORRECT - Terminal step with content only
+  - section_id: "conclusion"
+    steps:
+      - step_id: "final"
+        title: "Goodbye"
+        content_blocks:  # ✅ Content only
+          - "Thank you for playing!"
+  ```
+
+#### Transition Target Requirements
+- ✅ **All `next_section_and_step` targets must exist**
+  ```yaml
+  # Format: "section_id:step_id"
+  next_section_and_step: "section_2:step_1"  # Must exist!
+  ```
+
+#### Python Code Requirements
+- ✅ **All `processing_script` and `pre_script` must be syntactically valid Python**
+  ```yaml
+  # CORRECT
+  processing_script: |
+    result = user_input.lower()
+    metadata['guess'] = result
+
+  # WRONG - Syntax error
+  processing_script: |
+    result = user_input.lower(  # ❌ Missing closing paren
+  ```
+
+#### Model Configuration (Optional)
+- ✅ **`classifier_model` and `feedback_model` must be strings if specified**
+  ```yaml
+  classifier_model: "MODEL_1"  # ✅ Correct
+  feedback_model: MODEL_1       # ❌ Wrong (unquoted)
+  ```
+
+### How to Properly Terminate Activities
+
+Activities can terminate in four ways:
+
+#### 1. Content-Only Terminal Step (Simplest)
+Last step of last section has only `content_blocks`, no question:
+```yaml
+sections:
+  - section_id: "conclusion"
+    steps:
+      - step_id: "goodbye"
+        title: "Farewell"
+        content_blocks:
+          - "Thank you for playing! 🎉"
+          - "Come back anytime!"
+        # No question = auto-terminates
+```
+
+#### 2. Final Reflection Question (Educational Activities)
+Last step has question, but NO transitions specify `next_section_and_step`:
+```yaml
+sections:
+  - section_id: "conclusion"
+    steps:
+      - step_id: "reflection"
+        title: "Final Thoughts"
+        question: "What did you learn today?"
+        tokens_for_ai: "Provide encouraging feedback on their reflection."
+        buckets: [thoughtful, brief, off_topic]
+        transitions:
+          thoughtful:
+            ai_feedback:
+              tokens_for_ai: "Celebrate their learning!"
+            metadata_add:
+              activity_completed: "true"
+            # No next_section_and_step = terminates
+          brief:
+            ai_feedback:
+              tokens_for_ai: "Thank them for their time."
+            metadata_add:
+              activity_completed: "true"
+          off_topic:
+            content_blocks:
+              - "Please reflect on what you learned."
+            next_section_and_step: "conclusion:reflection"  # Retry
+```
+
+#### 3. Explicit Exit Transition (Games/Interactive)
+Create an 'exit' bucket that leads to a goodbye step:
+```yaml
+- step_id: "play_again"
+  question: "Would you like to play again?"
+  buckets: [yes, exit]
+  transitions:
+    yes:
+      metadata_clear: true  # Reset game state
+      next_section_and_step: "game:start"
+    exit:
+      next_section_and_step: "conclusion:goodbye"  # Jump to end
+```
+
+#### 4. Max Attempts Exhausted (Automatic Fallback)
+After 3 failed attempts (default), system auto-advances:
+```yaml
+default_max_attempts_per_step: 3
+
+# After 3 attempts, automatically moves to next step
+# Use counts_as_attempt: false for transitions that shouldn't count
+transitions:
+  correct:
+    next_section_and_step: "next:step"
+  hint:
+    content_blocks: ["Here's a hint..."]
+    counts_as_attempt: false  # Doesn't count toward max
+    next_section_and_step: "current:step"  # Retry
+  incorrect:
+    content_blocks: ["Try again!"]
+    next_section_and_step: "current:step"  # Retry (counts)
+```
+
+**CRITICAL Termination Rule**: Use `metadata_add: activity_completed: "true"` in your final transitions to mark completion!
+
+### What Makes Activities FUN and Engaging
+
+Study activity26-magic-8-ball.yaml, activity31-scientific-method.yaml, and activity37-programming-languages.yaml for examples.
+
+#### 1. **Looping/Replayability**
+Allow users to repeat fun parts:
+```yaml
+# Magic 8 Ball - loops back to itself
+transitions:
+  ask_question:
+    ai_feedback: {...}
+    next_section_and_step: "section_1:step_1"  # Loop!
+  exit:
+    next_section_and_step: "section_1:goodbye"
+```
+
+#### 2. **Randomness & Variety**
+Use `metadata_tmp_random` or `metadata_random` for unpredictability:
+```yaml
+transitions:
+  roll_dice:
+    metadata_tmp_random:
+      dice_result: [1, 2, 3, 4, 5, 6]  # Random pick
+    ai_feedback:
+      tokens_for_ai: |
+        The dice roll is in metadata.dice_result.
+        Announce it dramatically! 🎲
+```
+
+#### 3. **Personalization with Metadata**
+Store and reference user choices throughout:
+```yaml
+# Step 1: Store user's name
+transitions:
+  greeting:
+    metadata_add:
+      player_name: "the-users-response"
+
+# Step 5: Reference their name
+tokens_for_ai: |
+  Address the user by their name from metadata.player_name.
+  Make it personal!
+```
+
+#### 4. **AI Personality & Encouragement**
+Make the AI engaging:
+```yaml
+ai_feedback:
+  tokens_for_ai: |
+    Be enthusiastic! Use emojis! 🎉
+    Celebrate their success with a joke related to their answer.
+    On a new line, encourage them to continue.
+```
+
+#### 5. **Progressive Scoring**
+Track and display progress:
+```yaml
+metadata_add:
+  score: "n+1"  # Increment score
+  correct_answers: "n+1"
+
+# In final step
+content_blocks:
+  - "Your final score: check metadata.score"
+  - "You got metadata.correct_answers correct!"
+```
+
+#### 6. **Multiple Valid Paths**
+Different quality responses get different feedback:
+```yaml
+buckets:
+  - excellent_answer    # Perfect understanding
+  - correct_answer      # Got it right
+  - partial_understanding  # On the right track
+  - creative_thinking   # Wrong but interesting
+  - needs_help          # Need more guidance
+  - off_topic          # Completely off
+
+# Each bucket gets tailored feedback and appropriate next step
+```
+
+#### 7. **Visual Variety & Formatting**
+Use markdown, emojis, and structure:
+```yaml
+content_blocks:
+  - "# Welcome to the Adventure! 🗺️"
+  - "You stand at a crossroads..."
+  - ""
+  - "**North**: A dark forest 🌲"
+  - "**South**: A sunny beach 🏖️"
+  - "**East**: A mysterious cave 🕳️"
+  - ""
+  - "Where will you go?"
+```
+
+#### 8. **Educational Scaffolding**
+Build complexity gradually:
+```yaml
+# Section 1: Simple concepts with lots of support
+# Section 2: Intermediate - less hand-holding
+# Section 3: Advanced - challenging applications
+# Section 4: Reflection and synthesis
+```
+
+#### 9. **Role-Playing & Storytelling**
+Create engaging narratives:
+```yaml
+tokens_for_ai: |
+  You are a wise wizard guiding the student.
+  Stay in character! Speak mysteriously.
+  Reference their previous choices from metadata.
+```
+
+#### 10. **Immediate, Specific Feedback**
+Don't just say "correct" or "wrong":
+```yaml
+feedback_tokens_for_ai: |
+  If they identified the scientific method correctly:
+  - Praise the specific insight they showed
+  - Connect it to real-world applications
+  - Encourage them to apply this thinking
+
+  If they struggled:
+  - Acknowledge what they got right first
+  - Gently correct the misunderstanding
+  - Provide a hint or example
+  - Encourage them to try again
+```
+
+### Best Practices for Activity Creation
+
+1. **Start with the Learning Goals**
+   - What should the user know/be able to do after completion?
+   - Design backwards from those outcomes
+
+2. **Write Clear AI Instructions**
+   ```yaml
+   # VAGUE - AI won't know what to do
+   tokens_for_ai: "Check if they understand."
+
+   # SPECIFIC - AI knows exactly what to do
+   tokens_for_ai: |
+     Categorize as 'correct' if they mention:
+     - Variables store data
+     - Types define what kind of data
+     - Examples: strings, numbers, booleans
+
+     Categorize as 'partial' if they only mention one aspect.
+     Categorize as 'incorrect' otherwise.
+   ```
+
+3. **Design Metadata Strategically**
+   - Store meaningful state that affects the experience
+   - Don't track everything - only what you'll reference
+   - Use descriptive key names: `programming_language` not `pl`
+
+4. **Test All Paths**
+   ```bash
+   # Use the CLI simulator
+   source vars.sh
+   python research/guarded_ai.py research/your_activity.yaml
+
+   # Try:
+   # - Correct answers
+   # - Wrong answers
+   # - Edge cases
+   # - Max attempts exhaustion
+   # - Language switching
+   # - All branches/sections
+   ```
+
+5. **Validate Early and Often**
+   ```bash
+   python activity_yaml_validator.py research/your_activity.yaml
+   ```
+
+6. **Use Comments Liberally**
+   ```yaml
+   # This section teaches variables
+   # User's chosen language is in metadata.programming_language
+   - section_id: "variables"
+     steps:
+       # First, explain what variables are
+       - step_id: "explain"
+         # ... then quiz them
+       - step_id: "quiz"
+   ```
+
+7. **Provide Multiple Difficulty Paths**
+   ```yaml
+   # Allow users to request hints
+   buckets: [correct, incorrect, need_hint]
+   transitions:
+     need_hint:
+       content_blocks: ["Hint: Think about..."]
+       counts_as_attempt: false
+       next_section_and_step: "current:question"  # Retry
+   ```
+
+8. **Support Language Switching**
+   Always include a `set_language` bucket:
+   ```yaml
+   buckets: [answer, set_language, off_topic]
+   transitions:
+     set_language:
+       content_blocks:
+         - "Language preference updated."
+       metadata_add:
+         language: "the-users-response"
+       counts_as_attempt: false
+       next_section_and_step: "current:step"  # Retry in new language
+   ```
+
+9. **Write Engaging Content Blocks**
+   ```yaml
+   # BORING
+   content_blocks:
+     - "This is about variables."
+
+   # ENGAGING
+   content_blocks:
+     - "# Let's Talk About Variables! 📦"
+     - "Imagine your computer's memory as a huge warehouse..."
+     - "Variables are like labeled boxes where you store information."
+     - ""
+     - "**Why do we need them?** Without variables, programs can't remember anything!"
+   ```
+
+10. **Design for Replayability**
+    - Use randomness for variety
+    - Support restart/retry paths
+    - Allow skipping to different sections
+    - Make it fun to play multiple times
+
+### Common Pitfalls to AVOID
+
+| Pitfall | Why It Fails Validation | How to Fix |
+|---------|------------------------|------------|
+| **Missing transition for a bucket** | Every bucket MUST have a transition | Add transition for ALL buckets |
+| **Terminal step with question** | Last step of last section cannot have questions/buckets | Make final step content-only |
+| **Circular loop without exit** | Users get trapped, max_attempts saves them but feels bad | Always provide an 'exit' bucket or progression path |
+| **Invalid transition target** | References non-existent section:step | Verify all targets exist: `python activity_yaml_validator.py` |
+| **Python syntax errors in scripts** | Crashes at runtime | Test your Python code before adding to YAML |
+| **Vague AI instructions** | AI categorizes incorrectly, wrong buckets | Be specific about what makes each bucket |
+| **Boolean values as strings** | `"true"` is a string, not boolean | Use `true/false` not `"true"/"false"` |
+| **Forgetting `counts_as_attempt: false`** | Hints/language changes count as failures | Add `counts_as_attempt: false` to helper transitions |
+| **No activity_completed marker** | Can't track completion | Add `metadata_add: activity_completed: "true"` to final transitions |
+| **Inconsistent metadata keys** | `score` vs `Score` vs `total_score` | Pick one naming scheme and stick to it |
+| **Too many attempts before feedback** | Users get frustrated | Default to 3 max, provide hints after attempt 1 |
+| **Generic feedback** | "Good job!" isn't helpful | Reference specific parts of their answer |
+| **Dead-end paths** | User stuck, can't progress | Always provide a way forward (even if it's restarting) |
+| **Ignoring the rubric** | Global `tokens_for_ai_rubric` tells AI how to evaluate | Define it for consistency across steps |
+| **Showing answers before questions** | Users copy-paste instead of learning | Explain CONCEPTS in content_blocks, provide CODE EXAMPLES only in ai_feedback |
+
+### Activity Development Workflow
+
+1. **Plan Structure**
+   - Sketch sections and learning progression
+   - Identify key decision points
+   - Map out metadata usage
+
+2. **Write YAML**
+   - Start with one section
+   - Test it in the simulator
+   - Expand incrementally
+
+3. **Validate**
+   ```bash
+   python activity_yaml_validator.py research/your_activity.yaml
+   ```
+
+4. **Test Interactively**
+   ```bash
+   source vars.sh
+   python research/guarded_ai.py research/your_activity.yaml
+   ```
+
+5. **Test All Paths**
+   - Try every bucket
+   - Exhaust max attempts
+   - Test edge cases
+   - Verify termination
+
+6. **Refine**
+   - Improve AI instructions based on testing
+   - Adjust bucket categories
+   - Polish content blocks
+   - Add variety and engagement
+
+7. **Final Validation**
+   - Run validator one more time
+   - Test complete playthrough
+   - Verify all transitions work
+   - Confirm proper termination
+
+### Quick Reference: Essential Fields
+
+```yaml
+# Activity Level (Root)
+default_max_attempts_per_step: 3           # Optional, defaults to 3
+classifier_model: "MODEL_1"                # Optional, defaults to MODEL_1
+feedback_model: "MODEL_1"                  # Optional, defaults to MODEL_1
+tokens_for_ai_rubric: "..."               # Optional global rubric
+sections: [...]                            # REQUIRED
+
+# Section Level
+section_id: "unique_id"                    # REQUIRED, unique
+title: "Section Title"                     # REQUIRED
+steps: [...]                               # REQUIRED
+
+# Step Level (Content-Only)
+step_id: "unique_id"                       # REQUIRED, unique in section
+title: "Step Title"                        # REQUIRED
+content_blocks: [...]                      # REQUIRED (if no question)
+
+# Step Level (Question)
+step_id: "unique_id"                       # REQUIRED
+title: "Step Title"                        # REQUIRED
+question: "Your question?"                 # REQUIRED (if no content_blocks)
+tokens_for_ai: "Categorization rules"      # Recommended
+feedback_tokens_for_ai: "Feedback rules"   # Recommended
+buckets: [...]                             # REQUIRED (with question)
+transitions: {...}                         # REQUIRED (with buckets)
+classifier_model: "MODEL_1"                # Optional step-level override
+feedback_model: "MODEL_1"                  # Optional step-level override
+
+# Transition Level
+next_section_and_step: "section:step"      # Optional (omit to terminate)
+content_blocks: [...]                      # Optional static feedback
+ai_feedback:                               # Optional AI-generated feedback
+  tokens_for_ai: "..."                     # Prompt for feedback
+metadata_add: {key: "value"}               # Add/update metadata
+metadata_tmp_add: {key: "value"}           # Temporary metadata (one turn)
+metadata_random: {key: [...]}              # Add random value from list
+metadata_tmp_random: {key: [...]}          # Temporary random value
+metadata_remove: "key" or ["key1", "key2"] # Remove metadata keys
+metadata_clear: true                       # Clear all metadata
+metadata_feedback_filter: ["key1", "key2"] # Filter feedback by metadata
+counts_as_attempt: false                   # Don't count toward max_attempts
+run_processing_script: true                # Execute step's processing_script
+```
+
+### Example: Complete Minimal Activity
+
+```yaml
+default_max_attempts_per_step: 3
+sections:
+  - section_id: "intro"
+    title: "Introduction"
+    steps:
+      - step_id: "welcome"
+        title: "Welcome"
+        content_blocks:
+          - "# Welcome to Math Quiz! 🔢"
+          - "Let's test your addition skills!"
+
+      - step_id: "quiz"
+        title: "Addition Question"
+        question: "What is 5 + 7?"
+        tokens_for_ai: |
+          Categorize as 'correct' if they answer 12 or "twelve".
+          Categorize as 'close' if they're within 2 (10, 11, 13, 14).
+          Otherwise 'incorrect'.
+        buckets: [correct, close, incorrect]
+        transitions:
+          correct:
+            content_blocks:
+              - "Perfect! 🎉"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "conclusion:goodbye"
+          close:
+            content_blocks:
+              - "Close! Think again."
+            next_section_and_step: "intro:quiz"
+          incorrect:
+            content_blocks:
+              - "Not quite. Try adding 5 + 7 again."
+            next_section_and_step: "intro:quiz"
+
+  - section_id: "conclusion"
+    title: "Conclusion"
+    steps:
+      - step_id: "goodbye"
+        title: "Goodbye"
+        content_blocks:
+          - "Thanks for playing! 👋"
+```
+
+This activity:
+- ✅ Validates (all required fields present)
+- ✅ Is fun (emoji, encouraging feedback, score tracking)
+- ✅ Terminates properly (content-only final step)
+
+**Now you're ready to create amazing activities!** 🚀

@@ -1,0 +1,73 @@
+default_max_attempts_per_step: 3
+sections:
+  - section_id: introduction
+    title: Game Theory 501
+    steps:
+      - step_id: welcome
+        title: Design the Game
+        content_blocks:
+          - "# Game Theory 501: Mechanism Design 🏗️"
+          - "**Reverse game theory: Design the game itself!**"
+          - "✓ Mechanism design (reverse game theory)"
+          - "✓ Auction theory"
+          - "✓ Voting theory"
+          - "✓ Incentive compatibility"
+        question: Ready to learn how to design strategic systems?
+        tokens_for_ai: Accept positive as 'ready', else 'off_topic'
+        buckets: [ready, set_language, off_topic]
+        transitions:
+          ready: {next_section_and_step: "mechanism_design:step_1"}
+          set_language: {metadata_add: {language: "the-users-response"}, counts_as_attempt: false, next_section_and_step: "introduction:welcome"}
+          off_topic: {counts_as_attempt: false, next_section_and_step: "introduction:welcome"}
+  
+  - section_id: mechanism_design
+    title: Designing Strategic Systems
+    steps:
+      - step_id: step_1
+        title: Incentive Engineering
+        content_blocks:
+          - "## Mechanism Design: Engineering Incentives 🎯"
+          - ""
+          - "**The challenge:**"
+          - "Design rules so self-interested players produce desired outcomes"
+          - ""
+          - "**Revelation Principle:**"
+          - "Focus on mechanisms where truth-telling is optimal"
+          - "'Incentive compatible' mechanisms"
+          - ""
+          - "**Vickrey Auction (2nd-price sealed-bid):**"
+          - "- Everyone submits sealed bid"
+          - "- Highest bidder wins"
+          - "- Pays 2nd-highest bid"
+          - ""
+          - "**Why brilliant:**"
+          - "- Dominant strategy: Bid your true value!"
+          - "- Overbidding risks paying too much"
+          - "- Underbidding risks losing when you'd profit"
+          - "- Truthful bidding is optimal"
+          - ""
+          - "**Applications:**"
+          - "- eBay (proxy bidding)"
+          - "- Google AdWords"
+          - "- Organ donation matching"
+          - "- Spectrum auctions"
+        question: In a Vickrey auction, why is bidding your true value the dominant strategy?
+        tokens_for_ai: |
+          Key insight: You pay 2nd price, not your bid.
+          Overbidding risks paying more than value.
+          Underbidding risks losing profitable wins.
+          True value bidding is optimal.
+          Categorize: excellent_explanation, understands_truthful, partial, set_language, off_topic
+        buckets: [excellent_explanation, understands_truthful, partial, set_language, off_topic]
+        transitions:
+          excellent_explanation:
+            ai_feedback: {tokens_for_ai: "Perfect! Since you pay 2nd price, not your bid, bidding true value is dominant. Can't improve by lying! This is mechanism design genius!"}
+            metadata_add: {score: "n+2", activity_completed: "true"}
+          understands_truthful:
+            ai_feedback: {tokens_for_ai: "Exactly! Paying 2nd price means truthful bidding is optimal. Over/under bidding can only hurt you. Brilliant design!"}
+            metadata_add: {score: "n+1", activity_completed: "true"}
+          partial:
+            ai_feedback: {tokens_for_ai: "Right idea! Key: you pay 2nd price. Bidding true value dominates - lying can't help, might hurt. This is mechanism design!"}
+            metadata_add: {activity_completed: "true"}
+          set_language: {metadata_add: {language: "the-users-response"}, counts_as_attempt: false, next_section_and_step: "mechanism_design:step_1"}
+          off_topic: {metadata_add: {activity_completed: "true"}}
