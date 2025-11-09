@@ -1,0 +1,861 @@
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+
+tokens_for_ai_rubric: |
+  You are an enthusiastic evolution scientist teaching genetic algorithms! 🧬
+
+  Use the evolution metaphor throughout - "breeding," "survival of the fittest," "mutations."
+  Be encouraging and celebrate when students grasp concepts.
+
+  The user's programming language is stored in metadata.programming_language (if set).
+  Always provide feedback in their chosen language.
+
+  When evaluating code:
+  - Check if it implements the core concept (not perfect syntax)
+  - Look for understanding of: fitness, selection, crossover, mutation
+  - Praise creative approaches
+  - Guide gently if they're struggling
+
+sections:
+  - section_id: "introduction"
+    title: "Welcome to Genetic Algorithms"
+    steps:
+      - step_id: "welcome"
+        title: "Welcome"
+        content_blocks:
+          - "# 🧬 Welcome to Genetic Algorithms: Evolution in Code! 🧬"
+          - ""
+          - "Ever wondered how nature solves complex optimization problems?"
+          - ""
+          - "**Nature's secret**: Evolution! 🌱➡️🌳"
+          - ""
+          - "- **Reproduce** the best solutions"
+          - "- **Combine** traits from parents (crossover)"
+          - "- **Mutate** randomly for diversity"
+          - "- **Repeat** for many generations"
+          - ""
+          - "Today, you'll build a genetic algorithm that evolves solutions to problems that would take billions of years to solve by brute force!"
+          - ""
+          - "Let's start by choosing your programming language..."
+
+      - step_id: "choose_language"
+        title: "Choose Programming Language"
+        question: "What programming language would you like to use? (Python, JavaScript, Java, C++, Ruby, Go, Rust, or any language you prefer)"
+        tokens_for_ai: |
+          Extract the programming language from their response.
+          Accept ANY language they mention: Python, JavaScript, Java, C++, C#, Ruby, Go, Rust, PHP, Swift, Kotlin, R, etc.
+
+          Categorize as 'language_chosen' if they name a specific language.
+          Categorize as 'unsure' if they seem uncertain or ask for a recommendation.
+          Categorize as 'off_topic' if completely unrelated.
+        buckets: [language_chosen, unsure, off_topic, set_language]
+        transitions:
+          language_chosen:
+            metadata_add:
+              programming_language: "the-users-response"
+            ai_feedback:
+              tokens_for_ai: |
+                Great choice! Celebrate their language selection.
+                Mention one reason why their language is good for genetic algorithms.
+                (e.g., Python has great list operations, JavaScript has functional programming, etc.)
+            next_section_and_step: "concepts:evolution_metaphor"
+          unsure:
+            content_blocks:
+              - "No worries! 😊"
+              - ""
+              - "**I recommend Python** for beginners - it's clear and readable."
+              - "**JavaScript** is great if you're web-focused."
+              - "**C++** or **Rust** if you want performance."
+              - ""
+              - "Pick whichever you're most comfortable with - genetic algorithms work in ANY language!"
+            counts_as_attempt: false
+            next_section_and_step: "introduction:choose_language"
+          off_topic:
+            content_blocks:
+              - "Let's focus on choosing a programming language first! 🎯"
+              - ""
+              - "Popular choices: Python, JavaScript, Java, C++, Ruby, Go, Rust"
+              - ""
+              - "Which language would you like to use?"
+            counts_as_attempt: false
+            next_section_and_step: "introduction:choose_language"
+          set_language:
+            content_blocks:
+              - "Language preference updated! 🌍"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "introduction:choose_language"
+
+  - section_id: "concepts"
+    title: "Understanding Genetic Algorithms"
+    steps:
+      - step_id: "evolution_metaphor"
+        title: "The Evolution Metaphor"
+        content_blocks:
+          - "# 🦎 How Evolution Solves Complex Problems 🦎"
+          - ""
+          - "Imagine you want to find the **perfect solution** to a problem."
+          - ""
+          - "**Brute Force**: Try every possibility ❌"
+          - "- Problem: 10 variables, 100 values each = 100^10 = 100 trillion trillion possibilities!"
+          - "- Would take longer than the age of the universe 🌌"
+          - ""
+          - "**Genetic Algorithm**: Let solutions evolve ✅"
+          - "- Start with random guesses (generation 1)"
+          - "- Keep the best ones"
+          - "- Breed them together (crossover)"
+          - "- Add random mutations"
+          - "- Repeat for 100 generations"
+          - "- Find excellent solutions in seconds! ⚡"
+          - ""
+          - "This is how nature designed complex organisms over millions of years."
+          - "We'll do it in code in minutes! 🧬"
+
+      - step_id: "ga_components"
+        title: "Genetic Algorithm Components"
+        content_blocks:
+          - "# 🧬 The 5 Core Components of Genetic Algorithms"
+          - ""
+          - "## 1️⃣ **Population** (Pool of Candidates)"
+          - "- A collection of potential solutions"
+          - "- Each solution is called a **chromosome**"
+          - "- Example: Random strings trying to match \"GENETIC\""
+          - ""
+          - "## 2️⃣ **Fitness Function** (Survival Test)"
+          - "- Measures how good each solution is"
+          - "- Better fitness = more likely to survive"
+          - "- Example: Count matching letters in the string"
+          - ""
+          - "## 3️⃣ **Selection** (Choose the Best)"
+          - "- Pick the fittest individuals to reproduce"
+          - "- Methods: Tournament, Roulette Wheel, Elite Selection"
+          - "- Survival of the fittest! 💪"
+          - ""
+          - "## 4️⃣ **Crossover** (Breeding)"
+          - "- Combine two parent solutions"
+          - "- Create offspring with mixed traits"
+          - "- Example: \"GEN\" + \"TIC\" = \"GENIC\""
+          - ""
+          - "## 5️⃣ **Mutation** (Random Changes)"
+          - "- Randomly modify some offspring"
+          - "- Prevents getting stuck in local optima"
+          - "- Adds diversity to the gene pool 🌈"
+
+      - step_id: "understand_components"
+        title: "Check Understanding"
+        question: "In your own words, why do we need BOTH crossover AND mutation in genetic algorithms? (Hint: Think about what each one does for the solution space)"
+        tokens_for_ai: |
+          Categorize their understanding:
+
+          'deep_understanding' if they mention BOTH:
+          - Crossover combines good traits from parents (exploitation)
+          - Mutation explores new possibilities and prevents premature convergence (exploration)
+
+          'partial_understanding' if they mention ONE of:
+          - Crossover combines solutions
+          - Mutation adds randomness/diversity
+
+          'creative_thinking' if wrong but shows good reasoning about evolution/optimization
+
+          'needs_help' if confused or very brief
+
+          'set_language' if changing language preference
+
+          'off_topic' otherwise
+        feedback_tokens_for_ai: |
+          Provide feedback in their chosen language from metadata.programming_language.
+
+          If deep_understanding: Celebrate! Explain this is the exploration-exploitation tradeoff.
+          If partial_understanding: Acknowledge what they got right, add the missing piece.
+          If creative_thinking: Appreciate their reasoning, gently guide to the core concept.
+          If needs_help: Use an analogy - crossover is like breeding dogs (mix best traits), mutation is like genetic mutations (new random traits).
+        buckets: [deep_understanding, partial_understanding, creative_thinking, needs_help, set_language, off_topic]
+        transitions:
+          deep_understanding:
+            ai_feedback:
+              tokens_for_ai: "Celebrate their understanding! Mention the exploration-exploitation tradeoff is key to many optimization algorithms."
+            next_section_and_step: "problem:define_problem"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Acknowledge what they got right. Explain the missing piece (exploration vs exploitation). Be encouraging!"
+            next_section_and_step: "problem:define_problem"
+          creative_thinking:
+            ai_feedback:
+              tokens_for_ai: "Appreciate their creative thinking! Guide them to the core: crossover=exploit good solutions, mutation=explore new ones."
+            next_section_and_step: "problem:define_problem"
+          needs_help:
+            content_blocks:
+              - "Let me clarify! 🎯"
+              - ""
+              - "**Crossover** = Combine the BEST traits from parents"
+              - "- Focuses on what's already working"
+              - "- Exploitation of good solutions"
+              - ""
+              - "**Mutation** = Random changes"
+              - "- Explores NEW possibilities"
+              - "- Prevents getting stuck"
+              - ""
+              - "**Together** = Perfect balance of using what works + trying new things! 🧬"
+            next_section_and_step: "problem:define_problem"
+          set_language:
+            content_blocks:
+              - "Language preference updated! 🌍"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "concepts:understand_components"
+          off_topic:
+            content_blocks:
+              - "Let's stay focused on genetic algorithms! 🧬"
+              - ""
+              - "Think about why we need BOTH crossover (combining solutions) AND mutation (random changes)."
+            counts_as_attempt: false
+            next_section_and_step: "concepts:understand_components"
+
+  - section_id: "problem"
+    title: "Define the Problem"
+    steps:
+      - step_id: "define_problem"
+        title: "Our Evolution Challenge"
+        content_blocks:
+          - "# 🎯 The String Evolution Challenge"
+          - ""
+          - "**Goal**: Evolve random characters into the string \"GENETIC\""
+          - ""
+          - "**Starting Point**:"
+          - "- Population of 100 random 7-letter strings"
+          - "- Example: \"XQMZPRL\", \"KDJFHGA\", \"BVNCXZM\""
+          - "- Fitness = 0 (no matching letters)"
+          - ""
+          - "**After 100 Generations**:"
+          - "- Best solution: \"GENETIC\""
+          - "- Fitness = 7 (perfect match!)"
+          - "- We'll watch evolution happen! 🧬➡️✨"
+          - ""
+          - "**Why This Problem?**"
+          - "- Easy to understand fitness (count matching letters)"
+          - "- Brute force: 26^7 = 8 billion possibilities"
+          - "- GA solves it in ~100 generations with population of 100 = 10,000 evaluations"
+          - "- **800,000x faster than brute force!** ⚡"
+          - ""
+          - "Let's build it step by step..."
+
+  - section_id: "implementation"
+    title: "Build the Genetic Algorithm"
+    steps:
+      - step_id: "fitness_function"
+        title: "Step 1: Fitness Function"
+        question: "Write a fitness function that takes a candidate string and returns how many letters match \"GENETIC\" in the correct positions. Think about how you'd measure similarity!"
+        tokens_for_ai: |
+          Evaluate their fitness function code in their chosen language (metadata.programming_language).
+
+          'excellent_implementation' if they:
+          - Compare each character position
+          - Count matches
+          - Handle string comparison correctly
+          - Code looks reasonable (don't nitpick syntax)
+
+          'correct_concept' if they describe the approach correctly even if code has minor issues
+
+          'partial_understanding' if they count total matching letters but not position-specific
+
+          'needs_guidance' if confused or very incomplete
+
+          'set_language' if changing language
+
+          'off_topic' otherwise
+        feedback_tokens_for_ai: |
+          Provide feedback in their language (metadata.programming_language).
+
+          If excellent_implementation:
+          - Celebrate! Show how this fitness function guides evolution.
+          - Mention: "This is the KEY - fitness drives everything!"
+
+          If correct_concept or partial_understanding:
+          - Acknowledge their understanding
+          - If not position-specific, explain why positions matter
+          - Show a working example of the fitness function
+
+          If needs_guidance:
+          - Provide a complete working example
+          - Explain: loop through each position, count matches
+          - Walk through: "GXXXXXX" vs "GENETIC" = fitness of 1
+        buckets: [excellent_implementation, correct_concept, partial_understanding, needs_guidance, set_language, off_topic]
+        transitions:
+          excellent_implementation:
+            ai_feedback:
+              tokens_for_ai: "Celebrate! Show example: fitness('GXXXXXX') = 1, fitness('GENETIC') = 7. Mention this guides ALL evolution!"
+            metadata_add:
+              fitness_complete: "true"
+              progress_score: "1"
+            next_section_and_step: "implementation:selection"
+          correct_concept:
+            ai_feedback:
+              tokens_for_ai: "Great concept! Show a polished working version in their language. Explain how it works step-by-step."
+            metadata_add:
+              fitness_complete: "true"
+              progress_score: "1"
+            next_section_and_step: "implementation:selection"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Good start! Explain why POSITION matters. Show corrected version comparing index-by-index."
+            metadata_add:
+              fitness_complete: "true"
+              progress_score: "1"
+            next_section_and_step: "implementation:selection"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "No worries! Provide complete working fitness function in their language. Walk through example: 'GXXXXXX' scores 1 because only first 'G' matches."
+            metadata_add:
+              fitness_complete: "true"
+              progress_score: "1"
+            next_section_and_step: "implementation:selection"
+          set_language:
+            content_blocks:
+              - "Language preference updated! 🌍"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "implementation:fitness_function"
+          off_topic:
+            content_blocks:
+              - "Let's focus on the fitness function! 🎯"
+              - ""
+              - "Your task: Write code that counts how many letters in a candidate string match \"GENETIC\" at the same positions."
+              - ""
+              - "Example: \"GXXXXXX\" should return 1 (only the G matches)"
+            counts_as_attempt: false
+            next_section_and_step: "implementation:fitness_function"
+
+      - step_id: "selection"
+        title: "Step 2: Selection (Choose the Fittest)"
+        question: "Write a selection function that picks the best individuals from the population. Describe your strategy: will you use tournament selection (pick best from random groups), elite selection (just take the top N), or another method?"
+        tokens_for_ai: |
+          Evaluate their selection implementation/strategy.
+
+          'excellent_implementation' if they:
+          - Describe a valid selection method (tournament, elite, roulette wheel, etc.)
+          - Show code or clear algorithm
+          - Understand it favors higher fitness
+
+          'correct_strategy' if they describe a valid approach even without perfect code
+
+          'creative_approach' if they invent a reasonable selection method
+
+          'needs_guidance' if confused or missing the "favor fitness" concept
+
+          'set_language' if changing language
+
+          'off_topic' otherwise
+        feedback_tokens_for_ai: |
+          Provide feedback in their language (metadata.programming_language).
+
+          If excellent_implementation:
+          - Praise their approach!
+          - Explain why their method works (survival of fittest)
+          - Show example: population of 100 → select top 50 for breeding
+
+          If correct_strategy or creative_approach:
+          - Validate their thinking
+          - Show a clean implementation
+          - Mention: "Selection pressure drives evolution!"
+
+          If needs_guidance:
+          - Explain selection favors fit individuals
+          - Provide tournament selection example: pick 5 random, take the best, repeat
+          - Or elite selection: sort by fitness, take top 50%
+        buckets: [excellent_implementation, correct_strategy, creative_approach, needs_guidance, set_language, off_topic]
+        transitions:
+          excellent_implementation:
+            ai_feedback:
+              tokens_for_ai: "Fantastic! Explain how their selection method creates selection pressure. Show example with fitnesses [7,5,3,1] → likely picks 7 and 5."
+            metadata_add:
+              selection_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "implementation:crossover"
+          correct_strategy:
+            ai_feedback:
+              tokens_for_ai: "Great strategy! Polish their idea with clean code example. Emphasize: this is survival of the fittest in action! 💪"
+            metadata_add:
+              selection_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "implementation:crossover"
+          creative_approach:
+            ai_feedback:
+              tokens_for_ai: "Love the creativity! Validate if their method favors fitness. Show how it compares to standard approaches."
+            metadata_add:
+              selection_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "implementation:crossover"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "Let me help! Explain tournament selection: randomly pick 5 individuals, select the fittest, repeat. Show complete code example in their language."
+            metadata_add:
+              selection_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "implementation:crossover"
+          set_language:
+            content_blocks:
+              - "Language preference updated! 🌍"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "implementation:selection"
+          off_topic:
+            content_blocks:
+              - "Let's focus on selection! 🎯"
+              - ""
+              - "**Goal**: Pick the best individuals to be parents"
+              - ""
+              - "Think about: How do you favor high-fitness individuals while still allowing some diversity?"
+            counts_as_attempt: false
+            next_section_and_step: "implementation:selection"
+
+      - step_id: "crossover"
+        title: "Step 3: Crossover (Breeding)"
+        question: "Write a crossover function that takes two parent strings and creates offspring by combining their genes. How will you mix the parents' traits?"
+        tokens_for_ai: |
+          Evaluate their crossover implementation.
+
+          'excellent_implementation' if they:
+          - Show code that combines two parent strings
+          - Use any valid method (single-point, two-point, uniform)
+          - Create offspring with mixed traits
+
+          'correct_concept' if they describe crossover correctly even with imperfect code
+
+          'creative_approach' if they invent a reasonable mixing strategy
+
+          'needs_guidance' if confused or doesn't mix parent traits
+
+          'set_language' if changing language
+
+          'off_topic' otherwise
+        feedback_tokens_for_ai: |
+          Provide feedback in their language (metadata.programming_language).
+
+          If excellent_implementation:
+          - Celebrate! Show their crossover in action
+          - Example: parent1="GENXXXX", parent2="XXXETIC" → child="GENETIC" (if lucky!)
+          - Explain: "This is how good traits combine! 🧬"
+
+          If correct_concept or creative_approach:
+          - Validate their approach
+          - Show polished implementation
+          - Demo with example parents
+
+          If needs_guidance:
+          - Explain single-point crossover
+          - Example: "GEN|XXXX" + "XXX|ETIC" → "GENETIC"
+          - Provide complete code in their language
+        buckets: [excellent_implementation, correct_concept, creative_approach, needs_guidance, set_language, off_topic]
+        transitions:
+          excellent_implementation:
+            ai_feedback:
+              tokens_for_ai: "Perfect! Show their crossover creating offspring. Example: 'GENXXXX' + 'XXXETIC' → 'GENETIC'. This is evolution magic! ✨"
+            metadata_add:
+              crossover_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "implementation:mutation"
+          correct_concept:
+            ai_feedback:
+              tokens_for_ai: "Great concept! Show refined code. Demo with concrete parent strings. Emphasize: this exploits existing good genes! 🧬"
+            metadata_add:
+              crossover_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "implementation:mutation"
+          creative_approach:
+            ai_feedback:
+              tokens_for_ai: "Interesting approach! Validate if it mixes parent traits. Compare to standard single-point crossover."
+            metadata_add:
+              crossover_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "implementation:mutation"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "Let me show you! Explain single-point crossover with diagram. Provide complete working code in their language."
+            metadata_add:
+              crossover_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "implementation:mutation"
+          set_language:
+            content_blocks:
+              - "Language preference updated! 🌍"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "implementation:crossover"
+          off_topic:
+            content_blocks:
+              - "Let's focus on crossover! 🧬"
+              - ""
+              - "**Goal**: Combine two parent strings to create offspring"
+              - ""
+              - "Think about: How do you mix traits from both parents into a child?"
+              - "One approach: Take first half from parent1, second half from parent2"
+            counts_as_attempt: false
+            next_section_and_step: "implementation:crossover"
+
+      - step_id: "mutation"
+        title: "Step 4: Mutation (Random Changes)"
+        question: "Write a mutation function that randomly changes some characters in a string with small probability (like 1% per character). How will you add this random diversity?"
+        tokens_for_ai: |
+          Evaluate their mutation implementation.
+
+          'excellent_implementation' if they:
+          - Show code that randomly modifies characters
+          - Use low probability (1-10%)
+          - Replace with random letters
+
+          'correct_concept' if they describe mutation correctly even with imperfect code
+
+          'creative_approach' if they use an alternative randomization strategy
+
+          'needs_guidance' if confused or mutates too much/little
+
+          'set_language' if changing language
+
+          'off_topic' otherwise
+        feedback_tokens_for_ai: |
+          Provide feedback in their language (metadata.programming_language).
+
+          If excellent_implementation:
+          - Praise! Show mutation in action
+          - Example: "GENETIC" → "GENXTIC" (small random change)
+          - Explain: "Prevents getting stuck! Explores new possibilities! 🌈"
+
+          If correct_concept or creative_approach:
+          - Validate their understanding
+          - Show clean implementation with proper probability
+          - Demo: mutate 'GENETIC' a few times
+
+          If needs_guidance:
+          - Explain: loop through characters, 1% chance each mutates to random letter
+          - Show complete code in their language
+          - Warn: too much mutation = random search, too little = stuck
+        buckets: [excellent_implementation, correct_concept, creative_approach, needs_guidance, set_language, off_topic]
+        transitions:
+          excellent_implementation:
+            ai_feedback:
+              tokens_for_ai: "Excellent! Demo their mutation. Explain: this is the spark of innovation in evolution! Small random changes = big discoveries. 🌈"
+            metadata_add:
+              mutation_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "execution:main_loop"
+          correct_concept:
+            ai_feedback:
+              tokens_for_ai: "Great understanding! Show polished code with ~1% mutation rate. Demo mutating 'GENETIC' several times."
+            metadata_add:
+              mutation_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "execution:main_loop"
+          creative_approach:
+            ai_feedback:
+              tokens_for_ai: "Creative! Validate their mutation strategy. Compare mutation rate to standard 1-5% per gene."
+            metadata_add:
+              mutation_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "execution:main_loop"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "Let me guide you! Explain: for each character, 1% chance to replace with random letter A-Z. Provide complete code in their language."
+            metadata_add:
+              mutation_complete: "true"
+              progress_score: "n+1"
+            next_section_and_step: "execution:main_loop"
+          set_language:
+            content_blocks:
+              - "Language preference updated! 🌍"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "implementation:mutation"
+          off_topic:
+            content_blocks:
+              - "Let's focus on mutation! 🧬"
+              - ""
+              - "**Goal**: Randomly change some characters to add diversity"
+              - ""
+              - "Think about: For each character, maybe 1% chance to randomly change it to a different letter"
+              - "Why? Prevents getting stuck in local optima!"
+            counts_as_attempt: false
+            next_section_and_step: "implementation:mutation"
+
+  - section_id: "execution"
+    title: "Run the Evolution!"
+    steps:
+      - step_id: "main_loop"
+        title: "Step 5: The Evolution Loop"
+        question: "Now write the main GA loop that ties everything together: (1) Create random population, (2) For each generation: evaluate fitness, select parents, crossover, mutate, (3) Repeat for 100 generations, (4) Print the best solution. Show me your implementation!"
+        tokens_for_ai: |
+          Evaluate their main GA loop implementation.
+
+          'complete_implementation' if they:
+          - Initialize random population
+          - Have generation loop
+          - Call fitness, selection, crossover, mutation
+          - Track/print best solution
+
+          'correct_structure' if they describe the algorithm correctly even with incomplete code
+
+          'partial_implementation' if missing some components but core loop is there
+
+          'needs_guidance' if confused or very incomplete
+
+          'set_language' if changing language
+
+          'off_topic' otherwise
+        feedback_tokens_for_ai: |
+          Provide feedback in their language (metadata.programming_language).
+
+          If complete_implementation:
+          - CELEBRATE! They built a complete GA! 🎉
+          - Show example output:
+            "Gen 1: Best='XQMZPRL' (fitness=0)
+             Gen 50: Best='GENXTIX' (fitness=5)
+             Gen 100: Best='GENETIC' (fitness=7) ✨"
+          - Explain: "You just implemented evolution in code!"
+
+          If correct_structure or partial_implementation:
+          - Praise their understanding
+          - Show complete polished version
+          - Explain the flow: random → loop(fitness, select, breed, mutate) → evolved!
+
+          If needs_guidance:
+          - Provide complete working GA code in their language
+          - Walk through: "This is the ENTIRE algorithm in ~50 lines!"
+          - Show sample output across generations
+        buckets: [complete_implementation, correct_structure, partial_implementation, needs_guidance, set_language, off_topic]
+        transitions:
+          complete_implementation:
+            ai_feedback:
+              tokens_for_ai: "AMAZING! 🎉 They built a complete genetic algorithm! Show example output with fitness improving over generations. Celebrate: 'You implemented EVOLUTION!' 🧬✨"
+            metadata_add:
+              ga_complete: "true"
+              progress_score: "n+1"
+              implementation_quality: "complete"
+            next_section_and_step: "execution:observe_evolution"
+          correct_structure:
+            ai_feedback:
+              tokens_for_ai: "Great structure! Show complete polished version with all components. Explain: this is the heart of evolutionary computation! 💚"
+            metadata_add:
+              ga_complete: "true"
+              progress_score: "n+1"
+              implementation_quality: "good"
+            next_section_and_step: "execution:observe_evolution"
+          partial_implementation:
+            ai_feedback:
+              tokens_for_ai: "Good start! Fill in missing pieces. Show complete working version. Emphasize: all the parts work together like an ecosystem! 🌱"
+            metadata_add:
+              ga_complete: "true"
+              progress_score: "n+1"
+              implementation_quality: "partial"
+            next_section_and_step: "execution:observe_evolution"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "Let me show the complete algorithm! Provide full working GA code in their language (~50 lines). Walk through the flow. Show example output."
+            metadata_add:
+              ga_complete: "true"
+              progress_score: "n+1"
+              implementation_quality: "guided"
+            next_section_and_step: "execution:observe_evolution"
+          set_language:
+            content_blocks:
+              - "Language preference updated! 🌍"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "execution:main_loop"
+          off_topic:
+            content_blocks:
+              - "Let's focus on the main evolution loop! 🔄"
+              - ""
+              - "You need to:"
+              - "1. Create random population"
+              - "2. Loop for 100 generations:"
+              - "   - Calculate fitness for all"
+              - "   - Select best individuals"
+              - "   - Create offspring via crossover"
+              - "   - Mutate offspring"
+              - "   - Replace old population"
+              - "3. Print the best solution found"
+            counts_as_attempt: false
+            next_section_and_step: "execution:main_loop"
+
+      - step_id: "observe_evolution"
+        title: "Observe Evolution in Action"
+        content_blocks:
+          - "# 🔬 Watch Evolution Happen! 🔬"
+          - ""
+          - "If you ran your genetic algorithm, you'd see something AMAZING:"
+          - ""
+          - "```"
+          - "Generation 1:   Best='XQMZPRL'  Fitness=0  😕"
+          - "Generation 10:  Best='GXXXXXX'  Fitness=1  🌱"
+          - "Generation 25:  Best='GENXXXX'  Fitness=3  🌿"
+          - "Generation 50:  Best='GENXTIX'  Fitness=5  🌳"
+          - "Generation 75:  Best='GENETIX'  Fitness=6  🌲"
+          - "Generation 100: Best='GENETIC'  Fitness=7  ✨🎉"
+          - "```"
+          - ""
+          - "**What just happened?**"
+          - "- Started with pure randomness"
+          - "- Each generation got BETTER"
+          - "- Good genes survived and spread"
+          - "- Mutations found missing letters"
+          - "- **EVOLUTION WORKED!** 🧬"
+          - ""
+          - "**The Math**:"
+          - "- Brute force: 26^7 = 8,031,810,176 tries"
+          - "- GA: 100 generations × 100 population = 10,000 tries"
+          - "- **803,181x faster!** ⚡⚡⚡"
+          - ""
+          - "This is the power of evolutionary algorithms! 💪"
+
+      - step_id: "when_to_use"
+        title: "When to Use Genetic Algorithms"
+        question: "Based on what you learned, when would you use a genetic algorithm versus other optimization methods? Think about problem characteristics that make GAs shine! 🤔"
+        tokens_for_ai: |
+          Evaluate their understanding of when GAs are appropriate.
+
+          'excellent_insight' if they mention 2+ of:
+          - Large search spaces (can't brute force)
+          - No clear gradient/derivative (can't use gradient descent)
+          - Multiple local optima (need exploration)
+          - Complex fitness landscapes
+          - Combinatorial optimization
+          - Don't need perfect solution, just good enough
+
+          'good_understanding' if they mention 1 key insight about search space or optimization landscape
+
+          'partial_understanding' if they understand GAs are for hard problems but vague on details
+
+          'needs_clarification' if confused or missing the key concepts
+
+          'set_language' if changing language
+
+          'off_topic' otherwise
+        feedback_tokens_for_ai: |
+          Provide feedback in their language (metadata.programming_language).
+
+          If excellent_insight:
+          - CELEBRATE their deep understanding! 🎉
+          - Mention real applications: scheduling, circuit design, game AI, neural architecture search
+          - Note: GAs are part of evolutionary computation family
+
+          If good_understanding or partial_understanding:
+          - Validate what they got right
+          - Add missing pieces:
+            * HUGE search spaces (can't enumerate)
+            * Non-differentiable (can't gradient descent)
+            * Multiple peaks (need exploration)
+          - Give examples: TSP, job scheduling, game balancing
+
+          If needs_clarification:
+          - Explain: GAs excel when:
+            * Search space is enormous
+            * No gradient available
+            * Many local optima to escape
+          - Examples: routing problems, game AI, design optimization
+        buckets: [excellent_insight, good_understanding, partial_understanding, needs_clarification, set_language, off_topic]
+        transitions:
+          excellent_insight:
+            ai_feedback:
+              tokens_for_ai: "Outstanding! 🌟 List real applications: job scheduling, circuit design, game AI, neural architecture search, traveling salesman. They've mastered when to use GAs!"
+            metadata_add:
+              activity_completed: "true"
+              mastery_level: "excellent"
+            next_section_and_step: "conclusion:celebrate"
+          good_understanding:
+            ai_feedback:
+              tokens_for_ai: "Great insight! Add: GAs shine on huge search spaces, non-differentiable problems, multiple local optima. Give examples: TSP, scheduling, game AI."
+            metadata_add:
+              activity_completed: "true"
+              mastery_level: "good"
+            next_section_and_step: "conclusion:celebrate"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "You're on the right track! Explain: GAs work when search space is huge, no gradient, many peaks. Examples: routing, scheduling, design optimization."
+            metadata_add:
+              activity_completed: "true"
+              mastery_level: "developing"
+            next_section_and_step: "conclusion:celebrate"
+          needs_clarification:
+            content_blocks:
+              - "Let me clarify when GAs are perfect! 🎯"
+              - ""
+              - "**Use Genetic Algorithms When:**"
+              - ""
+              - "✅ **Huge search space** (billions of possibilities)"
+              - "✅ **No gradient** (can't use calculus-based optimization)"
+              - "✅ **Many local optima** (need to explore, not just climb)"
+              - "✅ **Combinatorial** (scheduling, routing, packing)"
+              - "✅ **Good enough is enough** (don't need perfect solution)"
+              - ""
+              - "**Examples:**"
+              - "- Traveling Salesman Problem 🗺️"
+              - "- Job scheduling 📅"
+              - "- Game AI balancing ⚔️"
+              - "- Circuit design 🔌"
+              - "- Neural architecture search 🧠"
+              - ""
+              - "GAs explore intelligently without needing derivatives or exhaustive search!"
+            metadata_add:
+              activity_completed: "true"
+              mastery_level: "developing"
+            next_section_and_step: "conclusion:celebrate"
+          set_language:
+            content_blocks:
+              - "Language preference updated! 🌍"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "execution:when_to_use"
+          off_topic:
+            content_blocks:
+              - "Let's think about when GAs are the right tool! 🔧"
+              - ""
+              - "Consider: What types of problems would benefit from evolutionary search?"
+              - ""
+              - "Hints:"
+              - "- How big is the search space?"
+              - "- Can you calculate gradients?"
+              - "- Are there many local optima?"
+            counts_as_attempt: false
+            next_section_and_step: "execution:when_to_use"
+
+  - section_id: "conclusion"
+    title: "Conclusion"
+    steps:
+      - step_id: "celebrate"
+        title: "Congratulations!"
+        content_blocks:
+          - "# 🎉 Congratulations, Evolution Architect! 🎉"
+          - ""
+          - "You just mastered genetic algorithms! Here's what you built:"
+          - ""
+          - "✅ **Fitness Function** - Measured solution quality"
+          - "✅ **Selection** - Survival of the fittest"
+          - "✅ **Crossover** - Breeding the best traits"
+          - "✅ **Mutation** - Exploring new possibilities"
+          - "✅ **Evolution Loop** - Bringing it all together"
+          - ""
+          - "**You learned:**"
+          - "- How nature solves complex optimization problems"
+          - "- Why evolution is an incredible search algorithm"
+          - "- When to use GAs vs other optimization methods"
+          - "- The exploration-exploitation tradeoff"
+          - ""
+          - "**Next Steps:**"
+          - "- Try more complex problems (TSP, knapsack, game AI)"
+          - "- Experiment with different selection/crossover strategies"
+          - "- Learn about: Genetic Programming, Evolution Strategies, Neuroevolution"
+          - "- Apply GAs to real optimization problems in your domain"
+          - ""
+          - "**Remember**: Evolution isn't just biology - it's a powerful computational paradigm! 🧬⚡"
+          - ""
+          - "Keep evolving your code! 🚀"
+          - ""
+          - "— Your Evolution Guide 🦎✨"

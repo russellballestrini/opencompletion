@@ -1,0 +1,645 @@
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_3"  # Use code model for programming feedback
+
+tokens_for_ai_rubric: |
+  You are teaching the multi-armed bandit algorithm to a student.
+  The student has chosen their programming language stored in metadata.programming_language.
+  Always provide feedback in THAT specific language.
+  Be enthusiastic about the gambling/casino metaphor - it makes statistics fun!
+  Encourage exploration of the exploration vs exploitation tradeoff.
+
+sections:
+  - section_id: "introduction"
+    title: "Welcome to the Casino!"
+    steps:
+      - step_id: "welcome"
+        title: "Welcome"
+        content_blocks:
+          - "# 🎰 Welcome to Multi-Armed Bandits! 🎰"
+          - ""
+          - "Imagine you're in a casino with multiple slot machines (called 'bandits')."
+          - "Each machine has a different (unknown) payout rate."
+          - ""
+          - "**Your goal:** Maximize your winnings by finding the best machine!"
+          - ""
+          - "**The challenge:** You don't know which machine is best until you try them."
+          - ""
+          - "Should you keep trying all machines equally (exploration)?"
+          - "Or focus on the best one you've found so far (exploitation)?"
+          - ""
+          - "This is the **exploration vs exploitation tradeoff** - one of the most important problems in machine learning!"
+
+      - step_id: "choose_language"
+        title: "Choose Your Programming Language"
+        question: "What programming language would you like to use for this activity? (Python, JavaScript, Java, C++, Go, Rust, or any other language you prefer)"
+        tokens_for_ai: |
+          Extract the programming language from the user's response.
+          Accept any reasonable programming language mention.
+
+          Categorize as 'language_selected' if they mention a programming language.
+          Categorize as 'set_language' if they want to change the conversation language.
+          Categorize as 'unclear' if you can't determine the language.
+        buckets: [language_selected, set_language, unclear]
+        transitions:
+          language_selected:
+            metadata_add:
+              programming_language: "the-users-response"
+            content_blocks:
+              - "Great choice! We'll use that language throughout this activity."
+              - ""
+              - "Let's dive into the problem! 🎰"
+            next_section_and_step: "problem:casino_scenario"
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            content_blocks:
+              - "Language preference updated. Now, which programming language would you like to use for coding?"
+            counts_as_attempt: false
+            next_section_and_step: "introduction:choose_language"
+          unclear:
+            content_blocks:
+              - "I didn't catch which programming language you'd like to use."
+              - "Please specify: Python, JavaScript, Java, C++, Ruby, Go, etc."
+            next_section_and_step: "introduction:choose_language"
+
+  - section_id: "problem"
+    title: "Understanding the Problem"
+    steps:
+      - step_id: "casino_scenario"
+        title: "The Casino Scenario"
+        content_blocks:
+          - "# 🎰 The Multi-Armed Bandit Problem"
+          - ""
+          - "You're in a casino with **3 slot machines**."
+          - ""
+          - "**Machine A:** Unknown win rate (let's say it's actually 30%)"
+          - "**Machine B:** Unknown win rate (let's say it's actually 50%)"
+          - "**Machine C:** Unknown win rate (let's say it's actually 20%)"
+          - ""
+          - "You have **100 coins** to play."
+          - "Each pull costs 1 coin and might win you 1 coin back (net zero) or lose it (net -1)."
+          - ""
+          - "**The catch:** You DON'T know the true win rates!"
+          - "You have to learn them by playing."
+          - ""
+          - "**Real-world applications:**"
+          - "- Website A/B testing (which button converts better?)"
+          - "- Online advertising (which ad gets more clicks?)"
+          - "- Clinical trials (which treatment works better?)"
+          - "- Recommendation systems (which content keeps users engaged?)"
+
+      - step_id: "understand_problem"
+        title: "Understanding Check"
+        question: "In your own words, what is the main challenge of the multi-armed bandit problem?"
+        tokens_for_ai: |
+          The student should understand the exploration vs exploitation tradeoff.
+
+          Categorize as 'excellent' if they mention:
+          - Balancing exploration (trying different options) and exploitation (using the best known option)
+          - Not knowing which option is best initially
+          - Learning while optimizing
+
+          Categorize as 'good' if they mention:
+          - Finding the best option
+          - Learning from limited attempts
+
+          Categorize as 'set_language' if requesting language change.
+          Categorize as 'needs_help' otherwise.
+        buckets: [excellent, good, set_language, needs_help]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: |
+                Enthusiastically praise their understanding!
+                Highlight the specific insight they showed about exploration vs exploitation.
+                Get them excited about solving this problem.
+                Use emojis! 🎰🎯
+            next_section_and_step: "ab_testing:naive_approach"
+          good:
+            ai_feedback:
+              tokens_for_ai: |
+                Praise what they got right.
+                Gently clarify the exploration vs exploitation tradeoff.
+                Encourage them forward.
+            next_section_and_step: "ab_testing:naive_approach"
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            content_blocks:
+              - "Language preference updated."
+            counts_as_attempt: false
+            next_section_and_step: "problem:understand_problem"
+          needs_help:
+            content_blocks:
+              - "**Hint:** Think about the tradeoff between:"
+              - "- **Exploration:** Trying different machines to learn their rates"
+              - "- **Exploitation:** Using the best machine you've found so far"
+              - ""
+              - "If you only explore, you waste coins on bad machines."
+              - "If you only exploit, you might miss an even better machine!"
+            next_section_and_step: "problem:understand_problem"
+
+  - section_id: "ab_testing"
+    title: "Traditional A/B Testing"
+    steps:
+      - step_id: "naive_approach"
+        title: "The Naive Approach"
+        content_blocks:
+          - "# 📊 Traditional A/B Testing (The Wasteful Way)"
+          - ""
+          - "The traditional approach: **Split traffic evenly!**"
+          - ""
+          - "With 100 coins and 3 machines:"
+          - "- Pull Machine A: 33 times"
+          - "- Pull Machine B: 33 times"
+          - "- Pull Machine C: 34 times"
+          - ""
+          - "Then analyze results and pick the winner."
+          - ""
+          - "**Sounds fair, right?** 🤔"
+          - ""
+          - "**But wait...** What if Machine C is terrible (20% win rate)?"
+          - "You just wasted 34 coins learning what you could have learned after 5 pulls!"
+          - ""
+          - "**The problem with A/B testing:**"
+          - "- Keeps pulling losing arms even after you know they're bad"
+          - "- Wastes resources (users, ad budget, medical treatments)"
+          - "- Takes longer to reach optimal decision"
+          - ""
+          - "Let's implement this to see the waste in action!"
+
+      - step_id: "implement_ab_test"
+        title: "Implement A/B Test Simulation"
+        question: |
+          Write code that simulates a traditional A/B test with 3 slot machines.
+
+          Requirements:
+          - 3 machines with true win rates: [0.3, 0.5, 0.2]
+          - 100 total pulls, split evenly (33, 33, 34)
+          - Track wins and losses for each machine
+          - Calculate and print the estimated win rate for each machine
+          - Calculate total reward (wins - losses)
+
+          Don't worry about perfect code - focus on the logic!
+        tokens_for_ai: |
+          The student is implementing a basic A/B test simulation in their chosen language (metadata.programming_language).
+
+          Check if their code includes:
+          - Arrays/lists to track performance
+          - Random number generation for simulating pulls
+          - Even split of pulls across machines
+          - Calculation of win rates
+          - Total reward tracking
+
+          Categorize as 'excellent' if code is complete and correct.
+          Categorize as 'good_attempt' if logic is mostly right but has minor issues.
+          Categorize as 'needs_guidance' if they're struggling with the structure.
+          Categorize as 'set_language' if requesting language change.
+          Categorize as 'wrong_language' if they used a different programming language than stored in metadata.
+        feedback_tokens_for_ai: |
+          Provide feedback in their chosen language: {metadata.programming_language}
+
+          If excellent: Praise their implementation! Run through what happens:
+          - Machine A gets pulled 33 times, wins ~10 times (30%)
+          - Machine B gets pulled 33 times, wins ~16 times (50%)
+          - Machine C gets pulled 34 times, wins ~7 times (20%)
+          - Total reward is negative (you lose money overall)
+          - Point out: We kept pulling bad machines even after learning they're bad!
+
+          If good_attempt: Point out what's good, fix specific issues, provide corrected code.
+
+          If needs_guidance: Provide a complete working example with detailed comments.
+          Explain each part: random simulation, tracking, calculating rates.
+
+          If wrong_language: Gently remind them they chose {metadata.programming_language}.
+          Provide the code in the correct language.
+        buckets: [excellent, good_attempt, needs_guidance, set_language, wrong_language]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: "Use feedback_tokens_for_ai instructions for excellent case"
+            metadata_add:
+              ab_test_completed: "true"
+            next_section_and_step: "waste:see_the_waste"
+          good_attempt:
+            ai_feedback:
+              tokens_for_ai: "Use feedback_tokens_for_ai instructions for good_attempt case"
+            metadata_add:
+              ab_test_completed: "true"
+            next_section_and_step: "waste:see_the_waste"
+          needs_guidance:
+            ai_feedback:
+              tokens_for_ai: "Use feedback_tokens_for_ai instructions for needs_guidance case"
+            counts_as_attempt: false
+            next_section_and_step: "ab_testing:implement_ab_test"
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            content_blocks:
+              - "Language preference updated."
+            counts_as_attempt: false
+            next_section_and_step: "ab_testing:implement_ab_test"
+          wrong_language:
+            ai_feedback:
+              tokens_for_ai: "Use feedback_tokens_for_ai instructions for wrong_language case"
+            counts_as_attempt: false
+            next_section_and_step: "ab_testing:implement_ab_test"
+
+  - section_id: "waste"
+    title: "Understanding the Waste"
+    steps:
+      - step_id: "see_the_waste"
+        title: "The Waste of A/B Testing"
+        content_blocks:
+          - "# 💸 The Waste of Traditional A/B Testing"
+          - ""
+          - "Let's see what happens in your A/B test simulation:"
+          - ""
+          - "**After 10 pulls of each machine, you might observe:**"
+          - "- Machine A: 3 wins (30% estimated)"
+          - "- Machine B: 5 wins (50% estimated)"
+          - "- Machine C: 2 wins (20% estimated)"
+          - ""
+          - "**You now know Machine B is best!** 🎯"
+          - ""
+          - "**But traditional A/B testing continues:**"
+          - "- Pulls Machine A: 23 more times (waste!)"
+          - "- Pulls Machine B: 23 more times (good!)"
+          - "- Pulls Machine C: 24 more times (waste!)"
+          - ""
+          - "You wasted ~47 pulls on machines you KNEW were inferior!"
+          - ""
+          - "**Cumulative regret:** The total loss from not always choosing the best option."
+          - ""
+          - "In A/B testing: HIGH regret (you keep pulling losing arms)"
+          - "In bandit algorithms: LOW regret (you adapt and focus on winners)"
+
+      - step_id: "understand_regret"
+        title: "Understanding Regret"
+        question: "Why does traditional A/B testing accumulate more regret than an adaptive algorithm?"
+        tokens_for_ai: |
+          Check if student understands that A/B testing:
+          - Continues pulling all arms equally even after learning which is best
+          - Doesn't adapt based on observations
+          - Wastes resources on known-bad options
+
+          Categorize as 'excellent' if they clearly explain the adaptive vs non-adaptive difference.
+          Categorize as 'good' if they understand but less clearly.
+          Categorize as 'set_language' if requesting language change.
+          Categorize as 'needs_clarity' otherwise.
+        buckets: [excellent, good, set_language, needs_clarity]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: |
+                Celebrate their understanding! 🎉
+                Emphasize: Adaptive algorithms LEARN and SHIFT resources to winners.
+                Get them excited to implement epsilon-greedy!
+            next_section_and_step: "epsilon_greedy:introduce_algorithm"
+          good:
+            ai_feedback:
+              tokens_for_ai: |
+                Praise their understanding.
+                Clarify: The key is ADAPTATION - shifting pulls to better arms as you learn.
+            next_section_and_step: "epsilon_greedy:introduce_algorithm"
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            content_blocks:
+              - "Language preference updated."
+            counts_as_attempt: false
+            next_section_and_step: "waste:understand_regret"
+          needs_clarity:
+            content_blocks:
+              - "**Think about it this way:**"
+              - ""
+              - "**A/B Testing:** Pulls each arm 33 times, no matter what you learn"
+              - "**Adaptive Algorithm:** Pulls good arms MORE as you learn they're good"
+              - ""
+              - "If you learn Machine B is best after 10 pulls, wouldn't you want to pull it MORE than the others?"
+            next_section_and_step: "waste:understand_regret"
+
+  - section_id: "epsilon_greedy"
+    title: "The Epsilon-Greedy Algorithm"
+    steps:
+      - step_id: "introduce_algorithm"
+        title: "Introducing Epsilon-Greedy"
+        content_blocks:
+          - "# 🎯 The Epsilon-Greedy Algorithm"
+          - ""
+          - "Now for the smart approach: **Epsilon-Greedy**"
+          - ""
+          - "**The algorithm:**"
+          - "1. Keep track of each machine's estimated win rate"
+          - "2. With probability **ε** (epsilon): EXPLORE (random machine)"
+          - "3. With probability **1-ε**: EXPLOIT (best machine so far)"
+          - "4. Update estimates after each pull"
+          - ""
+          - "**Example with ε = 0.1 (10% exploration):**"
+          - "- 10% of the time: Try a random machine (exploration)"
+          - "- 90% of the time: Pull the best machine you've found (exploitation)"
+          - ""
+          - "**Why this works:**"
+          - "- Early on: All estimates are uncertain, exploration finds the best"
+          - "- Later on: Estimates are good, exploitation maximizes reward"
+          - "- Always a small chance to explore (in case estimates are wrong)"
+          - ""
+          - "**Key data structures:**"
+          - "- Array of pull counts: [0, 0, 0]"
+          - "- Array of win counts: [0, 0, 0]"
+          - "- Array of win rates: [0.0, 0.0, 0.0]"
+          - ""
+          - "**After each pull:**"
+          - "- Increment pull count for that machine"
+          - "- If win: increment win count"
+          - "- Update win rate = wins / pulls"
+
+      - step_id: "implement_epsilon_greedy"
+        title: "Implement Epsilon-Greedy"
+        question: |
+          Implement the epsilon-greedy algorithm!
+
+          Requirements:
+          - 3 machines with true win rates: [0.3, 0.5, 0.2]
+          - 100 total pulls
+          - Epsilon = 0.1 (10% exploration)
+          - Track: pull counts, win counts, estimated win rates
+          - For each pull:
+            * Random number < 0.1? Explore (random machine)
+            * Otherwise: Exploit (best machine so far)
+            * Simulate the pull (win or lose based on true rate)
+            * Update statistics
+          - Print estimated win rates and total reward
+
+          Focus on the logic - don't worry about perfect code!
+        tokens_for_ai: |
+          The student is implementing epsilon-greedy in their chosen language (metadata.programming_language).
+
+          Check if their code includes:
+          - Arrays/lists for tracking (pull counts, wins, rates)
+          - Random number generation for epsilon decision AND pull simulation
+          - Exploration: pick random machine
+          - Exploitation: pick machine with highest estimated rate (handle ties)
+          - Update logic: increment counts, recalculate rates
+          - Loop for 100 pulls
+
+          Categorize as 'excellent' if implementation is complete and correct.
+          Categorize as 'good_attempt' if logic is mostly right but has issues.
+          Categorize as 'needs_help' if they're struggling with the algorithm.
+          Categorize as 'set_language' if requesting language change.
+          Categorize as 'wrong_language' if using different language than metadata.
+        feedback_tokens_for_ai: |
+          Provide feedback in their chosen language: {metadata.programming_language}
+
+          If excellent: CELEBRATE! 🎉 This is a real machine learning algorithm!
+          - Explain what should happen: After ~20 pulls, Machine B dominates
+          - Most pulls go to Machine B (the 50% winner)
+          - Occasional exploration keeps checking others
+          - Total reward is MUCH higher than A/B testing
+          - Regret is MUCH lower
+          - Provide their code with enthusiastic comments
+
+          If good_attempt:
+          - Praise what works
+          - Fix specific issues (epsilon logic, argmax, update calculations)
+          - Provide corrected code
+
+          If needs_help:
+          - Provide complete working implementation with detailed comments
+          - Explain the epsilon decision (random < 0.1)
+          - Explain argmax (finding best machine)
+          - Explain update logic (running average)
+
+          If wrong_language: Remind them of their chosen language, provide correct version.
+        buckets: [excellent, good_attempt, needs_help, set_language, wrong_language]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: "Use feedback_tokens_for_ai instructions for excellent case"
+            metadata_add:
+              epsilon_greedy_completed: "true"
+            next_section_and_step: "comparison:compare_algorithms"
+          good_attempt:
+            ai_feedback:
+              tokens_for_ai: "Use feedback_tokens_for_ai instructions for good_attempt case"
+            metadata_add:
+              epsilon_greedy_completed: "true"
+            next_section_and_step: "comparison:compare_algorithms"
+          needs_help:
+            ai_feedback:
+              tokens_for_ai: "Use feedback_tokens_for_ai instructions for needs_help case"
+            counts_as_attempt: false
+            next_section_and_step: "epsilon_greedy:implement_epsilon_greedy"
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            content_blocks:
+              - "Language preference updated."
+            counts_as_attempt: false
+            next_section_and_step: "epsilon_greedy:implement_epsilon_greedy"
+          wrong_language:
+            ai_feedback:
+              tokens_for_ai: "Use feedback_tokens_for_ai instructions for wrong_language case"
+            counts_as_attempt: false
+            next_section_and_step: "epsilon_greedy:implement_epsilon_greedy"
+
+  - section_id: "comparison"
+    title: "A/B vs Bandit Comparison"
+    steps:
+      - step_id: "compare_algorithms"
+        title: "The Dramatic Difference"
+        content_blocks:
+          - "# 📊 A/B Testing vs Epsilon-Greedy: The Results"
+          - ""
+          - "Let's compare what happens with 100 pulls:"
+          - ""
+          - "## 🐌 Traditional A/B Testing:"
+          - "- Machine A (30%): 33 pulls → ~10 wins"
+          - "- Machine B (50%): 33 pulls → ~16 wins"
+          - "- Machine C (20%): 34 pulls → ~7 wins"
+          - "- **Total wins: ~33**"
+          - "- **Total reward: -34** (you lose money!)"
+          - "- **Cumulative regret: ~17** (missed wins from not choosing B)"
+          - ""
+          - "## 🚀 Epsilon-Greedy (ε=0.1):"
+          - "- Machine A (30%): ~5 pulls → ~2 wins"
+          - "- Machine B (50%): ~90 pulls → ~45 wins"
+          - "- Machine C (20%): ~5 pulls → ~1 win"
+          - "- **Total wins: ~48**"
+          - "- **Total reward: -4** (much better!)"
+          - "- **Cumulative regret: ~2** (way lower!)"
+          - ""
+          - "**The difference:**"
+          - "- Epsilon-greedy wins **45% more** (15 extra wins)"
+          - "- Epsilon-greedy saves **30 wasted pulls**"
+          - "- Epsilon-greedy achieves **~88% lower regret**"
+          - ""
+          - "**This is why companies like Google, Facebook, and Amazon use bandit algorithms instead of A/B tests!**"
+
+      - step_id: "tuning_epsilon"
+        title: "Understanding Epsilon"
+        question: "What do you think would happen if we set epsilon to 0.5 (50% exploration) instead of 0.1? Would it be better or worse?"
+        tokens_for_ai: |
+          Check if student understands the exploration/exploitation tradeoff.
+
+          Higher epsilon = more exploration = MORE waste on bad arms.
+          The sweet spot is usually 0.01 to 0.2 depending on uncertainty.
+
+          Categorize as 'correct' if they say worse/more regret/more waste/less focused.
+          Categorize as 'set_language' for language changes.
+          Categorize as 'incorrect' if they think higher epsilon is better.
+        buckets: [correct, set_language, incorrect]
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: |
+                Excellent insight! 🎯
+                Explain: Higher epsilon = more random exploration = wasting pulls on known-bad arms.
+                Low epsilon (0.01-0.1) = mostly exploit the best, occasionally explore.
+                Connect to real-world: Early in a campaign, use higher epsilon (more uncertainty).
+                Later, use lower epsilon (you're confident about the best option).
+                Some algorithms even DECREASE epsilon over time!
+            next_section_and_step: "comparison:real_world"
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            content_blocks:
+              - "Language preference updated."
+            counts_as_attempt: false
+            next_section_and_step: "comparison:tuning_epsilon"
+          incorrect:
+            content_blocks:
+              - "**Think about it:**"
+              - ""
+              - "Epsilon = 0.5 means 50% of pulls are RANDOM."
+              - "Even after you know Machine B is best, half your pulls are wasted on A and C!"
+              - ""
+              - "Lower epsilon = more exploitation of the best option."
+              - "Higher epsilon = more exploration (useful only when very uncertain)."
+            next_section_and_step: "comparison:tuning_epsilon"
+
+      - step_id: "real_world"
+        title: "Real-World Applications"
+        content_blocks:
+          - "# 🌍 Real-World Multi-Armed Bandits"
+          - ""
+          - "Companies use bandit algorithms every day:"
+          - ""
+          - "## 📱 Website Optimization"
+          - "**Problem:** Which button color converts better?"
+          - "**A/B test:** Show red to 50%, blue to 50% for 2 weeks"
+          - "**Bandit:** Start equal, shift traffic to winner within days"
+          - "**Result:** 30-50% more conversions during the test period"
+          - ""
+          - "## 📰 News Headline Testing"
+          - "**Problem:** Which headline gets more clicks?"
+          - "**Bandit:** Show all headlines initially, quickly focus on winners"
+          - "**Result:** Maximize engagement while learning"
+          - ""
+          - "## 💊 Clinical Trials"
+          - "**Problem:** Which treatment works better?"
+          - "**A/B test:** Give treatment A to 50%, treatment B to 50%"
+          - "**Bandit:** Shift MORE patients to effective treatment as you learn"
+          - "**Result:** More lives saved during the trial (ethical win!)"
+          - ""
+          - "## 🎯 Ad Placement"
+          - "**Problem:** Which ad creative performs best?"
+          - "**Bandit:** Automatically shift budget to high-performing ads"
+          - "**Result:** Lower cost per conversion, higher ROI"
+          - ""
+          - "## 🎮 Game Design"
+          - "**Problem:** Which difficulty level keeps players engaged?"
+          - "**Bandit:** Adapt difficulty to maximize playtime"
+          - "**Result:** Better player retention"
+          - ""
+          - "**Advanced algorithms:**"
+          - "- **Thompson Sampling:** Bayesian approach, often better than epsilon-greedy"
+          - "- **UCB (Upper Confidence Bound):** Uses confidence intervals"
+          - "- **Contextual Bandits:** Different arms for different user types"
+          - "- **Bayesian Bandits:** Full probability distributions"
+
+  - section_id: "conclusion"
+    title: "Conclusion"
+    steps:
+      - step_id: "reflection"
+        title: "Final Reflection"
+        question: "In your own words, explain when you would use a bandit algorithm instead of traditional A/B testing, and why."
+        tokens_for_ai: |
+          Student should understand:
+          - Use bandits when you want to minimize regret (wasted resources)
+          - Use bandits when you can't afford to waste on losing options
+          - Use bandits when you want faster optimization
+          - A/B testing is simpler but wastes resources
+
+          Categorize as 'excellent' if they clearly explain the efficiency/regret benefit.
+          Categorize as 'good' if they show understanding but less detailed.
+          Categorize as 'set_language' for language changes.
+          Categorize as 'needs_help' if they don't get the key benefit.
+        buckets: [excellent, good, set_language, needs_help]
+        transitions:
+          excellent:
+            ai_feedback:
+              tokens_for_ai: |
+                Celebrate their mastery! 🎉🎰
+                They now understand a fundamental machine learning algorithm.
+                Highlight specific insights from their answer.
+                Encourage them to implement this in real projects.
+                Mention: This is just the beginning - Thompson Sampling, UCB, contextual bandits are even more powerful!
+            metadata_add:
+              activity_completed: "true"
+              mastery_level: "excellent"
+            next_section_and_step: "conclusion:goodbye"
+          good:
+            ai_feedback:
+              tokens_for_ai: |
+                Praise their understanding!
+                Emphasize the key point: Bandits minimize regret by adapting.
+                Encourage them to explore more advanced algorithms.
+            metadata_add:
+              activity_completed: "true"
+              mastery_level: "good"
+            next_section_and_step: "conclusion:goodbye"
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            content_blocks:
+              - "Language preference updated."
+            counts_as_attempt: false
+            next_section_and_step: "conclusion:reflection"
+          needs_help:
+            content_blocks:
+              - "**Key insight:**"
+              - ""
+              - "Bandit algorithms ADAPT as they learn."
+              - "A/B testing DOESN'T adapt - it keeps wasting resources on losing options."
+              - ""
+              - "**Use bandits when:**"
+              - "- You can't afford to waste resources (money, users, medical treatments)"
+              - "- You want to optimize faster"
+              - "- You want to minimize regret"
+              - ""
+              - "Give it another shot! When would you use a bandit algorithm?"
+            next_section_and_step: "conclusion:reflection"
+
+      - step_id: "goodbye"
+        title: "Congratulations!"
+        content_blocks:
+          - "# 🎰🎉 Congratulations! You've Mastered Multi-Armed Bandits! 🎉🎰"
+          - ""
+          - "You now understand:"
+          - "✅ The exploration vs exploitation tradeoff"
+          - "✅ Why traditional A/B testing is wasteful"
+          - "✅ How epsilon-greedy minimizes regret"
+          - "✅ Real-world applications of bandit algorithms"
+          - "✅ How to implement adaptive learning in code"
+          - ""
+          - "**Next steps:**"
+          - "- Implement Thompson Sampling (Bayesian approach)"
+          - "- Learn UCB (Upper Confidence Bound) algorithm"
+          - "- Explore contextual bandits (different arms for different contexts)"
+          - "- Apply this to a real A/B testing scenario"
+          - ""
+          - "**You're now equipped with a powerful ML algorithm used by Google, Facebook, Amazon, and Netflix!**"
+          - ""
+          - "Keep exploring, keep exploiting! 🚀"
