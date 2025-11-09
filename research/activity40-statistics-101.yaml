@@ -1,0 +1,786 @@
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+tokens_for_ai_rubric: |
+  Evaluate the student's understanding of basic statistical concepts.
+
+  Consider:
+  - Grasp of central tendency (mean, median, mode)
+  - Understanding of variation and spread
+  - Ability to interpret data
+  - Recognition of distributions
+  - Practical application of concepts
+
+  Provide clear explanations with real-world examples.
+
+sections:
+  - section_id: introduction
+    title: Welcome to Statistics
+    steps:
+      - step_id: welcome
+        title: Why Statistics Matters
+        content_blocks:
+          - "# Statistics 101: Making Sense of Data 📊"
+          - ""
+          - "**Welcome to the world of statistics!**"
+          - ""
+          - "Statistics helps us:"
+          - "- Understand patterns in data"
+          - "- Make informed decisions"
+          - "- Test hypotheses scientifically"
+          - "- Predict future outcomes"
+          - "- Avoid being fooled by randomness"
+          - ""
+          - "**You'll learn:**"
+          - "✓ Measures of central tendency (mean, median, mode)"
+          - "✓ Measures of spread (range, variance, standard deviation)"
+          - "✓ Probability basics"
+          - "✓ Distributions and what they mean"
+          - "✓ How to interpret data"
+          - ""
+          - "**Real-world applications:**"
+          - "- Medicine (clinical trial results)"
+          - "- Business (sales forecasting)"
+          - "- Sports (player performance)"
+          - "- Science (experimental data)"
+          - "- Everyday decisions (risk assessment)"
+        question: Ready to learn how to understand data and make better decisions?
+        tokens_for_ai: |
+          Accept positive responses as 'ready'.
+          Language preference as 'set_language'.
+          Otherwise 'off_topic'.
+        buckets:
+          - ready
+          - set_language
+          - off_topic
+        transitions:
+          ready:
+            content_blocks:
+              - "Excellent! Let's start with the basics of describing data! 📈"
+            next_section_and_step: central_tendency:step_1
+          set_language:
+            content_blocks:
+              - "Language preference updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: introduction:welcome
+          off_topic:
+            content_blocks:
+              - "Let's learn statistics together! Are you ready to begin?"
+            counts_as_attempt: false
+            next_section_and_step: introduction:welcome
+
+  - section_id: central_tendency
+    title: Describing Data - Central Tendency
+    steps:
+      - step_id: step_1
+        title: The Center of Data
+        content_blocks:
+          - "## Central Tendency: Finding the 'Middle' 📍"
+          - ""
+          - "When we have a dataset, we often want to describe it with a single number that represents the 'typical' or 'central' value."
+          - ""
+          - "**Three measures of central tendency:**"
+          - ""
+          - "**1. Mean (Average)**"
+          - "- Sum all values and divide by the count"
+          - "- Most commonly used"
+          - "- Sensitive to extreme values (outliers)"
+          - "- Example: Test scores 80, 85, 90, 95 → Mean = (80+85+90+95)/4 = 87.5"
+          - ""
+          - "**2. Median (Middle Value)**"
+          - "- The middle number when data is sorted"
+          - "- Not affected by outliers"
+          - "- Better for skewed data"
+          - "- Example: Salaries $30k, $35k, $40k, $45k, $200k → Median = $40k"
+          - ""
+          - "**3. Mode (Most Frequent)**"
+          - "- The value that appears most often"
+          - "- Useful for categorical data"
+          - "- Can have multiple modes or no mode"
+          - "- Example: Shoe sizes 7, 8, 8, 8, 9, 10 → Mode = 8"
+          - ""
+          - "**When to use which:**"
+          - "- Mean: Normally distributed data without outliers"
+          - "- Median: Skewed data or data with outliers (like income)"
+          - "- Mode: Categorical data or finding most common value"
+        question: "You have exam scores: 60, 70, 75, 80, 85, 90, 95. What is the median score?"
+        tokens_for_ai: |
+          The median is the middle value when sorted.
+          Scores: 60, 70, 75, 80, 85, 90, 95 (7 values)
+          Middle value (4th position) = 80
+
+          Categorize as:
+          - correct: Says 80 or "eighty"
+          - calculated_mean: Says 79.3 or ~79 (they calculated the mean instead)
+          - close: Says 75 or 85 (one position off)
+          - confused: Incorrect answer showing confusion
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct:
+          - Praise them! Explain why 80 is the middle value.
+          - Note that with odd numbers, median is straightforward.
+
+          If they calculated mean:
+          - Good effort but that's the mean!
+          - Explain median is the MIDDLE value when sorted, not the average.
+
+          If close or confused:
+          - Show the sorted list: 60, 70, 75, [80], 85, 90, 95
+          - The middle position (4th out of 7) is 80.
+        buckets:
+          - correct
+          - calculated_mean
+          - close
+          - confused
+          - set_language
+          - off_topic
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect! 80 is the median - the middle value.
+                With 7 values, the 4th position is the center.
+                Median is great because outliers don't affect it!
+            metadata_add:
+              score: "n+2"
+              concepts_mastered: "n+1"
+            next_section_and_step: central_tendency:step_2
+          calculated_mean:
+            ai_feedback:
+              tokens_for_ai: |
+                That's the mean (average), not the median!
+                Median = middle value when sorted.
+                For 60,70,75,[80],85,90,95 → median is 80.
+                The mean would be all values summed divided by 7.
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: central_tendency:step_2
+          close:
+            ai_feedback:
+              tokens_for_ai: |
+                Close! You're near the middle.
+                Sort the values: 60, 70, 75, [80], 85, 90, 95
+                The exact middle (4th position out of 7) is 80.
+            next_section_and_step: central_tendency:step_1
+          confused:
+            content_blocks:
+              - "The median is the MIDDLE value when you sort the numbers from smallest to largest."
+              - "With 7 values, the 4th number is in the middle."
+            next_section_and_step: central_tendency:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: central_tendency:step_1
+          off_topic:
+            content_blocks:
+              - "Let's find the median! Sort the scores and identify the middle value."
+            next_section_and_step: central_tendency:step_1
+
+      - step_id: step_2
+        title: Mean vs Median with Outliers
+        content_blocks:
+          - "## The Power of Median: Handling Outliers 🎯"
+          - ""
+          - "**Why median matters: The salary example**"
+          - ""
+          - "Imagine a small company with 5 employees and their salaries:"
+          - "- Employee A: $40,000"
+          - "- Employee B: $45,000"
+          - "- Employee C: $50,000"
+          - "- Employee D: $55,000"
+          - "- CEO: $500,000"
+          - ""
+          - "**Mean salary:** ($40k + $45k + $50k + $55k + $500k) / 5 = $138,000"
+          - "**Median salary:** $50,000 (the middle value)"
+          - ""
+          - "**Which better represents the 'typical' employee salary?**"
+          - "The median! The mean is dragged up by the CEO's outlier salary."
+          - ""
+          - "**This is why:**"
+          - "- Median home prices are reported (not mean)"
+          - "- Median household income is used (not mean)"
+          - "- Outliers don't distort the median"
+          - ""
+          - "**When one extreme value can mislead, use median!**"
+        question: "A neighborhood has 6 home prices: $200k, $210k, $220k, $230k, $240k, and $2,000k. If someone says 'the average home price is $516k,' why might that be misleading? What would better represent typical home prices?"
+        tokens_for_ai: |
+          They should recognize that:
+          - The $2 million home is an outlier
+          - Mean is misleading ($516k)
+          - Median would be better (between $220k and $230k = $225k)
+
+          Categorize as:
+          - excellent_understanding: Mentions outlier skewing mean, median better
+          - understands_outlier: Recognizes the expensive house is the problem
+          - suggests_median: Says median without explaining why
+          - partial_understanding: On the right track but incomplete
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Validate their understanding of outliers affecting mean!
+
+          Key points:
+          - The $2M home is an outlier (way higher than others)
+          - Mean gets pulled up to $516k (not representative)
+          - Median would be $225k (between 220 and 230) - much more typical
+          - This is why real estate uses median prices!
+
+          Praise their critical thinking about statistics.
+        buckets:
+          - excellent_understanding
+          - understands_outlier
+          - suggests_median
+          - partial_understanding
+          - set_language
+          - off_topic
+        transitions:
+          excellent_understanding:
+            ai_feedback:
+              tokens_for_ai: |
+                Brilliant analysis!
+                Yes - the $2M outlier drags the mean to $516k, misleading!
+                The median ($225k) better represents typical homes.
+                This is exactly why statistics literacy matters!
+            metadata_add:
+              score: "n+2"
+              concepts_mastered: "n+1"
+            next_section_and_step: spread:step_1
+          understands_outlier:
+            ai_feedback:
+              tokens_for_ai: |
+                Exactly! The $2M home is an outlier.
+                It pulls the mean to $516k, but most homes are $200-240k.
+                The median ($225k) would be more representative.
+                Great critical thinking!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: spread:step_1
+          suggests_median:
+            ai_feedback:
+              tokens_for_ai: |
+                Good instinct - median is better here!
+                Why? The $2M outlier skews the mean to $516k.
+                But the median ($225k) represents the typical home price.
+                Outliers don't affect median - that's its power!
+            next_section_and_step: spread:step_1
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: |
+                You're on the right track!
+                The key: one $2M home among $200-240k homes.
+                This outlier pulls mean to $516k (misleading).
+                Median ($225k) better shows typical prices.
+            next_section_and_step: spread:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: central_tendency:step_2
+          off_topic:
+            content_blocks:
+              - "Think about: Does $516k accurately represent what most homes in this neighborhood cost?"
+            next_section_and_step: central_tendency:step_2
+
+  - section_id: spread
+    title: Measuring Spread - Variability
+    steps:
+      - step_id: step_1
+        title: Understanding Variability
+        content_blocks:
+          - "## Spread: How Much Do Values Vary? 📏"
+          - ""
+          - "Central tendency tells us the 'middle,' but doesn't tell the full story."
+          - ""
+          - "**Consider two classes:**"
+          - "- Class A scores: 80, 82, 78, 81, 79 (mean = 80)"
+          - "- Class B scores: 50, 70, 80, 90, 110 (mean = 80)"
+          - ""
+          - "Same mean, VERY different distributions!"
+          - "Class A is consistent. Class B is all over the place."
+          - ""
+          - "**Measures of Spread:**"
+          - ""
+          - "**1. Range**"
+          - "- Maximum value minus minimum value"
+          - "- Simple but sensitive to outliers"
+          - "- Class A: 82 - 78 = 4"
+          - "- Class B: 110 - 50 = 60"
+          - ""
+          - "**2. Variance**"
+          - "- Average of squared differences from mean"
+          - "- Measures how spread out values are"
+          - "- Larger variance = more spread"
+          - ""
+          - "**3. Standard Deviation (SD)**"
+          - "- Square root of variance"
+          - "- Same units as original data (easier to interpret)"
+          - "- Most commonly used measure of spread"
+          - ""
+          - "**Why spread matters:**"
+          - "- Quality control (consistency in manufacturing)"
+          - "- Risk assessment (investment volatility)"
+          - "- Performance evaluation (consistency vs streaky)"
+          - "- Research (reliability of measurements)"
+        question: "Two basketball players both average 20 points per game. Player A's scores: 18, 19, 20, 21, 22. Player B's scores: 5, 10, 20, 30, 35. Which player is more consistent, and why does that matter?"
+        tokens_for_ai: |
+          Player A is more consistent (low spread/variance).
+          Player B is inconsistent/volatile (high spread).
+
+          Look for understanding that:
+          - Player A has consistent performance (small variation)
+          - Player B is unpredictable (large variation)
+          - Consistency matters for reliability/strategy
+
+          Categorize as:
+          - excellent_answer: Identifies Player A as consistent AND explains why it matters
+          - identifies_player_a: Correctly says Player A is more consistent
+          - identifies_inconsistency: Recognizes the difference in variability
+          - basic_answer: Mentions one player without explaining
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Affirm their understanding of consistency/spread!
+
+          Key points:
+          - Player A: very consistent (range 18-22, low variation)
+          - Player B: unpredictable (range 5-35, high variation)
+          - Consistency matters: reliable performance, easier to plan around
+          - Player B might have higher ceiling but less reliable
+
+          Connect to real sports analysis and standard deviation concept.
+        buckets:
+          - excellent_answer
+          - identifies_player_a
+          - identifies_inconsistency
+          - basic_answer
+          - set_language
+          - off_topic
+        transitions:
+          excellent_answer:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect analysis!
+                Player A: 18-22 (consistent, low spread).
+                Player B: 5-35 (volatile, high spread).
+                Consistency means reliability - you know what to expect!
+                This is what standard deviation measures!
+            metadata_add:
+              score: "n+2"
+              concepts_mastered: "n+1"
+            next_section_and_step: probability:step_1
+          identifies_player_a:
+            ai_feedback:
+              tokens_for_ai: |
+                Correct! Player A is much more consistent.
+                Range: A is 18-22 (4 points), B is 5-35 (30 points!).
+                Low spread = predictable performance.
+                High spread = unpredictable, risky.
+                That's what measuring spread tells us!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: probability:step_1
+          identifies_inconsistency:
+            ai_feedback:
+              tokens_for_ai: |
+                Good observation about the difference!
+                Player A varies 18-22 (tight, consistent).
+                Player B varies 5-35 (wild, unpredictable).
+                Consistency = reliability. This is why we measure spread!
+            next_section_and_step: probability:step_1
+          basic_answer:
+            ai_feedback:
+              tokens_for_ai: |
+                Let's look at the ranges:
+                Player A: 18, 19, 20, 21, 22 (very tight - consistent!)
+                Player B: 5, 10, 20, 30, 35 (all over - inconsistent!)
+                Consistency means you can rely on them. Spread measures this!
+            next_section_and_step: probability:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: spread:step_1
+          off_topic:
+            content_blocks:
+              - "Compare the ranges: Player A (18-22) vs Player B (5-35). Who's more predictable?"
+            next_section_and_step: spread:step_1
+
+  - section_id: probability
+    title: Probability Basics
+    steps:
+      - step_id: step_1
+        title: Understanding Probability
+        content_blocks:
+          - "## Probability: Quantifying Uncertainty 🎲"
+          - ""
+          - "**What is probability?**"
+          - "A measure of how likely something is to happen."
+          - ""
+          - "**Probability scale:**"
+          - "- 0 = Impossible (0%)"
+          - "- 0.5 = Even chance (50%)"
+          - "- 1 = Certain (100%)"
+          - ""
+          - "**Basic probability formula:**"
+          - "P(event) = (Number of favorable outcomes) / (Total possible outcomes)"
+          - ""
+          - "**Example: Fair die**"
+          - "- P(rolling a 3) = 1/6 ≈ 0.167 (16.7%)"
+          - "- P(rolling even) = 3/6 = 0.5 (50%)"
+          - "- P(rolling 1-6) = 6/6 = 1 (100%)"
+          - ""
+          - "**Key concepts:**"
+          - ""
+          - "**Independent events:**"
+          - "- One doesn't affect the other"
+          - "- Coin flips, die rolls"
+          - "- P(heads then heads) = 0.5 × 0.5 = 0.25"
+          - ""
+          - "**Dependent events:**"
+          - "- One affects the probability of the other"
+          - "- Drawing cards without replacement"
+          - ""
+          - "**Common misconceptions:**"
+          - "- Gambler's fallacy: 'It's due!' (No - each event is independent)"
+          - "- Hot hand fallacy: Past streaks predict future (they don't in random events)"
+        question: "You flip a fair coin 5 times and get heads every time. What's the probability the 6th flip is heads? Why?"
+        tokens_for_ai: |
+          Correct answer: 50% or 0.5 or 1/2
+
+          Key understanding: Each flip is INDEPENDENT.
+          Past flips don't affect future flips.
+
+          Common wrong answer: "It's more likely to be tails" (gambler's fallacy)
+
+          Categorize as:
+          - correct_with_reasoning: Says 50% AND explains independence
+          - correct_answer: Says 50% without full explanation
+          - gamblers_fallacy: Says tails is more likely because "it's due"
+          - pattern_thinking: Thinks the pattern will continue
+          - confused: Other incorrect reasoning
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct:
+          - Excellent! Each flip is independent.
+          - Past results don't affect future flips.
+          - The coin has no "memory" - always 50/50.
+
+          If gambler's fallacy:
+          - Common misconception! This is the "gambler's fallacy."
+          - Each flip is independent - past doesn't affect future.
+          - It's still 50/50, even after 100 heads in a row!
+          - The coin doesn't "owe" you tails.
+
+          Explain independence clearly.
+        buckets:
+          - correct_with_reasoning
+          - correct_answer
+          - gamblers_fallacy
+          - pattern_thinking
+          - confused
+          - set_language
+          - off_topic
+        transitions:
+          correct_with_reasoning:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect understanding!
+                Each coin flip is independent - past doesn't affect future.
+                The coin has no memory. Always 50/50!
+                You've avoided the gambler's fallacy - great!
+            metadata_add:
+              score: "n+2"
+              concepts_mastered: "n+1"
+            next_section_and_step: distributions:step_1
+          correct_answer:
+            ai_feedback:
+              tokens_for_ai: |
+                Correct - still 50%!
+                Why? Each flip is INDEPENDENT.
+                Past flips don't affect future flips.
+                The coin doesn't "remember" or "balance out."
+                Great job avoiding the gambler's fallacy!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: distributions:step_1
+          gamblers_fallacy:
+            ai_feedback:
+              tokens_for_ai: |
+                Common misconception! This is the "gambler's fallacy."
+                Each flip is INDEPENDENT - the coin has no memory.
+                Past flips don't affect future flips.
+                It's still 50/50, even after 1000 heads!
+                The coin doesn't "owe" you tails.
+            next_section_and_step: probability:step_1
+          pattern_thinking:
+            ai_feedback:
+              tokens_for_ai: |
+                The streak feels meaningful, but it's not!
+                Each flip is independent - 50/50 every time.
+                Past results don't predict future with fair coins.
+                Random sequences often have "patterns" but they're meaningless.
+            next_section_and_step: probability:step_1
+          confused:
+            content_blocks:
+              - "Key concept: INDEPENDENCE"
+              - "Each coin flip is independent - past flips don't affect future flips."
+              - "A fair coin always has 50% chance of heads, regardless of history."
+            next_section_and_step: probability:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: probability:step_1
+          off_topic:
+            content_blocks:
+              - "Think: Does the coin 'remember' previous flips? Are they independent events?"
+            next_section_and_step: probability:step_1
+
+  - section_id: distributions
+    title: Understanding Distributions
+    steps:
+      - step_id: step_1
+        title: The Normal Distribution
+        content_blocks:
+          - "## The Normal Distribution: Nature's Pattern 📊"
+          - ""
+          - "**The bell curve (normal distribution):**"
+          - "The most important distribution in statistics!"
+          - ""
+          - "**Characteristics:**"
+          - "- Symmetric, bell-shaped"
+          - "- Mean = Median = Mode (at the center)"
+          - "- Most data near the mean"
+          - "- Tails extend infinitely (but rarely reach extremes)"
+          - ""
+          - "**The 68-95-99.7 Rule (Empirical Rule):**"
+          - "- 68% of data within 1 standard deviation of mean"
+          - "- 95% of data within 2 standard deviations"
+          - "- 99.7% of data within 3 standard deviations"
+          - ""
+          - "**Example: IQ scores**"
+          - "- Mean = 100, Standard Deviation = 15"
+          - "- 68% of people: IQ between 85-115"
+          - "- 95% of people: IQ between 70-130"
+          - "- 99.7% of people: IQ between 55-145"
+          - ""
+          - "**Why normal distribution matters:**"
+          - "- Many natural phenomena follow it (height, measurement errors)"
+          - "- Central Limit Theorem (averages tend toward normal)"
+          - "- Foundation for many statistical tests"
+          - "- Allows predictions and probability calculations"
+          - ""
+          - "**Real-world examples:**"
+          - "- Test scores, heights, blood pressure, measurement errors"
+        question: "SAT scores are normally distributed with mean 1000 and standard deviation 200. Using the 68-95-99.7 rule, approximately what percentage of students score between 800 and 1200?"
+        tokens_for_ai: |
+          800 to 1200 is mean (1000) ± 1 standard deviation (200).
+          68% of data falls within 1 SD of the mean.
+
+          Correct answer: 68% (or approximately 68%, or about 2/3)
+
+          Categorize as:
+          - correct: Says 68% or approximately 68%
+          - close: Says 66% or 70% (reasonably close)
+          - says_95: Says 95% (confused 1 SD with 2 SD)
+          - unclear_reasoning: Wrong answer showing confusion
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          If correct:
+          - Excellent! 800-1200 is 1000 ± 200 (1 SD).
+          - 68% of data within 1 SD of mean.
+          - You've mastered the empirical rule!
+
+          If says 95%:
+          - Close reasoning! But 95% is for 2 SDs.
+          - 800-1200 is only 1 SD (200 points) from mean.
+          - 1 SD = 68%, 2 SDs = 95%, 3 SDs = 99.7%
+
+          Explain the calculation clearly.
+        buckets:
+          - correct
+          - close
+          - says_95
+          - unclear_reasoning
+          - set_language
+          - off_topic
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect! 800-1200 is mean ± 1 SD.
+                1 SD = 68% of data.
+                You understand the empirical rule!
+                This is fundamental for interpreting normal distributions!
+            metadata_add:
+              score: "n+2"
+              concepts_mastered: "n+1"
+            next_section_and_step: conclusion:step_1
+          close:
+            ai_feedback:
+              tokens_for_ai: |
+                Very close! The exact answer is 68%.
+                800-1200 = 1000 ± 200 (1 standard deviation).
+                The 68-95-99.7 rule: 68% within 1 SD.
+                Great understanding of the concept!
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: conclusion:step_1
+          says_95:
+            ai_feedback:
+              tokens_for_ai: |
+                You're thinking of the right rule, but different range!
+                95% is for 2 standard deviations (600-1400).
+                800-1200 is only 1 SD (200 points) from mean.
+                1 SD = 68%, 2 SDs = 95%, 3 SDs = 99.7%
+            next_section_and_step: distributions:step_1
+          unclear_reasoning:
+            content_blocks:
+              - "Use the 68-95-99.7 rule:"
+              - "800-1200 is the mean (1000) ± 200"
+              - "200 is 1 standard deviation"
+              - "68% of data falls within 1 SD of the mean"
+            next_section_and_step: distributions:step_1
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: distributions:step_1
+          off_topic:
+            content_blocks:
+              - "Calculate: How many standard deviations is 800-1200 from the mean (1000)?"
+            next_section_and_step: distributions:step_1
+
+  - section_id: conclusion
+    title: Statistics Mastery
+    steps:
+      - step_id: step_1
+        title: Applying Statistical Thinking
+        content_blocks:
+          - "## Congratulations, Statistician! 🎓📊"
+          - ""
+          - "**You've mastered the fundamentals!**"
+          - ""
+          - "**What you've learned:**"
+          - "✓ Central Tendency (mean, median, mode)"
+          - "✓ When to use median vs mean (outliers!)"
+          - "✓ Measures of spread (range, variance, standard deviation)"
+          - "✓ Probability and independence"
+          - "✓ The normal distribution and 68-95-99.7 rule"
+          - ""
+          - "**Real-world statistical thinking:**"
+          - ""
+          - "**Evaluating claims:**"
+          - "- 'Average salary is $100k!' → Check for outliers, ask for median"
+          - "- 'Significant difference!' → What's the sample size?"
+          - "- 'This trend proves...' → Correlation ≠ causation"
+          - ""
+          - "**Making decisions:**"
+          - "- Compare means AND spreads (consistency matters!)"
+          - "- Understand probability (avoid gambler's fallacy)"
+          - "- Consider distributions (is it normal? skewed?)"
+          - ""
+          - "**Critical thinking:**"
+          - "- Always ask: What's the sample size?"
+          - "- Question: How was data collected?"
+          - "- Consider: What's being measured exactly?"
+          - "- Look for: Potential biases or confounding factors"
+        question: "How will you use statistical thinking in your daily life? Give an example of where understanding statistics could help you make better decisions."
+        tokens_for_ai: |
+          This is a reflection question.
+
+          Look for application of concepts learned:
+          - Evaluating claims with mean/median awareness
+          - Understanding probability in decisions
+          - Recognizing variability/consistency
+          - Critical thinking about data
+
+          Categorize as:
+          - excellent_application: Specific example showing deep understanding
+          - practical_example: Good real-world application
+          - general_reflection: Acknowledges usefulness
+          - brief_response: Short but relevant
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          Provide encouraging, personalized feedback!
+
+          Validate their example if they give one.
+          Add suggestions for statistical thinking in daily life:
+          - Evaluating news/research claims
+          - Financial decisions (investments, insurance)
+          - Health decisions (understanding medical stats)
+          - Sports analysis
+          - Weather forecasts (probability!)
+
+          Celebrate their completion of Statistics 101!
+        buckets:
+          - excellent_application
+          - practical_example
+          - general_reflection
+          - brief_response
+          - set_language
+          - off_topic
+        transitions:
+          excellent_application:
+            ai_feedback:
+              tokens_for_ai: |
+                Fantastic example showing real understanding!
+                Reference their specific application.
+                Emphasize how statistical literacy empowers better decisions.
+                Encourage continued critical thinking with data!
+            metadata_add:
+              activity_completed: "true"
+          practical_example:
+            ai_feedback:
+              tokens_for_ai: |
+                Great practical thinking!
+                Acknowledge their example.
+                Statistics helps us cut through misleading claims.
+                You now have tools to think critically about data!
+            metadata_add:
+              activity_completed: "true"
+          general_reflection:
+            ai_feedback:
+              tokens_for_ai: |
+                Good reflection!
+                Statistics is everywhere - news, health, money, sports.
+                You can now question claims and understand probability.
+                Keep thinking statistically!
+            metadata_add:
+              activity_completed: "true"
+          brief_response:
+            ai_feedback:
+              tokens_for_ai: |
+                Thank you for completing Statistics 101!
+                You've gained powerful tools for understanding data.
+                Use them to make informed decisions and question claims!
+            metadata_add:
+              activity_completed: "true"
+          set_language:
+            content_blocks:
+              - "Language updated!"
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: conclusion:step_1
+          off_topic:
+            content_blocks:
+              - "Reflect on: How could understanding mean, median, probability, and distributions help you in everyday decisions?"
+            next_section_and_step: conclusion:step_1
