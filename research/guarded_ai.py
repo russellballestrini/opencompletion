@@ -297,14 +297,19 @@ def provide_feedback_prompts(
 
 
 def execute_processing_script(metadata, script):
-    # Prepare the local environment for the script
-    local_env = {"metadata": metadata, "script_result": None}
+    # Prepare the environment for the script
+    # Use the same dict for both globals and locals to support comprehensions
+    script_env = {
+        "__builtins__": __builtins__,
+        "metadata": metadata,
+        "script_result": None,
+    }
 
     # Execute the script
-    exec(script, {}, local_env)
+    exec(script, script_env, script_env)
 
     # Return the result from the script
-    return local_env["script_result"]
+    return script_env["script_result"]
 
 
 def get_next_section_and_step(activity_content, current_section_id, current_step_id):
