@@ -163,7 +163,9 @@ script_result = {
         mock_metadata["ai_board"][90:92] = ["Destroyer"] * 2  # Destroyer
 
         with patch.object(
-            activity, "execute_processing_script", return_value={"metadata": mock_metadata}
+            activity,
+            "execute_processing_script",
+            return_value={"metadata": mock_metadata},
         ) as mock_exec:
             metadata = {}
             result = activity.execute_processing_script(metadata, setup_script)

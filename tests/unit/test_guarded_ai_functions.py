@@ -311,7 +311,9 @@ class TestGuardedAI(unittest.TestCase):
             # Verify client was created and stored with actual model ID
             mock_get_client.assert_called_with("http://test.com", "test-key")
             self.assertIn("test-model-id", guarded_ai.MODEL_CLIENT_MAP)
-            self.assertEqual(guarded_ai.MODEL_CLIENT_MAP["test-model-id"][0], mock_client)
+            self.assertEqual(
+                guarded_ai.MODEL_CLIENT_MAP["test-model-id"][0], mock_client
+            )
             self.assertEqual(
                 guarded_ai.MODEL_CLIENT_MAP["test-model-id"][1], "http://test.com"
             )
