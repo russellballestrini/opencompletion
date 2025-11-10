@@ -32,6 +32,10 @@ class TestFlaskAppActivityFunctions(unittest.TestCase):
 
     def setUp(self):
         """Set up test Flask application with in-memory database"""
+        # Ensure instance directory exists (GitHub Actions might not have it)
+        import os
+        os.makedirs(app.app.instance_path, exist_ok=True)
+
         # Store original database URI
         self.original_db_uri = app.app.config.get("SQLALCHEMY_DATABASE_URI")
 
