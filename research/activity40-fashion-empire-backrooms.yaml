@@ -1,0 +1,1565 @@
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+tokens_for_ai_rubric: |
+  You are helping a creative fashion director manage their underground fashion empire.
+
+  Evaluate:
+  - Their creative vision and decision-making
+  - Leadership style with robots and NPCs
+  - Problem-solving during missions and emergencies
+  - Fashion sense and aesthetic choices
+
+  Stay immersive! This is their brand, their empire, their vision.
+  The backrooms aesthetic is liminal, mysterious, but empowering.
+  They're in control. Celebrate their choices!
+
+sections:
+  - section_id: awakening
+    title: Welcome to Your Empire
+    steps:
+      - step_id: intro
+        title: The Vision Awakens
+        content_blocks:
+          - "# ✨ THE DIRECTOR AWAKENS ✨"
+          - ""
+          - "You open your eyes in the **Director's Suite**—a minimalist office overlooking the vast fashion empire you've built."
+          - ""
+          - "Screens flicker with live feeds:"
+          - "- 📦 **Warehouse Level -3**: Robots sorting fabric shipments"
+          - "- 💇 **The Salon**: Stylists prepping models for tonight's show"
+          - "- 🚢 **The Sub Bay**: Underwater fabric dye laboratory humming"
+          - "- ⚡ **Reactor Atelier**: Nuclear-powered textile synthesizers online"
+          - ""
+          - "Your empire runs 24/7 in the **backrooms beneath the city**—a labyrinth of liminal spaces you've transformed into the world's most cutting-edge fashion operation."
+          - ""
+          - "**You are the Vision. You are the Brand. You are in Control.**"
+          - ""
+          - "A soft chime. Your AI assistant, **V.O.G.U.E.** (Virtual Operational Guide for Unlimited Expression), materializes:"
+          - ""
+          - "*Good morning, Director. Shall we review today's operations?*"
+        question: What's your name, Director? (This is YOUR empire—choose how you want to be known!)
+        tokens_for_ai: |
+          Store their name as the Director.
+          Accept ANY name they choose.
+
+          Categorize as:
+          - name_provided: They give a name
+          - set_language: Language preference
+          - off_topic: Unclear or unrelated
+        feedback_tokens_for_ai: |
+          Welcome them by their chosen Director name!
+          Make it feel powerful and personalized.
+          Reference their empire and role with authority.
+        buckets:
+          - name_provided
+          - set_language
+          - off_topic
+        transitions:
+          name_provided:
+            ai_feedback:
+              tokens_for_ai: |
+                Welcome Director [their name] with authority and style!
+                "Welcome back, Director [name]. Your empire awaits your vision."
+                Make them feel powerful and in control.
+            metadata_add:
+              director_name: "the-users-response"
+              empire_status: "operational"
+              score: "n+1"
+            next_section_and_step: awakening:morning_briefing
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: awakening:intro
+          off_topic:
+            content_blocks:
+              - "V.O.G.U.E.: *Director, I need your name for security clearance. What shall I call you?*"
+            next_section_and_step: awakening:intro
+
+      - step_id: morning_briefing
+        title: Operations Status
+        content_blocks:
+          - "## 📊 MORNING BRIEFING - Operations Dashboard"
+          - ""
+          - "V.O.G.U.E. projects holographic stats:"
+          - ""
+          - "**🤖 ROBOT WORKFORCE STATUS**"
+          - "- 47 Assembly Drones (Warehouse -3)"
+          - "- 12 Style Bots (The Salon)"
+          - "- 8 Dye Submersibles (Sub Bay)"
+          - "- 3 Reactor Engineers (Reactor Atelier)"
+          - "✓ All systems nominal"
+          - ""
+          - "**👥 NPC EMPLOYEES STATUS**"
+          - "- Mx. Kai (Head of Avant-Garde Division)"
+          - "- Zara-7 (Lead Textile Engineer)"
+          - "- Viktor (Senior Runway Coordinator)"
+          - "- Luna & Sol (Twin Design Assistants)"
+          - "✓ Awaiting your direction"
+          - ""
+          - "**📅 UPCOMING SHOWS**"
+          - "- Tonight: **Neon Dreams Collection** (85% ready)"
+          - "- This week: 3 client consultations"
+          - "- Emergency Protocol: Active (rare, but ready)"
+          - ""
+          - "V.O.G.U.E.: *Director, today's agenda includes missions, creative decisions, and operational oversight.*"
+          - "*You have 15% routine tasks and approximately 5% chance of emergencies. Are you ready?*"
+        question: "Are you ready to run your empire today, Director?"
+        tokens_for_ai: |
+          Accept any positive/ready response as 'ready'.
+          If setting language, categorize as 'set_language'.
+          Otherwise 'off_topic'.
+        buckets:
+          - ready
+          - set_language
+          - off_topic
+        transitions:
+          ready:
+            content_blocks:
+              - "V.O.G.U.E.: *Excellent. Beginning location access protocols.*"
+              - "✓ Elevator activated. **Choose your first destination.**"
+            next_section_and_step: exploration:location_choice
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: awakening:morning_briefing
+          off_topic:
+            content_blocks:
+              - "V.O.G.U.E.: *Director, the empire requires your leadership. Shall we begin?*"
+            counts_as_attempt: false
+            next_section_and_step: awakening:morning_briefing
+
+  - section_id: exploration
+    title: Navigate Your Empire
+    steps:
+      - step_id: location_choice
+        title: Choose Your Destination
+        content_blocks:
+          - "## 🛗 LOCATION SELECTOR - Backrooms Fashion Empire"
+          - ""
+          - "You stand in the **Central Elevator**—a chrome pod that accesses all levels of your underground empire."
+          - ""
+          - "**Available Locations:**"
+          - ""
+          - "**1. 📦 WAREHOUSE LEVEL -3** (The Storage Backrooms)"
+          - "   - Endless rows of fabric, materials, and inventory"
+          - "   - Robot sorting systems working in dim fluorescent light"
+          - "   - Liminal hallways between storage zones"
+          - "   - *Vibe: Organized chaos, industrial, mysterious*"
+          - ""
+          - "**2. 💇 THE SALON** (Creative Hub)"
+          - "   - Styling stations, mirrors, creative chaos"
+          - "   - Where models are transformed for the runway"
+          - "   - Your design team's headquarters"
+          - "   - *Vibe: Glamorous, energetic, artistic*"
+          - ""
+          - "**3. 🚢 THE SUB BAY** (Underwater Laboratory)"
+          - "   - Submerged textile dye facility"
+          - "   - Bioluminescent fabric experiments"
+          - "   - Pressurized chambers for unique treatments"
+          - "   - *Vibe: Aquatic, sci-fi, experimental*"
+          - ""
+          - "**4. ⚡ REACTOR ATELIER** (Nuclear Power Synthesis)"
+          - "   - Nuclear-powered textile synthesizers"
+          - "   - Atomic-level fabric manipulation"
+          - "   - Your most experimental fashion tech"
+          - "   - *Vibe: High-tech, powerful, cutting-edge*"
+          - ""
+          - "Where shall we go first, Director?"
+        question: "Choose your destination: Warehouse, Salon, Sub Bay, or Reactor?"
+        tokens_for_ai: |
+          Categorize based on their location choice.
+
+          Recognize variations:
+          - warehouse, level 3, storage, backrooms -> warehouse
+          - salon, creative, styling, design -> salon
+          - sub, submarine, underwater, bay, dye lab -> sub_bay
+          - reactor, nuclear, atelier, synthesis, tech -> reactor
+          - set_language: Language preference
+          - unclear: Can't determine location
+        feedback_tokens_for_ai: |
+          Acknowledge their choice with atmospheric description.
+          "The elevator descends..." or "The doors open to reveal..."
+          Make it immersive!
+        buckets:
+          - warehouse
+          - salon
+          - sub_bay
+          - reactor
+          - set_language
+          - unclear
+        transitions:
+          warehouse:
+            ai_feedback:
+              tokens_for_ai: |
+                The elevator hums downward. Fluorescent lights flicker.
+                The doors open to Level -3: endless rows of fabric shelves disappearing into shadow.
+                Robots glide silently between aisles.
+                Make it atmospheric and slightly eerie but controlled.
+            metadata_add:
+              current_location: "warehouse"
+              locations_visited: "n+1"
+            next_section_and_step: warehouse_zone:arrival
+          salon:
+            ai_feedback:
+              tokens_for_ai: |
+                The elevator rises to the Salon level.
+                Music pulses. The doors open to bright lights, mirrors, creative chaos.
+                Your design team looks up, waiting for direction.
+                Make it energetic and glamorous!
+            metadata_add:
+              current_location: "salon"
+              locations_visited: "n+1"
+            next_section_and_step: salon_zone:arrival
+          sub_bay:
+            ai_feedback:
+              tokens_for_ai: |
+                The elevator descends deep underwater.
+                Blue light fills the pod. Pressure equalizes with a hiss.
+                The doors open to the Sub Bay: water tanks glow with bioluminescent fabric.
+                Make it aquatic and mysterious!
+            metadata_add:
+              current_location: "sub_bay"
+              locations_visited: "n+1"
+            next_section_and_step: sub_bay_zone:arrival
+          reactor:
+            ai_feedback:
+              tokens_for_ai: |
+                The elevator descends to maximum depth.
+                A low hum of power. Warning lights glow amber.
+                The doors open to the Reactor Atelier: your most advanced tech.
+                Synthesizers hum with atomic precision.
+                Make it powerful and cutting-edge!
+            metadata_add:
+              current_location: "reactor"
+              locations_visited: "n+1"
+            next_section_and_step: reactor_zone:arrival
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: exploration:location_choice
+          unclear:
+            content_blocks:
+              - "V.O.G.U.E.: *Director, please specify: Warehouse, Salon, Sub Bay, or Reactor?*"
+            next_section_and_step: exploration:location_choice
+
+  - section_id: warehouse_zone
+    title: Warehouse Level -3
+    steps:
+      - step_id: arrival
+        title: The Storage Backrooms
+        content_blocks:
+          - "## 📦 WAREHOUSE LEVEL -3 - The Storage Backrooms"
+          - ""
+          - "You step into the vast warehouse. Fluorescent lights buzz overhead, casting sterile light over endless rows of fabric rolls, textile shipments, and mysterious inventory."
+          - ""
+          - "The **backrooms aesthetic** is strong here—liminal hallways between storage zones, the feeling that this space goes on forever. But you built this. You control it."
+          - ""
+          - "**🤖 Robot Status:**"
+          - "- 47 Assembly Drones active"
+          - "- Sorting efficiency: 94%"
+          - "- Awaiting your commands"
+          - ""
+          - "**👤 Employee Present:**"
+          - "**Zara-7** (Lead Textile Engineer) approaches with a tablet."
+          - ""
+          - "Zara-7: *'Director! Perfect timing. We just received a shipment of experimental fabrics from the Sub Bay.'*"
+          - "*'But we have a **mission**: Tonight's Neon Dreams show needs 50 yards of electric-reactive silk. I can prep it, but—what's your vision for the color palette?'*"
+        question: "What color direction should Zara-7 take for the Neon Dreams collection? (Choose: Cyan/Electric Blue, Hot Pink/Magenta, Acid Green/Lime, or your own neon vision!)"
+        tokens_for_ai: |
+          This is a MISSION TASK (15% category).
+          Store their color choice for the collection.
+
+          Categorize as:
+          - specific_color: They name specific colors/palette
+          - creative_vision: They describe a unique aesthetic
+          - defer_to_expert: They trust Zara-7's judgment
+          - set_language: Language preference
+          - unclear: Vague or unrelated
+        feedback_tokens_for_ai: |
+          Acknowledge their creative direction as the Director!
+          Zara-7 confirms the order and praises their vision.
+          Make them feel in control and creative.
+        buckets:
+          - specific_color
+          - creative_vision
+          - defer_to_expert
+          - set_language
+          - unclear
+        transitions:
+          specific_color:
+            ai_feedback:
+              tokens_for_ai: |
+                Zara-7 nods enthusiastically: "Brilliant choice, Director!"
+                Describe robots immediately beginning to process the fabric in their chosen colors.
+                Reference how this will look on the runway.
+                Make them feel like a creative genius!
+            metadata_add:
+              neon_dreams_palette: "the-users-response"
+              missions_completed: "n+1"
+              score: "n+2"
+            next_section_and_step: warehouse_zone:robot_command
+          creative_vision:
+            ai_feedback:
+              tokens_for_ai: |
+                Zara-7's eyes light up: "That's why you're the Director—bold vision!"
+                Describe the unique aesthetic they proposed.
+                Robots begin custom processing.
+                Celebrate their creativity!
+            metadata_add:
+              neon_dreams_palette: "the-users-response"
+              missions_completed: "n+1"
+              score: "n+3"
+            next_section_and_step: warehouse_zone:robot_command
+          defer_to_expert:
+            ai_feedback:
+              tokens_for_ai: |
+                Zara-7 smiles: "I appreciate your trust, Director."
+                She selects a stunning cyan/electric blue palette.
+                "This will be incredible on the runway."
+                Show them delegating is also good leadership!
+            metadata_add:
+              neon_dreams_palette: "cyan and electric blue (Zara-7's selection)"
+              missions_completed: "n+1"
+              score: "n+1"
+            next_section_and_step: warehouse_zone:robot_command
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: warehouse_zone:arrival
+          unclear:
+            content_blocks:
+              - "Zara-7: *'Director, I need color direction for the neon silk. What's your vision?'*"
+            next_section_and_step: warehouse_zone:arrival
+
+      - step_id: robot_command
+        title: Command Your Robots
+        content_blocks:
+          - "## 🤖 ROBOT COMMAND INTERFACE"
+          - ""
+          - "Zara-7 hands you a tablet showing the **Assembly Drone Control Panel**."
+          - ""
+          - "Your 47 assembly drones are ready for commands. They're precise, tireless, and completely under your control."
+          - ""
+          - "**Current Task Queue:**"
+          - "1. ✓ Sort incoming fabric shipments (Auto)"
+          - "2. 🔄 Process Neon Dreams silk (In Progress - Your color palette)"
+          - "3. ⏸️ **NEW TASK AVAILABLE**"
+          - ""
+          - "Zara-7: *'Director, we have a choice for the drones' next task:'*"
+          - ""
+          - "**Option A:** Prepare backup outfits for tonight's show (Safety-focused)"
+          - "**Option B:** Begin constructing pieces for next week's show (Forward-thinking)"
+          - "**Option C:** Organize and optimize warehouse layout (Efficiency-focused)"
+          - ""
+          - "What's your command, Director? You have **full control**."
+        question: "What task should the Assembly Drones prioritize next? (A, B, C, or your own directive)"
+        tokens_for_ai: |
+          This is a MANAGEMENT DECISION.
+          They're controlling their robot workforce.
+
+          Categorize as:
+          - option_a: Safety-focused (backup outfits)
+          - option_b: Forward-thinking (next week)
+          - option_c: Efficiency-focused (organize)
+          - custom_directive: Their own creative command
+          - set_language: Language preference
+          - unclear: Vague or unrelated
+        feedback_tokens_for_ai: |
+          Confirm their command with authority!
+          "Command received. Assembly Drones reprogramming..."
+          Show immediate robotic response to their will.
+          Make them feel powerful and in control.
+        buckets:
+          - option_a
+          - option_b
+          - option_c
+          - custom_directive
+          - set_language
+          - unclear
+        transitions:
+          option_a:
+            ai_feedback:
+              tokens_for_ai: |
+                "Command confirmed. Priority: Safety backup."
+                47 drones shift in unison, beginning backup construction.
+                Zara-7: "Smart call, Director. We'll be prepared for anything."
+                Emphasize their wise leadership!
+            metadata_add:
+              robot_command: "safety_backups"
+              leadership_style: "n+1"
+              score: "n+1"
+            next_section_and_step: warehouse_zone:emergency_event
+          option_b:
+            ai_feedback:
+              tokens_for_ai: |
+                "Command confirmed. Priority: Future production."
+                Drones immediately begin next week's pieces.
+                Zara-7: "Visionary thinking, Director. We're always ahead."
+                Emphasize their strategic planning!
+            metadata_add:
+              robot_command: "future_production"
+              leadership_style: "n+1"
+              score: "n+1"
+            next_section_and_step: warehouse_zone:emergency_event
+          option_c:
+            ai_feedback:
+              tokens_for_ai: |
+                "Command confirmed. Priority: Optimization."
+                Drones swarm, reorganizing shelves with algorithmic precision.
+                Zara-7: "Efficiency first, Director. The system appreciates it."
+                Emphasize their operational excellence!
+            metadata_add:
+              robot_command: "warehouse_optimization"
+              leadership_style: "n+1"
+              score: "n+1"
+            next_section_and_step: warehouse_zone:emergency_event
+          custom_directive:
+            ai_feedback:
+              tokens_for_ai: |
+                "Custom command received. Programming drones..."
+                Describe their unique directive being implemented.
+                Zara-7: "Creative thinking, Director! Adapting protocols now."
+                Celebrate their original thinking!
+            metadata_add:
+              robot_command: "the-users-response"
+              leadership_style: "n+1"
+              score: "n+2"
+            next_section_and_step: warehouse_zone:emergency_event
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: warehouse_zone:robot_command
+          unclear:
+            content_blocks:
+              - "Zara-7: *'Director, the drones need clear orders. Option A, B, C, or your own command?'*"
+            next_section_and_step: warehouse_zone:robot_command
+
+      - step_id: emergency_event
+        title: "🚨 EMERGENCY ALERT"
+        content_blocks:
+          - "## 🚨 EMERGENCY PROTOCOL ACTIVATED (5% Event!)"
+          - ""
+          - "**RED LIGHTS FLASH**"
+          - ""
+          - "V.O.G.U.E.'s voice echoes through the warehouse:"
+          - ""
+          - "*ALERT: Fabric shipment contamination detected in Sector 7-B!*"
+          - "*3 rolls of premium silk compromised by moisture leak.*"
+          - "*This is 12% of tonight's Neon Dreams inventory.*"
+          - ""
+          - "Zara-7 rushes over, tablet glowing red:"
+          - ""
+          - "Zara-7: *'Director! We have an emergency. The contaminated silk was supposed to be centerpiece looks.'*"
+          - ""
+          - "**Your Options:**"
+          - ""
+          - "**1. SALVAGE OPERATION**"
+          - "   - Send drones to attempt rescue/restoration"
+          - "   - Risk: Might take too long"
+          - "   - Reward: Save expensive material"
+          - ""
+          - "**2. SUB BAY EMERGENCY DYE**"
+          - "   - Rush to Sub Bay for emergency fabric processing"
+          - "   - Risk: Tight timeline"
+          - "   - Reward: Fresh, experimental pieces"
+          - ""
+          - "**3. REDESIGN ON THE FLY**"
+          - "   - Use backup fabric, create new centerpiece vision"
+          - "   - Risk: Creative pressure"
+          - "   - Reward: Show your directorial genius"
+          - ""
+          - "**Director, you have 60 seconds to decide in your universe. What's your call?**"
+        question: "EMERGENCY DECISION: Choose 1 (Salvage), 2 (Sub Bay), 3 (Redesign), or describe your own solution!"
+        tokens_for_ai: |
+          This is the 5% EMERGENCY EVENT!
+          They must make a high-pressure decision.
+
+          Categorize as:
+          - salvage: Try to save the material
+          - sub_bay: Emergency underwater processing
+          - redesign: Creative solution with new materials
+          - custom_solution: Their own creative emergency response
+          - set_language: Language preference
+          - unclear: Vague or hesitant
+        feedback_tokens_for_ai: |
+          This is HIGH PRESSURE. Make them feel the stakes!
+          Then show their decision working out.
+          "Your quick thinking saves the show!"
+          Directors thrive under pressure!
+        buckets:
+          - salvage
+          - sub_bay
+          - redesign
+          - custom_solution
+          - set_language
+          - unclear
+        transitions:
+          salvage:
+            ai_feedback:
+              tokens_for_ai: |
+                "SALVAGE OPERATION INITIATED!"
+                Drones swarm Sector 7-B. Rapid drying protocols engage.
+                Against the odds, they save 85% of the silk!
+                Zara-7: "Incredible call, Director! Crisis averted!"
+                Make them feel like a hero!
+            metadata_add:
+              emergency_response: "salvage_success"
+              emergencies_handled: "n+1"
+              score: "n+3"
+            next_section_and_step: operations_hub:location_hub
+          sub_bay:
+            ai_feedback:
+              tokens_for_ai: |
+                "EMERGENCY SUB BAY PROTOCOL!"
+                You sprint to the elevator. Descend to the Sub Bay.
+                Submersibles rush-process replacement fabric with bioluminescent dye.
+                The result? BETTER than the original!
+                Make them feel brilliant!
+            metadata_add:
+              emergency_response: "sub_bay_save"
+              emergencies_handled: "n+1"
+              score: "n+4"
+            next_section_and_step: operations_hub:location_hub
+          redesign:
+            ai_feedback:
+              tokens_for_ai: |
+                "CREATIVE VISION ENGAGED!"
+                You grab backup fabrics, sketching frantically.
+                In minutes, you've designed a NEW centerpiece concept.
+                Zara-7: "This is... actually BETTER! Pure genius!"
+                Make them feel like a creative mastermind!
+            metadata_add:
+              emergency_response: "creative_redesign"
+              emergencies_handled: "n+1"
+              score: "n+5"
+            next_section_and_step: operations_hub:location_hub
+          custom_solution:
+            ai_feedback:
+              tokens_for_ai: |
+                "CUSTOM EMERGENCY PROTOCOL!"
+                Describe their unique solution being implemented rapidly.
+                It works PERFECTLY. Crisis averted through innovation!
+                Zara-7 and the robots are in awe of your leadership.
+                Make them feel legendary!
+            metadata_add:
+              emergency_response: "the-users-response"
+              emergencies_handled: "n+1"
+              score: "n+6"
+            next_section_and_step: operations_hub:location_hub
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: warehouse_zone:emergency_event
+          unclear:
+            content_blocks:
+              - "⏱️ TIME IS RUNNING OUT, DIRECTOR!"
+              - "Zara-7: *'Choose NOW: 1-Salvage, 2-Sub Bay, 3-Redesign, or tell me your plan!'*"
+            next_section_and_step: warehouse_zone:emergency_event
+
+  - section_id: salon_zone
+    title: The Salon - Creative Hub
+    steps:
+      - step_id: arrival
+        title: Where Vision Becomes Reality
+        content_blocks:
+          - "## 💇 THE SALON - Creative Hub"
+          - ""
+          - "The elevator doors open to music, energy, and creative chaos."
+          - ""
+          - "**The Salon** is where your vision comes to life. Mirrors line the walls. Styling stations buzz with activity. Models stand on platforms as your team works."
+          - ""
+          - "**🤖 Style Bots:**"
+          - "- 12 units active"
+          - "- Precision styling, makeup application, accessory coordination"
+          - "- Programmed with your aesthetic preferences"
+          - ""
+          - "**👥 Team Present:**"
+          - ""
+          - "**Viktor** (Senior Runway Coordinator) spots you immediately:"
+          - ""
+          - "Viktor: *'Director! Thank the fashion gods. The Neon Dreams show is tonight and I need your eyes on these looks.'*"
+          - ""
+          - "He gestures to three models wearing different runway outfits."
+          - ""
+          - "Viktor: *'Style Bots did the base work, but only YOU can approve the final vision. This is YOUR brand.'*"
+          - ""
+          - "**MODEL A:** Electric blue bodysuit, geometric accessories, stark makeup"
+          - "**MODEL B:** Flowing neon-reactive dress, soft curls, ethereal vibe"
+          - "**MODEL C:** Edgy streetwear fusion, bold patterns, avant-garde attitude"
+          - ""
+          - "Which look represents your brand's vision for tonight's opening?"
+        question: "Choose Model A, B, C, or describe your own vision for the opening look!"
+        tokens_for_ai: |
+          This is a CREATIVE VISION task (15% category).
+          Their choice defines their brand aesthetic.
+
+          Categorize as:
+          - model_a: Geometric, modern, stark
+          - model_b: Flowing, ethereal, soft
+          - model_c: Edgy, streetwear, bold
+          - custom_vision: They describe their own opening look
+          - set_language: Language preference
+          - unclear: Vague or unrelated
+        feedback_tokens_for_ai: |
+          This is THEIR brand. Celebrate their aesthetic choice!
+          Viktor affirms their vision.
+          Style Bots immediately adjust other looks to match the vibe.
+          Make them feel like the creative director they are!
+        buckets:
+          - model_a
+          - model_b
+          - model_c
+          - custom_vision
+          - set_language
+          - unclear
+        transitions:
+          model_a:
+            ai_feedback:
+              tokens_for_ai: |
+                Viktor snaps his fingers: "YES! Geometric precision—I see it!"
+                Style Bots immediately adjust remaining looks to match.
+                "This is bold, modern, POWERFUL. Just like your brand."
+                Make them feel their vision is perfect!
+            metadata_add:
+              brand_aesthetic: "geometric_modern"
+              creative_decisions: "n+1"
+              score: "n+2"
+            next_section_and_step: salon_zone:npc_management
+          model_b:
+            ai_feedback:
+              tokens_for_ai: |
+                Viktor's eyes light up: "Ethereal dreams! I love it!"
+                Style Bots recalibrate for softer, flowing aesthetics.
+                "This is POETRY in motion. Your brand, your vision!"
+                Make them feel their choice is inspired!
+            metadata_add:
+              brand_aesthetic: "ethereal_flowing"
+              creative_decisions: "n+1"
+              score: "n+2"
+            next_section_and_step: salon_zone:npc_management
+          model_c:
+            ai_feedback:
+              tokens_for_ai: |
+                Viktor grins: "BOLD! Street fusion with haute couture!"
+                Style Bots pivot to edgier accessories and makeup.
+                "This is cutting-edge. This is YOUR brand revolution!"
+                Make them feel their choice is revolutionary!
+            metadata_add:
+              brand_aesthetic: "edgy_streetwear"
+              creative_decisions: "n+1"
+              score: "n+2"
+            next_section_and_step: salon_zone:npc_management
+          custom_vision:
+            ai_feedback:
+              tokens_for_ai: |
+                Viktor listens intently, then: "BRILLIANT! That's vision!"
+                Describe their custom aesthetic being implemented.
+                Style Bots reprogram. Models transform.
+                "Only a true Director sees what others cannot!"
+                Make them feel like a visionary!
+            metadata_add:
+              brand_aesthetic: "the-users-response"
+              creative_decisions: "n+1"
+              score: "n+3"
+            next_section_and_step: salon_zone:npc_management
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: salon_zone:arrival
+          unclear:
+            content_blocks:
+              - "Viktor: *'Director, I need your decision. Model A, B, C, or describe your vision?'*"
+            next_section_and_step: salon_zone:arrival
+
+      - step_id: npc_management
+        title: Lead Your Team
+        content_blocks:
+          - "## 👥 NPC EMPLOYEE MANAGEMENT"
+          - ""
+          - "Viktor coordinates the Style Bots while **Luna & Sol**, your twin design assistants, approach with a creative dispute."
+          - ""
+          - "**Luna:** *'Director! We have different visions for the accessory lineup—'*"
+          - ""
+          - "**Sol:** *'—and we need YOUR decision. You're the ultimate authority.'*"
+          - ""
+          - "They present their cases:"
+          - ""
+          - "**Luna's Vision:** Minimalist accessories - let the clothes speak"
+          - "- Simple jewelry, clean lines, no distraction"
+          - "- Philosophy: 'Less is more, the fabric is the star'"
+          - ""
+          - "**Sol's Vision:** Statement accessories - bold, impossible to ignore"
+          - "- Chunky jewelry, dramatic bags, eye-catching pieces"
+          - "- Philosophy: 'Fashion is theater, every detail matters'"
+          - ""
+          - "Both are brilliant designers. Both respect your authority."
+          - ""
+          - "**You have full control. What's your directive?**"
+        question: "Support Luna (minimalist), Sol (statement), compromise (blend both), or give your own direction?"
+        tokens_for_ai: |
+          This is an NPC MANAGEMENT task.
+          Shows their leadership style.
+
+          Categorize as:
+          - support_luna: Minimalist approach
+          - support_sol: Statement approach
+          - compromise: Blend both visions
+          - custom_direction: Their own accessory philosophy
+          - set_language: Language preference
+          - unclear: Vague or indecisive
+        feedback_tokens_for_ai: |
+          Show them being a strong leader!
+          Whichever choice they make, Luna and Sol respect it.
+          "You're the Director—your word is final."
+          Make them feel their leadership matters!
+        buckets:
+          - support_luna
+          - support_sol
+          - compromise
+          - custom_direction
+          - set_language
+          - unclear
+        transitions:
+          support_luna:
+            ai_feedback:
+              tokens_for_ai: |
+                Luna beams. Sol nods respectfully.
+                "Minimalist it is, Director. Clean, focused, powerful."
+                Style Bots adjust accessory protocols.
+                Viktor: "Strong choice. The clothes will SING."
+                Show them being decisive!
+            metadata_add:
+              accessory_style: "minimalist"
+              leadership_decisions: "n+1"
+              score: "n+1"
+            next_section_and_step: operations_hub:location_hub
+          support_sol:
+            ai_feedback:
+              tokens_for_ai: |
+                Sol grins. Luna nods respectfully.
+                "Statement pieces it is, Director. Bold, theatrical, unforgettable."
+                Style Bots load dramatic accessories.
+                Viktor: "Brave choice. The runway will POP."
+                Show them being confident!
+            metadata_add:
+              accessory_style: "statement"
+              leadership_decisions: "n+1"
+              score: "n+1"
+            next_section_and_step: operations_hub:location_hub
+          compromise:
+            ai_feedback:
+              tokens_for_ai: |
+                Luna and Sol exchange looks, then smile together.
+                "Blend both approaches—genius, Director!"
+                "Minimalist base with strategic statement pieces."
+                Viktor: "Balanced vision. That's why you're the Director."
+                Show them being diplomatic!
+            metadata_add:
+              accessory_style: "balanced"
+              leadership_decisions: "n+1"
+              score: "n+2"
+            next_section_and_step: operations_hub:location_hub
+          custom_direction:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe their unique accessory philosophy.
+                Luna and Sol listen, then nod in understanding.
+                "We see your vision, Director. Implementing now!"
+                Viktor: "Original thinking. This is YOUR brand!"
+                Show them being innovative!
+            metadata_add:
+              accessory_style: "the-users-response"
+              leadership_decisions: "n+1"
+              score: "n+3"
+            next_section_and_step: operations_hub:location_hub
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: salon_zone:npc_management
+          unclear:
+            content_blocks:
+              - "Luna & Sol: *'Director, we need your decision. Minimalist, statement, blend, or your own direction?'*"
+            next_section_and_step: salon_zone:npc_management
+
+  - section_id: sub_bay_zone
+    title: The Sub Bay - Underwater Laboratory
+    steps:
+      - step_id: arrival
+        title: Descent Into Innovation
+        content_blocks:
+          - "## 🚢 THE SUB BAY - Underwater Laboratory"
+          - ""
+          - "The elevator descends deep underwater. Blue light floods the pod. Pressure equalizes with a mechanical hiss."
+          - ""
+          - "The doors open to **The Sub Bay**—your most experimental space."
+          - ""
+          - "Massive water tanks line the walls, glowing with **bioluminescent fabric samples**. Robotic submersibles glide through the water, manipulating textiles at the molecular level."
+          - ""
+          - "**🤖 Dye Submersibles:**"
+          - "- 8 units active"
+          - "- Underwater fabric treatment and dye application"
+          - "- Bioluminescent bacteria integration"
+          - "- Pressure-based texture manipulation"
+          - ""
+          - "**👤 Employee Present:**"
+          - ""
+          - "**Mx. Kai** (Head of Avant-Garde Division) surfaces in a wetsuit, pulling off diving goggles:"
+          - ""
+          - "Mx. Kai: *'Director! Perfect timing. We're testing a revolutionary fabric—it changes color based on body heat and movement.'*"
+          - ""
+          - "They gesture to a glowing tank where fabric shifts from blue to purple to green."
+          - ""
+          - "Mx. Kai: *'We can include this in tonight's show as a surprise finale piece. But it's EXPERIMENTAL. Risk and reward.'*"
+          - ""
+          - "**Your call:** Do we debut untested innovation, or play it safe?"
+        question: "Include the experimental heat-reactive fabric in tonight's show? (Yes/No, or describe your approach)"
+        tokens_for_ai: |
+          This is a RISK DECISION task.
+          Shows their leadership philosophy: innovation vs. safety.
+
+          Categorize as:
+          - yes_debut: Take the risk, debut the innovation
+          - no_safe: Play it safe, save for later
+          - test_first: Want to test it more before deciding
+          - custom_approach: Their own strategy
+          - set_language: Language preference
+          - unclear: Vague or uncertain
+        feedback_tokens_for_ai: |
+          This defines their brand philosophy!
+          Mx. Kai respects their decision either way.
+          "You're the Director—you know your brand's risk tolerance."
+          Make them feel their choice matters!
+        buckets:
+          - yes_debut
+          - no_safe
+          - test_first
+          - custom_approach
+          - set_language
+          - unclear
+        transitions:
+          yes_debut:
+            ai_feedback:
+              tokens_for_ai: |
+                Mx. Kai's eyes light up: "BOLD! This is why I work for you!"
+                Submersibles immediately prep the fabric.
+                "Your brand is about INNOVATION. This is perfect."
+                Viktor (via comms): "Risky... but legendary if it works!"
+                Make them feel brave and visionary!
+            metadata_add:
+              risk_approach: "innovative"
+              experimental_approved: "yes"
+              score: "n+3"
+            next_section_and_step: sub_bay_zone:mission_task
+          no_safe:
+            ai_feedback:
+              tokens_for_ai: |
+                Mx. Kai nods thoughtfully: "Smart, Director. Quality over risk."
+                "We'll perfect it and debut when it's ready."
+                "Your brand is about EXCELLENCE, not rushing."
+                Show them being prudent and strategic!
+            metadata_add:
+              risk_approach: "strategic"
+              experimental_approved: "no"
+              score: "n+1"
+            next_section_and_step: sub_bay_zone:mission_task
+          test_first:
+            ai_feedback:
+              tokens_for_ai: |
+                Mx. Kai grins: "Balanced approach! Let's run quick tests."
+                Submersibles perform rapid stress tests.
+                Results: 87% success rate. "Good enough for a controlled debut?"
+                Show them being thorough!
+            metadata_add:
+              risk_approach: "tested_innovation"
+              experimental_approved: "tested"
+              score: "n+2"
+            next_section_and_step: sub_bay_zone:mission_task
+          custom_approach:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe their unique approach to the experimental fabric.
+                Mx. Kai: "Creative problem-solving! I'll implement that!"
+                Their strategy shows leadership nuance.
+                Make them feel brilliant!
+            metadata_add:
+              risk_approach: "the-users-response"
+              experimental_approved: "custom"
+              score: "n+2"
+            next_section_and_step: sub_bay_zone:mission_task
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: sub_bay_zone:arrival
+          unclear:
+            content_blocks:
+              - "Mx. Kai: *'Director, time is tight. Debut the experimental fabric tonight? Yes, no, or what's your strategy?'*"
+            next_section_and_step: sub_bay_zone:arrival
+
+      - step_id: mission_task
+        title: Textile Treatment Mission
+        content_blocks:
+          - "## 🎯 MISSION TASK - Textile Treatment"
+          - ""
+          - "Mx. Kai pulls up a holographic display:"
+          - ""
+          - "Mx. Kai: *'Director, while we're here—we have 200 yards of raw silk that needs treatment for next week's client show.'*"
+          - ""
+          - "**Treatment Options (affects final fabric properties):**"
+          - ""
+          - "**1. BIOLUMINESCENT BACTERIA TREATMENT**"
+          - "   - Fabric glows softly in low light"
+          - "   - Effect: Ethereal, magical, futuristic"
+          - "   - Time: 6 hours"
+          - ""
+          - "**2. PRESSURE-CHAMBER TEXTURING**"
+          - "   - Creates unique 3D surface patterns"
+          - "   - Effect: Architectural, sculptural, bold"
+          - "   - Time: 4 hours"
+          - ""
+          - "**3. THERMAL REACTIVE DYE**"
+          - "   - Changes shade with temperature (subtle effect)"
+          - "   - Effect: Interactive, modern, surprising"
+          - "   - Time: 8 hours"
+          - ""
+          - "**4. TRADITIONAL DEEP-WATER DYE**"
+          - "   - Rich, even color saturation"
+          - "   - Effect: Classic, luxurious, timeless"
+          - "   - Time: 3 hours"
+          - ""
+          - "Which treatment process should the submersibles begin, Director?"
+        question: "Choose treatment 1, 2, 3, 4, or describe your own textile innovation!"
+        tokens_for_ai: |
+          This is a MISSION TASK (15% category).
+          Their choice affects next week's client show aesthetic.
+
+          Categorize as:
+          - treatment_1: Bioluminescent (ethereal)
+          - treatment_2: Pressure texturing (architectural)
+          - treatment_3: Thermal reactive (interactive)
+          - treatment_4: Traditional dye (classic)
+          - custom_treatment: Their own innovation
+          - set_language: Language preference
+          - unclear: Vague or unrelated
+        feedback_tokens_for_ai: |
+          Confirm their choice with technical detail!
+          Submersibles begin the process.
+          Mx. Kai explains how this fits their brand vision.
+          Make them feel like an innovator!
+        buckets:
+          - treatment_1
+          - treatment_2
+          - treatment_3
+          - treatment_4
+          - custom_treatment
+          - set_language
+          - unclear
+        transitions:
+          treatment_1:
+            ai_feedback:
+              tokens_for_ai: |
+                "BIOLUMINESCENT PROTOCOL INITIATED!"
+                Submersibles inject bacteria cultures. Fabric begins glowing.
+                Mx. Kai: "Ethereal magic! Client will be AMAZED!"
+                Show their choice being implemented!
+            metadata_add:
+              textile_treatment: "bioluminescent"
+              missions_completed: "n+1"
+              score: "n+2"
+            next_section_and_step: operations_hub:location_hub
+          treatment_2:
+            ai_feedback:
+              tokens_for_ai: |
+                "PRESSURE CHAMBER ENGAGED!"
+                Submersibles move fabric to high-pressure zones.
+                Mx. Kai: "Architectural boldness! Very avant-garde!"
+                Show their choice being implemented!
+            metadata_add:
+              textile_treatment: "pressure_textured"
+              missions_completed: "n+1"
+              score: "n+2"
+            next_section_and_step: operations_hub:location_hub
+          treatment_3:
+            ai_feedback:
+              tokens_for_ai: |
+                "THERMAL REACTIVE DYE PROCESS STARTED!"
+                Submersibles apply heat-sensitive pigments.
+                Mx. Kai: "Interactive fashion! Cutting-edge choice!"
+                Show their choice being implemented!
+            metadata_add:
+              textile_treatment: "thermal_reactive"
+              missions_completed: "n+1"
+              score: "n+2"
+            next_section_and_step: operations_hub:location_hub
+          treatment_4:
+            ai_feedback:
+              tokens_for_ai: |
+                "TRADITIONAL DEEP-WATER DYE PROTOCOL!"
+                Submersibles begin rich color saturation.
+                Mx. Kai: "Timeless luxury! Sometimes classics are perfect!"
+                Show their choice being implemented!
+            metadata_add:
+              textile_treatment: "traditional_luxury"
+              missions_completed: "n+1"
+              score: "n+2"
+            next_section_and_step: operations_hub:location_hub
+          custom_treatment:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe their custom textile innovation!
+                Mx. Kai: "Brilliant! Programming submersibles now!"
+                Their unique process begins.
+                "This is why YOU'RE the Director!"
+                Show them being a true innovator!
+            metadata_add:
+              textile_treatment: "the-users-response"
+              missions_completed: "n+1"
+              score: "n+3"
+            next_section_and_step: operations_hub:location_hub
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: sub_bay_zone:mission_task
+          unclear:
+            content_blocks:
+              - "Mx. Kai: *'Director, which treatment process? 1, 2, 3, 4, or your own innovation?'*"
+            next_section_and_step: sub_bay_zone:mission_task
+
+  - section_id: reactor_zone
+    title: Reactor Atelier - Nuclear Fashion Tech
+    steps:
+      - step_id: arrival
+        title: Maximum Depth - Maximum Power
+        content_blocks:
+          - "## ⚡ REACTOR ATELIER - Nuclear Fashion Technology"
+          - ""
+          - "The elevator descends to **MAXIMUM DEPTH**."
+          - ""
+          - "A low, powerful hum resonates through the pod. Warning lights glow amber. Radiation shielding engages."
+          - ""
+          - "The doors open to **The Reactor Atelier**—your most advanced facility."
+          - ""
+          - "This is where fashion meets **nuclear science**."
+          - ""
+          - "Textile synthesizers powered by controlled nuclear reactions manipulate fabric at the **atomic level**. It's experimental. It's dangerous. It's the future."
+          - ""
+          - "**🤖 Reactor Engineers:**"
+          - "- 3 specialized units active"
+          - "- Atomic-level fabric manipulation"
+          - "- Nuclear-powered synthesis chambers"
+          - "- Radiation monitoring and safety protocols"
+          - ""
+          - "**👤 Employee Present:**"
+          - ""
+          - "**Dr. Zara-7** (yes, she has clearance here too) stands at a control panel, monitoring glowing synthesis chambers:"
+          - ""
+          - "Dr. Zara-7: *'Director. Welcome to the cutting edge of fashion technology.'*"
+          - ""
+          - "*'We're currently synthesizing a fabric that DOESN'T EXIST in nature. Atomic-weight carbon threads bonded with synthetic polymers.'*"
+          - ""
+          - "*'It's lighter than silk. Stronger than kevlar. Shimmers like starlight.'*"
+          - ""
+          - "*'But we can only produce 10 yards per week. Do we use it for tonight's show, or save it for your signature collection?'*"
+        question: "Use the atomic-synthesis fabric tonight, or save it for your signature collection?"
+        tokens_for_ai: |
+          This is a HIGH-STAKES DECISION.
+          Shows their strategic thinking: immediate impact vs. long-term branding.
+
+          Categorize as:
+          - use_tonight: Debut the miracle fabric now
+          - save_signature: Save for signature collection
+          - split_decision: Use some now, save some
+          - custom_strategy: Their own approach
+          - set_language: Language preference
+          - unclear: Uncertain or vague
+        feedback_tokens_for_ai: |
+          This is about brand strategy!
+          Dr. Zara-7 respects their decision.
+          "You're the Director—you know your brand's story."
+          Make them feel strategic!
+        buckets:
+          - use_tonight
+          - save_signature
+          - split_decision
+          - custom_strategy
+          - set_language
+          - unclear
+        transitions:
+          use_tonight:
+            ai_feedback:
+              tokens_for_ai: |
+                Dr. Zara-7 nods: "Bold move! Tonight's show will be LEGENDARY!"
+                Reactor Engineers carefully extract the precious fabric.
+                "Your brand makes history TONIGHT!"
+                Make them feel they're making waves!
+            metadata_add:
+              atomic_fabric_decision: "debut_tonight"
+              strategic_decisions: "n+1"
+              score: "n+3"
+            next_section_and_step: reactor_zone:power_management
+          save_signature:
+            ai_feedback:
+              tokens_for_ai: |
+                Dr. Zara-7 smiles: "Patient genius! Your signature collection will be ICONIC!"
+                The fabric continues synthesizing for future greatness.
+                "Your brand builds LEGACY, not just shows!"
+                Make them feel strategic!
+            metadata_add:
+              atomic_fabric_decision: "save_for_legacy"
+              strategic_decisions: "n+1"
+              score: "n+2"
+            next_section_and_step: reactor_zone:power_management
+          split_decision:
+            ai_feedback:
+              tokens_for_ai: |
+                Dr. Zara-7 grins: "Balanced brilliance! Best of both worlds!"
+                "5 yards for tonight, 5 yards for your signature."
+                "Strategic AND bold. Perfect Director decision!"
+                Make them feel wise!
+            metadata_add:
+              atomic_fabric_decision: "strategic_split"
+              strategic_decisions: "n+1"
+              score: "n+4"
+            next_section_and_step: reactor_zone:power_management
+          custom_strategy:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe their unique strategy!
+                Dr. Zara-7: "Innovative thinking! I'll implement that!"
+                Their approach shows next-level strategy.
+                "THIS is Director-level thinking!"
+                Make them feel brilliant!
+            metadata_add:
+              atomic_fabric_decision: "the-users-response"
+              strategic_decisions: "n+1"
+              score: "n+3"
+            next_section_and_step: reactor_zone:power_management
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: reactor_zone:arrival
+          unclear:
+            content_blocks:
+              - "Dr. Zara-7: *'Director, the atomic fabric: use tonight, save for signature collection, or another strategy?'*"
+            next_section_and_step: reactor_zone:arrival
+
+      - step_id: power_management
+        title: Manage Reactor Power
+        content_blocks:
+          - "## ⚡ REACTOR POWER MANAGEMENT"
+          - ""
+          - "Dr. Zara-7 brings up the reactor control interface:"
+          - ""
+          - "Dr. Zara-7: *'Director, we have a power allocation decision.'*"
+          - ""
+          - "**CURRENT POWER DISTRIBUTION:**"
+          - "- 40% Fabric Synthesis (creating new materials)"
+          - "- 30% Warehouse Climate Control (preserving inventory)"
+          - "- 20% Salon Lighting & Equipment (style operations)"
+          - "- 10% Sub Bay Pressure Systems (underwater operations)"
+          - ""
+          - "**THE SITUATION:**"
+          - ""
+          - "*'We can BOOST one system to 60% capacity for 24 hours.'*"
+          - ""
+          - "*'This would supercharge one operation but reduce power to others by 5%.'*"
+          - ""
+          - "**Your options:**"
+          - ""
+          - "**1. BOOST FABRIC SYNTHESIS** - Double material production for a week"
+          - "**2. BOOST WAREHOUSE CONTROL** - Perfect preservation, zero waste"
+          - "**3. BOOST SALON SYSTEMS** - Enhanced styling capabilities tonight"
+          - "**4. BOOST SUB BAY** - Accelerate experimental treatments"
+          - "**5. BALANCED OPERATION** - Keep current distribution (safe choice)"
+          - ""
+          - "You have full control of the reactor, Director."
+        question: "Boost system 1, 2, 3, 4, or maintain balance (5)?"
+        tokens_for_ai: |
+          This is a RESOURCE MANAGEMENT task (15% category).
+          Shows their operational priorities.
+
+          Categorize as:
+          - boost_synthesis: Prioritize production
+          - boost_warehouse: Prioritize preservation
+          - boost_salon: Prioritize tonight's show
+          - boost_sub_bay: Prioritize innovation
+          - balanced: Keep things stable
+          - set_language: Language preference
+          - unclear: Vague or unrelated
+        feedback_tokens_for_ai: |
+          Confirm their power allocation!
+          "POWER DISTRIBUTION UPDATED."
+          Dr. Zara-7 explains the benefits of their choice.
+          Make them feel in control of complex systems!
+        buckets:
+          - boost_synthesis
+          - boost_warehouse
+          - boost_salon
+          - boost_sub_bay
+          - balanced
+          - set_language
+          - unclear
+        transitions:
+          boost_synthesis:
+            ai_feedback:
+              tokens_for_ai: |
+                "POWER BOOST: FABRIC SYNTHESIS 60%!"
+                Reactor hum intensifies. Synthesis chambers glow brighter.
+                Dr. Zara-7: "Production-focused! Smart for long-term growth!"
+                Make them feel forward-thinking!
+            metadata_add:
+              power_allocation: "synthesis_boost"
+              missions_completed: "n+1"
+              score: "n+1"
+            next_section_and_step: operations_hub:location_hub
+          boost_warehouse:
+            ai_feedback:
+              tokens_for_ai: |
+                "POWER BOOST: WAREHOUSE CLIMATE 60%!"
+                Temperature and humidity optimize across all storage.
+                Dr. Zara-7: "Preservation-focused! Zero waste philosophy!"
+                Make them feel responsible!
+            metadata_add:
+              power_allocation: "warehouse_boost"
+              missions_completed: "n+1"
+              score: "n+1"
+            next_section_and_step: operations_hub:location_hub
+          boost_salon:
+            ai_feedback:
+              tokens_for_ai: |
+                "POWER BOOST: SALON SYSTEMS 60%!"
+                Lights brighten, Style Bots move faster, equipment upgrades.
+                Dr. Zara-7: "Tonight-focused! The show will be SPECTACULAR!"
+                Make them feel they're prioritizing the immediate!
+            metadata_add:
+              power_allocation: "salon_boost"
+              missions_completed: "n+1"
+              score: "n+1"
+            next_section_and_step: operations_hub:location_hub
+          boost_sub_bay:
+            ai_feedback:
+              tokens_for_ai: |
+                "POWER BOOST: SUB BAY SYSTEMS 60%!"
+                Underwater pressure systems surge, treatments accelerate.
+                Dr. Zara-7: "Innovation-focused! Experimental work thrives!"
+                Make them feel they're pushing boundaries!
+            metadata_add:
+              power_allocation: "sub_bay_boost"
+              missions_completed: "n+1"
+              score: "n+1"
+            next_section_and_step: operations_hub:location_hub
+          balanced:
+            ai_feedback:
+              tokens_for_ai: |
+                "POWER DISTRIBUTION: BALANCED MODE MAINTAINED."
+                Dr. Zara-7: "Stable operations! Sometimes consistency wins!"
+                Make them feel their caution is wisdom!
+            metadata_add:
+              power_allocation: "balanced"
+              missions_completed: "n+1"
+              score: "n+1"
+            next_section_and_step: operations_hub:location_hub
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: reactor_zone:power_management
+          unclear:
+            content_blocks:
+              - "Dr. Zara-7: *'Director, power allocation decision: Boost 1, 2, 3, 4, or maintain balance (5)?'*"
+            next_section_and_step: reactor_zone:power_management
+
+  - section_id: operations_hub
+    title: Empire Navigation Hub
+    steps:
+      - step_id: location_hub
+        title: Continue Your Operations
+        content_blocks:
+          - "## 🏢 EMPIRE OPERATIONS HUB"
+          - ""
+          - "You return to the Central Elevator."
+          - ""
+          - "V.O.G.U.E. updates you:"
+          - ""
+          - "*Director, excellent work. Your empire runs because of your vision.*"
+          - ""
+          - "**📊 CURRENT STATUS:**"
+          - "- Missions Completed: Check metadata"
+          - "- Emergencies Handled: Check metadata"
+          - "- Leadership Score: Check metadata"
+          - ""
+          - "**NEXT ACTIONS:**"
+          - ""
+          - "**1. VISIT ANOTHER LOCATION** - Continue operations (Warehouse, Salon, Sub Bay, Reactor)"
+          - "**2. PROCEED TO TONIGHT'S SHOW** - See your vision come to life on the runway"
+          - "**3. FINAL REFLECTION** - Reflect on your empire and brand"
+          - ""
+          - "What's your next move, Director?"
+        question: "Choose: 1 (Visit location), 2 (Tonight's show), 3 (Reflect), or describe your action"
+        tokens_for_ai: |
+          This is a navigation choice.
+
+          Categorize as:
+          - visit_location: Want to explore more (ask which location)
+          - attend_show: Ready for the runway event
+          - reflect: Want to wrap up and reflect
+          - custom_action: Their own directive
+          - set_language: Language preference
+          - unclear: Vague
+        buckets:
+          - visit_location
+          - attend_show
+          - reflect
+          - custom_action
+          - set_language
+          - unclear
+        transitions:
+          visit_location:
+            content_blocks:
+              - "V.O.G.U.E.: *Which location, Director?*"
+            next_section_and_step: exploration:location_choice
+          attend_show:
+            content_blocks:
+              - "V.O.G.U.E.: *Excellent. Preparing for Neon Dreams runway show...*"
+            next_section_and_step: finale:runway_show
+          reflect:
+            content_blocks:
+              - "V.O.G.U.E.: *Understood. Entering reflection mode.*"
+            next_section_and_step: finale:reflection
+          custom_action:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe their custom action.
+                V.O.G.U.E. responds appropriately.
+                Then guide them toward the show or reflection.
+            next_section_and_step: finale:runway_show
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: operations_hub:location_hub
+          unclear:
+            content_blocks:
+              - "V.O.G.U.E.: *Director, please choose: 1-Visit location, 2-Attend show, 3-Reflect?*"
+            next_section_and_step: operations_hub:location_hub
+
+  - section_id: finale
+    title: The Runway & Legacy
+    steps:
+      - step_id: runway_show
+        title: Neon Dreams Runway Show
+        content_blocks:
+          - "## ✨ NEON DREAMS RUNWAY SHOW ✨"
+          - ""
+          - "**The moment arrives.**"
+          - ""
+          - "You stand backstage in the underground runway theater. Music pulses. Lights dim. The audience hushes."
+          - ""
+          - "Viktor counts down: *'Models in position. Soundtrack ready. Lighting programmed.'*"
+          - ""
+          - "Luna & Sol give thumbs up from the styling area."
+          - ""
+          - "Mx. Kai monitors from the Sub Bay: *'All experimental fabrics stable!'*"
+          - ""
+          - "Dr. Zara-7 from the Reactor: *'Atomic-synthesis fabric is glowing perfectly!'*"
+          - ""
+          - "Your 47 Assembly Drones, 12 Style Bots, and entire team have prepared for this moment."
+          - ""
+          - "**This is YOUR vision. YOUR brand. YOUR empire.**"
+          - ""
+          - "---"
+          - ""
+          - "**THE SHOW BEGINS:**"
+          - ""
+          - "Model 1 walks out in your chosen Neon Dreams palette. The crowd GASPS."
+          - ""
+          - "Model 2: Flowing pieces with your accessory style. APPLAUSE."
+          - ""
+          - "Model 3: Experimental sub-bay fabric GLOWS under the lights. CHEERS."
+          - ""
+          - "Model 4: Geometric precision meets your brand aesthetic. CAMERAS FLASH."
+          - ""
+          - "**FINALE PIECE:** The atomic-synthesis fabric (if you chose to debut it) catches light like STARLIGHT. The audience STANDS."
+          - ""
+          - "---"
+          - ""
+          - "Viktor whispers: *'Director... this is PERFECTION. This is YOUR vision realized.'*"
+          - ""
+          - "V.O.G.U.E.: *'Show success: 98.7%. Above industry standard. Your brand is legendary, Director.'*"
+        question: "How do you feel seeing your vision come to life on the runway?"
+        tokens_for_ai: |
+          This is an emotional reflection moment.
+          Let them express their feelings about their empire and show.
+
+          Categorize as:
+          - proud: Expresses pride in their work
+          - creative_satisfaction: Feels creatively fulfilled
+          - ready_for_more: Energized for future shows
+          - emotional: Moved by the experience
+          - brief: Short but genuine response
+          - set_language: Language preference
+          - off_topic: Unrelated
+        feedback_tokens_for_ai: |
+          This is THEIR MOMENT!
+          Celebrate their leadership, creativity, and vision.
+          Reference specific choices they made throughout.
+          Make them feel like the Director they are!
+        buckets:
+          - proud
+          - creative_satisfaction
+          - ready_for_more
+          - emotional
+          - brief
+          - set_language
+          - off_topic
+        transitions:
+          proud:
+            ai_feedback:
+              tokens_for_ai: |
+                Celebrate their pride!
+                "You SHOULD be proud, Director. This is YOUR creation!"
+                Reference their journey: warehouse missions, salon decisions, sub bay innovations, reactor power.
+                "Your empire runs on YOUR vision!"
+            metadata_add:
+              activity_completed: "true"
+              score: "n+3"
+            next_section_and_step: finale:reflection
+          creative_satisfaction:
+            ai_feedback:
+              tokens_for_ai: |
+                Celebrate their creative fulfillment!
+                "Your artistic vision came to LIFE, Director!"
+                Reference their aesthetic choices and creative decisions.
+                "This is what fashion empire building feels like!"
+            metadata_add:
+              activity_completed: "true"
+              score: "n+3"
+            next_section_and_step: finale:reflection
+          ready_for_more:
+            ai_feedback:
+              tokens_for_ai: |
+                Celebrate their energy!
+                "THAT'S the spirit of a true Director!"
+                "One show complete, but your empire continues!"
+                Reference future possibilities.
+            metadata_add:
+              activity_completed: "true"
+              score: "n+3"
+            next_section_and_step: finale:reflection
+          emotional:
+            ai_feedback:
+              tokens_for_ai: |
+                Celebrate their emotional connection!
+                "Fashion is EMOTION, Director. You get it!"
+                Reference their journey and the people/robots who helped.
+                "Your empire is more than clothes—it's a vision!"
+            metadata_add:
+              activity_completed: "true"
+              score: "n+3"
+            next_section_and_step: finale:reflection
+          brief:
+            ai_feedback:
+              tokens_for_ai: |
+                Acknowledge their response warmly.
+                Reference key moments from their journey.
+                "Your vision. Your brand. Your success!"
+            metadata_add:
+              activity_completed: "true"
+              score: "n+2"
+            next_section_and_step: finale:reflection
+          set_language:
+            content_blocks:
+              - "Language preference updated, Director."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: finale:runway_show
+          off_topic:
+            content_blocks:
+              - "Viktor: *'Director, the show was INCREDIBLE! How do you feel about what you created?'*"
+            next_section_and_step: finale:runway_show
+
+      - step_id: reflection
+        title: Legacy of a Director
+        content_blocks:
+          - "## 🌟 YOUR FASHION EMPIRE LEGACY"
+          - ""
+          - "You return to the Director's Suite."
+          - ""
+          - "The screens show all four locations:"
+          - "- 📦 Warehouse: Drones sorting tomorrow's materials"
+          - "- 💇 Salon: Team cleaning up after the show, energized"
+          - "- 🚢 Sub Bay: Mx. Kai's experiments continuing"
+          - "- ⚡ Reactor: Synthesizers humming, creating the future"
+          - ""
+          - "V.O.G.U.E. materializes:"
+          - ""
+          - "*Director, tonight was exceptional. Your leadership transformed raw materials into art.*"
+          - ""
+          - "---"
+          - ""
+          - "**📊 EMPIRE STATISTICS:**"
+          - "- Leadership Score: Check metadata"
+          - "- Missions Completed: Check metadata"
+          - "- Emergencies Handled: Check metadata"
+          - "- Locations Visited: Check metadata"
+          - "- Creative Decisions Made: Throughout your journey"
+          - ""
+          - "---"
+          - ""
+          - "**WHAT YOU DEMONSTRATED:**"
+          - ""
+          - "✓ **Creative Vision** - Your aesthetic shaped every piece"
+          - "✓ **Leadership** - Robots and NPCs followed your direction"
+          - "✓ **Risk Management** - You balanced innovation and safety"
+          - "✓ **Resource Management** - You optimized your empire's operations"
+          - "✓ **Problem Solving** - You handled emergencies with grace"
+          - ""
+          - "**THIS IS YOUR BRAND. YOUR EMPIRE. YOUR VISION.**"
+          - ""
+          - "---"
+          - ""
+          - "The backrooms beneath the city hum with activity."
+          - ""
+          - "Liminal spaces transformed into fashion's cutting edge."
+          - ""
+          - "All under YOUR control."
+          - ""
+          - "**You are the Director. Welcome to your empire. 👑**"
