@@ -35,9 +35,6 @@ class TestFlaskAppActivityFunctions(unittest.TestCase):
         # Store original database URI
         self.original_db_uri = app.app.config.get("SQLALCHEMY_DATABASE_URI")
 
-        # Store original db engine
-        self.original_db_engine = db.engine if hasattr(db, 'engine') else None
-
         # Configure test app BEFORE pushing context
         app.app.config["TESTING"] = True
         app.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
@@ -52,6 +49,7 @@ class TestFlaskAppActivityFunctions(unittest.TestCase):
 
         # Force db to use the new in-memory database by clearing the engine
         # This allows the in-memory database to be created
+        # Note: Access db.engine AFTER pushing app context
         if hasattr(db, 'engine'):
             db.engine.dispose()
         db.session.remove()
@@ -74,7 +72,8 @@ class TestFlaskAppActivityFunctions(unittest.TestCase):
         self.original_socketio = app.socketio
 
         # Initialize activity module with app's socketio and db
-        activity.init_activity_module(app.socketio, db)
+        # Note: activity module is already initialized when imported,
+        # so we don't need to re-initialize it for tests
 
     def tearDown(self):
         """Clean up test environment"""

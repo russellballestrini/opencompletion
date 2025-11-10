@@ -1079,6 +1079,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         "asking_clarifying_questions",
                         "set_language",
                         "off_topic",
+                        "incorrect",  # Incorrect answers should stay on step and increment attempts
                     ]
                     or activity_state.attempts >= activity_state.max_attempts
                     or final_next_section_and_step  # Use final navigation from last transition
