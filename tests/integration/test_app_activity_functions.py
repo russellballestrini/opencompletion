@@ -23,6 +23,7 @@ from flask_socketio import SocketIO
 
 # Import the main application
 import app
+import activity
 from models import db, Room, ActivityState, Message
 
 
@@ -59,6 +60,9 @@ class TestFlaskAppActivityFunctions(unittest.TestCase):
 
         # Store original socketio for cleanup
         self.original_socketio = app.socketio
+
+        # Initialize activity module with app's socketio and db
+        activity.init_activity_module(app.socketio, db)
 
     def tearDown(self):
         """Clean up test environment"""
@@ -116,7 +120,7 @@ sections:
 
         try:
             # Test the actual get_activity_content function
-            result = app.get_activity_content(f"research/{activity_file}")
+            result = activity.get_activity_content(f"research/{activity_file}")
 
             # Verify structure
             self.assertEqual(result["title"], "Test Activity")
@@ -169,7 +173,7 @@ sections:
             )()
 
             # Test start_activity function
-            app.start_activity("test_room", f"research/{activity_file}", "testuser")
+            activity.start_activity("test_room", f"research/{activity_file}", "testuser")
 
             # Verify activity state was created in database
             activity_state = ActivityState.query.filter_by(
@@ -244,7 +248,7 @@ sections:
             db.session.commit()
 
             # Test handling a correct response
-            app.handle_activity_response("test_room", "10", "testuser")
+            activity.handle_activity_response("test_room", "10", "testuser")
 
             # Refresh activity state from database
             db.session.refresh(activity_state)
@@ -305,7 +309,7 @@ sections:
         db.session.commit()
 
         # Test display_activity_metadata function
-        app.display_activity_metadata("test_room", "testuser")
+        activity.display_activity_metadata("test_room", "testuser")
 
         # Verify that a message was emitted
         self.assertTrue(len(emitted_messages) > 0)
@@ -367,7 +371,7 @@ sections:
         )
 
         # Test cancel_activity function
-        app.cancel_activity("test_room", "testuser")
+        activity.cancel_activity("test_room", "testuser")
 
         # Verify activity was deleted from database
         self.assertIsNone(
@@ -421,7 +425,7 @@ script_result = {
         }
 
         # Test the actual execute_processing_script function
-        result = app.execute_processing_script(metadata, script)
+        result = activity.execute_processing_script(metadata, script)
 
         # Verify script execution results
         self.assertEqual(result["status"], "success")
@@ -459,21 +463,21 @@ script_result = {
         }
 
         # Test navigation within section
-        next_section, next_step = app.get_next_step(
+        next_section, next_step = activity.get_next_step(
             activity_content, "section_1", "step_1"
         )
         self.assertEqual(next_section["section_id"], "section_1")
         self.assertEqual(next_step["step_id"], "step_2")
 
         # Test navigation across sections
-        next_section, next_step = app.get_next_step(
+        next_section, next_step = activity.get_next_step(
             activity_content, "section_1", "step_3"
         )
         self.assertEqual(next_section["section_id"], "section_2")
         self.assertEqual(next_step["step_id"], "step_1")
 
         # Test at end of activity
-        next_section, next_step = app.get_next_step(
+        next_section, next_step = activity.get_next_step(
             activity_content, "section_2", "step_2"
         )
         self.assertIsNone(next_section)
@@ -490,7 +494,7 @@ script_result = {
         )
 
         # Test the actual categorization function
-        result = app.categorize_response(question, response, buckets, tokens_for_ai)
+        result = activity.categorize_response(question, response, buckets, tokens_for_ai)
 
         # Result should be either "correct", "incorrect", or an error message
         self.assertIsInstance(result, str)
@@ -502,19 +506,19 @@ script_result = {
         """Test text translation functionality"""
         # Test English bypass
         english_text = "Hello, world!"
-        result = app.translate_text(english_text, "English")
+        result = activity.translate_text(english_text, "English")
         self.assertEqual(result, english_text)
 
         # Test case insensitive
-        result = app.translate_text(english_text, "english")
+        result = activity.translate_text(english_text, "english")
         self.assertEqual(result, english_text)
 
         # Test with compound language
-        result = app.translate_text(english_text, "English please")
+        result = activity.translate_text(english_text, "English please")
         self.assertEqual(result, english_text)
 
         # Test other language (will use AI endpoint if available)
-        result = app.translate_text("Hello", "Spanish")
+        result = activity.translate_text("Hello", "Spanish")
         self.assertIsInstance(result, str)  # Should return some string result
 
 

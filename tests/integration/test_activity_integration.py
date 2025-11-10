@@ -116,37 +116,42 @@ class TestActivityIntegration(unittest.TestCase):
         # Create minimal activity content
         activity_content = """
 default_max_attempts_per_step: 3
-tokens_for_ai_rubric: "Test rubric"
 
 sections:
   - section_id: "section_1"
     title: "Test Section"
     steps:
       - step_id: "step_1"
-        type: "question"
+        title: "Question 1"
         question: "What is 2+2?"
+        tokens_for_ai: "Categorize as 'correct' if answer is 4 or four, otherwise 'incorrect'"
         buckets:
-          - bucket_name: "correct"
-            bucket_criteria: "Answer is 4"
-          - bucket_name: "incorrect"
-            bucket_criteria: "Wrong answer"
+          - correct
+          - incorrect
         transitions:
           correct:
-            ai_feedback:
-              tokens_for_ai: "Provide encouragement"
-            next_section_id: "section_1"
-            next_step_id: "step_2"
+            content_blocks:
+              - "Great job!"
+            next_section_and_step: "section_1:step_2"
           incorrect:
-            ai_feedback:
-              tokens_for_ai: "Try again"
-            next_section_id: "section_1"
-            next_step_id: "step_1"
+            content_blocks:
+              - "Try again!"
+            counts_as_attempt: true
+            next_section_and_step: "section_1:step_1"
       - step_id: "step_2"
-        type: "question"
+        title: "Question 2"
         question: "What is 3+3?"
+        tokens_for_ai: "Categorize as 'correct' if answer is 6 or six, otherwise 'incorrect'"
         buckets:
-          - bucket_name: "correct"
-            bucket_criteria: "Answer is 6"
+          - correct
+          - incorrect
+        transitions:
+          correct:
+            content_blocks:
+              - "Excellent!"
+          incorrect:
+            content_blocks:
+              - "Not quite!"
 """
         # Write to research directory
         with tempfile.NamedTemporaryFile(
@@ -364,24 +369,32 @@ script_result = metadata['counter']
         from models import ActivityState
         import activity
 
-        # Create activity with multiple info steps before question
+        # Create activity with multiple content-only steps before question
         activity_content = """
 default_max_attempts_per_step: 3
 
 sections:
   - section_id: "intro"
+    title: "Introduction"
     steps:
       - step_id: "info_1"
-        type: "info"
-        display_text: "Welcome!"
+        title: "Welcome"
+        content_blocks:
+          - "Welcome!"
       - step_id: "info_2"
-        type: "info"
-        display_text: "Let's begin"
+        title: "Let's Begin"
+        content_blocks:
+          - "Let's begin"
       - step_id: "question_1"
-        type: "question"
+        title: "Question"
         question: "Ready?"
+        tokens_for_ai: "Categorize as 'yes' for any response"
         buckets:
-          - bucket_name: "yes"
+          - yes
+        transitions:
+          yes:
+            content_blocks:
+              - "Great!"
 """
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".yaml", dir="research", delete=False

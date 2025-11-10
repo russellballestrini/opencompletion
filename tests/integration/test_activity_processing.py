@@ -31,6 +31,7 @@ with patch.dict(
     },
 ):
     import app
+    import activity
 
 
 class MockActivityState:
@@ -178,7 +179,7 @@ script_result = {
 
         # Execute the processing script
         if transition.get("run_processing_script", False):
-            result = app.execute_processing_script(
+            result = activity.execute_processing_script(
                 activity_state.dict_metadata, script_step["processing_script"]
             )
 
@@ -236,7 +237,7 @@ script_result = {
         temp_metadata["user_response"] = user_response
 
         # Execute pre-script
-        pre_result = app.execute_processing_script(
+        pre_result = activity.execute_processing_script(
             temp_metadata, pre_script_step["pre_script"]
         )
 
@@ -334,7 +335,7 @@ script_result = {
         navigation_path = []
 
         for _ in range(10):  # Prevent infinite loop
-            next_section, next_step = app.get_next_step(
+            next_section, next_step = activity.get_next_step(
                 multi_section_activity, current_section, current_step
             )
 
@@ -371,9 +372,9 @@ script_result = {
         )
 
         with patch.object(
-            app, "provide_feedback", return_value=mock_feedback
+            activity, "provide_feedback", return_value=mock_feedback
         ) as mock_func:
-            result = app.provide_feedback(
+            result = activity.provide_feedback(
                 transition_with_feedback,
                 "correct",
                 "What is 2+2?",
@@ -403,7 +404,7 @@ if True
 
         # Should handle syntax errors gracefully
         with self.assertRaises(SyntaxError):
-            app.execute_processing_script(metadata, invalid_script)
+            activity.execute_processing_script(metadata, invalid_script)
 
     def test_processing_script_runtime_error(self):
         """Test handling of runtime errors in processing scripts"""
@@ -416,15 +417,15 @@ script_result = {'status': 'error'}
 
         # Should handle runtime errors gracefully
         with self.assertRaises(ZeroDivisionError):
-            app.execute_processing_script(metadata, runtime_error_script)
+            activity.execute_processing_script(metadata, runtime_error_script)
 
     def test_missing_activity_content(self):
         """Test handling of missing activity content"""
-        with patch.object(app, "get_activity_content") as mock_get_content:
+        with patch.object(activity, "get_activity_content") as mock_get_content:
             mock_get_content.side_effect = FileNotFoundError("Activity file not found")
 
             with self.assertRaises(FileNotFoundError):
-                app.get_activity_content("nonexistent_activity.yaml")
+                activity.get_activity_content("nonexistent_activity.yaml")
 
             mock_get_content.assert_called_once_with("nonexistent_activity.yaml")
 
@@ -448,7 +449,7 @@ script_result = {'status': 'error'}
                     f.write(malformed_yaml)
 
                 with self.assertRaises(yaml.YAMLError):  # YAML parsing error
-                    app.get_activity_content("research/malformed.yaml")
+                    activity.get_activity_content("research/malformed.yaml")
 
         finally:
             os.unlink(temp_file)
