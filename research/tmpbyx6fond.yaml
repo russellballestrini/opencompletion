@@ -1,0 +1,22 @@
+
+default_max_attempts_per_step: 3
+
+sections:
+  - section_id: "section_1"
+    title: "Test Section"
+    steps:
+      - step_id: "step_1"
+        title: "Question 1"
+        question: "What is 2+2?"
+        tokens_for_ai: "Categorize as 'correct' if answer is 4 or four, otherwise 'incorrect'"
+        buckets:
+          - correct
+          - incorrect
+        transitions:
+          correct:
+            content_blocks:
+              - "Great job! Activity complete."
+          incorrect:
+            content_blocks:
+              - "Try again!"
+            counts_as_attempt: true

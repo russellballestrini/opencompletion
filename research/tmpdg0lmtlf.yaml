@@ -1,0 +1,25 @@
+
+default_max_attempts_per_step: 3
+
+sections:
+  - section_id: "intro"
+    title: "Introduction"
+    steps:
+      - step_id: "info_1"
+        title: "Welcome"
+        content_blocks:
+          - "Welcome!"
+      - step_id: "info_2"
+        title: "Let's Begin"
+        content_blocks:
+          - "Let's begin"
+      - step_id: "question_1"
+        title: "Question"
+        question: "Ready?"
+        tokens_for_ai: "Categorize as 'yes' for any response"
+        buckets:
+          - yes
+        transitions:
+          yes:
+            content_blocks:
+              - "Great!"

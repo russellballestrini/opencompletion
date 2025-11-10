@@ -434,7 +434,7 @@ class TestGuardedAIClientAndErrorHandling(unittest.TestCase):
             "MODEL_API_KEY_2": "test-key-2",
         }
 
-        with patch.dict(os.environ, test_env):
+        with patch.dict(os.environ, test_env, clear=False):
             with patch("guarded_ai.get_client_for_endpoint") as mock_get_client:
                 mock_client1 = MagicMock()
                 mock_client2 = MagicMock()

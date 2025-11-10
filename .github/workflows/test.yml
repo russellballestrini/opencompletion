@@ -37,8 +37,8 @@ jobs:
       env:
         SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
         TESTING: "1"
-        MODEL_ENDPOINT_0: "https://test.api"
-        MODEL_API_KEY_0: "test-key"
+        MODEL_ENDPOINT_0: "https://hermes.ai.unturf.com/v1"
+        MODEL_API_KEY_0: "dummy"
 
     - name: Run functional tests
       run: |
@@ -46,8 +46,6 @@ jobs:
       env:
         SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
         TESTING: "1"
-        MODEL_ENDPOINT_0: "https://test.api"
-        MODEL_API_KEY_0: "test-key"
 
     - name: Run integration tests
       run: |
@@ -55,8 +53,8 @@ jobs:
       env:
         SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
         TESTING: "1"
-        MODEL_ENDPOINT_0: "https://test.api"
-        MODEL_API_KEY_0: "test-key"
+        MODEL_ENDPOINT_0: "https://hermes.ai.unturf.com/v1"
+        MODEL_API_KEY_0: "dummy"
 
     - name: Validate activity YAML files
       run: |
