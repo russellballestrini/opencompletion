@@ -70,6 +70,9 @@ sections:
     title: Understanding Logical Statements
     content_blocks:
     - '## Understanding Logical Statements'
+    - text: "**Your Progress: {{metadata.score}} points | Puzzles solved: {{metadata.puzzles_solved}}**"
+      show_if:
+        score_exists: true
     - Logic is about drawing valid conclusions from given information.
     - ''
     - '**Basic principle:** If A is true, and ''A implies B'' is true, then B must be true.'
@@ -80,7 +83,14 @@ sections:
     - '- Conclusion: Therefore, Whiskers is a mammal.'
     - ''
     - This is called **deductive reasoning** - going from general rules to specific cases.
-    question: Based on this reasoning, if 'All birds have feathers' and 'A robin is a bird', what can we conclude?
+    hints:
+      - attempt: 1
+        text: "💡 Hint: Apply the same pattern we used with cats and mammals."
+        counts_as_attempt: false
+      - attempt: 2
+        text: "💡 Stronger Hint: If ALL birds have feathers, and a robin IS a bird, what must be true about the robin?"
+        counts_as_attempt: false
+    question: "Attempt {{current_attempt}} of {{max_attempts}}: Based on this reasoning, if 'All birds have feathers' and 'A robin is a bird', what can we conclude?"
     tokens_for_ai: 'The student should conclude that a robin has feathers.
 
       Categorize as:
@@ -128,6 +138,9 @@ sections:
     title: The Contrapositive
     content_blocks:
     - '## The Contrapositive'
+    - text: "**Progress: {{metadata.score}} points | Puzzles solved: {{metadata.puzzles_solved}}**"
+      show_if:
+        score_exists: true
     - Great! Now let's learn about the **contrapositive** - a powerful logical tool.
     - ''
     - 'If we know: ''If A, then B'' is true'
@@ -140,7 +153,17 @@ sections:
     - Both statements are logically equivalent!
     - ''
     - '**Practice:** We know: ''If you study hard, you will pass the test.'''
-    question: What is the contrapositive of this statement?
+    hints:
+      - attempt: 1
+        text: "💡 Hint: The contrapositive negates BOTH parts AND reverses the order."
+        counts_as_attempt: false
+      - attempt: 2
+        text: "💡 Stronger Hint: Start with 'If you DON'T pass the test...' then what follows?"
+        counts_as_attempt: false
+      - attempt: 3
+        text: "💡 Final Hint: 'If you don't pass the test, then you didn't study hard.'"
+        counts_as_attempt: false
+    question: "Attempt {{current_attempt}} of {{max_attempts}}: What is the contrapositive of this statement?"
     tokens_for_ai: 'The correct contrapositive is: "If you don''t pass the test, then you didn''t study hard"
 
       or any equivalent phrasing.
@@ -365,6 +388,9 @@ sections:
     title: The Island of Knights and Knaves
     content_blocks:
     - '## The Island of Knights and Knaves'
+    - text: "**Progress: {{metadata.score}} points | Puzzles solved: {{metadata.puzzles_solved}}**"
+      show_if:
+        score_exists: true
     - This is a classic logic puzzle type!
     - ''
     - '**The Rules:**'
@@ -378,7 +404,17 @@ sections:
     - '**Person A says:** ''At least one of us is a knave.'''
     - ''
     - What are A and B?
-    question: Is A a knight or a knave? Is B a knight or a knave? Explain your reasoning.
+    hints:
+      - attempt: 1
+        text: "💡 Hint: Try assuming A is a knave. Does that lead to a contradiction?"
+        counts_as_attempt: false
+      - attempt: 2
+        text: "💡 Stronger Hint: If A were a knave (liar), then 'at least one of us is a knave' would be FALSE. What would that mean?"
+        counts_as_attempt: false
+      - attempt: 3
+        text: "💡 Final Hint: A cannot be a knave (leads to contradiction). So A is a knight. If A's statement is true, and A is a knight, then B must be the knave."
+        counts_as_attempt: false
+    question: "Attempt {{current_attempt}} of {{max_attempts}}: Is A a knight or a knave? Is B a knight or a knave? Explain your reasoning."
     tokens_for_ai: "Solution:\n- If A is a knave (liar), then the statement \"at least one of us is a knave\" would be false,\n  meaning both are knights. But A can't be both a knight and a knave - contradiction!\n- Therefore A must be a knight (truth-teller)\n- Since A tells the truth, \"at least one of us is a knave\" is true\n- Since A is a knight, B must be the knave\n\nAnswer: A is a knight, B is a knave\n\nCategorize as:\n- correct: Identifies A as knight and B as knave with reasonable explanation\n- partial_understanding: Gets one correct but not both, or right answer without clear reasoning\n- logical_error: Makes an error in the logical deduction\n- limited_effort: Too brief or gives up\n- asking_clarifying_questions: Asks for help\n- off_topic: Unrelated\n"
     feedback_tokens_for_ai: 'This is a challenging puzzle! If they get stuck, suggest trying both possibilities:
 
@@ -532,7 +568,15 @@ sections:
   - step_id: step_1
     title: Congratulations!
     content_blocks:
-    - '## Congratulations! 🎉'
+    - '## Congratulations, Logic Master! 🎉'
+    - ''
+    - "**Your Final Stats:**"
+    - "- 🏆 Total Score: **{{metadata.score}} points**"
+    - "- 🧩 Puzzles Solved: **{{metadata.puzzles_solved}}**"
+    - text: "- 💡 Hints Used: **{{metadata.hints_used}}**"
+      show_if:
+        hints_used_exists: true
+    - ''
     - You've completed the Logic Puzzles activity!
     - ''
     - '**What you''ve learned:**'

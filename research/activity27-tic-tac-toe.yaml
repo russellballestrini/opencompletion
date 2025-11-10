@@ -6,16 +6,22 @@ sections:
       - step_id: "step_0"
         title: "Introduction"
         content_blocks:
-          - |
-            Welcome to Tic Tac Toe! 🎮
-            You will be playing against the AI. You are 'X' and the AI is 'O'.
-            The board positions are numbered 0 to 8 as follows:
-
-            <img src="/static/images/tic-tac-toe.png">
+          - "# Welcome to Tic Tac Toe! 🎮"
+          - text: "**Games played: {{metadata.games_played}}**"
+            show_if:
+              games_played_exists: true
+          - "You will be playing against the AI. You are 'X' and the AI is 'O'."
+          - "The board positions are numbered 0 to 8 as follows:"
+          - ""
+          - "<img src=\"/static/images/tic-tac-toe.png\">"
 
       - step_id: "step_1"
         title: "Your Move"
-        question: "Enter a position number (0-8) to place your 'X'. Say restart or exit to quit."
+        content_blocks:
+          - text: "**Move: {{metadata.move_count}}**"
+            show_if:
+              move_count_exists: true
+        question: "Move {{metadata.move_count}}: Enter a position number (0-8) to place your 'X'. Say restart or exit to quit."
         tokens_for_ai: |
           Using the metadata, determine if the game is over and 'restart'.
           If the user wants to restart or play again, categorize as 'restart'
@@ -182,6 +188,8 @@ sections:
                  * DESCRIBE THE GAME BOARD
             metadata_tmp_add:
               user_move: "the-users-response"
+            metadata_add:
+              move_count: "n+1"
             next_section_and_step: "section_1:step_1"
           invalid_move:
             ai_feedback:
@@ -194,11 +202,16 @@ sections:
           restart:
             ai_feedback:
               tokens_for_ai: "Restarting the game. Let's start fresh!"
-            metadata_clear: True
+            metadata_add:
+              games_played: "n+1"
+            metadata_remove: ["move_count", "user_moves", "ai_moves", "board", "game_over", "ai_wins", "user_wins", "is_draw"]
             next_section_and_step: "section_1:step_0"
 
       - step_id: "step_2"
         title: "Goodbye"
         content_blocks:
-          - "Thank you for playing Tic Tac Toe! 🎉"
-          - "Feel free to come back anytime for another game."
+          - "# Thanks for playing Tic-Tac-Toe! 🎮"
+          - ""
+          - "**Total games played: {{metadata.games_played}}**"
+          - ""
+          - "Come back anytime for another match! 🌟"

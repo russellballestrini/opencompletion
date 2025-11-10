@@ -7,11 +7,18 @@ sections:
       - step_id: "step_0"
         title: "Challenge a Historical Figure"
         content_blocks:
-          - "Welcome to the Odds and Evens challenge! 🎮"
-          - "You will be playing against a random historical figure."
+          - "# Welcome to Odds and Evens! 🎮"
+          - "You will be playing against random historical figures."
+          - "Choose a number (0-5) and call 'odds' or 'evens'."
+          - "The sum of both numbers determines the winner!"
 
       - step_id: "step_1"
         title: "Throw Your Fingers"
+        content_blocks:
+          - text: "**Games played: {{metadata.attempts}}**"
+            show_if:
+              attempts_exists: true
+        question: "Round {{metadata.round}}: How many fingers do you throw? (Choose a number between 0 and 5 & either even or odd.) 🤔"
         tokens_for_ai: |
           Careful to check if user is trying to 'set_language' and do that first. Otherwise, figure out if they are picking a number between 0 and 5.
         feedback_tokens_for_ai: |
@@ -37,8 +44,8 @@ sections:
           Careful it's easy to add wrong or say a number is odd when it's even and vice versa.
 
           Finally, continue to provide a witty fact as the figure. Don't ever mention AI.
-          The figure should also comment on the 'attempts' number and how many times played!
-          If you feel like it, jeer at the player about an early 'exit' & suggest they quit.
+          The figure should comment on round {{metadata.round}} and how many games have been played.
+          If round number is getting high (>15), jeer at the player and suggest they might want to exit.
 
         processing_script: |
           user_input = metadata["user_choice"].split()
@@ -63,7 +70,6 @@ sections:
               winner = "It's a tie!"
           script_result = {"sum": total_fingers, "result": result, "winner": winner}
 
-        question: "How many fingers do you throw? (Choose a number between 0 and 5 & either even or odd.) 🤔"
         buckets:
           - throw_fingers
           - set_language
@@ -72,9 +78,10 @@ sections:
           throw_fingers:
             run_processing_script: True
             ai_feedback:
-              tokens_for_ai: "Declare your move and then determine who wins the game and provide a witty fact from the historical figure's perspective."
+              tokens_for_ai: "Declare your move and then determine who wins the game and provide a witty fact from the historical figure's perspective. Reference that this is round {{metadata.round}}."
             metadata_add:
               attempts: "n+1"
+              round: "n+1"
             metadata_tmp_add:
               user_choice: "the-users-response"
               ai_choice_finger: "n+random(0,5)"
@@ -85,11 +92,10 @@ sections:
           set_language:
             content_blocks:
               - "Language preference updated. Please continue in your preferred language."
-            ai_feedback:
-              tokens_for_ai: "Acknowledge the language change and confirm the update."
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
+            next_section_and_step: "section_1:step_1"
           exit:
             next_section_and_step: "section_2:step_1"
 
@@ -99,4 +105,9 @@ sections:
       - step_id: "step_1"
         title: "Exit"
         content_blocks:
-          - "Thank you for playing! We hope you enjoyed the game. Have a great day! 🌟"
+          - "# Thanks for playing Odds and Evens! 🌟"
+          - ""
+          - "**Total rounds played: {{metadata.round}}**"
+          - ""
+          - "You've played against the greatest minds in history!"
+          - "Come back anytime for another match! 🎮"

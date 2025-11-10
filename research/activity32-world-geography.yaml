@@ -119,6 +119,9 @@ sections:
     title: Welcome to Africa - Kenya
     content_blocks:
     - '## Welcome to Africa! 🦁'
+    - text: "**Your Journey: {{metadata.continents_visited}} continents | {{metadata.countries_visited}} countries | Quiz score: {{metadata.quiz_score}}**"
+      show_if:
+        quiz_score_exists: true
     - Africa is the world's second-largest continent, home to 54 countries and over 1.3 billion people.
     - ''
     - '**Let''s visit Kenya!**'
@@ -133,7 +136,14 @@ sections:
     - '**Language Note:**'
     - While English and Swahili are official languages, Kenya has over 60 indigenous languages!
     - In Swahili, 'Jambo' means 'Hello' and 'Karibu' means 'Welcome'.
-    question: What is the capital city of Kenya?
+    hints:
+      - attempt: 1
+        text: "💡 Hint: Look back at the information about Kenya. The capital is mentioned above!"
+        counts_as_attempt: false
+      - attempt: 2
+        text: "💡 Final Hint: It starts with 'N' and is one of Africa's major cities."
+        counts_as_attempt: false
+    question: "Attempt {{current_attempt}} of {{max_attempts}}: What is the capital city of Kenya?"
     tokens_for_ai: 'The capital of Kenya is Nairobi (just mentioned in the content).
 
 
@@ -194,6 +204,8 @@ sections:
     title: Choose Your Next Destination
     content_blocks:
     - '## Journey Continues...'
+    - "**Your Explorer Stats: {{metadata.continents_visited}} continents explored | {{metadata.countries_visited}} countries visited | {{metadata.cultural_facts_learned}} cultural facts learned | Quiz score: {{metadata.quiz_score}}**"
+    - ''
     - Excellent! You've learned about Kenya.
     - ''
     - '**From Kenya, you can explore:**'
@@ -201,7 +213,7 @@ sections:
     - '- **West to Nigeria** - Africa''s most populous country, rich in culture and music'
     - '- **South to South Africa** - Diverse landscapes from savannas to mountains'
     - '- **Continue to a new continent** - Asia, Europe, South America, or Oceania'
-    question: Where would you like to go next?
+    question: Where would you like to go next, Explorer?
     tokens_for_ai: 'Student is choosing their next destination.
 
 
