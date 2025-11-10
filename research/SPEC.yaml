@@ -1,0 +1,729 @@
+# ==============================================================================
+# OpenCompletion Activity YAML Specification
+# ==============================================================================
+# This document defines ALL supported mechanics for creating educational
+# activities in the OpenCompletion system.
+#
+# Version: 1.0
+# Last Updated: 2025-01-10
+# ==============================================================================
+
+# ==============================================================================
+# ACTIVITY ROOT LEVEL
+# ==============================================================================
+# These fields apply to the entire activity
+
+# Maximum number of times a user can attempt each step before auto-advancing
+# Default: 3
+# Optional
+default_max_attempts_per_step: 3
+
+# Model to use for categorizing user responses into buckets
+# Default: "MODEL_1" (Hermes-3-Llama-3.1-8B)
+# Optional
+classifier_model: "MODEL_1"
+
+# Model to use for generating AI feedback
+# Default: "MODEL_1" (Hermes-3-Llama-3.1-8B)
+# Optional
+# Tip: Use faster models (MODEL_1) for classification, specialized models (MODEL_3) for feedback
+feedback_model: "MODEL_1"
+
+# Global rubric for evaluating student responses across all steps
+# This provides consistent evaluation criteria
+# Optional
+tokens_for_ai_rubric: |
+  You are helping students learn about [TOPIC].
+
+  Evaluate their responses based on:
+  - Understanding of core concepts
+  - Clarity of explanation
+  - Critical thinking demonstrated
+
+  Be encouraging and constructive!
+
+# ==============================================================================
+# SECTIONS
+# ==============================================================================
+# Activities are organized into sections, which contain steps
+# Required: At least one section
+
+sections:
+  # Each section must have a unique section_id
+  - section_id: "introduction"  # REQUIRED - Unique identifier
+    title: "Getting Started"    # REQUIRED - Human-readable title
+
+    # Steps are the individual interactions within a section
+    steps:
+      # ========================================================================
+      # STEP TYPE 1: CONTENT-ONLY STEP
+      # ========================================================================
+      # Displays information and automatically advances
+      # No user interaction required
+
+      - step_id: "welcome"           # REQUIRED - Unique within this section
+        title: "Welcome"             # REQUIRED - Human-readable title
+
+        # Content blocks are displayed to the user
+        # Supports markdown formatting
+        content_blocks:               # REQUIRED for content-only steps
+          - "# Welcome to the Activity! 🎉"
+          - ""
+          - "This activity will teach you about [TOPIC]."
+          - ""
+          - "**What you'll learn:**"
+          - "- Concept 1"
+          - "- Concept 2"
+          - "- Concept 3"
+          - ""
+          - "Let's get started!"
+
+        # Content-only steps automatically advance to the next step
+        # No question, buckets, or transitions needed
+
+      # ========================================================================
+      # STEP TYPE 2: QUESTION STEP
+      # ========================================================================
+      # Interactive step that requires user response
+
+      - step_id: "question_example"
+        title: "Your First Question"
+
+        # Optional: Content blocks can appear before the question
+        content_blocks:
+          - "## Background Information"
+          - "Before we ask the question, here's some context..."
+
+        # The question asked to the user
+        question: "What is your name?"  # REQUIRED for question steps
+
+        # Instructions for the AI on how to categorize the user's response
+        # The AI will read this and place the response into one of the buckets
+        tokens_for_ai: |              # REQUIRED for question steps
+          Categorize the user's response:
+
+          - name_provided: They gave a name (any name is acceptable)
+          - set_language: They want to change language preference
+          - off_topic: Their response is unrelated to the question
+
+          Be generous in accepting names - nicknames, full names, etc.
+
+        # Instructions for generating feedback after categorization
+        # This is used when creating ai_feedback in transitions
+        feedback_tokens_for_ai: |     # Optional but recommended
+          Welcome the user by their name warmly!
+          Make them feel comfortable and ready to learn.
+
+          Example: "Welcome, [name]! Great to have you here!"
+
+        # List of possible categories (buckets) for user responses
+        # Every response will be categorized into one of these
+        buckets:                       # REQUIRED for question steps
+          - name_provided
+          - set_language
+          - off_topic
+
+        # ======================================================================
+        # RANDOM BUCKETS (Optional)
+        # ======================================================================
+        # Probabilistic events that can trigger alongside user responses
+        # Random rolls happen BEFORE categorization
+        # Multiple random buckets can trigger simultaneously
+
+        random_buckets:               # Optional
+          # Each random bucket must also appear in the main buckets list above
+          emergency:
+            probability: 0.05          # 5% chance (0.0 to 1.0)
+
+          surprise:
+            probability: 0.10          # 10% chance
+
+          bonus:
+            probability: 0.03          # 3% chance
+
+        # Processing Order:
+        # 1. Random buckets rolled
+        # 2. User response categorized
+        # 3. User's bucket processed FIRST
+        # 4. Random buckets processed in order they triggered
+        # 5. Metadata accumulates across all transitions
+        # 6. Last transition's navigation wins
+
+        # ======================================================================
+        # TRANSITIONS
+        # ======================================================================
+        # Define what happens for each bucket
+        # REQUIRED: One transition per bucket (including random buckets)
+
+        transitions:
+          # ==================================================================
+          # TRANSITION STRUCTURE
+          # ==================================================================
+          # Each bucket name maps to a transition configuration
+
+          name_provided:
+            # ----------------------------------------------------------------
+            # CONTENT BLOCKS (Optional)
+            # Static text displayed immediately
+            # ----------------------------------------------------------------
+            content_blocks:
+              - "Great! Let's continue."
+
+            # ----------------------------------------------------------------
+            # AI FEEDBACK (Optional)
+            # Dynamic feedback generated by the AI
+            # Uses feedback_tokens_for_ai from the step
+            # ----------------------------------------------------------------
+            ai_feedback:
+              tokens_for_ai: |
+                Generate personalized feedback based on their response.
+                Reference their specific answer to show you're paying attention.
+                Be encouraging!
+
+            # ----------------------------------------------------------------
+            # METADATA OPERATIONS (Optional)
+            # Modify the persistent metadata that follows the user
+            # ----------------------------------------------------------------
+
+            # ADD or UPDATE metadata keys
+            metadata_add:
+              # Store the exact user response
+              user_name: "the-users-response"
+
+              # Numeric increment: n+5 means "add 5 to existing value (or 0)"
+              score: "n+5"
+
+              # Numeric decrement: n-3 means "subtract 3 from existing value"
+              lives: "n-3"
+
+              # String concatenation: n+,value means "append value to comma-separated list"
+              achievements: "n+,first_question"
+              # If achievements was "started", becomes "started,first_question"
+              # If achievements was empty, becomes "first_question"
+
+              # String removal: n-,value means "remove value from comma-separated list"
+              # pending_tasks: "n-,intro"  # Removes "intro" from list
+
+              # Random numeric increment: n+random(1,10) adds random number between 1 and 10
+              bonus_points: "n+random(1,10)"
+
+              # Static value
+              step_completed: "true"
+
+              # Timestamp or any string
+              last_active: "2025-01-10"
+
+            # TEMPORARY metadata (removed at end of step)
+            # Useful for one-time values that don't persist
+            metadata_tmp_add:
+              temp_hint: "Remember this for the next question!"
+              temp_score: "n+2"  # All same operations as metadata_add work here
+
+            # REMOVE specific metadata keys
+            metadata_remove:
+              - old_key
+              - another_key
+            # Or single key:
+            # metadata_remove: "single_key"
+
+            # CLEAR all metadata (use with caution!)
+            metadata_clear: true
+
+            # RANDOM metadata - pick ONE random key-value pair
+            metadata_random:
+              random_event: "event_a"  # One of these will be chosen
+              random_event: "event_b"
+              random_event: "event_c"
+
+            # TEMPORARY random metadata - pick from list, remove at end of step
+            metadata_tmp_random:
+              dice_roll: [1, 2, 3, 4, 5, 6]  # One value chosen randomly
+              color_choice: ["red", "blue", "green"]
+
+            # ----------------------------------------------------------------
+            # METADATA CONDITIONS (Optional)
+            # Only execute this transition if conditions are met
+            # ----------------------------------------------------------------
+            metadata_conditions:
+              level: 5           # metadata.level must equal 5
+              has_key: "yes"     # metadata.has_key must equal "yes"
+              # All conditions must be true (AND logic)
+
+            # ----------------------------------------------------------------
+            # METADATA FEEDBACK FILTER (Optional)
+            # Only show AI feedback if specific metadata keys exist
+            # ----------------------------------------------------------------
+            metadata_feedback_filter:
+              - "achievement_unlocked"
+              - "bonus_available"
+            # AI feedback only generated if these keys are present in metadata
+
+            # ----------------------------------------------------------------
+            # PROCESSING SCRIPT (Optional)
+            # Execute Python code to perform complex logic
+            # ----------------------------------------------------------------
+            # Note: processing_script is defined at STEP level, not transition level
+            # Use run_processing_script: true to execute it for this transition
+            run_processing_script: true
+
+            # ----------------------------------------------------------------
+            # NAVIGATION (Optional)
+            # Where to go next
+            # ----------------------------------------------------------------
+            next_section_and_step: "section_2:step_1"
+            # Format: "section_id:step_id"
+            # If omitted, stays on current step (useful for retry loops)
+            # If ALL transitions omit this, activity terminates
+
+            # ----------------------------------------------------------------
+            # ATTEMPT COUNTING (Optional)
+            # Whether this transition counts toward max_attempts_per_step
+            # ----------------------------------------------------------------
+            counts_as_attempt: false  # Default: true
+            # Set to false for:
+            # - Hints that let user retry
+            # - Language changes
+            # - Clarifying questions
+            # Set to true for:
+            # - Wrong answers
+            # - Correct answers
+            # - Progress-making choices
+
+          # ==================================================================
+          # SPECIAL BUCKETS
+          # ==================================================================
+
+          # Language change bucket (standard pattern)
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false      # Don't penalize language changes
+            next_section_and_step: "introduction:question_example"  # Retry same question
+
+          # Off-topic response (retry pattern)
+          off_topic:
+            content_blocks:
+              - "I didn't understand that. Could you try again?"
+            next_section_and_step: "introduction:question_example"  # Retry
+            # counts_as_attempt: true (default) - wrong answers count
+
+          # Random event transitions
+          emergency:
+            ai_feedback:
+              tokens_for_ai: |
+                🚨 EMERGENCY EVENT!
+                Describe the emergency dramatically.
+                Show how the user handles it with their previous choice.
+            metadata_add:
+              emergencies_handled: "n+1"
+              random_events: "n+,emergency"
+            counts_as_attempt: false      # Random events don't count as attempts
+            # No next_section_and_step - uses user's navigation
+
+          surprise:
+            ai_feedback:
+              tokens_for_ai: |
+                ✨ SURPRISE EVENT!
+                Something unexpected happens!
+            metadata_add:
+              surprises_encountered: "n+1"
+              bonus_points: "n+random(5,15)"
+            counts_as_attempt: false
+
+      # ========================================================================
+      # PROCESSING SCRIPTS
+      # ========================================================================
+      # Python code executed during transitions
+      # Defined at step level, triggered by run_processing_script: true
+
+      - step_id: "processing_example"
+        title: "Processing Script Demo"
+        question: "Enter a number:"
+        tokens_for_ai: "Categorize as 'number' if numeric, 'invalid' otherwise"
+        buckets: [number, invalid]
+
+        # Pre-script runs BEFORE categorization
+        # Has access to user_response in metadata
+        pre_script: |
+          # Available: metadata dict (read/write), user_response
+          result = {}
+
+          # Parse user input
+          try:
+              value = int(metadata.get("user_response", "0"))
+              result["parsed_value"] = value
+              result["is_even"] = value % 2 == 0
+          except ValueError:
+              result["parsed_value"] = None
+              result["is_even"] = False
+
+          # Return dict of values to add to metadata
+          return result
+
+        # Processing script runs DURING transition (if run_processing_script: true)
+        # Has access to user_response in metadata
+        processing_script: |
+          # Available: metadata dict (read/write)
+          result = {}
+
+          # Complex calculations
+          score = metadata.get("score", 0)
+          multiplier = metadata.get("multiplier", 1)
+          result["final_score"] = score * multiplier
+
+          # Conditional logic
+          if result["final_score"] > 100:
+              result["achievement"] = "high_scorer"
+
+          return result
+
+        transitions:
+          number:
+            run_processing_script: true  # Triggers processing_script above
+            ai_feedback:
+              tokens_for_ai: "Confirm their number and show calculated results from metadata"
+            metadata_add:
+              attempts: "n+1"
+            next_section_and_step: "introduction:next_step"
+
+          invalid:
+            content_blocks:
+              - "Please enter a valid number."
+            next_section_and_step: "introduction:processing_example"
+
+      # ========================================================================
+      # FEEDBACK PROMPTS (Multi-Agent Feedback)
+      # ========================================================================
+      # New system for having multiple AI agents provide feedback
+      # Each agent has their own personality and perspective
+
+      - step_id: "feedback_prompts_example"
+        title: "Multi-Agent Feedback Demo"
+        question: "Design a solution to [PROBLEM]"
+        tokens_for_ai: |
+          Categorize as:
+          - excellent: Comprehensive, creative solution
+          - good: Solid solution with minor gaps
+          - needs_work: Incomplete or flawed
+        buckets: [excellent, good, needs_work]
+
+        # Define multiple feedback agents
+        # Each has their own name, emoji, and personality
+        feedback_prompts:
+          # Technical reviewer - focuses on implementation
+          - name: "Tech Lead"
+            emoji: "🔧"
+            system_prompt: |
+              You are a senior technical architect.
+              Review solutions for:
+              - Technical feasibility
+              - Scalability concerns
+              - Implementation complexity
+              Be constructive but thorough.
+
+            # Conditions for when this agent provides feedback
+            metadata_conditions:
+              level: "advanced"  # Only for advanced students
+
+            # Buckets this agent responds to
+            buckets_to_respond: [excellent, good]  # Skips needs_work
+
+          # Creative reviewer - focuses on innovation
+          - name: "Design Guru"
+            emoji: "🎨"
+            system_prompt: |
+              You are a creative design expert.
+              Evaluate solutions for:
+              - Innovation and originality
+              - User experience considerations
+              - Aesthetic appeal
+              Inspire them to think outside the box!
+
+            # This agent responds to all buckets (default)
+
+          # Encouraging mentor - provides emotional support
+          - name: "Mentor"
+            emoji: "🌟"
+            system_prompt: |
+              You are an encouraging mentor.
+              Provide:
+              - Emotional support
+              - Encouragement to continue
+              - Recognition of effort
+              Always be positive and uplifting!
+
+            # Always include this agent's feedback
+            always_include: true
+
+        # Legacy feedback tokens (combined with feedback_prompts if both present)
+        feedback_tokens_for_ai: |
+          Provide overall feedback on their solution.
+          This is combined with the multi-agent feedback.
+
+        transitions:
+          excellent:
+            # Multi-agent feedback automatically generated
+            # Each agent in feedback_prompts provides their perspective
+            metadata_add:
+              score: "n+10"
+            next_section_and_step: "advanced:next_challenge"
+
+          good:
+            metadata_add:
+              score: "n+5"
+            next_section_and_step: "intermediate:next_step"
+
+          needs_work:
+            content_blocks:
+              - "Let's try this again with some hints..."
+            next_section_and_step: "introduction:feedback_prompts_example"
+
+# ==============================================================================
+# STEP-LEVEL MODEL OVERRIDES
+# ==============================================================================
+# Steps can override the activity-level classifier and feedback models
+
+  - section_id: "advanced"
+    title: "Advanced Section"
+    steps:
+      - step_id: "coding_challenge"
+        title: "Write Code"
+
+        # Override classifier model for this step
+        classifier_model: "MODEL_1"  # Fast classification
+
+        # Override feedback model for this step
+        feedback_model: "MODEL_3"    # Qwen3-Coder for code review
+
+        question: "Write a function to solve [PROBLEM]"
+        tokens_for_ai: "Categorize as correct/incorrect based on solution quality"
+        buckets: [correct, incorrect]
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: |
+                Review their code professionally.
+                Provide specific feedback on:
+                - Code style and readability
+                - Algorithmic efficiency
+                - Edge case handling
+            next_section_and_step: "advanced:next_challenge"
+          incorrect:
+            ai_feedback:
+              tokens_for_ai: "Provide hints without giving away the solution"
+            next_section_and_step: "advanced:coding_challenge"
+
+# ==============================================================================
+# TERMINATION PATTERNS
+# ==============================================================================
+# Activities can terminate in several ways
+
+  - section_id: "conclusion"
+    title: "Wrap Up"
+    steps:
+      # ========================================================================
+      # TERMINATION 1: Content-Only Final Step
+      # ========================================================================
+      # Simplest termination - just display content
+
+      - step_id: "goodbye_content"
+        title: "Thank You!"
+        content_blocks:
+          - "# Thank You for Participating! 🎉"
+          - ""
+          - "You've completed the activity!"
+          - "Your final score: check metadata.score"
+          - ""
+          - "Come back anytime!"
+        # No question = auto-terminates
+
+      # ========================================================================
+      # TERMINATION 2: Final Reflection Question
+      # ========================================================================
+      # Last question with no onward navigation
+
+      - step_id: "reflection"
+        title: "Final Reflection"
+        question: "What did you learn today?"
+        tokens_for_ai: |
+          Categorize their reflection as:
+          - thoughtful: Deep, meaningful reflection
+          - brief: Short but genuine
+          - off_topic: Not answering the question
+        buckets: [thoughtful, brief, off_topic]
+        transitions:
+          thoughtful:
+            ai_feedback:
+              tokens_for_ai: "Celebrate their learning and growth!"
+            metadata_add:
+              activity_completed: "true"
+            # No next_section_and_step = terminates
+
+          brief:
+            ai_feedback:
+              tokens_for_ai: "Thank them for their time and effort!"
+            metadata_add:
+              activity_completed: "true"
+            # No next_section_and_step = terminates
+
+          off_topic:
+            content_blocks:
+              - "Please reflect on what you learned in this activity."
+            next_section_and_step: "conclusion:reflection"  # Retry
+
+      # ========================================================================
+      # TERMINATION 3: Explicit Exit Path
+      # ========================================================================
+      # Provide clear exit option
+
+      - step_id: "play_again"
+        title: "Continue?"
+        question: "Would you like to play again or exit?"
+        tokens_for_ai: "Categorize as 'again' or 'exit'"
+        buckets: [again, exit]
+        transitions:
+          again:
+            metadata_clear: true  # Reset game state
+            next_section_and_step: "introduction:welcome"  # Restart
+
+          exit:
+            next_section_and_step: "conclusion:goodbye_content"  # Jump to end
+
+# ==============================================================================
+# METADATA SPECIAL VALUES
+# ==============================================================================
+# Reference guide for all metadata operations
+
+# String Operations:
+# ------------------
+# "the-users-response"         → Exact text of user's answer
+# "n+,value"                   → Append to comma-separated list
+# "n-,value"                   → Remove from comma-separated list
+
+# Numeric Operations:
+# -------------------
+# "n+5"                        → Add 5 to existing value (or 0)
+# "n-3"                        → Subtract 3 from existing value
+# "n+random(1,10)"             → Add random number between 1 and 10
+
+# Static Values:
+# --------------
+# "any string"                 → Store literal string
+# 42                           → Store integer
+# true / false                 → Store boolean
+
+# ==============================================================================
+# VALIDATION RULES
+# ==============================================================================
+
+# REQUIRED:
+# ---------
+# ✓ Every activity must have "sections" (at least one)
+# ✓ Every section needs: section_id, title, steps
+# ✓ Every step needs: step_id, title
+# ✓ Every step needs EITHER content_blocks OR question (or both)
+# ✓ Steps with questions need: buckets, transitions, tokens_for_ai
+# ✓ Every bucket must have a corresponding transition
+# ✓ All next_section_and_step targets must exist
+
+# FORBIDDEN:
+# ----------
+# ✗ Terminal steps (no next_section_and_step) CANNOT have questions
+# ✗ Section IDs must be unique within activity
+# ✗ Step IDs must be unique within section
+# ✗ Random bucket names must exist in main buckets list
+# ✗ Random bucket probabilities must be 0.0 to 1.0
+
+# WARNINGS:
+# ---------
+# ⚠ Total random bucket probability > 1.0 (overlapping events)
+# ⚠ Circular loops without exit path
+# ⚠ Python syntax errors in processing scripts
+
+# ==============================================================================
+# BEST PRACTICES
+# ==============================================================================
+
+# 1. START SIMPLE
+#    - Begin with content-only steps and simple questions
+#    - Add complexity incrementally
+#    - Test frequently with CLI simulator
+
+# 2. CLEAR INSTRUCTIONS
+#    - Write specific tokens_for_ai that explain each bucket clearly
+#    - Give examples of what qualifies for each category
+#    - Be generous in accepting valid responses
+
+# 3. METADATA STRATEGY
+#    - Track meaningful state: score, progress, user choices
+#    - Use descriptive key names: "programming_language" not "pl"
+#    - Clean up temporary metadata with metadata_tmp_add
+
+# 4. RANDOM EVENTS
+#    - Use probabilities that feel right (5-15% for rare events)
+#    - Set counts_as_attempt: false for random buckets
+#    - Don't override user navigation unless necessary
+
+# 5. FEEDBACK QUALITY
+#    - Reference specific parts of user's answer
+#    - Provide actionable suggestions for improvement
+#    - Celebrate progress and effort
+
+# 6. TERMINATION
+#    - Always provide clear path to completion
+#    - Mark completion: metadata_add: activity_completed: "true"
+#    - Give users a sense of accomplishment
+
+# 7. TESTING
+#    - Validate YAML: python activity_yaml_validator.py your_activity.yaml
+#    - Test all paths: source vars.sh && python research/guarded_ai.py your_activity.yaml
+#    - Try wrong answers, edge cases, language switching
+
+# ==============================================================================
+# MODEL CONFIGURATION
+# ==============================================================================
+
+# Environment Variables (in vars.sh):
+# ------------------------------------
+# MODEL_ENDPOINT_1=http://localhost:8080/v1
+# MODEL_API_KEY_1=your-api-key
+# MODEL_NAME_1=model  # Optional: actual model name for endpoint
+#
+# MODEL_ENDPOINT_2=http://localhost:8081/v1
+# MODEL_API_KEY_2=your-api-key
+# MODEL_NAME_2=gpt-4
+#
+# MODEL_ENDPOINT_3=http://localhost:8082/v1
+# MODEL_API_KEY_3=your-api-key
+# MODEL_NAME_3=model
+
+# Recommended Models:
+# -------------------
+# MODEL_1: Hermes-3-Llama-3.1-8B (default, fast, excellent for classification)
+# MODEL_2: Larger general model (if available)
+# MODEL_3: Qwen3-Coder-30B (for programming activities)
+
+# Model Selection Strategy:
+# -------------------------
+# - Classifier: Use MODEL_1 (fast 8B model) for instant categorization
+# - Feedback: Use specialized model for domain-specific feedback
+#   - Programming → MODEL_3 (Qwen3-Coder)
+#   - General → MODEL_1 (Hermes)
+#   - Advanced reasoning → MODEL_2 (larger model)
+
+# ==============================================================================
+# EXAMPLES
+# ==============================================================================
+
+# See these reference activities:
+# -------------------------------
+# activity26-magic-8-ball.yaml           - Looping, randomness, replayability
+# activity31-scientific-method.yaml      - Educational scaffolding
+# activity37-programming-languages.yaml  - Model overrides, code generation
+# activity40-fashion-empire-backrooms.yaml - Random buckets, complex navigation
+
+# ==============================================================================
+# END OF SPECIFICATION
+# ==============================================================================

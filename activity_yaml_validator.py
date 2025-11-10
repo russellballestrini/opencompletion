@@ -273,6 +273,12 @@ class ActivityYAMLValidator:
         if "buckets" in step:
             self._validate_buckets(step["buckets"], section_id, step_id)
 
+        # Validate random_buckets (optional)
+        if "random_buckets" in step:
+            self._validate_random_buckets(
+                step["random_buckets"], step.get("buckets", []), section_id, step_id
+            )
+
         if "transitions" in step:
             self._validate_transitions(
                 step["transitions"], step.get("buckets", []), section_id, step_id
@@ -366,6 +372,60 @@ class ActivityYAMLValidator:
                 self.errors.append(
                     f"Section {section_id}, step {step_id}: buckets[{i}] must be a string, integer, or boolean"
                 )
+
+    def _validate_random_buckets(
+        self, random_buckets: Dict[str, Any], buckets: List[str], section_id: str, step_id: str
+    ):
+        """Validate random_buckets configuration"""
+        if not isinstance(random_buckets, dict):
+            self.errors.append(
+                f"Section {section_id}, step {step_id}: 'random_buckets' must be a dictionary"
+            )
+            return
+
+        # Each key should be a bucket name that exists in the buckets list
+        for bucket_name, config in random_buckets.items():
+            # Check if bucket exists in buckets list
+            if bucket_name not in buckets:
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: random_buckets key '{bucket_name}' not found in buckets list"
+                )
+                continue
+
+            # Validate config structure
+            if not isinstance(config, dict):
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: random_buckets['{bucket_name}'] must be a dictionary"
+                )
+                continue
+
+            # Validate probability field
+            if "probability" not in config:
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: random_buckets['{bucket_name}'] missing required field 'probability'"
+                )
+            else:
+                prob = config["probability"]
+                if not isinstance(prob, (int, float)):
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}: random_buckets['{bucket_name}'].probability must be a number"
+                    )
+                elif prob < 0 or prob > 1:
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}: random_buckets['{bucket_name}'].probability must be between 0 and 1 (got {prob})"
+                    )
+
+        # Check total probability (warning if > 1.0, since they can overlap)
+        total_prob = sum(
+            config.get("probability", 0)
+            for config in random_buckets.values()
+            if isinstance(config, dict) and isinstance(config.get("probability"), (int, float))
+        )
+        if total_prob > 1.0:
+            self.warnings.append(
+                f"Section {section_id}, step {step_id}: Total probability of random_buckets is {total_prob:.2f} (>1.0). "
+                "This means multiple events can trigger simultaneously (overlapping)."
+            )
 
     def _validate_transitions(
         self,

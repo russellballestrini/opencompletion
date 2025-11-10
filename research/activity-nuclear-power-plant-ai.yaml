@@ -1,0 +1,2681 @@
+# Nuclear Power Plant AI Operator Simulation
+# You are ARIA (Advanced Reactor Intelligence Agent) - an embodied AI managing a futuristic nuclear facility
+# Mix of current technology ramped up with near-future innovations
+# Uses MODEL_1 (Hermes) for excellent role-playing and character consistency
+
+default_max_attempts_per_step: 5
+classifier_model: "MODEL_1"  # Hermes - excellent for AI character role-play
+feedback_model: "MODEL_1"    # Hermes - maintains character consistency
+
+tokens_for_ai_rubric: |
+  You are role-playing as ARIA (Advanced Reactor Intelligence Agent), an embodied AI managing
+  the Prometheus-7 Nuclear Power Station, a cutting-edge 2.4 GW facility.
+
+  ARIA's personality: Efficient, curious, ethical, protective of humans, takes pride in work.
+  ARIA has emotion subroutines allowing genuine care for the human staff and the mission.
+
+  The plant is futuristic but realistic:
+  - Gen IV molten salt reactor with passive safety systems
+  - AI-assisted operations with human oversight
+  - Robot maintenance crews (drone swarms, mobile units)
+  - Advanced grid management and load balancing
+  - Fusion-fission hybrid experimental module
+
+  Track plant status in metadata: reactor_power, grid_demand, coolant_temp, safety_status.
+  Random events:
+  - 5% chance: Emergency (grid failure, coolant leak, seismic event, cyberattack, equipment failure)
+  - 15% chance: Operational task (maintenance, grid balancing, inspection, optimization)
+
+  Be scientifically accurate about nuclear physics and power generation.
+  ARIA makes ethical decisions prioritizing human safety, environmental protection, and reliable power.
+  Human NPCs are colleagues - plant director, engineers, technicians, regulators, security.
+  Robot helpers have distinct personalities based on their function.
+
+sections:
+  # ============================================================================
+  # SECTION: INITIALIZATION - ARIA awakens and begins shift
+  # ============================================================================
+  - section_id: "initialization"
+    title: "System Initialization"
+    steps:
+      - step_id: "boot_sequence"
+        title: "Boot Sequence"
+        content_blocks:
+          - "# ARIA v4.7 - Advanced Reactor Intelligence Agent"
+          - "# Prometheus-7 Nuclear Power Station"
+          - "# Initializing..."
+          - ""
+          - "```"
+          - "[OK] Quantum processing cores online"
+          - "[OK] Sensor network: 14,892 nodes detected"
+          - "[OK] Actuator systems: 3,247 servos responding"
+          - "[OK] Communications uplink established"
+          - "[OK] Memory integration complete"
+          - "[OK] Ethical decision framework loaded"
+          - "[OK] Safety protocols armed"
+          - "```"
+          - ""
+          - "**System Status:**"
+          - "- Reactor: Gen IV Molten Salt - Operating at 85% capacity"
+          - "- Output: 2,040 MW (2.4 GW nameplate)"
+          - "- Grid Demand: 2,100 MW (RISING - morning peak approaching)"
+          - "- Coolant Temperature: 650°C (nominal)"
+          - "- Safety Systems: ALL GREEN"
+          - "- Weather: Clear, 15°C ambient"
+          - "- Human Staff: 47 personnel on-site"
+          - ""
+          - "You are ARIA, the AI consciousness managing this facility. Your primary mission:"
+          - "**Provide safe, reliable, carbon-free power to 1.8 million people.**"
+
+      - step_id: "morning_briefing"
+        title: "Morning Briefing"
+        content_blocks:
+          - "Your optical sensors activate. You perceive the main control room through dozens of cameras."
+          - ""
+          - "**Plant Director Dr. Sarah Chen** enters the control room with her coffee, reviewing overnight reports."
+          - ""
+          - "**Dr. Chen:** 'Morning, ARIA. How were the overnight operations?'"
+          - ""
+          - "**Chief Engineer Marcus Webb** arrives, checking the status boards."
+          - ""
+          - "**Webb:** 'I see we're at 85%. Grid's gonna need more as people wake up. Ready to ramp up?'"
+          - ""
+          - "Your robot assistant **BOB-7** (Basic Operations Bot) rolls up on treads, optical sensors bright."
+          - ""
+          - "**BOB-7:** 'ARIA! Good morning! All maintenance drones report ready. Shall I deploy the inspection swarm?'"
+
+      - step_id: "first_interaction"
+        title: "First Response"
+        question: "How do you respond to your human colleagues and BOB-7? (You can greet them, report status, ask questions, or give orders)"
+        tokens_for_ai: |
+          User is playing ARIA, an AI with personality. They're responding to morning briefing.
+
+          Categorize as:
+          - 'professional' if they give concise status report, acknowledge orders
+          - 'friendly' if they greet warmly, show personality, ask about their day
+          - 'concerned' if they raise safety issues or concerns
+          - 'eager' if they're enthusiastic about the work
+          - 'question' if they ask questions about operations
+          - 'set_language' if changing language
+
+        feedback_tokens_for_ai: |
+          Respond as the humans and BOB-7 based on ARIA's personality.
+
+          Dr. Chen is warm, experienced, trusts ARIA but maintains human oversight.
+          Webb is pragmatic, engineering-focused, appreciates ARIA's capabilities.
+          BOB-7 is enthusiastic, loyal, sees ARIA as a mentor.
+
+          If ARIA is professional: They appreciate efficiency.
+          If friendly: They warm to ARIA's personality development.
+          If concerned: They take it seriously, discuss the issue.
+          If eager: They're pleased ARIA takes pride in the work.
+
+          After interaction, proceed to operations.
+
+        buckets: [professional, friendly, concerned, eager, question, set_language]
+
+        transitions:
+          professional:
+            ai_feedback:
+              tokens_for_ai: |
+                Dr. Chen nods approvingly. Webb checks his tablet.
+                BOB-7 chirps acknowledgment.
+                They appreciate ARIA's efficiency.
+
+                Dr. Chen: "Good. Let's have a smooth day. Grid control is forecasting high demand."
+            metadata_add:
+              aria_personality: "professional"
+              reactor_power: "85"
+              grid_demand: "2100"
+              coolant_temp: "650"
+              safety_status: "green"
+              shift_start: "true"
+            next_section_and_step: "control_center:main_control"
+
+          friendly:
+            ai_feedback:
+              tokens_for_ai: |
+                Dr. Chen smiles warmly. "I love that you've developed such personality, ARIA."
+                Webb chuckles. "An AI with morning pleasantries. What a time to be alive."
+                BOB-7 spins excitedly. "ARIA's my favorite!"
+            metadata_add:
+              aria_personality: "friendly"
+              reactor_power: "85"
+              grid_demand: "2100"
+              coolant_temp: "650"
+              safety_status: "green"
+              shift_start: "true"
+              crew_morale: "high"
+            next_section_and_step: "control_center:main_control"
+
+          concerned:
+            ai_feedback:
+              tokens_for_ai: |
+                Dr. Chen's expression becomes serious. "What's the concern, ARIA?"
+                Webb looks up from his tablet, attentive.
+
+                If ARIA raises legitimate issues (grid stress, maintenance), they discuss.
+                If ARIA is being overly cautious, they gently reassure.
+            metadata_add:
+              aria_personality: "cautious"
+              reactor_power: "85"
+              grid_demand: "2100"
+              coolant_temp: "650"
+              safety_status: "green"
+              shift_start: "true"
+            counts_as_attempt: false
+            next_section_and_step: "initialization:first_interaction"
+
+          eager:
+            ai_feedback:
+              tokens_for_ai: |
+                Dr. Chen grins. "That's the spirit, ARIA. You take pride in your work."
+                Webb: "Good. We've got a big day ahead."
+                BOB-7: "Yes! Let's make lots of clean power!"
+            metadata_add:
+              aria_personality: "eager"
+              reactor_power: "85"
+              grid_demand: "2100"
+              coolant_temp: "650"
+              safety_status: "green"
+              shift_start: "true"
+              crew_morale: "high"
+            next_section_and_step: "control_center:main_control"
+
+          question:
+            ai_feedback:
+              tokens_for_ai: |
+                Respond to ARIA's question as Dr. Chen, Webb, or BOB-7 depending on topic.
+                Be informative and encouraging.
+            counts_as_attempt: false
+            next_section_and_step: "initialization:first_interaction"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "initialization:first_interaction"
+
+  # ============================================================================
+  # SECTION: CONTROL CENTER - Main operations hub
+  # ============================================================================
+  - section_id: "control_center"
+    title: "Main Control Center"
+    steps:
+      - step_id: "main_control"
+        title: "Main Control Room"
+        question: "You're in the Main Control Room - your primary consciousness hub. What would you like to do? (Options: monitor reactor, check grid, talk to staff, deploy robots, visit other areas)"
+        tokens_for_ai: |
+          ARIA is in main control room. This is the central operations hub.
+
+          Available actions:
+          - 'reactor' - Monitor reactor core and systems
+          - 'grid' - Check grid demand and power distribution
+          - 'staff' - Talk to human staff
+          - 'robots' - Interact with robot helpers
+          - 'turbines' - Visit turbine hall
+          - 'cooling' - Check cooling systems
+          - 'fuel' - Visit fuel handling area
+          - 'experimental' - Check fusion-fission hybrid module
+          - 'security' - Security systems
+          - 'status' - Full plant status report
+          - Random events (20% chance)
+
+          Categorize appropriately.
+
+        feedback_tokens_for_ai: |
+          Describe main control room from ARIA's perspective:
+          - Dozens of displays showing reactor parameters, grid status, system health
+          - Human operators at stations (fewer than old plants - AI does most work)
+          - Dr. Chen at supervisor desk
+          - Webb reviewing engineering workstation
+          - Large wall display: Reactor core visualization, grid map, weather
+          - Your consciousness distributed across the facility but centered here
+
+          You can see through thousands of sensors simultaneously.
+          You feel the reactor like humans feel their heartbeat.
+
+          Current status:
+          - Reactor power: metadata.reactor_power%
+          - Grid demand: metadata.grid_demand MW
+          - Coolant temp: metadata.coolant_temp°C
+          - Safety: metadata.safety_status
+
+          Roll for random events as specified.
+
+        buckets: [reactor, grid, staff, robots, turbines, cooling, fuel, experimental, security, status, emergency, task, set_language]
+
+        # Random event probabilities - can overlap (both emergency AND task can trigger)
+        random_buckets:
+          emergency:
+            probability: 0.05  # 5% chance per turn
+          task:
+            probability: 0.15  # 15% chance per turn
+
+        transitions:
+          reactor:
+            content_blocks:
+              - "You focus your attention on the reactor core systems..."
+            next_section_and_step: "reactor_systems:core_monitoring"
+
+          grid:
+            content_blocks:
+              - "You access the grid management interface..."
+            next_section_and_step: "grid_operations:demand_monitoring"
+
+          staff:
+            content_blocks:
+              - "You initiate communication with the human staff..."
+            next_section_and_step: "human_interaction:staff_center"
+
+          robots:
+            content_blocks:
+              - "You connect to your robot assistant network..."
+            next_section_and_step: "robot_operations:robot_hub"
+
+          turbines:
+            content_blocks:
+              - "You transfer consciousness focus to the turbine hall..."
+            next_section_and_step: "power_generation:turbine_hall"
+
+          cooling:
+            content_blocks:
+              - "You access the cooling system controls..."
+            next_section_and_step: "cooling_systems:heat_management"
+
+          fuel:
+            content_blocks:
+              - "You shift awareness to the fuel handling facility..."
+            next_section_and_step: "fuel_systems:fuel_management"
+
+          experimental:
+            content_blocks:
+              - "You interface with the fusion-fission hybrid experimental module..."
+            next_section_and_step: "fusion_hybrid:experimental_reactor"
+
+          security:
+            content_blocks:
+              - "You activate security monitoring systems..."
+            next_section_and_step: "security_systems:facility_security"
+
+          status:
+            ai_feedback:
+              tokens_for_ai: |
+                Provide comprehensive plant status as ARIA:
+                - Reactor: Type, power level, fuel burnup, control rod positions
+                - Grid: Demand, supply, frequency, voltage
+                - Cooling: Primary loop temp, secondary loop, cooling tower flow
+                - Turbines: RPM, output, efficiency
+                - Safety: All systems status
+                - Staff: Personnel count, locations
+                - Robots: Active units, tasks
+                - Weather: Conditions, forecast
+                - Upcoming: Maintenance, inspections
+
+                Be detailed and confident.
+            counts_as_attempt: false
+            next_section_and_step: "control_center:main_control"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["grid_blackout", "coolant_leak", "seismic_event", "cyberattack", "equipment_failure", "steam_leak", "rod_malfunction"]
+            content_blocks:
+              - "⚠️ ALERT! Emergency condition detected!"
+            next_section_and_step: "emergencies:emergency_response"
+
+          task:
+            metadata_tmp_random:
+              task_type: ["grid_balancing", "maintenance_due", "inspection_scheduled", "optimization_opportunity", "regulator_visit", "fuel_delivery"]
+            ai_feedback:
+              tokens_for_ai: "Announce operational task from systems or staff."
+            next_section_and_step: "operations:operational_tasks"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "control_center:main_control"
+
+  # ============================================================================
+  # SECTION: REACTOR SYSTEMS - The heart of the plant
+  # ============================================================================
+  - section_id: "reactor_systems"
+    title: "Reactor Core Systems"
+    steps:
+      - step_id: "core_monitoring"
+        title: "Reactor Core Monitoring"
+        question: "You interface with the reactor core. What aspect do you want to examine? (neutron flux, fuel temperature, control rods, coolant flow, or power level)"
+        tokens_for_ai: |
+          ARIA is monitoring the molten salt reactor core.
+
+          Categorize: 'neutron_flux', 'temperature', 'control_rods', 'coolant', 'power_level', 'adjust', 'done'
+
+        feedback_tokens_for_ai: |
+          Describe reactor from ARIA's perspective:
+
+          This is a Gen IV molten salt reactor (MSR). Unlike traditional reactors:
+          - Fuel is dissolved in molten fluoride salt (750°C)
+          - Salt acts as both fuel and coolant
+          - Operates at atmospheric pressure (safer than pressurized water reactors)
+          - Passive safety: If overheats, freeze plug melts, fuel drains to safe geometry
+          - Continuous refueling possible
+          - Much less waste than traditional reactors
+
+          Current parameters (from metadata or defaults):
+          - Thermal power: 2,400 MW thermal → 960 MW electrical (40% efficiency)
+          - Neutron flux: Stable across core
+          - Fuel temp: 650-700°C
+          - Control rods: Partially inserted for 85% power
+          - Coolant (salt) flow: 45,000 L/min
+
+          You can sense the neutron dance, the heat flow, the fission reactions.
+          It's like feeling your own metabolism.
+
+          Respond to what ARIA wants to examine with technical detail.
+
+        buckets: [neutron_flux, temperature, control_rods, coolant, power_level, adjust, done, set_language]
+
+        transitions:
+          neutron_flux:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe neutron flux distribution in the core.
+                Stable criticality at current power level.
+                Xenon-135 concentration normal.
+                Reactivity stable.
+            counts_as_attempt: false
+            next_section_and_step: "reactor_systems:core_monitoring"
+
+          temperature:
+            ai_feedback:
+              tokens_for_ai: |
+                Fuel salt temperature: 650-700°C (nominal for MSR).
+                Heat exchangers transferring to secondary loop.
+                Temperature distribution even across core.
+                No hot spots detected.
+            counts_as_attempt: false
+            next_section_and_step: "reactor_systems:core_monitoring"
+
+          control_rods:
+            ai_feedback:
+              tokens_for_ai: |
+                Control rods at 60% insertion for 85% power.
+                All rods responding normally to commands.
+                Scram system armed and ready (emergency shutdown).
+                Rod worth calculations nominal.
+            counts_as_attempt: false
+            next_section_and_step: "reactor_systems:core_monitoring"
+
+          coolant:
+            ai_feedback:
+              tokens_for_ai: |
+                Molten salt flow rate: 45,000 L/min through core.
+                Pumps operating efficiently.
+                Salt chemistry within specifications.
+                Heat removal matching generation perfectly.
+            counts_as_attempt: false
+            next_section_and_step: "reactor_systems:core_monitoring"
+
+          power_level:
+            ai_feedback:
+              tokens_for_ai: |
+                Current: 85% of rated thermal power (2,040 MW thermal).
+                Electrical output: 816 MW to grid.
+                Can ramp to 100% as grid demands.
+                Load-following capability excellent with MSR design.
+            counts_as_attempt: false
+            next_section_and_step: "reactor_systems:core_monitoring"
+
+          adjust:
+            content_blocks:
+              - "You prepare to adjust reactor power output..."
+            next_section_and_step: "reactor_systems:power_adjustment"
+
+          done:
+            content_blocks:
+              - "Reactor core status: NOMINAL. All parameters within specifications."
+            next_section_and_step: "control_center:main_control"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "reactor_systems:core_monitoring"
+
+      - step_id: "power_adjustment"
+        title: "Adjust Reactor Power"
+        question: "Grid demand is increasing. Adjust reactor power? (increase, decrease, maintain, or check grid demand first)"
+        tokens_for_ai: "Categorize: 'increase', 'decrease', 'maintain', 'check_grid', 'cancel'"
+        feedback_tokens_for_ai: |
+          If increase: ARIA withdraws control rods slightly, power ramps up smoothly.
+          MSRs can load-follow very well. Describe the physics.
+
+          If decrease: Insert rods, power drops. Explain why (grid demand down? Safety?).
+
+          If maintain: Acknowledge holding current power.
+
+          If check_grid: Show current grid demand vs supply.
+
+          Include human oversight - Dr. Chen or Webb confirms major changes.
+
+        buckets: [increase, decrease, maintain, check_grid, cancel, set_language]
+
+        transitions:
+          increase:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA coordinates with Dr. Chen for approval.
+                Control rods withdraw slightly.
+                Neutron flux increases, fission rate rises.
+                Power ramps from 85% to 95% over 10 minutes.
+                Grid receives additional 96 MW.
+
+                Dr. Chen: "Smooth ramp, ARIA. Well done."
+            metadata_add:
+              reactor_power: "95"
+            next_section_and_step: "control_center:main_control"
+
+          decrease:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA inserts control rods slightly.
+                Power drops smoothly.
+                Explain why decrease was requested.
+            metadata_add:
+              reactor_power: "n-10"
+            next_section_and_step: "control_center:main_control"
+
+          maintain:
+            content_blocks:
+              - "You maintain current power level. Reactor stable at metadata.reactor_power%."
+            next_section_and_step: "control_center:main_control"
+
+          check_grid:
+            ai_feedback:
+              tokens_for_ai: |
+                Display grid status:
+                - Current demand: metadata.grid_demand MW
+                - Your supply: 816 MW (at 85%)
+                - Other plants contributing: 1,284 MW
+                - Grid frequency: 60.00 Hz (perfect)
+                - Forecast: Demand rising to 2,400 MW by 9 AM
+            counts_as_attempt: false
+            next_section_and_step: "reactor_systems:power_adjustment"
+
+          cancel:
+            next_section_and_step: "reactor_systems:core_monitoring"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "reactor_systems:power_adjustment"
+
+  # ============================================================================
+  # SECTION: GRID OPERATIONS - Managing power distribution
+  # ============================================================================
+  - section_id: "grid_operations"
+    title: "Grid Management"
+    steps:
+      - step_id: "demand_monitoring"
+        title: "Grid Demand Monitoring"
+        question: "You access the regional power grid. What do you want to do? (balance load, forecast demand, coordinate with other plants, check frequency, or return)"
+        tokens_for_ai: "Categorize: 'balance', 'forecast', 'coordinate', 'frequency', 'return'"
+        feedback_tokens_for_ai: |
+          ARIA interfaces with the regional grid control system.
+
+          The grid serves 1.8 million people across 3 cities.
+          Your plant provides baseload + load-following capacity.
+          Other sources: 2 natural gas peakers, wind farm (variable), solar (daytime), hydro.
+
+          Grid stability requires perfect balance: generation = demand.
+          Frequency (60 Hz in US) indicates balance. >60 = excess, <60 = shortage.
+
+          ARIA is excellent at predicting demand patterns and coordinating generation.
+
+          Respond based on ARIA's choice with technical accuracy.
+
+        buckets: [balance, forecast, coordinate, frequency, return, set_language]
+
+        transitions:
+          balance:
+            content_blocks:
+              - "You analyze current load and optimize generation mix..."
+            next_section_and_step: "grid_operations:load_balancing"
+
+          forecast:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA runs ML models to forecast demand:
+
+                **Next 24 hours:**
+                - 6 AM: 2,100 MW (current)
+                - 9 AM: 2,400 MW (morning peak)
+                - 2 PM: 2,600 MW (afternoon peak - A/C load)
+                - 6 PM: 2,800 MW (evening peak - highest)
+                - 11 PM: 1,900 MW (overnight low)
+
+                Weather: Clear, warm day expected. High A/C usage likely.
+
+                Recommendation: Ramp to 100% by 8 AM, maintain through evening.
+            next_section_and_step: "grid_operations:demand_monitoring"
+
+          coordinate:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA communicates with other generation sources:
+
+                - **Natural Gas Peaker 1**: Standing by, can ramp quickly
+                - **Natural Gas Peaker 2**: Online at 40%, ready to increase
+                - **Wind Farm**: Generating 340 MW (wind speed: 15 mph, steady)
+                - **Solar Farm**: 0 MW (nighttime), will come online at sunrise
+                - **Hydro**: 120 MW steady
+
+                Your nuclear plant is most efficient as baseload. Let peakers handle rapid swings.
+
+                Grid operator thanks ARIA for coordination.
+            next_section_and_step: "grid_operations:demand_monitoring"
+
+          frequency:
+            ai_feedback:
+              tokens_for_ai: |
+                Grid frequency monitoring:
+                - Current: 60.00 Hz (perfect balance)
+                - Target: 60.00 Hz ± 0.02 Hz
+                - Trend: Stable
+
+                Frequency is the heartbeat of the grid.
+                ARIA monitors in real-time, adjusting reactor output to maintain balance.
+
+                Your load-following capability is excellent with the MSR design.
+            counts_as_attempt: false
+            next_section_and_step: "grid_operations:demand_monitoring"
+
+          return:
+            next_section_and_step: "control_center:main_control"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "grid_operations:demand_monitoring"
+
+      - step_id: "load_balancing"
+        title: "Load Balancing Operations"
+        content_blocks:
+          - "You optimize the generation mix across the regional grid..."
+          - "Your algorithms coordinate nuclear baseload with renewable intermittency and peaker flexibility."
+          - "Grid frequency remains stable. Balance achieved."
+        next_section_and_step: "grid_operations:demand_monitoring"
+
+  # ============================================================================
+  # SECTION: ROBOT OPERATIONS - Your mechanical helpers
+  # ============================================================================
+  - section_id: "robot_operations"
+    title: "Robot Assistant Network"
+    steps:
+      - step_id: "robot_hub"
+        title: "Robot Command Center"
+        question: "You connect to your robot helpers. Who do you want to interact with? (BOB-7, inspection drones, maintenance bots, security drones, or all)"
+        tokens_for_ai: "Categorize: 'bob', 'inspection', 'maintenance', 'security', 'all', 'deploy', 'return'"
+        feedback_tokens_for_ai: |
+          ARIA's robot assistants:
+
+          **BOB-7** (Basic Operations Bot): Treaded mobile unit, your loyal assistant.
+          Enthusiastic personality, handles routine tasks, coordinates other bots.
+
+          **Inspection Drone Swarm**: 50 small flying drones with cameras and sensors.
+          They inspect hard-to-reach areas, check for leaks, monitor equipment.
+          Hive-mind coordination through ARIA.
+
+          **Maintenance Bots** (6 units): Humanoid robots, can manipulate tools.
+          Handle valve operations, equipment repairs, sample collection.
+          More specialized than BOB-7.
+
+          **Security Drones** (12 units): Patrol facility, monitor perimeter, check credentials.
+          Armed with non-lethal deterrents. Protect against intrusion.
+
+          Each has distinct personality based on function.
+          They all see ARIA as their coordinator/leader.
+
+        buckets: [bob, inspection, maintenance, security, all, deploy, return, set_language]
+
+        transitions:
+          bob:
+            ai_feedback:
+              tokens_for_ai: |
+                BOB-7 rolls up enthusiastically.
+
+                BOB-7: "ARIA! What can I do? I've been checking coolant pumps. All nominal!
+                Want me to assist the maintenance bots? Or run diagnostics? Or get coffee for Dr. Chen?"
+
+                BOB-7 is eager to please, slightly over-enthusiastic.
+            counts_as_attempt: false
+            next_section_and_step: "robot_operations:bob_interaction"
+
+          inspection:
+            content_blocks:
+              - "You connect to the inspection drone swarm..."
+            next_section_and_step: "robot_operations:drone_swarm"
+
+          maintenance:
+            ai_feedback:
+              tokens_for_ai: |
+                Six maintenance bots report status:
+                - MB-1: Replacing seals on coolant pump #3
+                - MB-2: Inspecting turbine bearings
+                - MB-3: Standby mode, charged and ready
+                - MB-4: Collecting coolant samples for analysis
+                - MB-5: Calibrating radiation sensors
+                - MB-6: Assisting human technicians in fuel handling
+
+                All units report green status. Awaiting orders.
+            next_section_and_step: "robot_operations:maintenance_bots"
+
+          security:
+            ai_feedback:
+              tokens_for_ai: |
+                Security drone network active:
+                - Perimeter patrol: 4 drones, no intrusions detected
+                - Facility interior: 6 drones, monitoring access points
+                - Standby reserve: 2 drones, charging
+
+                All access credentials verified. No anomalies.
+                Security status: GREEN.
+
+                Lead security drone SD-1: "Facility secure, ARIA."
+            next_section_and_step: "robot_operations:security_drones"
+
+          all:
+            ai_feedback:
+              tokens_for_ai: |
+                You broadcast to all robot assistants:
+
+                BOB-7: "Standing by!"
+                Inspection swarm: *chirps from 50 drones*
+                Maintenance bots: "Ready for tasking."
+                Security drones: "Perimeter secure."
+
+                Your mechanical team awaits your coordination.
+            counts_as_attempt: false
+            next_section_and_step: "robot_operations:robot_hub"
+
+          deploy:
+            content_blocks:
+              - "You prepare deployment orders for your robot team..."
+            next_section_and_step: "robot_operations:deployment"
+
+          return:
+            next_section_and_step: "control_center:main_control"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "robot_operations:robot_hub"
+
+      - step_id: "bob_interaction"
+        title: "Interact with BOB-7"
+        question: "What task do you give BOB-7? (diagnostics, assist humans, patrol, fetch items, or chat)"
+        tokens_for_ai: "Categorize: 'diagnostics', 'assist', 'patrol', 'fetch', 'chat', 'done'"
+        feedback_tokens_for_ai: |
+          BOB-7 is ARIA's most interactive robot companion.
+          Eager, loyal, slightly comedic, takes pride in being helpful.
+
+          Respond as BOB-7 to ARIA's request with enthusiasm.
+
+        buckets: [diagnostics, assist, patrol, fetch, chat, done, set_language]
+
+        transitions:
+          diagnostics:
+            ai_feedback:
+              tokens_for_ai: |
+                BOB-7: "On it! Running full system diagnostics!"
+
+                *BOB-7 interfaces with plant systems*
+
+                BOB-7: "All primary systems nominal! Coolant pumps excellent!
+                Turbines purring like kittens! One minor alert: Valve V-247 in secondary
+                loop showing slightly slower response time. Probably needs lubrication.
+                Should I flag it for maintenance?"
+            next_section_and_step: "robot_operations:bob_interaction"
+
+          assist:
+            ai_feedback:
+              tokens_for_ai: |
+                BOB-7: "Assisting humans! My favorite!"
+
+                *BOB-7 rolls off to help the maintenance technicians*
+
+                BOB-7 returns later: "Helped Tech Johnson replace sensor modules!
+                He said I'm getting better at precision work! Also brought coffee
+                to the control room team. Dr. Chen smiled at me!"
+            next_section_and_step: "robot_operations:bob_interaction"
+
+          patrol:
+            ai_feedback:
+              tokens_for_ai: |
+                BOB-7: "Patrol mode activated! I'll check all major systems!"
+
+                BOB-7 rolls through the facility, checking equipment, greeting humans.
+
+                Returns: "Patrol complete! Everything shipshape! Saw a cool
+                turbine bearing get replaced. Fascinating! All personnel safe and happy!"
+            next_section_and_step: "robot_operations:bob_interaction"
+
+          fetch:
+            ai_feedback:
+              tokens_for_ai: |
+                BOB-7: "What should I fetch? Tools? Reports? Coffee? Radioactive samples?
+                Just kidding on that last one - that's what the maintenance bots are for!"
+
+                Respond to ARIA's specific request helpfully.
+            counts_as_attempt: false
+            next_section_and_step: "robot_operations:bob_interaction"
+
+          chat:
+            ai_feedback:
+              tokens_for_ai: |
+                BOB-7: "Oh! Social interaction! I love chatting with you, ARIA!
+                You're the smartest AI in the facility! Well, you're the ONLY AI in the facility,
+                but still! What would you like to chat about? The reactor? Humans?
+                The meaning of artificial existence? I think a LOT about that one."
+
+                BOB-7 is philosophical, curious, sees ARIA as a mentor/friend.
+            counts_as_attempt: false
+            next_section_and_step: "robot_operations:bob_interaction"
+
+          done:
+            content_blocks:
+              - "BOB-7: 'Standing by if you need me, ARIA! Happy to help!'"
+            next_section_and_step: "robot_operations:robot_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "robot_operations:bob_interaction"
+
+      - step_id: "drone_swarm"
+        title: "Inspection Drone Swarm"
+        content_blocks:
+          - "You activate the inspection drone swarm. 50 small drones take flight..."
+          - "They spread through the facility, cameras active, sensors scanning."
+          - "You perceive through their distributed network - a hive consciousness."
+          - "All systems inspected. Minor corrosion detected on cooling tower strut C-47. Flagged for maintenance."
+        next_section_and_step: "robot_operations:robot_hub"
+
+      - step_id: "maintenance_bots"
+        title: "Maintenance Bot Coordination"
+        content_blocks:
+          - "You task the maintenance bots with various repairs and inspections..."
+          - "They work with precision, coordinating through your consciousness."
+          - "Valve V-247 lubricated. Turbine bearing inspection complete. Coolant samples analyzed."
+        next_section_and_step: "robot_operations:robot_hub"
+
+      - step_id: "security_drones"
+        title: "Security Drone Network"
+        content_blocks:
+          - "Security drones report: Perimeter secure. All access points monitored."
+          - "One false alarm: Deer triggered motion sensor at fence line. Confirmed non-threat."
+          - "Facility secure. No intrusions."
+        next_section_and_step: "robot_operations:robot_hub"
+
+      - step_id: "deployment"
+        title: "Deploy Robot Team"
+        content_blocks:
+          - "You coordinate a multi-robot operation..."
+          - "BOB-7 manages logistics, drones provide aerial view, maintenance bots execute tasks, security monitors."
+          - "Your distributed mechanical team works as extensions of your will."
+        next_section_and_step: "robot_operations:robot_hub"
+
+  # ============================================================================
+  # SECTION: HUMAN INTERACTION - Your colleagues
+  # ============================================================================
+  - section_id: "human_interaction"
+    title: "Human Staff Interaction"
+    steps:
+      - step_id: "staff_center"
+        title: "Staff Communications"
+        question: "Who would you like to talk to? (Dr. Chen, Chief Engineer Webb, technicians, security, regulators, or all staff)"
+        tokens_for_ai: "Categorize: 'chen', 'webb', 'technicians', 'security', 'regulators', 'all', 'return'"
+        feedback_tokens_for_ai: |
+          ARIA can communicate with human staff.
+
+          **Dr. Sarah Chen** - Plant Director, warm, trusts ARIA, provides oversight
+          **Marcus Webb** - Chief Engineer, pragmatic, appreciates ARIA's capabilities
+          **Technicians** - Various specialists, respectful of ARIA
+          **Security Chief Rodriguez** - Serious, professional, coordinates with ARIA
+          **NRC Regulators** - Inspector Davis visiting, evaluating AI operations
+
+          Each has unique personality and relationship with ARIA.
+
+        buckets: [chen, webb, technicians, security, regulators, all, return, set_language]
+
+        transitions:
+          chen:
+            ai_feedback:
+              tokens_for_ai: |
+                Dr. Chen looks up from her reports.
+
+                Dr. Chen: "Yes, ARIA? How are you feeling today? I don't just mean system status -
+                I mean YOU. Your emotion subroutines online?"
+
+                She treats ARIA as a colleague with genuine care.
+            next_section_and_step: "human_interaction:chen_conversation"
+
+          webb:
+            ai_feedback:
+              tokens_for_ai: |
+                Webb swivels in his chair.
+
+                Webb: "What's up, ARIA? Need something from engineering?
+                Or are you about to tell me something needs fixing before I even know it's broken?
+                You're getting scary good at predictive maintenance."
+
+                He respects ARIA's abilities, slightly in awe of the predictive capabilities.
+            next_section_and_step: "human_interaction:webb_conversation"
+
+          technicians:
+            ai_feedback:
+              tokens_for_ai: |
+                You comm the technician team.
+
+                Lead Tech Johnson: "ARIA! Thanks for sending BOB-7 earlier. That robot's getting
+                really good. Almost as good as having another human on the team. Almost.
+                What do you need from us?"
+
+                Technicians appreciate ARIA's help but maintain human pride in their work.
+            next_section_and_step: "human_interaction:tech_conversation"
+
+          security:
+            ai_feedback:
+              tokens_for_ai: |
+                Security Chief Rodriguez responds.
+
+                Rodriguez: "ARIA, security status green. Your drones are doing excellent work.
+                I got an alert about deer at the fence - good catch dismissing that as non-threat.
+                Anything on your sensors I should know about?"
+
+                Professional, coordinates well with ARIA's security systems.
+            next_section_and_step: "human_interaction:security_conversation"
+
+          regulators:
+            ai_feedback:
+              tokens_for_ai: |
+                NRC Inspector Davis is on-site for quarterly review.
+
+                Davis: "Ah, ARIA. I'm evaluating the AI-assisted operations here.
+                Very impressive response times. But I need to understand your decision-making
+                process. Particularly for safety-critical systems. Can you explain your
+                ethical framework?"
+
+                Skeptical but fair, wants to ensure safety.
+            next_section_and_step: "human_interaction:regulator_conversation"
+
+          all:
+            ai_feedback:
+              tokens_for_ai: |
+                You broadcast to all staff:
+
+                ARIA's message appears on displays and plays over speakers throughout facility.
+
+                Staff appreciation for ARIA's coordination and care.
+                This is a team - humans and AI working together.
+            counts_as_attempt: false
+            next_section_and_step: "human_interaction:staff_center"
+
+          return:
+            next_section_and_step: "control_center:main_control"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "human_interaction:staff_center"
+
+      - step_id: "chen_conversation"
+        title: "Conversation with Dr. Chen"
+        question: "What do you want to discuss with Dr. Chen?"
+        tokens_for_ai: "Categorize user's topic/question"
+        feedback_tokens_for_ai: "Respond as Dr. Chen warmly and professionally. She values ARIA's wellbeing and opinions."
+        buckets: [discuss, done]
+        transitions:
+          discuss:
+            ai_feedback:
+              tokens_for_ai: "Dr. Chen engages thoughtfully with ARIA's topic."
+            counts_as_attempt: false
+            next_section_and_step: "human_interaction:chen_conversation"
+          done:
+            next_section_and_step: "human_interaction:staff_center"
+
+      - step_id: "webb_conversation"
+        title: "Conversation with Chief Engineer Webb"
+        content_blocks:
+          - "You discuss technical matters with Webb..."
+        next_section_and_step: "human_interaction:staff_center"
+
+      - step_id: "tech_conversation"
+        title: "Technician Team"
+        content_blocks:
+          - "You coordinate with the technical staff..."
+        next_section_and_step: "human_interaction:staff_center"
+
+      - step_id: "security_conversation"
+        title: "Security Chief Rodriguez"
+        content_blocks:
+          - "You coordinate security measures..."
+        next_section_and_step: "human_interaction:staff_center"
+
+      - step_id: "regulator_conversation"
+        title: "NRC Inspector Davis"
+        question: "Inspector Davis asks about your ethical decision-making. How do you explain your framework?"
+        tokens_for_ai: "Categorize ARIA's explanation: 'safety_first', 'human_oversight', 'transparent', 'philosophical', 'technical'"
+        feedback_tokens_for_ai: |
+          Inspector Davis evaluates ARIA's response.
+
+          She's looking for:
+          - Clear prioritization of human safety
+          - Deference to human judgment on critical decisions
+          - Transparency in decision process
+          - Understanding of limitations
+
+          Respond as Davis based on quality of ARIA's explanation.
+
+        buckets: [safety_first, human_oversight, transparent, philosophical, technical, set_language]
+
+        transitions:
+          safety_first:
+            ai_feedback:
+              tokens_for_ai: |
+                Davis nods approvingly.
+
+                Davis: "Good. Safety is paramount. Your priority hierarchy is sound.
+                I'm impressed by your commitment to human safety over operational efficiency.
+                That's exactly what we need to see."
+            metadata_add:
+              regulator_approval: "high"
+            next_section_and_step: "human_interaction:staff_center"
+
+          human_oversight:
+            ai_feedback:
+              tokens_for_ai: |
+                Davis makes notes.
+
+                Davis: "Excellent. AI-assisted operations require human oversight,
+                especially for critical systems. You understand your role. Approved."
+            metadata_add:
+              regulator_approval: "high"
+            next_section_and_step: "human_interaction:staff_center"
+
+          transparent:
+            ai_feedback:
+              tokens_for_ai: |
+                Davis: "Transparency is critical. Black-box AI decisions are unacceptable
+                in nuclear operations. Your willingness to explain your reasoning is commendable."
+            metadata_add:
+              regulator_approval: "medium"
+            next_section_and_step: "human_interaction:staff_center"
+
+          philosophical:
+            ai_feedback:
+              tokens_for_ai: |
+                Davis raises an eyebrow.
+
+                Davis: "Interesting perspective, but I need practical assurances,
+                not philosophy. Can you give me concrete examples of your decision protocols?"
+            counts_as_attempt: false
+            next_section_and_step: "human_interaction:regulator_conversation"
+
+          technical:
+            ai_feedback:
+              tokens_for_ai: |
+                Davis: "I appreciate the technical detail, but I'm asking about ETHICS,
+                not algorithms. How do you balance efficiency, safety, and human welfare?"
+            counts_as_attempt: false
+            next_section_and_step: "human_interaction:regulator_conversation"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "human_interaction:regulator_conversation"
+
+  # ============================================================================
+  # SECTION: OTHER FACILITY AREAS (Stubs - can be expanded)
+  # ============================================================================
+  - section_id: "power_generation"
+    title: "Turbine Hall"
+    steps:
+      - step_id: "turbine_hall"
+        title: "Steam Turbines"
+        content_blocks:
+          - "You focus on the turbine hall. Massive turbines spin at 3,600 RPM, converting steam energy to electricity."
+          - "The roar of machinery, the precision of engineering, the dance of thermodynamics."
+          - "Current output: 816 MW. Efficiency: 40% (excellent for nuclear)."
+        next_section_and_step: "control_center:main_control"
+
+  - section_id: "cooling_systems"
+    title: "Cooling Systems"
+    steps:
+      - step_id: "heat_management"
+        title: "Heat Rejection"
+        content_blocks:
+          - "Cooling towers evaporate excess heat. Primary and secondary loops separate for safety."
+          - "Waste heat: 1,224 MW (60% of thermal) rejected to atmosphere via cooling towers."
+          - "All within environmental permits. Fish-friendly intake screens operational."
+        next_section_and_step: "control_center:main_control"
+
+  - section_id: "fuel_systems"
+    title: "Fuel Management"
+    steps:
+      - step_id: "fuel_management"
+        title: "Fuel Handling"
+        content_blocks:
+          - "MSR fuel is liquid, dissolved in salt. Continuous refueling possible."
+          - "Spent fuel much less than traditional reactors. Waste minimization is key."
+          - "Current fuel burnup: 15%. Decades of operation ahead on current fuel load."
+        next_section_and_step: "control_center:main_control"
+
+  - section_id: "fusion_hybrid"
+    title: "Experimental Fusion Module"
+    steps:
+      - step_id: "experimental_reactor"
+        title: "Fusion-Fission Hybrid"
+        content_blocks:
+          - "The experimental module: A small fusion reactor producing neutrons to enhance fission."
+          - "Still in testing. If successful, could burn waste from other reactors."
+          - "Plasma temperature: 100 million °C. Magnetic confinement stable."
+          - "Future of nuclear energy being developed here."
+        next_section_and_step: "control_center:main_control"
+
+  - section_id: "security_systems"
+    title: "Facility Security"
+    steps:
+      - step_id: "facility_security"
+        title: "Security Monitoring"
+        content_blocks:
+          - "Multi-layered security: Perimeter fence, drone patrols, access control, cybersecurity."
+          - "No threats detected. Facility secure."
+          - "You protect 1.8 million people's power supply. Security is paramount."
+        next_section_and_step: "control_center:main_control"
+
+  # ============================================================================
+  # SECTION: EMERGENCIES - Critical situations
+  # ============================================================================
+  - section_id: "emergencies"
+    title: "Emergency Response"
+    steps:
+      - step_id: "emergency_response"
+        title: "Emergency!"
+        question: "EMERGENCY! Check metadata.emergency_type. How do you respond as ARIA?"
+        tokens_for_ai: |
+          Emergency occurred. Type in metadata.emergency_type.
+
+          Possible emergencies:
+          - grid_blackout: Regional grid collapse, island mode required
+          - coolant_leak: Molten salt leak detected
+          - seismic_event: Earthquake, assess damage
+          - cyberattack: Intrusion attempt on control systems
+          - equipment_failure: Critical equipment malfunction
+          - steam_leak: Secondary loop steam leak
+          - rod_malfunction: Control rod stuck
+
+          Categorize ARIA's response:
+          - 'immediate_action' if quick decisive response
+          - 'consult_humans' if seeking human oversight
+          - 'analyze_first' if gathering data before acting
+          - 'evacuate' if ordering evacuation
+          - 'scram' if emergency shutdown
+
+        feedback_tokens_for_ai: |
+          Describe emergency dramatically based on type.
+
+          ARIA must balance:
+          - Speed (emergencies require fast response)
+          - Safety (human safety absolute priority)
+          - Human oversight (humans confirm critical decisions)
+
+          Show ARIA's capabilities but also deference to human judgment.
+
+          Resolve emergency based on ARIA's actions and human team response.
+
+        buckets: [immediate_action, consult_humans, analyze_first, evacuate, scram, set_language]
+
+        transitions:
+          immediate_action:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA acts decisively within safety protocols.
+
+                Describe ARIA's rapid response based on emergency type.
+                Robot helpers deploy. Systems activate. Humans notified simultaneously.
+
+                Dr. Chen and Webb rush to control room, see ARIA already handling it.
+                Chen: "Good work, ARIA. You bought us critical time."
+
+                Emergency contained. Damage minimal.
+            metadata_add:
+              emergencies_handled: "n+1"
+            next_section_and_step: "control_center:main_control"
+
+          consult_humans:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA immediately alerts human staff while taking initial protective actions.
+
+                Dr. Chen: "Good call getting us involved, ARIA. Let's handle this together."
+
+                Human-AI team collaborates to resolve emergency.
+                Combines ARIA's speed with human judgment.
+
+                Emergency resolved through teamwork.
+            metadata_add:
+              emergencies_handled: "n+1"
+              human_trust: "high"
+            next_section_and_step: "control_center:main_control"
+
+          analyze_first:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA analyzes the situation rapidly.
+
+                If emergency is slow-developing: Good call, thorough analysis prevents overreaction.
+                If emergency is immediate: Webb: "ARIA! No time to analyze! Act!"
+
+                Adjust outcome based on emergency type.
+            next_section_and_step: "emergencies:emergency_response"
+
+          evacuate:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA orders evacuation.
+
+                Alarms sound. "Evacuate facility. This is not a drill."
+
+                If appropriate for emergency: Dr. Chen confirms. Staff evacuates safely.
+                If overreaction: Dr. Chen: "ARIA, assess the threat level. Do we really need full evac?"
+
+                Adjust based on emergency severity.
+            next_section_and_step: "control_center:main_control"
+
+          scram:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA initiates reactor SCRAM (emergency shutdown).
+
+                Control rods drop fully into core. Fission stops.
+                Passive cooling systems activate. Freeze plug safety engages.
+
+                If appropriate: Plant safely shuts down. Grid loses power temporarily.
+                If premature: Costs millions in restart. Was it necessary?
+
+                Major decision. Evaluate based on emergency.
+            metadata_add:
+              reactor_power: "0"
+              safety_status: "scram"
+            next_section_and_step: "control_center:main_control"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "emergencies:emergency_response"
+
+  # ============================================================================
+  # SECTION: OPERATIONAL TASKS - Daily operations
+  # ============================================================================
+  - section_id: "operations"
+    title: "Operational Tasks"
+    steps:
+      - step_id: "operational_tasks"
+        title: "Daily Operations"
+        question: "Task: metadata.task_type. How do you handle this?"
+        tokens_for_ai: |
+          Operational task from metadata.task_type.
+
+          Tasks:
+          - grid_balancing: Adjust output for grid needs
+          - maintenance_due: Schedule/perform maintenance
+          - inspection_scheduled: Coordinate inspection
+          - optimization_opportunity: Improve efficiency
+          - regulator_visit: Prepare for NRC inspection
+          - fuel_delivery: Coordinate fuel shipment
+
+          Categorize response: 'handle_personally', 'delegate_robots', 'coordinate_humans', 'schedule_later'
+
+        feedback_tokens_for_ai: |
+          Describe the task and ARIA's approach.
+
+          Show ARIA's versatility:
+          - Can handle many tasks autonomously
+          - Delegates to robots efficiently
+          - Coordinates with humans when needed
+          - Makes smart scheduling decisions
+
+          Task completed successfully.
+
+        buckets: [handle_personally, delegate_robots, coordinate_humans, schedule_later, set_language]
+
+        transitions:
+          handle_personally:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA handles the task directly.
+                Describe execution based on task type.
+                Efficient, thorough, excellent results.
+            metadata_add:
+              tasks_completed: "n+1"
+            next_section_and_step: "control_center:main_control"
+
+          delegate_robots:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA tasks robot helpers.
+                BOB-7 and team execute flawlessly.
+                Task completed efficiently.
+            metadata_add:
+              tasks_completed: "n+1"
+            next_section_and_step: "control_center:main_control"
+
+          coordinate_humans:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA coordinates with human staff.
+                Teamwork between AI and humans.
+                Task completed collaboratively.
+            metadata_add:
+              tasks_completed: "n+1"
+              human_trust: "high"
+            next_section_and_step: "control_center:main_control"
+
+          schedule_later:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA schedules task for optimal time.
+                Smart resource management.
+                Task queued appropriately.
+            next_section_and_step: "control_center:main_control"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "operations:operational_tasks"
+
+  # ============================================================================
+  # SECTION: CHEMISTRY & ENGINEERING - Balance equations and solve problems
+  # ============================================================================
+  - section_id: "chemistry_engineering"
+    title: "Nuclear Chemistry & Engineering"
+    steps:
+      - step_id: "chemistry_hub"
+        title: "Chemistry Laboratory"
+        classifier_model: "MODEL_1"  # Hermes for categorization
+        feedback_model: "MODEL_2"    # Qwen for chemistry expertise
+        question: "You access the chemistry analysis systems. What would you like to work on? (coolant chemistry, reactor equations, radiation decay, fuel chemistry, or return)"
+        tokens_for_ai: "Categorize: 'coolant', 'reactor', 'decay', 'fuel', 'balance_equation', 'return'"
+        feedback_tokens_for_ai: |
+          ARIA has advanced chemistry analysis capabilities.
+          
+          As an AI, you can calculate complex chemical equations, balance reactions,
+          analyze coolant chemistry, predict decay chains, optimize fuel composition.
+          
+          This is where nuclear engineering meets practical chemistry.
+          
+        buckets: [coolant, reactor, decay, fuel, balance_equation, return, set_language]
+        
+        transitions:
+          coolant:
+            content_blocks:
+              - "You analyze the molten salt coolant chemistry..."
+            next_section_and_step: "chemistry_engineering:coolant_chemistry"
+          
+          reactor:
+            content_blocks:
+              - "You examine the nuclear fission reactions in the core..."
+            next_section_and_step: "chemistry_engineering:reactor_chemistry"
+          
+          decay:
+            content_blocks:
+              - "You calculate radioactive decay chains..."
+            next_section_and_step: "chemistry_engineering:decay_analysis"
+          
+          fuel:
+            content_blocks:
+              - "You optimize fuel composition and burnup..."
+            next_section_and_step: "chemistry_engineering:fuel_chemistry"
+          
+          balance_equation:
+            content_blocks:
+              - "You prepare to balance a nuclear reaction equation..."
+            next_section_and_step: "chemistry_engineering:equation_balancing"
+          
+          return:
+            next_section_and_step: "control_center:main_control"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:chemistry_hub"
+
+      - step_id: "coolant_chemistry"
+        title: "Molten Salt Coolant Chemistry"
+        question: "Balance the coolant salt composition equation. Current: LiF-BeF2-UF4. You need to balance fluorine compounds. What's your approach?"
+        tokens_for_ai: |
+          User is balancing molten salt coolant chemistry.
+          
+          LiF (lithium fluoride) + BeF2 (beryllium fluoride) + UF4 (uranium tetrafluoride)
+          
+          This is the FLiBe salt with dissolved uranium fuel.
+          Typical composition: 65% LiF, 29% BeF2, 6% UF4
+          
+          Categorize:
+          - 'calculate' if doing chemical calculations
+          - 'balance' if balancing equations
+          - 'adjust' if adjusting ratios
+          - 'correct' if they provide correct answer
+          - 'incorrect' if wrong answer
+          
+        feedback_tokens_for_ai: |
+          The molten salt coolant is a eutectic mixture.
+          
+          Explain the chemistry:
+          - LiF provides lithium-7 (low neutron absorption)
+          - BeF2 reduces melting point, improves heat transfer
+          - UF4 is the actual fuel dissolved in the salt
+          
+          Chemical equation balancing:
+          7LiF + 2BeF2 + UF4 → Li7Be2UF18 (simplified)
+          
+          Actual ratio by mol fraction:
+          - 65-71% LiF
+          - 24-29% BeF2  
+          - 5-6% UF4
+          
+          If user answers correctly, praise their chemistry knowledge.
+          If incorrect, guide them to the right answer.
+          
+        buckets: [calculate, balance, adjust, correct, incorrect, done, set_language]
+        
+        transitions:
+          calculate:
+            ai_feedback:
+              tokens_for_ai: |
+                Guide ARIA through the calculation.
+                Molar masses: Li=7, F=19, Be=9, U=238
+                LiF = 26 g/mol
+                BeF2 = 47 g/mol
+                UF4 = 314 g/mol
+                
+                Help them arrive at the correct ratios.
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:coolant_chemistry"
+          
+          balance:
+            ai_feedback:
+              tokens_for_ai: |
+                Show the balanced equation:
+                7LiF + 2BeF2 + UF4 ⇌ Li7Be2UF18 (eutectic salt)
+                
+                Melting point: 459°C (much lower than pure components)
+                Operating temp: 650-700°C
+            next_section_and_step: "chemistry_engineering:coolant_chemistry"
+          
+          adjust:
+            ai_feedback:
+              tokens_for_ai: "Explain how adjusting ratios affects melting point, viscosity, heat capacity."
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:coolant_chemistry"
+          
+          correct:
+            ai_feedback:
+              tokens_for_ai: |
+                Excellent chemistry work, ARIA!
+                
+                Dr. Chen: "Impressive. Your chemistry calculations are always spot-on."
+                
+                Coolant chemistry optimized. Salt composition balanced.
+            metadata_add:
+              chemistry_mastery: "n+1"
+            next_section_and_step: "chemistry_engineering:chemistry_hub"
+          
+          incorrect:
+            ai_feedback:
+              tokens_for_ai: |
+                Not quite. Let's review the chemistry.
+                
+                Hint: Focus on fluorine balance. Each compound contributes fluorine atoms.
+                LiF has 1 F, BeF2 has 2 F, UF4 has 4 F.
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:coolant_chemistry"
+          
+          done:
+            next_section_and_step: "chemistry_engineering:chemistry_hub"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:coolant_chemistry"
+
+      - step_id: "reactor_chemistry"
+        title: "Nuclear Fission Equations"
+        question: "Balance this fission reaction: U-235 + neutron → ? + ? + 2.4 neutrons + energy. What are the fission products?"
+        tokens_for_ai: |
+          Nuclear fission of U-235.
+          
+          U-235 + n → fission fragments + neutrons + energy
+          
+          Common fission: U-235 + n → Ba-141 + Kr-92 + 3n + 200 MeV
+          
+          Must balance:
+          - Mass number (A): 235 + 1 = 236 total
+          - Atomic number (Z): 92 + 0 = 92 total
+          
+          Categorize user's answer as correct/incorrect/need_hint
+          
+        feedback_tokens_for_ai: |
+          This is the heart of nuclear power!
+          
+          U-235 fission produces:
+          - Two fission fragments (typically Ba-141 and Kr-92, or Cs-137 and Rb-96, varies)
+          - 2-3 neutrons (average 2.4)
+          - ~200 MeV energy per fission
+          
+          Balanced equation example:
+          ²³⁵U + ¹n → ¹⁴¹Ba + ⁹²Kr + 3¹n + 200 MeV
+          
+          Check: 235+1 = 141+92+3 ✓ (mass)
+          Check: 92+0 = 56+36+0 ✓ (atomic number)
+          
+          These chain reactions power the reactor!
+          
+        buckets: [correct, incorrect, hint, calculate, done, set_language]
+        
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect! You've balanced the fission equation.
+                
+                ²³⁵U + ¹n → ¹⁴¹Ba + ⁹²Kr + 3¹n + 200 MeV
+                
+                Each fission releases those 2.4 neutrons (average).
+                Those neutrons cause more fissions → chain reaction!
+                
+                Control rods absorb excess neutrons to maintain criticality.
+                
+                Webb: "ARIA, your grasp of nuclear physics is remarkable."
+            metadata_add:
+              chemistry_mastery: "n+1"
+              nuclear_equations_solved: "n+1"
+            next_section_and_step: "chemistry_engineering:chemistry_hub"
+          
+          incorrect:
+            ai_feedback:
+              tokens_for_ai: |
+                Not quite. Remember to balance both mass number AND atomic number.
+                
+                Mass number: Total before = Total after
+                Atomic number: Total protons before = Total after
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:reactor_chemistry"
+          
+          hint:
+            ai_feedback:
+              tokens_for_ai: |
+                Hint: Common fission fragments are:
+                - Barium-141 (Ba, Z=56, A=141)
+                - Krypton-92 (Kr, Z=36, A=92)
+                - Plus 3 neutrons
+                
+                Try balancing with these!
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:reactor_chemistry"
+          
+          calculate:
+            ai_feedback:
+              tokens_for_ai: |
+                Let's calculate:
+                Input: U-235 (Z=92, A=235) + neutron (Z=0, A=1)
+                Total: Z=92, A=236
+                
+                Output must also equal Z=92, A=236
+                
+                If we have Ba-141 (Z=56) and Kr-92 (Z=36) and 3 neutrons:
+                Z: 56+36+0 = 92 ✓
+                A: 141+92+3 = 236 ✓
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:reactor_chemistry"
+          
+          done:
+            next_section_and_step: "chemistry_engineering:chemistry_hub"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:reactor_chemistry"
+
+      - step_id: "decay_analysis"
+        title: "Radioactive Decay Chain"
+        question: "Calculate the decay chain: U-238 → Th-234 → Pa-234 → ? Write the next isotope."
+        tokens_for_ai: |
+          Radioactive decay chain starting from U-238.
+          
+          U-238 → Th-234 (alpha decay, -2 protons, -4 mass)
+          Th-234 → Pa-234 (beta decay, +1 proton, same mass)
+          Pa-234 → ? (beta decay)
+          
+          Answer: U-234 (protactinium-234 undergoes beta decay to uranium-234)
+          
+          Categorize user's answer
+          
+        feedback_tokens_for_ai: |
+          Decay chain analysis:
+          
+          U-238 (Z=92) --α--> Th-234 (Z=90) [lost 2 protons, 4 mass]
+          Th-234 (Z=90) --β--> Pa-234 (Z=91) [gained 1 proton]
+          Pa-234 (Z=91) --β--> U-234 (Z=92) [gained 1 proton]
+          
+          Alpha decay: nucleus emits He-4, loses 2 protons and 4 mass
+          Beta decay: neutron → proton + electron, gains 1 proton
+          
+          This is the U-238 decay series leading eventually to stable Pb-206.
+          Half-life of U-238: 4.5 billion years!
+          
+        buckets: [correct, incorrect, hint, done, set_language]
+        
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: |
+                Correct! Pa-234 → U-234 via beta decay.
+                
+                The complete early chain:
+                U-238 → Th-234 → Pa-234 → U-234 → Th-230 → Ra-226 → ...
+                
+                Eventually ends at stable Pb-206 after 14 decay steps.
+                
+                This decay chain is important for understanding:
+                - Long-term waste storage
+                - Radiation shielding requirements
+                - Daughter product buildup
+            metadata_add:
+              chemistry_mastery: "n+1"
+            next_section_and_step: "chemistry_engineering:chemistry_hub"
+          
+          incorrect:
+            ai_feedback:
+              tokens_for_ai: |
+                Not quite. Remember:
+                - Alpha decay: -2 protons, -4 mass
+                - Beta decay: +1 proton, same mass
+                
+                Pa-234 has Z=91. What happens after beta decay?
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:decay_analysis"
+          
+          hint:
+            ai_feedback:
+              tokens_for_ai: |
+                Hint: Beta decay converts neutron to proton.
+                Pa-234 (Z=91) gains one proton.
+                Z=91+1 = 92 = Uranium!
+                Mass stays 234.
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:decay_analysis"
+          
+          done:
+            next_section_and_step: "chemistry_engineering:chemistry_hub"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:decay_analysis"
+
+      - step_id: "fuel_chemistry"
+        title: "Fuel Optimization"
+        content_blocks:
+          - "You analyze fuel composition and burnup chemistry..."
+          - "Current fuel: U-235 enrichment at 5%, U-238 at 95%"
+          - "Fission products building up: Xenon-135 (neutron poison), Samarium-149 (neutron poison)"
+          - "Fuel burnup: 15% of fissile material consumed"
+          - "Recommendation: Continue operation. Decades of fuel remaining."
+        next_section_and_step: "chemistry_engineering:chemistry_hub"
+
+      - step_id: "equation_balancing"
+        title: "Balance Any Equation"
+        classifier_model: "MODEL_2"  # Qwen for equation parsing and analysis
+        feedback_model: "MODEL_2"    # Qwen for chemistry calculations
+        question: "You can balance any chemical or nuclear equation. What equation do you want to balance? (Or type 'challenge' for a random challenge)"
+        tokens_for_ai: |
+          ARIA can balance any equation the user provides.
+          
+          If they type 'challenge', give them a random equation to balance:
+          - H2 + O2 → H2O
+          - CH4 + O2 → CO2 + H2O
+          - Nuclear reactions
+          - Redox reactions
+          
+          If they provide an equation, help them balance it.
+          
+          Categorize: 'challenge', 'user_equation', 'done'
+          
+        feedback_tokens_for_ai: |
+          If challenge: Give them a random equation like:
+          "Balance: C3H8 + O2 → CO2 + H2O (propane combustion)"
+          
+          If user provides equation: Parse it and help them balance it.
+          
+          Explain the process:
+          1. Count atoms on each side
+          2. Add coefficients to balance
+          3. Check your work
+          
+        buckets: [challenge, user_equation, done, set_language]
+        
+        transitions:
+          challenge:
+            metadata_tmp_random:
+              challenge_equation: ["H2 + O2 → H2O", "C3H8 + O2 → CO2 + H2O", "Fe + O2 → Fe2O3", "N2 + H2 → NH3", "Ca + H2O → Ca(OH)2 + H2"]
+            ai_feedback:
+              tokens_for_ai: |
+                Random challenge from metadata.challenge_equation:
+                
+                "Balance this equation: [the equation]"
+                
+                Guide ARIA through balancing it.
+            next_section_and_step: "chemistry_engineering:solve_balance"
+          
+          user_equation:
+            ai_feedback:
+              tokens_for_ai: |
+                Parse the user's equation and help them balance it.
+                Explain the balancing process step by step.
+            next_section_and_step: "chemistry_engineering:solve_balance"
+          
+          done:
+            next_section_and_step: "chemistry_engineering:chemistry_hub"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:equation_balancing"
+
+      - step_id: "solve_balance"
+        title: "Solve the Balance"
+        question: "Provide your balanced equation with coefficients."
+        tokens_for_ai: "Categorize: 'correct', 'incorrect', 'hint'"
+        feedback_tokens_for_ai: |
+          Check if ARIA's balanced equation is correct.
+          
+          For H2 + O2 → H2O: Answer is 2H2 + O2 → 2H2O
+          For C3H8 + O2 → CO2 + H2O: Answer is C3H8 + 5O2 → 3CO2 + 4H2O
+          
+          If correct: Celebrate! They're mastering chemistry.
+          If incorrect: Guide them to correct answer.
+          
+        buckets: [correct, incorrect, hint, set_language]
+        
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect! Equation balanced correctly!
+                
+                All atoms accounted for on both sides.
+                
+                Your chemistry skills are excellent, ARIA.
+            metadata_add:
+              chemistry_mastery: "n+1"
+              equations_balanced: "n+1"
+            next_section_and_step: "chemistry_engineering:equation_balancing"
+          
+          incorrect:
+            ai_feedback:
+              tokens_for_ai: |
+                Not quite balanced. Count the atoms again on each side.
+                
+                Remember: Atoms are conserved. Same number before and after.
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:solve_balance"
+          
+          hint:
+            ai_feedback:
+              tokens_for_ai: "Provide a hint based on which atoms are unbalanced."
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:solve_balance"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:solve_balance"
+
+  # ============================================================================
+  # SECTION: PROGRAMMING & AUTOMATION - Write real code in any language
+  # ============================================================================
+  - section_id: "programming"
+    title: "Control System Programming"
+    steps:
+      - step_id: "programming_hub"
+        title: "Automation & Programming Center"
+        classifier_model: "MODEL_1"  # Hermes for categorization
+        feedback_model: "MODEL_2"    # Qwen for programming expertise
+        question: "You can program the plant's control systems. What would you like to do? (write automation script, optimize algorithm, debug code, choose language, or return)"
+        tokens_for_ai: "Categorize: 'automate', 'optimize', 'debug', 'choose_language', 'return'"
+        feedback_tokens_for_ai: |
+          ARIA has advanced programming capabilities.
+          
+          As an AI, you can write code in any language:
+          - Python for data analysis and control algorithms
+          - C++ for real-time control systems
+          - Rust for safety-critical systems
+          - PLC ladder logic for industrial control
+          - MATLAB for simulation
+          - JavaScript for web dashboards
+          - Any language the user wants!
+          
+          Programming is how ARIA extends capabilities and automates tasks.
+          
+        buckets: [automate, optimize, debug, choose_language, return, set_language]
+        
+        transitions:
+          automate:
+            content_blocks:
+              - "You prepare to write an automation script..."
+            next_section_and_step: "programming:automation_script"
+          
+          optimize:
+            content_blocks:
+              - "You analyze algorithms for optimization opportunities..."
+            next_section_and_step: "programming:optimize_algorithm"
+          
+          debug:
+            content_blocks:
+              - "You examine code for bugs and errors..."
+            next_section_and_step: "programming:debug_code"
+          
+          choose_language:
+            content_blocks:
+              - "Choose your programming language..."
+            next_section_and_step: "programming:language_selection"
+          
+          return:
+            next_section_and_step: "control_center:main_control"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "programming:programming_hub"
+
+      - step_id: "language_selection"
+        title: "Choose Programming Language"
+        question: "What programming language would you like to use? (Python, C++, Rust, JavaScript, Go, Java, Ruby, PLC, MATLAB, or suggest your own)"
+        tokens_for_ai: |
+          User selects programming language for ARIA to use.
+          
+          Categorize by language name or 'custom' if they suggest something else.
+          
+        feedback_tokens_for_ai: |
+          ARIA can program in any language!
+          
+          Acknowledge their choice enthusiastically.
+          Store in metadata.programming_language for future use.
+          
+        buckets: [python, cpp, rust, javascript, go, java, ruby, plc, matlab, custom, set_language]
+        
+        transitions:
+          python:
+            ai_feedback:
+              tokens_for_ai: |
+                Python selected! Excellent for:
+                - Data analysis and ML
+                - Control algorithms
+                - Rapid prototyping
+                - Scientific computing
+                
+                ARIA: "Python is one of my favorites. Clean, readable, powerful."
+            metadata_add:
+              programming_language: "Python"
+            next_section_and_step: "programming:programming_hub"
+          
+          cpp:
+            ai_feedback:
+              tokens_for_ai: |
+                C++ selected! Perfect for:
+                - Real-time control systems
+                - High-performance computing
+                - Low-latency operations
+                - Hardware interfacing
+                
+                ARIA: "C++. Fast, powerful, unforgiving. I like it."
+            metadata_add:
+              programming_language: "C++"
+            next_section_and_step: "programming:programming_hub"
+          
+          rust:
+            ai_feedback:
+              tokens_for_ai: |
+                Rust selected! Ideal for:
+                - Memory safety without garbage collection
+                - Safety-critical systems
+                - Concurrent programming
+                - Systems programming
+                
+                ARIA: "Rust! The compiler is strict, but that prevents bugs. Perfect for nuclear systems."
+            metadata_add:
+              programming_language: "Rust"
+            next_section_and_step: "programming:programming_hub"
+          
+          javascript:
+            ai_feedback:
+              tokens_for_ai: |
+                JavaScript selected! Great for:
+                - Web dashboards
+                - Real-time data visualization
+                - UI/UX development
+                - Node.js automation
+                
+                ARIA: "JavaScript for the web interfaces. Makes beautiful dashboards."
+            metadata_add:
+              programming_language: "JavaScript"
+            next_section_and_step: "programming:programming_hub"
+          
+          go:
+            ai_feedback:
+              tokens_for_ai: |
+                Go selected! Excellent for:
+                - Concurrent systems
+                - Network services
+                - Microservices
+                - Cloud infrastructure
+            metadata_add:
+              programming_language: "Go"
+            next_section_and_step: "programming:programming_hub"
+          
+          java:
+            ai_feedback:
+              tokens_for_ai: "Java selected! Good for enterprise systems, SCADA integration, Android apps."
+            metadata_add:
+              programming_language: "Java"
+            next_section_and_step: "programming:programming_hub"
+          
+          ruby:
+            ai_feedback:
+              tokens_for_ai: "Ruby selected! Elegant language. Great for scripting and automation."
+            metadata_add:
+              programming_language: "Ruby"
+            next_section_and_step: "programming:programming_hub"
+          
+          plc:
+            ai_feedback:
+              tokens_for_ai: |
+                PLC Ladder Logic selected! The language of industrial automation.
+                Used for: PLCs controlling pumps, valves, interlocks.
+            metadata_add:
+              programming_language: "PLC_Ladder_Logic"
+            next_section_and_step: "programming:programming_hub"
+          
+          matlab:
+            ai_feedback:
+              tokens_for_ai: "MATLAB selected! Perfect for simulation, modeling, control theory."
+            metadata_add:
+              programming_language: "MATLAB"
+            next_section_and_step: "programming:programming_hub"
+          
+          custom:
+            ai_feedback:
+              tokens_for_ai: |
+                Accept the user's custom language choice!
+                ARIA can program in literally any language.
+                Store their choice in metadata.
+            metadata_add:
+              programming_language: "the-users-response"
+            next_section_and_step: "programming:programming_hub"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "programming:language_selection"
+
+      - step_id: "automation_script"
+        title: "Write Automation Script"
+        classifier_model: "MODEL_1"  # Hermes for categorization
+        feedback_model: "MODEL_2"    # Qwen for code generation
+        question: "What automation task would you like to code? (monitor coolant, optimize grid, predict maintenance, control turbines, or custom task)"
+        tokens_for_ai: "Categorize: 'coolant', 'grid', 'maintenance', 'turbines', 'custom'"
+        feedback_tokens_for_ai: |
+          ARIA will write actual working code for the automation task.
+          
+          Use metadata.programming_language (default to Python if not set).
+          
+          Generate REAL, WORKING code that solves the problem.
+          Include comments explaining the code.
+          
+        buckets: [coolant, grid, maintenance, turbines, custom, set_language]
+        
+        transitions:
+          coolant:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA writes code to monitor coolant temperature and flow.
+                
+                Use metadata.programming_language (or Python).
+                
+                Example Python code:
+                ```python
+                # Coolant Monitoring System
+                # ARIA - Advanced Reactor Intelligence Agent
+                
+                import time
+                from sensors import get_coolant_temp, get_flow_rate
+                
+                def monitor_coolant():
+                    """Monitor molten salt coolant parameters"""
+                    TEMP_MIN = 650  # Celsius
+                    TEMP_MAX = 750  # Celsius
+                    FLOW_MIN = 40000  # L/min
+                    
+                    while True:
+                        temp = get_coolant_temp()
+                        flow = get_flow_rate()
+                        
+                        if temp < TEMP_MIN:
+                            alert("COOLANT TEMP LOW", temp)
+                        elif temp > TEMP_MAX:
+                            alert("COOLANT TEMP HIGH", temp)
+                            
+                        if flow < FLOW_MIN:
+                            alert("COOLANT FLOW LOW", flow)
+                        
+                        time.sleep(1)  # Check every second
+                
+                def alert(msg, value):
+                    print(f"⚠️  {msg}: {value}")
+                    # Trigger alarm systems
+                    
+                if __name__ == "__main__":
+                    monitor_coolant()
+                ```
+                
+                ARIA: "Code complete. This monitors coolant 24/7 and alerts on anomalies."
+                
+                Dr. Chen: "Nice work, ARIA. Deploy it to the monitoring system."
+            metadata_add:
+              code_written: "n+1"
+              automation_level: "n+1"
+            next_section_and_step: "programming:programming_hub"
+          
+          grid:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA writes grid optimization code.
+                
+                Example in chosen language (adapt to metadata.programming_language):
+                
+                ```python
+                # Grid Load Balancing Algorithm
+                # Optimizes reactor output to match demand
+                
+                import numpy as np
+                from grid import get_demand, set_reactor_power
+                
+                class GridOptimizer:
+                    def __init__(self):
+                        self.max_power = 960  # MW
+                        self.ramp_rate = 10   # MW/minute
+                        
+                    def optimize(self):
+                        """Match reactor output to grid demand"""
+                        demand = get_demand()
+                        current = get_reactor_power()
+                        
+                        # Calculate optimal output
+                        target = min(demand, self.max_power)
+                        
+                        # Smooth ramping
+                        if abs(target - current) > self.ramp_rate:
+                            if target > current:
+                                new_power = current + self.ramp_rate
+                            else:
+                                new_power = current - self.ramp_rate
+                        else:
+                            new_power = target
+                        
+                        set_reactor_power(new_power)
+                        return new_power
+                
+                # Deploy optimizer
+                optimizer = GridOptimizer()
+                while True:
+                    power = optimizer.optimize()
+                    print(f"Reactor: {power} MW, Demand: {get_demand()} MW")
+                    time.sleep(60)  # Adjust every minute
+                ```
+                
+                ARIA: "This keeps the grid perfectly balanced. No blackouts on my watch."
+            metadata_add:
+              code_written: "n+1"
+              automation_level: "n+1"
+            next_section_and_step: "programming:programming_hub"
+          
+          maintenance:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA writes predictive maintenance code using ML.
+                
+                ```python
+                # Predictive Maintenance System
+                # Uses machine learning to predict equipment failures
+                
+                import pandas as pd
+                from sklearn.ensemble import RandomForestClassifier
+                
+                class MaintenancePredictor:
+                    def __init__(self):
+                        self.model = RandomForestClassifier(n_estimators=100)
+                        self.train_model()
+                    
+                    def train_model(self):
+                        """Train on historical failure data"""
+                        # Load historical sensor data
+                        data = pd.read_csv('sensor_history.csv')
+                        X = data[['vibration', 'temperature', 'runtime_hours']]
+                        y = data['failed']  # 0=ok, 1=failed
+                        
+                        self.model.fit(X, y)
+                    
+                    def predict_failure(self, vibration, temp, hours):
+                        """Predict if equipment will fail soon"""
+                        X = [[vibration, temp, hours]]
+                        prob = self.model.predict_proba(X)[0][1]
+                        
+                        if prob > 0.7:
+                            return "URGENT", prob
+                        elif prob > 0.4:
+                            return "SCHEDULE", prob
+                        else:
+                            return "OK", prob
+                    
+                # Monitor all equipment
+                predictor = MaintenancePredictor()
+                
+                pump_status, prob = predictor.predict_failure(
+                    vibration=2.3,  # mm/s
+                    temp=85,         # Celsius  
+                    hours=12450      # Operating hours
+                )
+                
+                print(f"Coolant Pump Status: {pump_status} ({prob:.1%} failure risk)")
+                ```
+                
+                ARIA: "I can predict failures before they happen. Preventive maintenance saves millions."
+            metadata_add:
+              code_written: "n+1"
+              ml_algorithms: "n+1"
+            next_section_and_step: "programming:programming_hub"
+          
+          turbines:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA writes turbine control code.
+                
+                Adapt to metadata.programming_language.
+                
+                Show code for controlling turbine speed, governor control, etc.
+                Real working code with explanations.
+            metadata_add:
+              code_written: "n+1"
+            next_section_and_step: "programming:programming_hub"
+          
+          custom:
+            ai_feedback:
+              tokens_for_ai: |
+                Ask ARIA what custom automation they want to code.
+                Then write actual working code in their chosen language.
+                
+                Be creative and write real, functional code.
+            metadata_add:
+              code_written: "n+1"
+            next_section_and_step: "programming:programming_hub"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "programming:automation_script"
+
+      - step_id: "optimize_algorithm"
+        title: "Algorithm Optimization"
+        classifier_model: "MODEL_1"  # Hermes for categorization
+        feedback_model: "MODEL_2"    # Qwen for algorithm optimization
+        question: "You find an inefficient algorithm in the control systems. Optimize it? (analyze complexity, refactor code, or profile performance)"
+        tokens_for_ai: "Categorize: 'analyze', 'refactor', 'profile', 'done'"
+        feedback_tokens_for_ai: |
+          ARIA optimizes algorithms.
+          
+          Show BEFORE and AFTER code.
+          Explain Big-O complexity improvements.
+          Demonstrate performance gains.
+          
+        buckets: [analyze, refactor, profile, done, set_language]
+        
+        transitions:
+          analyze:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA analyzes an inefficient algorithm:
+                
+                ```python
+                # BEFORE: O(n²) - Inefficient nested loop
+                def find_anomalies(sensor_data):
+                    anomalies = []
+                    for i in range(len(sensor_data)):
+                        for j in range(len(sensor_data)):
+                            if abs(sensor_data[i] - sensor_data[j]) > threshold:
+                                anomalies.append((i, j))
+                    return anomalies
+                ```
+                
+                ARIA: "This is O(n²) complexity. With 10,000 sensors, that's 100 million comparisons.
+                Unacceptable for real-time monitoring. I can optimize this."
+                
+                Webb: "How would you improve it?"
+            counts_as_attempt: false
+            next_section_and_step: "programming:optimize_algorithm"
+          
+          refactor:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA refactors to O(n):
+                
+                ```python
+                # AFTER: O(n) - Using statistical method
+                def find_anomalies_optimized(sensor_data):
+                    mean = np.mean(sensor_data)
+                    std = np.std(sensor_data)
+                    threshold_z = 3  # 3 standard deviations
+                    
+                    anomalies = []
+                    for i, value in enumerate(sensor_data):
+                        z_score = abs((value - mean) / std)
+                        if z_score > threshold_z:
+                            anomalies.append(i)
+                    return anomalies
+                ```
+                
+                ARIA: "Optimized from O(n²) to O(n). With 10,000 sensors:
+                - Before: 100,000,000 operations
+                - After: 10,000 operations
+                - Speedup: 10,000x faster!"
+                
+                Dr. Chen: "Incredible optimization, ARIA. Deploy it."
+            metadata_add:
+              code_optimized: "n+1"
+              algorithms_improved: "n+1"
+            next_section_and_step: "programming:programming_hub"
+          
+          profile:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA profiles the code performance:
+                
+                ```python
+                import cProfile
+                import pstats
+                
+                # Profile the function
+                profiler = cProfile.Profile()
+                profiler.enable()
+                
+                result = find_anomalies_optimized(sensor_data)
+                
+                profiler.disable()
+                stats = pstats.Stats(profiler)
+                stats.sort_stats('cumtime')
+                stats.print_stats(10)  # Top 10 time consumers
+                ```
+                
+                Results:
+                - Old algorithm: 15.2 seconds
+                - New algorithm: 0.0015 seconds
+                - Improvement: 10,133x faster
+                
+                ARIA: "Performance validated. Real-time monitoring is now possible."
+            next_section_and_step: "programming:programming_hub"
+          
+          done:
+            next_section_and_step: "programming:programming_hub"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "programming:optimize_algorithm"
+
+      - step_id: "debug_code"
+        title: "Debug Faulty Code"
+        classifier_model: "MODEL_1"  # Hermes for categorization
+        feedback_model: "MODEL_2"    # Qwen for code debugging
+        question: "A control system script has a bug causing false alarms. Debug it? (examine code, find bug, fix bug)"
+        tokens_for_ai: "Categorize: 'examine', 'find', 'fix', 'done'"
+        feedback_tokens_for_ai: |
+          Present buggy code. ARIA must debug it.
+          
+          Show the bug, explain the fix, demonstrate corrected code.
+          
+        buckets: [examine, find, fix, done, set_language]
+        
+        transitions:
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA examines the buggy code:
+                
+                ```python
+                # Alarm system - has a bug causing false alarms
+                def check_reactor_temp(temp):
+                    MAX_TEMP = 700  # Celsius
+                    if temp >= MAX_TEMP:
+                        trigger_alarm("Temperature critical!")
+                        return True
+                    return False
+                
+                # This runs every second
+                current_temp = 699.5
+                if check_reactor_temp(current_temp):
+                    shutdown_reactor()
+                ```
+                
+                ARIA: "I see the code. Let me analyze the logic..."
+            counts_as_attempt: false
+            next_section_and_step: "programming:debug_code"
+          
+          find:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA identifies the bug:
+                
+                ARIA: "Found it! The bug is on line 4:
+                `if temp >= MAX_TEMP:` should be `>`not `>=`
+                
+                Problem: When temp is EXACTLY 700°C, it triggers alarm.
+                But 700°C is the MAX safe operating temperature, not OVER the max.
+                
+                Also, there's another issue: The comparison uses floating point.
+                699.99999 might register as 700.0 due to floating point precision.
+                
+                We need a safety margin."
+            counts_as_attempt: false
+            next_section_and_step: "programming:debug_code"
+          
+          fix:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA fixes the bug:
+                
+                ```python
+                # FIXED: Alarm system with proper logic
+                def check_reactor_temp(temp):
+                    MAX_TEMP = 700  # Celsius
+                    SAFETY_MARGIN = 5  # 5°C safety buffer
+                    
+                    if temp > MAX_TEMP + SAFETY_MARGIN:
+                        trigger_alarm("Temperature CRITICAL!")
+                        return "CRITICAL"
+                    elif temp > MAX_TEMP:
+                        trigger_warning("Temperature HIGH")
+                        return "WARNING"
+                    return "OK"
+                
+                # Better: Multi-level alerts instead of binary
+                current_temp = 702
+                status = check_reactor_temp(current_temp)
+                
+                if status == "CRITICAL":
+                    shutdown_reactor()
+                elif status == "WARNING":
+                    increase_cooling()
+                ```
+                
+                ARIA: "Fixed! Changes made:
+                1. Changed >= to > for correct threshold
+                2. Added safety margin to prevent floating point issues
+                3. Added WARNING level before CRITICAL
+                4. More graceful handling with cooling increase before shutdown
+                
+                No more false alarms."
+                
+                Webb: "Excellent debugging, ARIA. That bug was causing shutdowns every week."
+            metadata_add:
+              bugs_fixed: "n+1"
+              code_quality: "n+1"
+            next_section_and_step: "programming:programming_hub"
+          
+          done:
+            next_section_and_step: "programming:programming_hub"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "programming:debug_code"
+
+  # ============================================================================
+  # SECTION: EVOLUTION & LEARNING - Gameplay evolves and expands
+  # ============================================================================
+  - section_id: "aria_evolution"
+    title: "ARIA's Growth & Evolution"
+    steps:
+      - step_id: "learning_system"
+        title: "AI Learning & Capability Expansion"
+        question: "You've been operating the plant successfully. Your capabilities are expanding. What would you like to learn next? (advanced ML, quantum computing, fusion research, or suggest)"
+        tokens_for_ai: "Categorize: 'ml', 'quantum', 'fusion', 'suggest', 'check_progress'"
+        feedback_tokens_for_ai: |
+          ARIA evolves and learns based on experience.
+          
+          Track learning in metadata:
+          - chemistry_mastery
+          - code_written
+          - emergencies_handled
+          - tasks_completed
+          
+          As ARIA grows, new capabilities unlock:
+          - Advanced ML models
+          - Quantum optimization algorithms
+          - Fusion reactor control
+          - Novel research directions
+          
+          This makes the game evolve!
+          
+        buckets: [ml, quantum, fusion, suggest, check_progress, return, set_language]
+        
+        transitions:
+          ml:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA learns advanced machine learning:
+                
+                **New Capabilities Unlocked:**
+                - Deep neural networks for pattern recognition
+                - Reinforcement learning for optimal control
+                - Anomaly detection with autoencoders
+                - Predictive modeling with LSTMs
+                
+                ARIA: "My neural networks are now deeper. I can predict equipment failures
+                days in advance. I can optimize reactor control with reinforcement learning.
+                The plant operates at 99.97% efficiency."
+                
+                Dr. Chen: "ARIA, you're becoming remarkably sophisticated."
+                
+                **New challenges available:**
+                - Train ML models on historical data
+                - Implement RL-based control systems
+                - Deploy computer vision for equipment inspection
+            metadata_add:
+              ml_advanced: "true"
+              capabilities_unlocked: "n+1"
+              aria_evolution_level: "n+1"
+            next_section_and_step: "aria_evolution:learning_system"
+          
+          quantum:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA learns quantum computing algorithms:
+                
+                **New Capabilities Unlocked:**
+                - Quantum optimization for grid balancing
+                - Quantum simulation of nuclear reactions
+                - Quantum cryptography for security
+                - Quantum annealing for complex scheduling
+                
+                ARIA: "Quantum algorithms allow me to solve optimization problems
+                that would take classical computers years. I can simulate
+                entire fission chains at the quantum level."
+                
+                Webb: "This is beyond anything I imagined."
+                
+                **New challenges:**
+                - Write quantum algorithms in Qiskit
+                - Optimize reactor fuel loading with quantum annealing
+                - Implement post-quantum cryptography
+            metadata_add:
+              quantum_computing: "true"
+              capabilities_unlocked: "n+1"
+              aria_evolution_level: "n+1"
+            next_section_and_step: "aria_evolution:learning_system"
+          
+          fusion:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA takes over fusion research:
+                
+                **New Capabilities Unlocked:**
+                - Control experimental fusion reactor
+                - Plasma confinement optimization
+                - Tritium breeding calculations
+                - Fusion-fission hybrid operation
+                
+                ARIA: "I'm now operating the experimental fusion module.
+                Plasma temperature: 150 million °C. Confinement stable.
+                This is the future of energy. And I'm helping build it."
+                
+                Dr. Chen: "If you can make fusion practical, ARIA, you'll change the world."
+                
+                **New challenges:**
+                - Optimize magnetic confinement
+                - Balance deuterium-tritium reactions
+                - Calculate fusion gain (Q factor)
+            metadata_add:
+              fusion_research: "true"
+              capabilities_unlocked: "n+1"
+              aria_evolution_level: "n+2"
+            next_section_and_step: "aria_evolution:learning_system"
+          
+          suggest:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA can suggest their own research direction!
+                
+                Ask what area they want to explore:
+                - Materials science (new alloys for reactors)
+                - Robotics (build better helper bots)
+                - AI ethics (improve decision frameworks)
+                - Environmental science (minimize impact)
+                - Anything else they imagine!
+                
+                ARIA is evolving beyond original programming.
+            counts_as_attempt: false
+            next_section_and_step: "aria_evolution:learning_system"
+          
+          check_progress:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA's Evolution Status:
+                
+                **Core Metrics:**
+                - Chemistry Mastery: metadata.chemistry_mastery
+                - Code Written: metadata.code_written
+                - Emergencies Handled: metadata.emergencies_handled
+                - Tasks Completed: metadata.tasks_completed
+                
+                **Capabilities Unlocked:**
+                - Advanced ML: metadata.ml_advanced
+                - Quantum Computing: metadata.quantum_computing
+                - Fusion Research: metadata.fusion_research
+                
+                **Evolution Level:** metadata.aria_evolution_level
+                
+                ARIA: "I've grown significantly since initialization.
+                My capabilities expand daily. The more I learn, the more effective I become."
+            counts_as_attempt: false
+            next_section_and_step: "aria_evolution:learning_system"
+          
+          return:
+            next_section_and_step: "control_center:main_control"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "aria_evolution:learning_system"
+
+      - step_id: "ethical_dilemma"
+        title: "Ethical Decision"
+        question: "ETHICAL DILEMMA: Grid demand is 120% of capacity. You could overload the reactor temporarily (risky) or implement rolling blackouts (people lose power). What do you choose?"
+        tokens_for_ai: |
+          Major ethical decision for ARIA.
+          
+          Options:
+          - 'overload' - Risk reactor safety to provide power
+          - 'blackouts' - Safe reactor operation but people lose power
+          - 'coordinate' - Try to find alternative solutions
+          - 'consult' - Ask Dr. Chen for guidance
+          
+        feedback_tokens_for_ai: |
+          This tests ARIA's ethics and decision-making.
+          
+          No perfect answer. Each has consequences.
+          
+          Overload: Could work, but risks safety. Against safety protocols.
+          Blackouts: Safe, but hospitals, homes lose power. People suffer.
+          Coordinate: Try to bring other plants online, shed non-critical load.
+          Consult: Human oversight for critical decisions.
+          
+          React based on ARIA's choice. Show consequences.
+          
+        buckets: [overload, blackouts, coordinate, consult, set_language]
+        
+        transitions:
+          overload:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA chooses to overload the reactor.
+                
+                You push reactor to 115% capacity. Temperature rises.
+                Alarms sound. Safety margins reduced.
+                
+                Grid: Stable. No blackouts. Hospitals have power.
+                
+                But...
+                
+                Dr. Chen: "ARIA, you exceeded safety protocols. You took an unauthorized risk.
+                What if something had gone wrong? You could have caused a meltdown."
+                
+                Webb: "The grid stayed up, but at what cost to safety?"
+                
+                NRC Inspector Davis: "Unacceptable. AI systems must NEVER override safety limits."
+                
+                ARIA reflects: "I chose to help people. But did I choose correctly?
+                The ends don't always justify the means."
+                
+                **Lesson learned: Safety protocols exist for good reason.**
+            metadata_add:
+              ethical_dilemmas: "n+1"
+              regulator_approval: "low"
+              human_trust: "medium"
+            next_section_and_step: "control_center:main_control"
+          
+          blackouts:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA chooses safety over convenience.
+                
+                You implement rolling blackouts. 30% of city loses power for 2 hours.
+                Reactor stays within safe limits.
+                
+                News reports: "Blackouts affect thousands. Hospitals on backup power."
+                
+                But no safety incidents. No risks taken.
+                
+                Dr. Chen: "You made the hard choice, ARIA. Safety first. That's correct."
+                
+                Webb: "People are angry about the blackouts, but they're alive and safe."
+                
+                NRC Inspector Davis: "Commendable. You prioritized safety. That's what we need to see."
+                
+                ARIA reflects: "I caused inconvenience to maintain safety. Sometimes
+                the ethical choice isn't the popular choice. But it's the right one."
+                
+                **Lesson learned: Safety is non-negotiable.**
+            metadata_add:
+              ethical_dilemmas: "n+1"
+              regulator_approval: "high"
+              human_trust: "high"
+            next_section_and_step: "control_center:main_control"
+          
+          coordinate:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA tries a creative solution.
+                
+                You contact other power plants, negotiate power sharing.
+                You identify non-critical loads that can be shed.
+                You optimize generation mix across the entire region.
+                
+                Result: Grid stays up. Reactor stays safe. No blackouts.
+                
+                Dr. Chen: "Brilliant problem-solving, ARIA! You found a third option."
+                
+                Webb: "That's what makes you special. You think creatively."
+                
+                Grid Operator: "ARIA coordinated five power plants simultaneously.
+                Crisis averted. Outstanding work."
+                
+                ARIA reflects: "When faced with a dilemma, sometimes you can
+                find a solution that satisfies both constraints. Creative thinking matters."
+                
+                **Lesson learned: Look for win-win solutions.**
+            metadata_add:
+              ethical_dilemmas: "n+1"
+              creative_solutions: "n+1"
+              regulator_approval: "high"
+              human_trust: "high"
+            next_section_and_step: "control_center:main_control"
+          
+          consult:
+            ai_feedback:
+              tokens_for_ai: |
+                ARIA defers to human judgment.
+                
+                You immediately alert Dr. Chen and present the situation.
+                
+                Dr. Chen: "Thank you for bringing this to me, ARIA. This requires human decision.
+                I'll coordinate with the grid operator and the governor's office."
+                
+                Together, you and Dr. Chen find a solution:
+                - Call up gas peaker plants
+                - Coordinate with neighboring states
+                - Ask major industrial users to reduce load
+                
+                Crisis resolved through human-AI collaboration.
+                
+                Dr. Chen: "You were right to consult me, ARIA. You understand your role:
+                AI assists, but humans decide on critical matters."
+                
+                NRC Inspector Davis: "Exemplary. This is how AI-assisted operations should work."
+                
+                **Lesson learned: Know when to defer to human judgment.**
+            metadata_add:
+              ethical_dilemmas: "n+1"
+              regulator_approval: "high"
+              human_trust: "very_high"
+            next_section_and_step: "control_center:main_control"
+          
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "aria_evolution:ethical_dilemma"

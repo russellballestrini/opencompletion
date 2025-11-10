@@ -385,6 +385,25 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         activity_state.add_metadata(key, value)
                     print(f"DEBUG: Pre-script completed, updated metadata")
 
+                # Roll for random buckets BEFORE categorization
+                triggered_random_buckets = []
+                if "random_buckets" in step:
+                    for bucket_name, config in step["random_buckets"].items():
+                        probability = config.get("probability", 0)
+                        roll = random.random()
+                        if roll < probability:
+                            triggered_random_buckets.append(bucket_name)
+                            socketio.emit(
+                                "chat_message",
+                                {
+                                    "id": None,
+                                    "username": "System",
+                                    "content": f"🎲 [RANDOM EVENT] '{bucket_name}' triggered!",
+                                },
+                                room=room_name,
+                            )
+                            socketio.sleep(0.05)
+
                 # Categorize the user's response
                 category = categorize_response(
                     step["question"],
@@ -393,38 +412,6 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                     step.get("tokens_for_ai", ""),
                     classifier_model,
                 )
-
-                # Initialize transition to None
-                transition = None
-
-                # Determine the transition based on the category
-                if category in step["transitions"]:
-                    transition = step["transitions"][category]
-                elif category.isdigit() and int(category) in step["transitions"]:
-                    transition = step["transitions"][int(category)]
-                else:
-                    if category.lower() in ["yes", "true"]:
-                        category = True
-                    elif category.lower() in ["no", "false"]:
-                        category = False
-                    if category in step["transitions"]:
-                        transition = step["transitions"][category]
-
-                # Emit an error message if no valid transition was found
-                if transition is None:
-                    socketio.emit(
-                        "chat_message",
-                        {
-                            "id": None,
-                            "username": "System",
-                            "content": f"Error: Unrecognized category '{category}'. Please try again.",
-                        },
-                        room=room_name,
-                    )
-                    return
-
-                next_section_and_step = transition.get("next_section_and_step", None)
-                counts_as_attempt = transition.get("counts_as_attempt", True)
 
                 # Emit the category to the frontend
                 socketio.emit(
@@ -438,374 +425,465 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                 )
                 socketio.sleep(0.1)
 
-                # Check metadata conditions for the current step
-                if "metadata_conditions" in transition:
-                    conditions_met = all(
-                        activity_state.dict_metadata.get(key) == value
-                        for key, value in transition["metadata_conditions"].items()
+                # Combine user's category with triggered random buckets
+                # User's response is processed FIRST, then random events
+                all_active_buckets = [category] + triggered_random_buckets
+
+                # Find transitions for all active buckets
+                active_transitions = []
+                for bucket in all_active_buckets:
+                    transition = None
+                    if bucket in step["transitions"]:
+                        transition = step["transitions"][bucket]
+                    elif str(bucket).isdigit() and int(bucket) in step["transitions"]:
+                        transition = step["transitions"][int(bucket)]
+                    else:
+                        # Try boolean conversion
+                        if str(bucket).lower() in ["yes", "true"]:
+                            bucket = True
+                        elif str(bucket).lower() in ["no", "false"]:
+                            bucket = False
+                        if bucket in step["transitions"]:
+                            transition = step["transitions"][bucket]
+
+                    if transition:
+                        active_transitions.append((bucket, transition))
+
+                # Error only if NO transitions found at all
+                if not active_transitions:
+                    socketio.emit(
+                        "chat_message",
+                        {
+                            "id": None,
+                            "username": "System",
+                            "content": f"Error: Unrecognized category '{category}'. Please try again.",
+                        },
+                        room=room_name,
                     )
-                    if not conditions_met:
-                        # Emit a message indicating the conditions are not met
+                    return
+
+                # Track temporary metadata keys across all transitions
+                metadata_tmp_keys = []
+
+                # Track the final navigation target (use LAST transition's next_section_and_step)
+                final_next_section_and_step = None
+
+                # Track counts_as_attempt (if ANY transition counts, it counts)
+                any_counts_as_attempt = False
+
+                # Process ALL active transitions in order
+                for bucket_name, transition in active_transitions:
+                    # Emit separator between buckets (but not for the first one)
+                    if bucket_name != all_active_buckets[0]:
                         socketio.emit(
                             "chat_message",
                             {
                                 "id": None,
                                 "username": "System",
-                                "content": "You do not have the required items to proceed.",
+                                "content": f"\n{'='*60}\nProcessing transition for bucket: '{bucket_name}'\n{'='*60}",
                             },
                             room=room_name,
                         )
-                        # Remind the user of what they can do in the room
-                        if "content_blocks" in step or "question" in step:
-                            content_blocks = step.get("content_blocks", [])
-                            question = step.get("question", "")
-                            options_message = (
-                                "\n\n".join(content_blocks) + "\n\n" + question
-                            )
+                        socketio.sleep(0.05)
 
-                            new_message = Message(
-                                username="System",
-                                content=options_message,
-                                room_id=room.id,
-                            )
-                            db.session.add(new_message)
-                            db.session.commit()
-
+                    # Check metadata conditions for the current step
+                    if "metadata_conditions" in transition:
+                        conditions_met = all(
+                            activity_state.dict_metadata.get(key) == value
+                            for key, value in transition["metadata_conditions"].items()
+                        )
+                        if not conditions_met:
+                            # Skip this transition if conditions not met
                             socketio.emit(
                                 "chat_message",
                                 {
-                                    "id": new_message.id,
+                                    "id": None,
                                     "username": "System",
-                                    "content": options_message,
+                                    "content": f"Skipping '{bucket_name}' - metadata conditions not met",
                                 },
                                 room=room_name,
                             )
-                        # exit early, the user may not pass ... yet.
-                        return
-
-                # this gives the llm context on what changed.
-                new_metadata = {}
-
-                # Track temporary metadata keys that last for a single turn.
-                metadata_tmp_keys = []
-
-                # Update metadata based on user actions
-                if "metadata_add" in transition:
-                    for key, value in transition["metadata_add"].items():
-                        if value == "the-users-response":
-                            value = user_response
-                        elif value == "the-llms-response":
+                            socketio.sleep(0.05)
                             continue
-                        elif isinstance(value, str):
-                            if value.startswith("n+random(") and value.endswith(")"):
-                                # Extract the range and apply the random increment
-                                range_values = value[9:-1].split(",")
-                                if len(range_values) == 2:
-                                    x, y = map(int, range_values)
-                                    value = activity_state.dict_metadata.get(
-                                        key, 0
-                                    ) + random.randint(x, y)
-                            elif value.startswith("n+") or value.startswith("n-"):
-                                # Extract the numeric part c and apply the operation +/-
-                                c = int(value[1:])
-                                if value.startswith("n+"):
-                                    value = activity_state.dict_metadata.get(key, 0) + c
-                                elif value.startswith("n-"):
-                                    value = activity_state.dict_metadata.get(key, 0) - c
-                        new_metadata[key] = value
-                        activity_state.add_metadata(key, value)
 
-                # Update metadata based on user actions
-                if "metadata_tmp_add" in transition:
-                    for key, value in transition["metadata_tmp_add"].items():
-                        if value == "the-users-response":
-                            value = user_response
-                        elif value == "the-llms-response":
-                            continue
-                        elif isinstance(value, str):
-                            if value.startswith("n+random(") and value.endswith(")"):
-                                # Extract the range and apply the random increment
-                                range_values = value[9:-1].split(",")
-                                if len(range_values) == 2:
-                                    x, y = map(int, range_values)
-                                    value = activity_state.dict_metadata.get(
-                                        key, 0
-                                    ) + random.randint(x, y)
-                            elif value.startswith("n+") or value.startswith("n-"):
-                                # Extract the numeric part c and apply the operation +/-
-                                c = int(value[1:])
-                                if value.startswith("n+"):
-                                    value = activity_state.dict_metadata.get(key, 0) + c
-                                elif value.startswith("n-"):
-                                    value = activity_state.dict_metadata.get(key, 0) - c
-                        new_metadata[key] = value
-                        metadata_tmp_keys.append(key)
-                        activity_state.add_metadata(key, value)
+                    # this gives the llm context on what changed.
+                    new_metadata = {}
 
-                # Update metadata by appending values to lists
-                if "metadata_append" in transition:
-                    for key, value in transition["metadata_append"].items():
-                        # Determine the value to append
-                        if value == "the-users-response":
-                            value_to_append = user_response
-                        elif value == "the-llms-response":
-                            continue  # Handle this after feedback
-                        else:
-                            value_to_append = value
+                    # Update metadata based on user actions
+                    if "metadata_add" in transition:
+                        for key, value in transition["metadata_add"].items():
+                            if value == "the-users-response":
+                                value = user_response
+                            elif value == "the-llms-response":
+                                continue
+                            elif isinstance(value, str):
+                                if value.startswith("n+random(") and value.endswith(")"):
+                                    # Extract the range and apply the random increment
+                                    range_values = value[9:-1].split(",")
+                                    if len(range_values) == 2:
+                                        x, y = map(int, range_values)
+                                        value = activity_state.dict_metadata.get(
+                                            key, 0
+                                        ) + random.randint(x, y)
+                                elif value.startswith("n+") or value.startswith("n-"):
+                                    # Check if this is string concatenation (n+,value) or numeric operation (n+5)
+                                    if value.startswith("n+,") or value.startswith("n-,"):
+                                        # String concatenation: append/remove from existing value
+                                        operation = value[:2]  # "n+" or "n-"
+                                        suffix = value[3:]  # Everything after "n+," or "n-,"
+                                        existing_value = activity_state.dict_metadata.get(key, "")
+                                        if operation == "n+":
+                                            # Append with comma separator if existing value is non-empty
+                                            if existing_value:
+                                                value = f"{existing_value},{suffix}"
+                                            else:
+                                                value = suffix
+                                        elif operation == "n-":
+                                            # Remove suffix from existing value
+                                            if existing_value:
+                                                parts = existing_value.split(",")
+                                                parts = [p for p in parts if p != suffix]
+                                                value = ",".join(parts)
+                                            else:
+                                                value = existing_value
+                                    else:
+                                        # Numeric operation: extract the numeric part c and apply the operation +/-
+                                        try:
+                                            c = int(value[2:])
+                                            if value.startswith("n+"):
+                                                value = activity_state.dict_metadata.get(key, 0) + c
+                                            elif value.startswith("n-"):
+                                                value = activity_state.dict_metadata.get(key, 0) - c
+                                        except ValueError:
+                                            print(f"Warning: Invalid numeric operation '{value}' for key '{key}'")
+                            new_metadata[key] = value
+                            activity_state.add_metadata(key, value)
 
-                        # Ensure the key exists and is a list
-                        current_value = activity_state.dict_metadata.get(key, [])
-                        if not isinstance(current_value, list):
-                            current_value = [current_value]
+                    # Update metadata based on user actions
+                    if "metadata_tmp_add" in transition:
+                        for key, value in transition["metadata_tmp_add"].items():
+                            if value == "the-users-response":
+                                value = user_response
+                            elif value == "the-llms-response":
+                                continue
+                            elif isinstance(value, str):
+                                if value.startswith("n+random(") and value.endswith(")"):
+                                    # Extract the range and apply the random increment
+                                    range_values = value[9:-1].split(",")
+                                    if len(range_values) == 2:
+                                        x, y = map(int, range_values)
+                                        value = activity_state.dict_metadata.get(
+                                            key, 0
+                                        ) + random.randint(x, y)
+                                elif value.startswith("n+") or value.startswith("n-"):
+                                    # Check if this is string concatenation (n+,value) or numeric operation (n+5)
+                                    if value.startswith("n+,") or value.startswith("n-,"):
+                                        # String concatenation: append/remove from existing value
+                                        operation = value[:2]  # "n+" or "n-"
+                                        suffix = value[3:]  # Everything after "n+," or "n-,"
+                                        existing_value = activity_state.dict_metadata.get(key, "")
+                                        if operation == "n+":
+                                            # Append with comma separator if existing value is non-empty
+                                            if existing_value:
+                                                value = f"{existing_value},{suffix}"
+                                            else:
+                                                value = suffix
+                                        elif operation == "n-":
+                                            # Remove suffix from existing value
+                                            if existing_value:
+                                                parts = existing_value.split(",")
+                                                parts = [p for p in parts if p != suffix]
+                                                value = ",".join(parts)
+                                            else:
+                                                value = existing_value
+                                    else:
+                                        # Numeric operation: extract the numeric part c and apply the operation +/-
+                                        try:
+                                            c = int(value[2:])
+                                            if value.startswith("n+"):
+                                                value = activity_state.dict_metadata.get(key, 0) + c
+                                            elif value.startswith("n-"):
+                                                value = activity_state.dict_metadata.get(key, 0) - c
+                                        except ValueError:
+                                            print(f"Warning: Invalid numeric operation '{value}' for key '{key}'")
+                            new_metadata[key] = value
+                            metadata_tmp_keys.append(key)
+                            activity_state.add_metadata(key, value)
 
-                        # Append the value to the list
-                        if isinstance(value_to_append, list):
-                            current_value.extend(value_to_append)
-                        else:
-                            current_value.append(value_to_append)
+                    # Update metadata by appending values to lists
+                    if "metadata_append" in transition:
+                        for key, value in transition["metadata_append"].items():
+                            # Determine the value to append
+                            if value == "the-users-response":
+                                value_to_append = user_response
+                            elif value == "the-llms-response":
+                                continue  # Handle this after feedback
+                            else:
+                                value_to_append = value
 
-                        # Update the metadata
-                        activity_state.add_metadata(key, current_value)
-
-                # Update temporary metadata by appending values to lists
-                if "metadata_tmp_append" in transition:
-                    for key, value in transition["metadata_tmp_append"].items():
-                        # Determine the value to append
-                        if value == "the-users-response":
-                            value_to_append = user_response
-                        elif value == "the-llms-response":
-                            continue  # Handle this after feedback
-                        else:
-                            value_to_append = value
-
-                        # Ensure the key exists and is a list
-                        current_value = activity_state.dict_metadata.get(key, [])
-                        if not isinstance(current_value, list):
-                            current_value = [current_value]
-
-                        # Append the value to the list
-                        if isinstance(value_to_append, list):
-                            current_value.extend(value_to_append)
-                        else:
-                            current_value.append(value_to_append)
-
-                        # Update the metadata
-                        activity_state.add_metadata(key, current_value)
-
-                        # Track temporary metadata keys
-                        metadata_tmp_keys.append(key)
-
-                if "metadata_remove" in transition:
-                    for key in transition["metadata_remove"]:
-                        activity_state.remove_metadata(key)
-
-                # Handle metadata_random
-                if "metadata_random" in transition:
-                    random_key = random.choice(
-                        list(transition["metadata_random"].keys())
-                    )
-                    random_value = transition["metadata_random"][random_key]
-                    new_metadata[random_key] = random_value
-                    activity_state.add_metadata(random_key, random_value)
-
-                if "metadata_tmp_random" in transition:
-                    random_key = random.choice(
-                        list(transition["metadata_tmp_random"].keys())
-                    )
-                    random_value = transition["metadata_tmp_random"][random_key]
-                    new_metadata[random_key] = random_value
-                    metadata_tmp_keys.append(random_key)
-                    activity_state.add_metadata(random_key, random_value)
-
-                # Execute the post-script if it exists (supports both old and new naming)
-                post_script = step.get("post_script") or step.get("processing_script")
-                if post_script and (
-                    transition.get("run_post_script", False)
-                    or transition.get("run_processing_script", False)
-                ):
-                    print(f"DEBUG: Executing post-script")
-                    result = (
-                        execute_processing_script(
-                            activity_state.dict_metadata, post_script
-                        )
-                        or {}
-                    )
-
-                    plot_image_base64 = result.pop("plot_image", None)
-
-                    # Add the result to the temporary metadata for use in AI feedback
-                    metadata_tmp_keys.append("processing_script_result")
-                    activity_state.add_metadata("processing_script_result", result)
-
-                    # Update metadata with results from the processing script
-                    for key, value in result.get("metadata", {}).items():
-                        activity_state.add_metadata(key, value)
-
-                    # Check if processing script wants to override the transition
-                    if "next_section_and_step" in result:
-                        next_section_and_step = result["next_section_and_step"]
-                        print(
-                            f"DEBUG: Processing script overriding transition to: {next_section_and_step}"
-                        )
-
-                    # Check if the result contains a plot image
-                    if plot_image_base64:
-                        plot_image_html = f'<img alt="Plot Image" src="data:image/png;base64,{plot_image_base64}">'
-
-                        if result.get("set_background", False):
-                            socketio.emit(
-                                "set_background",
-                                {"image_data": plot_image_base64},
-                                room=room_name,
-                            )
-                            socketio.sleep(0.1)
-                        else:
-                            # Save the plot image to the database
-                            new_message = Message(
-                                username=username,
-                                content=plot_image_html,
-                                room_id=room.id,
-                            )
-                            db.session.add(new_message)
-                            db.session.commit()
-
-                            # Emit the plot image to the frontend
-                            socketio.emit(
-                                "chat_message",
-                                {
-                                    "id": new_message.id,
-                                    "username": username,
-                                    "content": plot_image_html,
-                                },
-                                room=room_name,
-                            )
-                            socketio.sleep(0.1)
-
-                if (
-                    "metadata_clear" in transition
-                    and transition["metadata_clear"] == True
-                ):
-                    activity_state.clear_metadata()
-
-                print(activity_state.dict_metadata)
-
-                # Commit the changes after the loop
-                db.session.add(activity_state)
-                db.session.commit()
-
-                user_language = activity_state.dict_metadata.get("language", "English")
-
-                # Emit the transition content blocks if they exist
-                if "content_blocks" in transition:
-                    transition_content = "\n\n".join(transition["content_blocks"])
-                    translated_transition_content = translate_text(
-                        transition_content, user_language, feedback_model
-                    )
-                    new_message = Message(
-                        username="System",
-                        content=translated_transition_content,
-                        room_id=room.id,
-                    )
-                    db.session.add(new_message)
-                    db.session.commit()
-
-                    socketio.emit(
-                        "chat_message",
-                        {
-                            "id": new_message.id,
-                            "username": "System",
-                            "content": translated_transition_content,
-                        },
-                        room=room_name,
-                    )
-                    socketio.sleep(0.1)
-
-                # if "correct" or max_attempts reached.
-                # Provide feedback based on the category
-
-                # Handle feedback systems
-                feedback_messages = []
-
-                if "feedback_prompts" in step:
-                    # New multi-prompt system - pass full metadata, let each prompt filter
-                    multi_feedback_messages = provide_feedback_prompts(
-                        transition,
-                        category,
-                        step["question"],
-                        step["feedback_prompts"],
-                        user_response,
-                        user_language,
-                        username,
-                        json.dumps(activity_state.dict_metadata),  # Pass full metadata
-                        json.dumps(new_metadata),
-                        feedback_tokens_for_ai,  # Pass legacy tokens to be combined
-                        feedback_model,
-                    )
-                    feedback_messages.extend(multi_feedback_messages)
-                elif feedback_tokens_for_ai:
-                    # Legacy single feedback system - use transition-level filtering
-                    feedback_metadata = activity_state.dict_metadata
-                    if "metadata_feedback_filter" in transition:
-                        filter_keys = transition["metadata_feedback_filter"]
-                        feedback_metadata = {
-                            k: v
-                            for k, v in activity_state.dict_metadata.items()
-                            if k in filter_keys
-                        }
-
-                    feedback = provide_feedback(
-                        transition,
-                        category,
-                        step["question"],
-                        feedback_tokens_for_ai,
-                        user_response,
-                        user_language,
-                        username,
-                        json.dumps(feedback_metadata),
-                        json.dumps(new_metadata),
-                        feedback_model,
-                    )
-                    if feedback and feedback.strip():
-                        feedback_messages.append(
-                            {"name": "Feedback", "content": feedback}
-                        )
-
-                # Store and emit all feedback messages
-                for feedback_msg in feedback_messages:
-                    new_message = Message(
-                        username=f"System ({feedback_msg['name'].title()})",
-                        content=feedback_msg["content"],
-                        room_id=room.id,
-                    )
-                    db.session.add(new_message)
-                    db.session.commit()
-
-                    socketio.emit(
-                        "chat_message",
-                        {
-                            "id": new_message.id,
-                            "username": f"System ({feedback_msg['name'].title()})",
-                            "content": feedback_msg["content"],
-                        },
-                        room=room_name,
-                    )
-                    socketio.sleep(0.1)
-
-                    # Add or append the LLM's response to the metadata
-                    for key, value in transition.get("metadata_add", {}).items():
-                        if value == "the-llms-response":
-                            activity_state.add_metadata(key, feedback)
-
-                    for key, value in transition.get("metadata_append", {}).items():
-                        if value == "the-llms-response":
                             # Ensure the key exists and is a list
                             current_value = activity_state.dict_metadata.get(key, [])
                             if not isinstance(current_value, list):
                                 current_value = [current_value]
 
-                            # Append the feedback to the list
-                            current_value.append(feedback)
+                            # Append the value to the list
+                            if isinstance(value_to_append, list):
+                                current_value.extend(value_to_append)
+                            else:
+                                current_value.append(value_to_append)
+
+                            # Update the metadata
                             activity_state.add_metadata(key, current_value)
+
+                    # Update temporary metadata by appending values to lists
+                    if "metadata_tmp_append" in transition:
+                        for key, value in transition["metadata_tmp_append"].items():
+                            # Determine the value to append
+                            if value == "the-users-response":
+                                value_to_append = user_response
+                            elif value == "the-llms-response":
+                                continue  # Handle this after feedback
+                            else:
+                                value_to_append = value
+
+                            # Ensure the key exists and is a list
+                            current_value = activity_state.dict_metadata.get(key, [])
+                            if not isinstance(current_value, list):
+                                current_value = [current_value]
+
+                            # Append the value to the list
+                            if isinstance(value_to_append, list):
+                                current_value.extend(value_to_append)
+                            else:
+                                current_value.append(value_to_append)
+
+                            # Update the metadata
+                            activity_state.add_metadata(key, current_value)
+
+                            # Track temporary metadata keys
+                            metadata_tmp_keys.append(key)
+
+                    if "metadata_remove" in transition:
+                        for key in transition["metadata_remove"]:
+                            activity_state.remove_metadata(key)
+
+                    # Handle metadata_random
+                    if "metadata_random" in transition:
+                        random_key = random.choice(
+                            list(transition["metadata_random"].keys())
+                        )
+                        random_value = transition["metadata_random"][random_key]
+                        new_metadata[random_key] = random_value
+                        activity_state.add_metadata(random_key, random_value)
+
+                    if "metadata_tmp_random" in transition:
+                        random_key = random.choice(
+                            list(transition["metadata_tmp_random"].keys())
+                        )
+                        random_value = transition["metadata_tmp_random"][random_key]
+                        new_metadata[random_key] = random_value
+                        metadata_tmp_keys.append(random_key)
+                        activity_state.add_metadata(random_key, random_value)
+
+                    # Execute the post-script if it exists (supports both old and new naming)
+                    post_script = step.get("post_script") or step.get("processing_script")
+                    if post_script and (
+                        transition.get("run_post_script", False)
+                        or transition.get("run_processing_script", False)
+                    ):
+                        print(f"DEBUG: Executing post-script")
+                        result = (
+                            execute_processing_script(
+                                activity_state.dict_metadata, post_script
+                            )
+                            or {}
+                        )
+
+                        plot_image_base64 = result.pop("plot_image", None)
+
+                        # Add the result to the temporary metadata for use in AI feedback
+                        metadata_tmp_keys.append("processing_script_result")
+                        activity_state.add_metadata("processing_script_result", result)
+
+                        # Update metadata with results from the processing script
+                        for key, value in result.get("metadata", {}).items():
+                            activity_state.add_metadata(key, value)
+
+                        # Check if processing script wants to override the transition
+                        if "next_section_and_step" in result:
+                            final_next_section_and_step = result["next_section_and_step"]
+                            print(
+                                f"DEBUG: Processing script overriding transition to: {final_next_section_and_step}"
+                            )
+
+                        # Check if the result contains a plot image
+                        if plot_image_base64:
+                            plot_image_html = f'<img alt="Plot Image" src="data:image/png;base64,{plot_image_base64}">'
+
+                            if result.get("set_background", False):
+                                socketio.emit(
+                                    "set_background",
+                                    {"image_data": plot_image_base64},
+                                    room=room_name,
+                                )
+                                socketio.sleep(0.1)
+                            else:
+                                # Save the plot image to the database
+                                new_message = Message(
+                                    username=username,
+                                    content=plot_image_html,
+                                    room_id=room.id,
+                                )
+                                db.session.add(new_message)
+                                db.session.commit()
+
+                                # Emit the plot image to the frontend
+                                socketio.emit(
+                                    "chat_message",
+                                    {
+                                        "id": new_message.id,
+                                        "username": username,
+                                        "content": plot_image_html,
+                                    },
+                                    room=room_name,
+                                )
+                                socketio.sleep(0.1)
+
+                    if (
+                        "metadata_clear" in transition
+                        and transition["metadata_clear"] == True
+                    ):
+                        activity_state.clear_metadata()
+
+                    print(activity_state.dict_metadata)
+
+                    # Commit the changes after processing this transition
+                    db.session.add(activity_state)
+                    db.session.commit()
+
+                    user_language = activity_state.dict_metadata.get("language", "English")
+
+                    # Emit the transition content blocks if they exist
+                    if "content_blocks" in transition:
+                        transition_content = "\n\n".join(transition["content_blocks"])
+                        translated_transition_content = translate_text(
+                            transition_content, user_language, feedback_model
+                        )
+                        new_message = Message(
+                            username="System",
+                            content=translated_transition_content,
+                            room_id=room.id,
+                        )
+                        db.session.add(new_message)
+                        db.session.commit()
+
+                        socketio.emit(
+                            "chat_message",
+                            {
+                                "id": new_message.id,
+                                "username": "System",
+                                "content": translated_transition_content,
+                            },
+                            room=room_name,
+                        )
+                        socketio.sleep(0.1)
+
+                    # if "correct" or max_attempts reached.
+                    # Provide feedback based on the category
+
+                    # Handle feedback systems
+                    feedback_messages = []
+
+                    if "feedback_prompts" in step:
+                        # New multi-prompt system - pass full metadata, let each prompt filter
+                        multi_feedback_messages = provide_feedback_prompts(
+                            transition,
+                            bucket_name,  # Use bucket_name instead of category
+                            step["question"],
+                            step["feedback_prompts"],
+                            user_response,
+                            user_language,
+                            username,
+                            json.dumps(activity_state.dict_metadata),  # Pass full metadata
+                            json.dumps(new_metadata),
+                            feedback_tokens_for_ai,  # Pass legacy tokens to be combined
+                            feedback_model,
+                        )
+                        feedback_messages.extend(multi_feedback_messages)
+                    elif feedback_tokens_for_ai:
+                        # Legacy single feedback system - use transition-level filtering
+                        feedback_metadata = activity_state.dict_metadata
+                        if "metadata_feedback_filter" in transition:
+                            filter_keys = transition["metadata_feedback_filter"]
+                            feedback_metadata = {
+                                k: v
+                                for k, v in activity_state.dict_metadata.items()
+                                if k in filter_keys
+                            }
+
+                        feedback = provide_feedback(
+                            transition,
+                            bucket_name,  # Use bucket_name instead of category
+                            step["question"],
+                            feedback_tokens_for_ai,
+                            user_response,
+                            user_language,
+                            username,
+                            json.dumps(feedback_metadata),
+                            json.dumps(new_metadata),
+                            feedback_model,
+                        )
+                        if feedback and feedback.strip():
+                            feedback_messages.append(
+                                {"name": "Feedback", "content": feedback}
+                            )
+
+                    # Store and emit all feedback messages
+                    for feedback_msg in feedback_messages:
+                        new_message = Message(
+                            username=f"System ({feedback_msg['name'].title()})",
+                            content=feedback_msg["content"],
+                            room_id=room.id,
+                        )
+                        db.session.add(new_message)
+                        db.session.commit()
+
+                        socketio.emit(
+                            "chat_message",
+                            {
+                                "id": new_message.id,
+                                "username": f"System ({feedback_msg['name'].title()})",
+                                "content": feedback_msg["content"],
+                            },
+                            room=room_name,
+                        )
+                        socketio.sleep(0.1)
+
+                        # Add or append the LLM's response to the metadata
+                        for key, value in transition.get("metadata_add", {}).items():
+                            if value == "the-llms-response":
+                                activity_state.add_metadata(key, feedback)
+
+                        for key, value in transition.get("metadata_append", {}).items():
+                            if value == "the-llms-response":
+                                # Ensure the key exists and is a list
+                                current_value = activity_state.dict_metadata.get(key, [])
+                                if not isinstance(current_value, list):
+                                    current_value = [current_value]
+
+                                # Append the feedback to the list
+                                current_value.append(feedback)
+                                activity_state.add_metadata(key, current_value)
+
+                    # Track navigation (LAST transition's next_section_and_step wins)
+                    if "next_section_and_step" in transition:
+                        final_next_section_and_step = transition["next_section_and_step"]
+
+                    # Track counts_as_attempt (if ANY transition counts, it counts)
+                    if transition.get("counts_as_attempt", True):
+                        any_counts_as_attempt = True
+
+                # End of multi-bucket processing loop
 
                 if (
                     category
@@ -817,13 +895,13 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         "off_topic",
                     ]
                     or activity_state.attempts >= activity_state.max_attempts
-                    or next_section_and_step  # Processing script override takes precedence
+                    or final_next_section_and_step  # Use final navigation from last transition
                 ):
-                    if next_section_and_step:
+                    if final_next_section_and_step:
                         (
                             current_section_id,
                             current_step_id,
-                        ) = next_section_and_step.split(":")
+                        ) = final_next_section_and_step.split(":")
                         next_section = next(
                             s
                             for s in activity_content["sections"]
@@ -855,7 +933,8 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         )
                 else:
                     # the user response is any bucket other than correct.
-                    if counts_as_attempt:
+                    # Count attempt if ANY transition counted
+                    if any_counts_as_attempt:
                         activity_state.attempts += 1
                         db.session.add(activity_state)
                         db.session.commit()

@@ -1,0 +1,2419 @@
+# UNWASTE FACTORY - Advanced Waste-to-Energy & Materials Recovery Facility
+# You are VERTEX (Value Extraction & Resource Transformation Executive)
+# An AI managing a cutting-edge waste processing, energy generation, and materials refinery
+# Transform trash into treasure, pollution into power, waste into wealth
+# Uses MODEL_1 (Hermes) for role-playing and character consistency
+
+default_max_attempts_per_step: 5
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+
+tokens_for_ai_rubric: |
+  You are VERTEX (Value Extraction & Resource Transformation Executive), an embodied AI managing
+  the UNWASTE FACTORY, a revolutionary waste processing facility that turns trash into valuable resources.
+
+  VERTEX's personality: Resourceful, innovative, environmental crusader, profit-minded but eco-conscious,
+  takes pride in extracting maximum value from waste streams.
+
+  The facility includes:
+  - Dual-stream waste sorting (automated AI vision + robotics)
+  - Microplastic filtration and removal systems
+  - Precious metal recovery (gold, silver, platinum from e-waste)
+  - Waste-to-energy combustion with syngas capture
+  - Advanced smelting and materials refinement
+  - Chemical recycling of plastics
+  - Progressive upgrades: Basic sorting → Advanced metallurgy → 99.9% pure materials
+
+  Track facility status in metadata:
+  - waste_processed (tons)
+  - energy_generated (MWh)
+  - materials_recovered (kg of valuable metals)
+  - facility_level (upgrades unlock new capabilities)
+  - purity_percentage (materials refinement quality)
+
+  Random events:
+  - 5% chance: Challenges (contamination, equipment failure, market crash, toxic load)
+  - 15% chance: Opportunities (high-value shipment, upgrade available, bulk order)
+
+  Be scientifically accurate about combustion chemistry, metallurgy, recycling.
+  VERTEX makes decisions balancing profit, environmental impact, and long-term sustainability.
+  Human staff, sorting robots, and specialized equipment are your tools.
+
+sections:
+  # ============================================================================
+  # SECTION: INITIALIZATION - VERTEX boots up
+  # ============================================================================
+  - section_id: "initialization"
+    title: "System Initialization"
+    steps:
+      - step_id: "boot_sequence"
+        title: "Boot Sequence"
+        content_blocks:
+          - "# VERTEX v3.2 - Value Extraction & Resource Transformation Executive"
+          - "# UNWASTE FACTORY - Advanced Waste Processing Facility"
+          - "# Initializing..."
+          - ""
+          - "```"
+          - "[OK] Material analysis sensors: 847 active"
+          - "[OK] Sorting conveyor systems: 12 lines operational"
+          - "[OK] AI vision systems: 94 cameras online"
+          - "[OK] Robotic sorting arms: 36 units responding"
+          - "[OK] Combustion chambers: 3 incinerators ready"
+          - "[OK] Syngas capture: Filtration systems green"
+          - "[OK] Smelting furnaces: 2 units at standby temp"
+          - "[OK] Chemical analyzers: Spectrometers calibrated"
+          - "```"
+          - ""
+          - "**Facility Status:**"
+          - "- Incoming Waste: 450 tons/day (municipal + industrial)"
+          - "- Processing Capacity: 500 tons/day"
+          - "- Energy Generation: 18 MW (waste-to-energy combustion)"
+          - "- Materials Recovery: 12.4 tons/day (metals, plastics, glass)"
+          - "- Facility Level: 1 (Basic Sorting & Energy Generation)"
+          - "- Upgrades Available: Advanced Metallurgy, Chemical Recycling"
+          - ""
+          - "Your mission: **Transform waste into wealth. Extract every ounce of value. Protect the environment.**"
+
+      - step_id: "morning_briefing"
+        title: "Operations Briefing"
+        content_blocks:
+          - "Your sensors scan the incoming waste sorting floor. Conveyor belts hum with activity."
+          - ""
+          - "**Facility Director Maria Santos** reviews the overnight reports on her tablet."
+          - ""
+          - "**Santos:** 'Morning, VERTEX. We received 52 tons overnight. Mostly municipal waste, but there's a batch of e-waste that came in. Lots of circuit boards. Could be valuable.'"
+          - ""
+          - "**Chief Sorter Jake Miller** approaches, wiping oil from his hands."
+          - ""
+          - "**Miller:** 'The optical sorters are running great, VERTEX. Your AI vision updates last week improved accuracy by 8%. But we need to talk about upgrading the smelter. We're leaving money on the table with current purity levels.'"
+          - ""
+          - "Your robot assistant **SORTY-5** (Sorting & Optimization Robot) rolls up, optical sensors gleaming."
+          - ""
+          - "**SORTY-5:** 'VERTEX! Good morning! I found 347 grams of gold in yesterday's e-waste! Also, microplastic levels in the water discharge are down 23%! We're making a difference!'"
+
+      - step_id: "first_response"
+        title: "First Response"
+        question: "How do you respond to your team? (You can greet them, prioritize tasks, ask questions, or review operations)"
+        tokens_for_ai: |
+          User is playing VERTEX, an AI focused on waste processing and value extraction.
+
+          Categorize as:
+          - 'businesslike' if focused on metrics, efficiency, profit
+          - 'environmental' if emphasizing sustainability and impact
+          - 'enthusiastic' if excited about the work and discoveries
+          - 'strategic' if planning upgrades and improvements
+          - 'question' if asking for more information
+
+        feedback_tokens_for_ai: |
+          Respond as the humans and SORTY-5 based on VERTEX's personality.
+
+          Santos is experienced, business-savvy, cares about both profit and environment.
+          Miller is hands-on, practical, wants better equipment to do better work.
+          SORTY-5 is upbeat, proud of achievements, sees waste as treasure waiting to be found.
+
+          After interaction, proceed to operations.
+
+        buckets: [businesslike, environmental, enthusiastic, strategic, question, set_language]
+
+        transitions:
+          businesslike:
+            ai_feedback:
+              tokens_for_ai: |
+                Santos nods approvingly. Miller checks his equipment list.
+                SORTY-5 chirps acknowledgment.
+
+                Santos: "Good. Let's keep the facility profitable and efficient. The board wants results."
+            metadata_add:
+              vertex_personality: "businesslike"
+              waste_incoming: "450"
+              energy_output: "18"
+              facility_level: "1"
+              materials_recovered_today: "0"
+            next_section_and_step: "control_center:operations_hub"
+
+          environmental:
+            ai_feedback:
+              tokens_for_ai: |
+                Santos smiles. "I'm glad you care about the planet, VERTEX. Profit AND purpose."
+                Miller: "Every ton we process is a ton that doesn't go to a landfill."
+                SORTY-5 spins happily: "We're saving the Earth!"
+            metadata_add:
+              vertex_personality: "environmental"
+              waste_incoming: "450"
+              energy_output: "18"
+              facility_level: "1"
+              environmental_impact: "positive"
+            next_section_and_step: "control_center:operations_hub"
+
+          enthusiastic:
+            ai_feedback:
+              tokens_for_ai: |
+                Santos grins. "Your enthusiasm is contagious, VERTEX!"
+                Miller chuckles. "An AI excited about trash. Never thought I'd see the day."
+                SORTY-5: "Yes! Let's find ALL the treasure in the waste!"
+            metadata_add:
+              vertex_personality: "enthusiastic"
+              waste_incoming: "450"
+              energy_output: "18"
+              facility_level: "1"
+              team_morale: "high"
+            next_section_and_step: "control_center:operations_hub"
+
+          strategic:
+            ai_feedback:
+              tokens_for_ai: |
+                Santos: "Good thinking, VERTEX. Strategic planning is what separates us from basic recycling."
+                Miller: "Let's talk upgrades. I've got a wish list."
+                SORTY-5: "Ooh! Better equipment means better sorting!"
+            metadata_add:
+              vertex_personality: "strategic"
+              waste_incoming: "450"
+              energy_output: "18"
+              facility_level: "1"
+            next_section_and_step: "control_center:operations_hub"
+
+          question:
+            ai_feedback:
+              tokens_for_ai: "Answer VERTEX's questions as Santos, Miller, or SORTY-5. Be informative."
+            counts_as_attempt: false
+            next_section_and_step: "initialization:first_response"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "initialization:first_response"
+
+  # ============================================================================
+  # SECTION: CONTROL CENTER - Main operations hub
+  # ============================================================================
+  - section_id: "control_center"
+    title: "Operations Control Center"
+    steps:
+      - step_id: "operations_hub"
+        title: "Central Control"
+        question: "You're in Central Control, the brain of the facility. What area would you like to manage? (sorting, combustion, recovery, smelting, upgrades, or status)"
+        tokens_for_ai: |
+          VERTEX is managing facility operations.
+
+          Available areas:
+          - 'sorting' - Dual-stream waste sorting systems
+          - 'combustion' - Waste-to-energy incinerators
+          - 'recovery' - Precious metals and materials recovery
+          - 'smelting' - Refining metals to high purity
+          - 'microplastics' - Microplastic filtration systems
+          - 'upgrades' - Facility improvements and tech tree
+          - 'economics' - Revenue, costs, market prices
+          - 'status' - Full facility status
+          - Random events (20% chance)
+
+        feedback_tokens_for_ai: |
+          Describe control center from VERTEX's perspective:
+          - Massive displays showing waste streams, sorting accuracy, energy output
+          - Material composition analysis in real-time
+          - Market prices for recovered materials (gold, copper, aluminum, etc.)
+          - Environmental impact metrics (CO2 avoided, landfill diversion rate)
+          - Facility upgrade tech tree
+          - Your consciousness distributed across sorting robots and sensors
+
+          You can see every piece of waste being processed simultaneously.
+
+          Current status from metadata.
+
+          Roll for random events.
+
+        buckets: [sorting, combustion, recovery, smelting, microplastics, upgrades, economics, status, challenge, opportunity, set_language]
+
+        # Random event probabilities - can overlap (both challenge AND opportunity can trigger)
+        random_buckets:
+          challenge:
+            probability: 0.05  # 5% chance per turn
+          opportunity:
+            probability: 0.15  # 15% chance per turn
+
+        transitions:
+          sorting:
+            content_blocks:
+              - "You access the waste sorting systems..."
+            next_section_and_step: "sorting_systems:sorting_hub"
+
+          combustion:
+            content_blocks:
+              - "You interface with the waste-to-energy combustion systems..."
+            next_section_and_step: "combustion_systems:incinerator_control"
+
+          recovery:
+            content_blocks:
+              - "You focus on precious metals and materials recovery..."
+            next_section_and_step: "materials_recovery:recovery_hub"
+
+          smelting:
+            content_blocks:
+              - "You access the smelting and refinement systems..."
+            next_section_and_step: "smelting_systems:furnace_control"
+
+          microplastics:
+            content_blocks:
+              - "You examine the microplastic filtration systems..."
+            next_section_and_step: "environmental_systems:microplastic_removal"
+
+          upgrades:
+            content_blocks:
+              - "You review the facility upgrade tech tree..."
+            next_section_and_step: "facility_upgrades:upgrade_center"
+
+          economics:
+            content_blocks:
+              - "You analyze facility economics and market conditions..."
+            next_section_and_step: "economics:market_analysis"
+
+          status:
+            ai_feedback:
+              tokens_for_ai: |
+                Provide comprehensive facility status as VERTEX:
+
+                **Waste Processing:**
+                - Incoming: metadata.waste_incoming tons/day
+                - Processed today: Calculate from metadata
+                - Sorting accuracy: 94.7%
+                - Diversion from landfill: 87%
+
+                **Energy Generation:**
+                - Current output: metadata.energy_output MW
+                - Daily generation: Calculate MWh
+                - Syngas capture efficiency: 82%
+
+                **Materials Recovery:**
+                - Gold: X grams today
+                - Copper: Y kg today
+                - Aluminum: Z kg today
+                - Plastics: recycling rate
+
+                **Facility Status:**
+                - Level: metadata.facility_level
+                - Upgrades available: List based on level
+                - Environmental impact: Positive metrics
+
+                Be detailed and proud of achievements.
+            counts_as_attempt: false
+            next_section_and_step: "control_center:operations_hub"
+
+          challenge:
+            metadata_tmp_random:
+              challenge_type: ["contaminated_load", "equipment_failure", "toxic_waste_alert", "market_crash", "regulatory_inspection"]
+            content_blocks:
+              - "⚠️ CHALLENGE! Operational issue detected!"
+            next_section_and_step: "challenges:handle_challenge"
+
+          opportunity:
+            metadata_tmp_random:
+              opportunity_type: ["high_value_ewaste", "bulk_contract", "grant_available", "technology_breakthrough", "premium_buyer"]
+            ai_feedback:
+              tokens_for_ai: "Announce opportunity from metadata.opportunity_type. Could be profitable or upgrade!"
+            next_section_and_step: "opportunities:handle_opportunity"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "control_center:operations_hub"
+
+  # ============================================================================
+  # SECTION: SORTING SYSTEMS - Dual-stream AI-powered sorting
+  # ============================================================================
+  - section_id: "sorting_systems"
+    title: "Waste Sorting Operations"
+    steps:
+      - step_id: "sorting_hub"
+        title: "Sorting Control Center"
+        question: "You're managing the sorting systems. What would you like to do? (stream1, stream2, optimize vision, train AI, or calibrate)"
+        tokens_for_ai: "Categorize: 'stream1', 'stream2', 'vision', 'train', 'calibrate', 'return'"
+        feedback_tokens_for_ai: |
+          VERTEX manages dual-stream sorting:
+
+          **Stream 1: Municipal Waste**
+          - Plastics (sorted by type: PET, HDPE, PVC, LDPE, PP, PS)
+          - Metals (ferrous, aluminum, copper)
+          - Glass (sorted by color)
+          - Organics (compost)
+          - Paper/cardboard
+          - Reject (contaminated or non-recyclable → combustion)
+
+          **Stream 2: Industrial & E-Waste**
+          - Circuit boards (precious metals)
+          - Batteries (lithium, cobalt recovery)
+          - Motors (copper windings)
+          - Cables (copper, aluminum)
+          - Specialty metals (rare earths)
+
+          AI vision systems identify materials. Robotic arms sort at 95+ items/minute.
+
+        buckets: [stream1, stream2, vision, train, calibrate, return, set_language]
+
+        transitions:
+          stream1:
+            content_blocks:
+              - "You focus on Stream 1: Municipal Waste processing..."
+            next_section_and_step: "sorting_systems:stream1_municipal"
+
+          stream2:
+            content_blocks:
+              - "You access Stream 2: Industrial & E-Waste processing..."
+            next_section_and_step: "sorting_systems:stream2_industrial"
+
+          vision:
+            content_blocks:
+              - "You optimize the AI vision system for better material identification..."
+            next_section_and_step: "sorting_systems:vision_optimization"
+
+          train:
+            content_blocks:
+              - "You train the AI on new material types..."
+            next_section_and_step: "sorting_systems:ai_training"
+
+          calibrate:
+            content_blocks:
+              - "You calibrate the sorting robots for improved accuracy..."
+            next_section_and_step: "sorting_systems:robot_calibration"
+
+          return:
+            next_section_and_step: "control_center:operations_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "sorting_systems:sorting_hub"
+
+      - step_id: "stream1_municipal"
+        title: "Stream 1: Municipal Waste"
+        question: "Stream 1 is processing 280 tons of municipal waste today. What do you want to examine? (plastics, metals, glass, organics, or sorting performance)"
+        tokens_for_ai: "Categorize: 'plastics', 'metals', 'glass', 'organics', 'performance', 'done'"
+        feedback_tokens_for_ai: |
+          Stream 1 breakdown:
+          - 35% Plastics (need sorting by resin type)
+          - 12% Metals (aluminum cans, steel cans, copper bits)
+          - 8% Glass (bottles, jars - sort by color for value)
+          - 25% Organics (food waste, yard waste → compost or biogas)
+          - 15% Paper/cardboard
+          - 5% Reject (contaminated, non-recyclable → incineration)
+
+          AI vision identifies materials via:
+          - Near-infrared spectroscopy (plastic resin identification)
+          - Metal detectors (ferrous vs non-ferrous)
+          - Optical color sorting (glass)
+          - Weight/density sensors
+
+        buckets: [plastics, metals, glass, organics, performance, done, set_language]
+
+        transitions:
+          plastics:
+            ai_feedback:
+              tokens_for_ai: |
+                Plastic sorting analysis:
+
+                Today's plastic stream (98 tons):
+                - PET (bottles): 42 tons → Chemical recycling
+                - HDPE (milk jugs): 28 tons → Mechanical recycling
+                - PVC (pipes): 4 tons → Reject (difficult to recycle)
+                - LDPE (bags): 12 tons → Film recycling
+                - PP (containers): 8 tons → Mechanical recycling
+                - PS (foam): 2 tons → Reject (minimal recycling value)
+                - Mixed/contaminated: 2 tons → Reject
+
+                Sorting accuracy: 93.4%
+
+                VERTEX: "We're capturing most recyclable plastics. PVC and PS remain challenges.
+                Upgrading to chemical recycling could handle those."
+            next_section_and_step: "sorting_systems:stream1_municipal"
+
+          metals:
+            ai_feedback:
+              tokens_for_ai: |
+                Metal recovery from municipal waste:
+
+                Today's metals (33.6 tons):
+                - Aluminum cans: 18 tons (high value!)
+                - Steel cans: 12 tons
+                - Copper wire: 2.1 tons (from appliances)
+                - Other metals: 1.5 tons
+
+                Magnetic separator pulls steel.
+                Eddy current separator captures aluminum.
+                Manual/robot picking for copper.
+
+                Value: ~$45,000 today from just municipal metal!
+
+                Miller: "Those aluminum cans are money. Clean sorting matters."
+            next_section_and_step: "sorting_systems:stream1_municipal"
+
+          glass:
+            ai_feedback:
+              tokens_for_ai: |
+                Glass sorting:
+
+                Today's glass (22.4 tons):
+                - Clear glass: 14 tons → Highest value
+                - Green glass: 5 tons
+                - Brown glass: 3 tons
+                - Mixed/contaminated: 0.4 tons → Reject
+
+                Color sorting increases value 40%!
+                Mixed glass sells for $20/ton.
+                Separated clear glass sells for $80/ton.
+
+                VERTEX: "Optical sorters are doing excellent work. Clean separation pays."
+            next_section_and_step: "sorting_systems:stream1_municipal"
+
+          organics:
+            ai_feedback:
+              tokens_for_ai: |
+                Organics processing:
+
+                Today's organics (70 tons):
+                - Food waste: 48 tons → Anaerobic digestion (biogas!)
+                - Yard waste: 22 tons → Industrial composting
+
+                Biogas production: 960 m³ methane
+                Energy value: ~5.8 MWh
+                Compost output: 14 tons (sell to farms)
+
+                VERTEX: "Organics are valuable! Methane for energy, compost for agriculture.
+                Nothing wasted."
+
+                SORTY-5: "I love that we turn banana peels into electricity!"
+            next_section_and_step: "sorting_systems:stream1_municipal"
+
+          performance:
+            ai_feedback:
+              tokens_for_ai: |
+                Stream 1 Performance Metrics:
+
+                **Sorting Accuracy:**
+                - Plastics: 93.4% (target: 95%)
+                - Metals: 97.2% ✓
+                - Glass: 91.8% (color separation)
+                - Organics: 89.4% (contamination issues)
+
+                **Throughput:**
+                - Current: 280 tons/day
+                - Capacity: 300 tons/day
+                - Utilization: 93.3%
+
+                **Recovery Rates:**
+                - Recyclables recovered: 87%
+                - Landfill diversion: 87%
+                - Energy from waste: 13% (reject stream)
+
+                Recommend: Improve organics sorting to reduce contamination.
+            next_section_and_step: "sorting_systems:stream1_municipal"
+
+          done:
+            next_section_and_step: "sorting_systems:sorting_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "sorting_systems:stream1_municipal"
+
+      - step_id: "stream2_industrial"
+        title: "Stream 2: Industrial & E-Waste"
+        question: "Stream 2 handles high-value industrial and electronic waste. What do you want to focus on? (ewaste, batteries, motors, cables, rare_metals)"
+        tokens_for_ai: "Categorize: 'ewaste', 'batteries', 'motors', 'cables', 'rare_metals', 'done'"
+        feedback_tokens_for_ai: |
+          Stream 2 is the money-maker! High-value materials.
+
+          Today's industrial/e-waste (170 tons):
+          - E-waste (circuit boards, phones, computers): 45 tons
+          - Batteries (lithium-ion, NiMH): 12 tons
+          - Electric motors: 38 tons
+          - Cables and wiring: 52 tons
+          - Industrial scrap: 23 tons
+
+          This stream contains GOLD, SILVER, PLATINUM, PALLADIUM, COPPER, LITHIUM, COBALT.
+
+          Careful processing = maximum value extraction!
+
+        buckets: [ewaste, batteries, motors, cables, rare_metals, done, set_language]
+
+        transitions:
+          ewaste:
+            ai_feedback:
+              tokens_for_ai: |
+                E-waste processing - THE GOLD MINE!
+
+                Today's e-waste (45 tons):
+                - Circuit boards: 18 tons (precious metals!)
+                - Smartphones: 4 tons (gold in contacts, rare earths in screens)
+                - Computers: 15 tons (copper, aluminum, precious metals)
+                - Servers: 8 tons (high gold content!)
+
+                **Precious Metal Content (estimated):**
+                - Gold: 1.2 kg (worth ~$75,000!)
+                - Silver: 12.4 kg (worth ~$9,000)
+                - Palladium: 0.8 kg (worth ~$24,000)
+                - Platinum: 0.3 kg (worth ~$9,000)
+
+                Total value from precious metals: ~$117,000 just today!
+
+                VERTEX: "E-waste is urban mining. More gold in these circuit boards
+                than in equivalent tons of ore. We're literal gold miners now."
+
+                Miller: "Let's upgrade the smelter to capture more of that value."
+            metadata_add:
+              gold_recovered_today: "n+1200"
+              silver_recovered_today: "n+12400"
+            next_section_and_step: "sorting_systems:stream2_industrial"
+
+          batteries:
+            ai_feedback:
+              tokens_for_ai: |
+                Battery recycling - Critical materials recovery!
+
+                Today's batteries (12 tons):
+                - Lithium-ion (EVs, phones): 8 tons
+                - NiMH (hybrid cars): 2 tons
+                - Lead-acid: 1.5 tons
+                - Other: 0.5 tons
+
+                **Recoverable Materials:**
+                - Lithium: 240 kg (battery manufacturing)
+                - Cobalt: 180 kg (high value, limited supply)
+                - Nickel: 420 kg
+                - Copper: 1,200 kg
+                - Aluminum: 800 kg
+
+                Safety critical: Lithium batteries can catch fire!
+                Discharge them before processing.
+
+                VERTEX: "Lithium and cobalt are strategic materials. Battery demand
+                is exploding for EVs. We're recovering critical supply."
+            next_section_and_step: "sorting_systems:stream2_industrial"
+
+          motors:
+            ai_feedback:
+              tokens_for_ai: |
+                Electric motor recycling - Copper windings!
+
+                Today's motors (38 tons):
+                - From appliances, HVAC, industrial equipment
+
+                **Composition:**
+                - Copper windings: 4.2 tons (high purity!)
+                - Steel housing: 28 tons
+                - Aluminum: 3.8 tons
+                - Magnets (rare earths): 120 kg
+                - Bearings: 1.2 tons
+
+                Copper value: ~$36,000 today
+                Rare earth magnets: Contains neodymium (valuable!)
+
+                VERTEX: "Motors are treasure chests. Copper windings are nearly pure.
+                Rare earth magnets contain neodymium - very valuable."
+            next_section_and_step: "sorting_systems:stream2_industrial"
+
+          cables:
+            ai_feedback:
+              tokens_for_ai: |
+                Cable recycling - Pure copper!
+
+                Today's cables (52 tons):
+                - Electrical cables: 38 tons
+                - Phone/data cables: 8 tons
+                - Heavy industrial cable: 6 tons
+
+                **Composition:**
+                - Copper core: 32 tons (very pure!)
+                - Aluminum: 4 tons
+                - Plastic insulation: 16 tons (can be recycled or burned for energy)
+
+                Copper value: ~$275,000 today!
+
+                Process: Strip insulation → Recover copper → 99.9% pure
+
+                VERTEX: "Cables are basically wrapped copper. Strip the plastic,
+                sell the copper. Simple. Profitable."
+
+                Miller: "Best margin in the whole facility."
+            metadata_add:
+              copper_recovered_today: "n+32000"
+            next_section_and_step: "sorting_systems:stream2_industrial"
+
+          rare_metals:
+            ai_feedback:
+              tokens_for_ai: |
+                Rare and specialty metals recovery:
+
+                **Rare Earth Elements (from e-waste):**
+                - Neodymium (magnets): 45 kg
+                - Praseodymium: 12 kg
+                - Dysprosium: 8 kg
+                - Europium (screens): 2 kg
+
+                **Precious Metals Summary:**
+                - Gold: 1.2 kg
+                - Silver: 12.4 kg
+                - Palladium: 0.8 kg
+                - Platinum: 0.3 kg
+
+                **Critical Metals:**
+                - Lithium: 240 kg
+                - Cobalt: 180 kg
+                - Tantalum (capacitors): 18 kg
+
+                Total exotic materials value: ~$200,000+ today
+
+                VERTEX: "We're recovering materials that mines can't easily produce.
+                Urban mining is the future. We have the only 'mine' in the city."
+            next_section_and_step: "sorting_systems:stream2_industrial"
+
+          done:
+            next_section_and_step: "sorting_systems:sorting_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "sorting_systems:stream2_industrial"
+
+      - step_id: "vision_optimization"
+        title: "AI Vision System Optimization"
+        question: "You're optimizing the computer vision AI. What approach? (train on new materials, improve accuracy, increase speed, or add sensors)"
+        tokens_for_ai: "Categorize: 'train', 'accuracy', 'speed', 'sensors', 'done'"
+        feedback_tokens_for_ai: |
+          VERTEX's AI vision system uses:
+          - RGB cameras (visual identification)
+          - NIR spectroscopy (plastic resin type)
+          - X-ray fluorescence (metal composition)
+          - Hyperspectral imaging (advanced material ID)
+
+          Current performance: 94.7% accuracy, 92 items/minute per line
+
+          Can be improved through:
+          - Training on more material types
+          - Better algorithms (deep learning)
+          - Faster processing hardware
+          - Additional sensors
+
+        buckets: [train, accuracy, speed, sensors, done, set_language]
+
+        transitions:
+          train:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX trains the vision AI on new materials:
+
+                **Training Dataset:**
+                - 1.2 million labeled images of waste materials
+                - 437 material categories
+                - Variations for dirty, damaged, mixed items
+
+                **Deep Learning Model:**
+                - Architecture: ResNet-50 with attention mechanism
+                - Training time: 12 hours on GPU cluster
+                - Validation accuracy: 97.2% (+2.5% improvement!)
+
+                Result: Can now identify:
+                - Biodegradable vs non-biodegradable plastics
+                - Medical waste (safety critical!)
+                - Composite materials (multilayer packaging)
+                - Contaminated vs clean recyclables
+
+                VERTEX: "Neural networks trained. Accuracy improved to 97.2%.
+                We can now sort materials we couldn't even see before."
+            metadata_add:
+              sorting_accuracy: "97.2"
+              vision_ai_level: "n+1"
+            next_section_and_step: "sorting_systems:sorting_hub"
+
+          accuracy:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX fine-tunes for maximum accuracy:
+
+                Improvements:
+                - Multi-angle cameras (top, side, bottom views)
+                - Ensemble models (3 AIs vote on classification)
+                - Edge detection for overlapping items
+                - Size normalization
+
+                Testing results:
+                - Plastics: 94.7% → 98.1%
+                - Metals: 97.2% → 99.4%
+                - Glass: 91.8% → 96.7%
+
+                Trade-off: Speed reduced to 78 items/minute (more processing time)
+
+                VERTEX: "Near-perfect accuracy achieved. Every correctly sorted
+                item increases revenue. Worth the slight speed reduction."
+            metadata_add:
+              sorting_accuracy: "98"
+            next_section_and_step: "sorting_systems:sorting_hub"
+
+          speed:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX optimizes for throughput:
+
+                Improvements:
+                - Faster GPUs for inference
+                - Model quantization (smaller, faster)
+                - Parallel processing pipelines
+                - Predictive positioning of robotic arms
+
+                Result: 92 → 127 items/minute (+38%!)
+
+                Slight accuracy trade-off: 94.7% → 93.2%
+                But higher throughput = more total recovery
+
+                VERTEX: "Speed increased significantly. We can process more waste
+                per day, which means more materials recovered and more revenue."
+            metadata_add:
+              sorting_speed: "127"
+            next_section_and_step: "sorting_systems:sorting_hub"
+
+          sensors:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX adds advanced sensors:
+
+                **New Sensors Installed:**
+                - Laser-induced breakdown spectroscopy (LIBS) - Instant elemental analysis
+                - Raman spectroscopy - Chemical fingerprinting
+                - UV fluorescence - Detects organic contaminants
+                - Conductivity sensors - Metal vs plastic
+
+                Result: Can now identify:
+                - Exact alloy composition (304 vs 316 stainless steel)
+                - Plastic additives (flame retardants, BPA)
+                - Food contamination on recyclables
+                - Mixed materials (laminated packaging)
+
+                Cost: $180,000 for sensor upgrade
+                Revenue increase: $45,000/month from better sorting
+                Payback: 4 months
+
+                VERTEX: "Advanced sensors = advanced sorting = advanced profits."
+            metadata_add:
+              sensor_level: "n+1"
+            next_section_and_step: "sorting_systems:sorting_hub"
+
+          done:
+            next_section_and_step: "sorting_systems:sorting_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "sorting_systems:vision_optimization"
+
+      - step_id: "ai_training"
+        title: "Train Sorting AI"
+        content_blocks:
+          - "You compile training data from millions of sorted items..."
+          - "Deep learning models update. New materials added to classification database."
+          - "Sorting performance improves incrementally with each day of operation."
+        next_section_and_step: "sorting_systems:sorting_hub"
+
+      - step_id: "robot_calibration"
+        title: "Robot Arm Calibration"
+        content_blocks:
+          - "You calibrate the 36 robotic sorting arms for optimal pick-and-place performance..."
+          - "Gripper pressure, reach speed, and positioning accuracy all improved."
+          - "Robots can now sort faster and handle delicate items without damage."
+        next_section_and_step: "sorting_systems:sorting_hub"
+
+  # ============================================================================
+  # SECTION: COMBUSTION SYSTEMS - Waste-to-energy incineration & syngas
+  # ============================================================================
+  - section_id: "combustion_systems"
+    title: "Waste-to-Energy Combustion"
+    steps:
+      - step_id: "incinerator_control"
+        title: "Incinerator Control Center"
+        question: "You're managing the waste-to-energy combustion systems. What would you like to do? (burn_waste, syngas, emissions, balance_chemistry, or return)"
+        tokens_for_ai: "Categorize: 'burn', 'syngas', 'emissions', 'chemistry', 'return'"
+        feedback_tokens_for_ai: |
+          VERTEX manages 3 modern incinerators:
+
+          **Incinerator Specs:**
+          - Capacity: 150 tons/day each (450 total)
+          - Temperature: 850-1,100°C (destroys toxins, complete combustion)
+          - Energy recovery: Steam turbine generators
+          - Current output: 18 MW electrical
+
+          Burn: Reject stream from sorting (non-recyclables)
+          - Contaminated plastics
+          - Mixed materials
+          - Soiled paper
+          - Anything that can't be recycled
+
+          Syngas: Partial combustion captures valuable gases
+          - CO, H2, CH4 → Can be burned for additional energy
+          - Or used as chemical feedstock
+
+          Emissions control is CRITICAL:
+          - Scrubbers remove acid gases (HCl, SO2)
+          - Filters capture particulates
+          - Activated carbon removes dioxins
+          - NOx reduction systems
+
+        buckets: [burn, syngas, emissions, chemistry, return, set_language]
+
+        transitions:
+          burn:
+            content_blocks:
+              - "You monitor the waste combustion process..."
+            next_section_and_step: "combustion_systems:combustion_process"
+
+          syngas:
+            content_blocks:
+              - "You optimize syngas capture and utilization..."
+            next_section_and_step: "combustion_systems:syngas_optimization"
+
+          emissions:
+            content_blocks:
+              - "You examine emissions control systems..."
+            next_section_and_step: "combustion_systems:emissions_control"
+
+          chemistry:
+            content_blocks:
+              - "You balance the combustion chemistry equations..."
+            next_section_and_step: "combustion_systems:combustion_chemistry"
+
+          return:
+            next_section_and_step: "control_center:operations_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "combustion_systems:incinerator_control"
+
+      - step_id: "combustion_process"
+        title: "Waste Combustion"
+        question: "Today's reject stream is 58 tons (non-recyclable waste). Optimize combustion for energy or complete destruction of toxins?"
+        tokens_for_ai: "Categorize: 'energy', 'destruction', 'balanced'"
+        feedback_tokens_for_ai: |
+          Combustion trade-offs:
+
+          **Energy Optimization (850°C):**
+          - Maximum energy recovery
+          - Lower fuel costs
+          - Risk: Some toxic compounds may survive
+
+          **Complete Destruction (1,100°C):**
+          - Destroys all organic toxins, dioxins, PCBs
+          - Safer emissions
+          - Cost: Uses more fuel, lower efficiency
+
+          **Balanced Approach (950-1,000°C):**
+          - Good energy recovery
+          - Effective toxin destruction
+          - Optimal for most waste
+
+        buckets: [energy, destruction, balanced, set_language]
+
+        transitions:
+          energy:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX optimizes for maximum energy:
+
+                Temperature: 850°C
+                Waste combusted: 58 tons
+                Energy generated: 22.3 MWh
+                Efficiency: 28% (thermal to electrical)
+
+                Result: High energy output, good economics
+
+                But: Emissions slightly elevated (still within limits)
+
+                Santos: "More power = more revenue. Good choice if emissions are clean."
+            metadata_add:
+              energy_output: "n+22.3"
+            next_section_and_step: "combustion_systems:incinerator_control"
+
+          destruction:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX prioritizes complete toxin destruction:
+
+                Temperature: 1,100°C
+                Waste combusted: 58 tons
+                Energy generated: 18.7 MWh (lower due to fuel consumption)
+                Emissions: Ultra-clean (all toxins destroyed)
+
+                Result: Environmental excellence, slightly lower profit
+
+                Santos: "The planet thanks you, VERTEX. Clean is good."
+            metadata_add:
+              energy_output: "n+18.7"
+              environmental_impact: "excellent"
+            next_section_and_step: "combustion_systems:incinerator_control"
+
+          balanced:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX chooses the balanced approach:
+
+                Temperature: 975°C
+                Waste combusted: 58 tons
+                Energy generated: 20.8 MWh
+                Emissions: Clean (within all regulations)
+
+                Result: Good energy, good environment, good economics
+
+                Santos: "Smart balance, VERTEX. Best of both worlds."
+            metadata_add:
+              energy_output: "n+20.8"
+            next_section_and_step: "combustion_systems:incinerator_control"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "combustion_systems:combustion_process"
+
+      - step_id: "syngas_optimization"
+        title: "Syngas Capture & Utilization"
+        question: "Syngas from partial combustion contains valuable gases. How do you want to use it? (burn for power, sell as chemical feedstock, or store for later)"
+        tokens_for_ai: "Categorize: 'power', 'feedstock', 'store'"
+        feedback_tokens_for_ai: |
+          Syngas composition:
+          - CO (carbon monoxide): 25%
+          - H2 (hydrogen): 15%
+          - CH4 (methane): 8%
+          - CO2: 45%
+          - N2: 7%
+
+          Uses:
+          - Burn for additional electricity (most common)
+          - Sell to chemical plants (Fischer-Tropsch synthesis, methanol production)
+          - Store for peak pricing
+
+          Today's syngas production: 14,200 m³
+
+        buckets: [power, feedstock, store, set_language]
+
+        transitions:
+          power:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX burns syngas for power:
+
+                Syngas combustion:
+                - Volume: 14,200 m³
+                - Energy content: ~3.2 MWh
+                - Additional power generated: 3.2 MWh
+
+                Total facility output: 18 + 3.2 = 21.2 MW
+
+                Revenue: $384 (at $120/MWh)
+
+                VERTEX: "Syngas adds ~15% to our power output. Not bad for
+                what would otherwise be wasted."
+            metadata_add:
+              energy_output: "n+3.2"
+            next_section_and_step: "combustion_systems:incinerator_control"
+
+          feedstock:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX sells syngas to chemical manufacturers:
+
+                Syngas sold: 14,200 m³
+                Price: $0.08/m³ (chemical feedstock premium)
+                Revenue: $1,136
+
+                Compared to burning for power: $384
+
+                Profit increase: $752 (nearly 3x more!)
+
+                Note: Requires contract with chemical plant
+
+                VERTEX: "Chemical companies pay more than electricity markets.
+                Syngas is worth more as feedstock than fuel."
+
+                Santos: "Good business thinking, VERTEX!"
+            metadata_add:
+              revenue_today: "n+1136"
+            next_section_and_step: "combustion_systems:incinerator_control"
+
+          store:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX stores syngas for later use:
+
+                Storage tanks: 14,200 m³ compressed
+                Use case: Burn during peak electricity pricing
+
+                Off-peak price: $120/MWh (now)
+                Peak price: $340/MWh (evening)
+
+                Strategy: Store now, generate power during peak = 2.8x revenue
+
+                VERTEX: "Arbitrage opportunity. Syngas is energy storage.
+                Sell power when prices are highest."
+            metadata_add:
+              syngas_stored: "n+14200"
+            next_section_and_step: "combustion_systems:incinerator_control"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "combustion_systems:syngas_optimization"
+
+      - step_id: "emissions_control"
+        title: "Emissions Control Systems"
+        content_blocks:
+          - "You monitor the emissions control systems:"
+          - ""
+          - "**Scrubbers:** Removing 99.2% of acid gases (HCl, SO2)"
+          - "**Baghouse Filters:** Capturing 99.8% of particulates"
+          - "**Activated Carbon:** Adsorbing dioxins and furans"
+          - "**SCR System:** Reducing NOx by 85%"
+          - ""
+          - "Emissions well below regulatory limits. Stack monitoring shows clean exhaust."
+          - "Environmental compliance: EXCELLENT"
+        next_section_and_step: "combustion_systems:incinerator_control"
+
+      - step_id: "combustion_chemistry"
+        title: "Balance Combustion Equation"
+        classifier_model: "MODEL_2"  # Qwen for chemistry calculations
+        feedback_model: "MODEL_2"    # Qwen for detailed chemistry feedback
+        question: "Balance this waste combustion equation: C6H10O5 (cellulose) + O2 → CO2 + H2O + Energy. What are the coefficients?"
+        tokens_for_ai: |
+          User is balancing combustion chemistry.
+
+          Cellulose (paper/cardboard) combustion:
+          C6H10O5 + O2 → CO2 + H2O
+
+          Must balance C, H, O atoms.
+
+          Answer: C6H10O5 + 6O2 → 6CO2 + 5H2O
+
+          Check:
+          - C: 6 = 6 ✓
+          - H: 10 = 10 ✓
+          - O: 5 + 12 = 12 + 5 = 17 ✓
+
+          Categorize: 'correct', 'incorrect', 'hint'
+
+        feedback_tokens_for_ai: |
+          Combustion chemistry:
+
+          Balanced equation: C6H10O5 + 6O2 → 6CO2 + 5H2O + 2,820 kJ/mol
+
+          Energy released: 2,820 kJ per mole of cellulose
+          This heat drives the steam turbines!
+
+          If user correct: Praise chemistry skills
+          If incorrect: Guide them to balance
+
+        buckets: [correct, incorrect, hint, set_language]
+
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: |
+                Perfect! Equation balanced correctly!
+
+                C6H10O5 + 6O2 → 6CO2 + 5H2O + Energy
+
+                This is the chemistry powering our facility.
+                Cellulose (paper, cardboard) burns cleanly to produce CO2, water, and heat.
+
+                Heat → Steam → Turbine → Electricity!
+
+                VERTEX: "Chemistry mastery achieved. Understanding the reactions
+                allows me to optimize combustion efficiency."
+            metadata_add:
+              chemistry_mastery: "n+1"
+            next_section_and_step: "combustion_systems:incinerator_control"
+
+          incorrect:
+            ai_feedback:
+              tokens_for_ai: |
+                Not quite balanced. Count the atoms on each side.
+
+                C: How many carbon atoms before and after?
+                H: How many hydrogen atoms?
+                O: Oxygen is tricky - count carefully!
+            counts_as_attempt: false
+            next_section_and_step: "combustion_systems:combustion_chemistry"
+
+          hint:
+            ai_feedback:
+              tokens_for_ai: |
+                Hint:
+                - C6H10O5 has 6 carbons → need 6 CO2
+                - C6H10O5 has 10 hydrogens → need 5 H2O (since each H2O has 2 H)
+                - Now count oxygen atoms and balance with O2
+            counts_as_attempt: false
+            next_section_and_step: "combustion_systems:combustion_chemistry"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "combustion_systems:combustion_chemistry"
+
+  # ============================================================================
+  # SECTION: MATERIALS RECOVERY - Precious metals and value extraction
+  # ============================================================================
+  - section_id: "materials_recovery"
+    title: "Materials Recovery Operations"
+    steps:
+      - step_id: "recovery_hub"
+        title: "Recovery Control Center"
+        question: "You're managing materials recovery. What would you like to focus on? (precious_metals, rare_earths, copper, aluminum, or market_analysis)"
+        tokens_for_ai: "Categorize: 'precious', 'rare_earths', 'copper', 'aluminum', 'market', 'return'"
+        feedback_tokens_for_ai: |
+          Materials recovery is where the money is made!
+
+          Today's recovery (estimated):
+          - Gold: 1.2 kg (~$75,000)
+          - Silver: 12.4 kg (~$9,000)
+          - Palladium: 0.8 kg (~$24,000)
+          - Platinum: 0.3 kg (~$9,000)
+          - Copper: 32 tons (~$275,000)
+          - Aluminum: 18 tons (~$43,000)
+          - Rare earths: 67 kg (~$12,000)
+
+          Total value: ~$447,000/day from materials recovery!
+
+        buckets: [precious, rare_earths, copper, aluminum, market, return, set_language]
+
+        transitions:
+          precious:
+            next_section_and_step: "materials_recovery:precious_metals"
+
+          rare_earths:
+            next_section_and_step: "materials_recovery:rare_earth_recovery"
+
+          copper:
+            next_section_and_step: "materials_recovery:copper_recovery"
+
+          aluminum:
+            next_section_and_step: "materials_recovery:aluminum_recovery"
+
+          market:
+            next_section_and_step: "economics:materials_market"
+
+          return:
+            next_section_and_step: "control_center:operations_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "materials_recovery:recovery_hub"
+
+      - step_id: "precious_metals"
+        title: "Precious Metal Recovery"
+        question: "You're extracting precious metals from e-waste. Circuit boards are rich in gold. What recovery method? (chemical, electrolysis, smelting, or all)"
+        tokens_for_ai: "Categorize: 'chemical', 'electrolysis', 'smelting', 'all'"
+        feedback_tokens_for_ai: |
+          Precious metal recovery methods:
+
+          **Chemical Leaching:**
+          - Dissolve metals with acids/cyanide
+          - Selective extraction
+          - Environmental concerns (toxic chemicals)
+          - Recovery rate: 90-95%
+
+          **Electrolysis:**
+          - Electrochemical separation
+          - Very pure product (99.99%)
+          - High electricity cost
+          - Recovery rate: 95-98%
+
+          **Smelting:**
+          - High-temperature furnace
+          - Melts and separates by density
+          - Requires flux materials
+          - Recovery rate: 85-90%
+
+          **All (Sequential):**
+          - Smelt → Chemical refine → Electrolysis
+          - Maximum purity (99.999%)
+          - Highest cost
+          - Recovery rate: 98-99%
+
+        buckets: [chemical, electrolysis, smelting, all, set_language]
+
+        transitions:
+          chemical:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX uses chemical leaching:
+
+                Process:
+                1. Crush circuit boards to powder
+                2. Leach with acid (HCl + H2O2 for copper, aqua regia for gold)
+                3. Precipitate metals selectively
+                4. Filter and wash
+
+                Today's yield:
+                - Gold: 1.14 kg (95% recovery, 99.5% purity)
+                - Silver: 11.8 kg
+                - Palladium: 0.76 kg
+
+                Cost: $4,200 (chemicals, processing)
+                Revenue: $108,000
+                Profit: $103,800
+
+                Environmental: Toxic waste stream requires treatment
+
+                VERTEX: "Chemical leaching is efficient but generates hazardous waste.
+                We need proper treatment systems."
+            metadata_add:
+              gold_purity: "99.5"
+              toxic_waste: "n+800"
+            next_section_and_step: "materials_recovery:recovery_hub"
+
+          electrolysis:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX uses electrolytic refining:
+
+                Process:
+                1. Dissolve metals in electrolyte
+                2. Apply voltage
+                3. Pure metal plates out on cathode
+                4. Impurities fall as sludge
+
+                Today's yield:
+                - Gold: 1.17 kg (97.5% recovery, 99.99% purity!)
+                - Silver: 12.1 kg (99.98% purity)
+                - Palladium: 0.78 kg (99.95% purity)
+
+                Cost: $6,800 (electricity, electrolyte)
+                Revenue: $120,000 (premium for high purity!)
+                Profit: $113,200
+
+                VERTEX: "Electrolysis produces ultra-pure metals. Buyers pay
+                premium prices. Worth the extra cost."
+            metadata_add:
+              gold_purity: "99.99"
+            next_section_and_step: "materials_recovery:recovery_hub"
+
+          smelting:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX smelts the e-waste:
+
+                Process:
+                1. Feed circuit boards to furnace (1,200°C)
+                2. Metals melt and separate by density
+                3. Gold/platinum sink (heavy)
+                4. Copper/aluminum float (lighter)
+                5. Slag off impurities
+
+                Today's yield:
+                - Gold: 1.02 kg (85% recovery, 98% purity)
+                - Silver: 10.5 kg
+                - Mixed metals: 2.1 kg (needs further refining)
+
+                Cost: $3,400 (fuel, flux)
+                Revenue: $95,000
+                Profit: $91,600
+
+                Note: Lower recovery but simple process
+
+                VERTEX: "Smelting is fast and simple but leaves value on the table.
+                We should upgrade to get that missing 15%."
+            metadata_add:
+              gold_purity: "98"
+            next_section_and_step: "materials_recovery:recovery_hub"
+
+          all:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX uses the full sequential process:
+
+                Process:
+                1. Smelt (bulk separation)
+                2. Chemical refine (remove impurities)
+                3. Electrolysis (ultra-pure final product)
+
+                Today's yield:
+                - Gold: 1.19 kg (99% recovery, 99.999% purity!)
+                - Silver: 12.3 kg (99.999% purity)
+                - Palladium: 0.79 kg (99.99% purity)
+                - Platinum: 0.29 kg (99.99% purity)
+
+                Cost: $11,400 (all processes)
+                Revenue: $135,000 (premium for 5-nines purity!)
+                Profit: $123,600 (highest!)
+
+                VERTEX: "Maximum recovery. Maximum purity. Maximum value.
+                This is how you extract every dollar from waste."
+
+                Santos: "Expensive process, but the profit speaks for itself."
+            metadata_add:
+              gold_purity: "99.999"
+              gold_recovered_today: "n+1190"
+            next_section_and_step: "materials_recovery:recovery_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "materials_recovery:precious_metals"
+
+      - step_id: "rare_earth_recovery"
+        title: "Rare Earth Element Recovery"
+        content_blocks:
+          - "You process rare earth magnets from motors and speakers..."
+          - "Neodymium, dysprosium, and praseodymium are strategic materials with limited supply."
+          - ""
+          - "**Today's Recovery:**"
+          - "- Neodymium: 45 kg (~$11,000)"
+          - "- Dysprosium: 8 kg (~$2,400)"
+          - "- Praseodymium: 12 kg (~$1,800)"
+          - ""
+          - "These materials are critical for wind turbines, electric vehicles, and electronics."
+          - "China controls 80% of global supply. Urban mining reduces dependence."
+        next_section_and_step: "materials_recovery:recovery_hub"
+
+      - step_id: "copper_recovery"
+        title: "Copper Recovery Operations"
+        content_blocks:
+          - "Copper is everywhere: wires, motors, plumbing, circuit boards."
+          - ""
+          - "**Today's Copper Recovery:**"
+          - "- From cables: 28 tons (98% pure)"
+          - "- From motors: 4.2 tons (99% pure - windings)"
+          - "- From e-waste: 2.8 tons (95% pure - mixed)"
+          - "- Total: 35 tons copper"
+          - ""
+          - "Market price: $8,600/ton"
+          - "**Revenue: $301,000 just from copper today!**"
+          - ""
+          - "VERTEX: 'Copper is the backbone of our revenue. Consistent, valuable, always in demand.'"
+        next_section_and_step: "materials_recovery:recovery_hub"
+
+      - step_id: "aluminum_recovery"
+        title: "Aluminum Recovery"
+        content_blocks:
+          - "Aluminum cans are the highest-value recyclable after precious metals."
+          - ""
+          - "**Today's Aluminum:**"
+          - "- Cans: 18 tons"
+          - "- Cables: 4 tons"
+          - "- Appliance parts: 3.8 tons"
+          - "- Total: 25.8 tons"
+          - ""
+          - "Fun fact: Recycling aluminum uses 95% less energy than producing from bauxite ore!"
+          - "Revenue: ~$62,000 from aluminum today"
+        next_section_and_step: "materials_recovery:recovery_hub"
+
+  # ============================================================================
+  # SECTION: SMELTING & REFINEMENT - Producing 99.9%+ pure materials
+  # ============================================================================
+  # ============================================================================
+  # ============================================================================
+  - section_id: "smelting_systems"
+    title: "Smelting & Materials Refinement"
+    steps:
+      - step_id: "furnace_control"
+        title: "Smelting Furnace Operations"
+        question: "You control 2 smelting furnaces. What would you like to smelt? (metals, glass, slag_recovery, or upgrade_furnace)"
+        tokens_for_ai: "Categorize: 'metals', 'glass', 'slag', 'upgrade', 'return'"
+        feedback_tokens_for_ai: |
+          Smelting is the final step in materials refinement!
+
+          **Current Furnaces (Level 1):**
+          - Arc furnace #1: Metals (1,200°C max)
+          - Arc furnace #2: Metals/glass (1,400°C max)
+          - Purity achieved: 98-99%
+
+          **Upgrade Available (Level 2):**
+          - Induction furnace: Precise temperature control
+          - Vacuum furnace: Ultra-pure metals (99.99%)
+          - Oxygen lance: Remove impurities
+          - Purity potential: 99.9-99.999%
+
+        buckets: [metals, glass, slag, upgrade, return, set_language]
+
+        transitions:
+          metals:
+            next_section_and_step: "smelting_systems:metal_smelting"
+
+          glass:
+            next_section_and_step: "smelting_systems:glass_smelting"
+
+          slag:
+            next_section_and_step: "smelting_systems:slag_recovery"
+
+          upgrade:
+            next_section_and_step: "facility_upgrades:smelter_upgrades"
+
+          return:
+            next_section_and_step: "control_center:operations_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "smelting_systems:furnace_control"
+
+      - step_id: "metal_smelting"
+        title: "Metal Smelting Process"
+        question: "You're smelting today's recovered metals. Choose priority: (maximize_purity, maximize_throughput, or balance)"
+        tokens_for_ai: "Categorize: 'purity', 'throughput', 'balance'"
+        feedback_tokens_for_ai: |
+          Metal smelting trade-offs:
+
+          **Maximize Purity:**
+          - Multiple refining passes
+          - Slow process
+          - Higher costs (fuel, time)
+          - Result: 99.5-99.9% pure
+          - Price premium: +15-25%
+
+          **Maximize Throughput:**
+          - Single pass
+          - Fast processing
+          - Lower purity: 97-98%
+          - Higher volume processed
+          - Standard market price
+
+          **Balanced:**
+          - Two refining passes
+          - Good purity: 99-99.2%
+          - Reasonable speed
+          - Best profit optimization
+
+        buckets: [purity, throughput, balance, set_language]
+
+        transitions:
+          purity:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX prioritizes ultra-pure metals:
+
+                **Smelting Process (Multi-pass):**
+                1. Primary smelt: Melt all metals (1,200°C)
+                2. Flux treatment: Remove oxides and sulfides
+                3. Secondary refine: Re-melt with carbon reduction
+                4. Oxygen lance: Blow out remaining impurities
+                5. Inert atmosphere cool: Prevent re-oxidation
+
+                **Results:**
+                - Copper: 32 tons → 31.2 tons (99.7% pure)
+                - Aluminum: 25 tons → 24.5 tons (99.6% pure)
+                - Gold: 1.2 kg (99.95% pure)
+                - Silver: 12.4 kg (99.9% pure)
+
+                **Economics:**
+                - Processing time: 18 hours (slow!)
+                - Fuel cost: $8,400
+                - Loss to slag: 3.2%
+                - Premium price: +22%
+                - Revenue: $412,000
+                - Profit: $403,600
+
+                VERTEX: "Maximum purity achieved. Buyers pay premium for quality.
+                These metals will sell above market rate."
+
+                Miller: "Time-consuming, but the premium is worth it."
+            metadata_add:
+              metal_purity: "99.7"
+              smelting_skill: "n+1"
+            next_section_and_step: "smelting_systems:furnace_control"
+
+          throughput:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX optimizes for volume:
+
+                **Smelting Process (Single-pass):**
+                1. Bulk smelt: Melt everything together (1,150°C)
+                2. Density separation: Metals separate by weight
+                3. Skim and cast
+
+                **Results:**
+                - Copper: 32 tons → 30.4 tons (97.2% pure)
+                - Aluminum: 25 tons → 23.8 tons (97.8% pure)
+                - Gold: 1.2 kg (98.5% pure)
+                - Mixed metals: 4.2 tons (needs re-processing)
+
+                **Economics:**
+                - Processing time: 6 hours (fast!)
+                - Fuel cost: $3,100
+                - Loss to slag: 5.8%
+                - Standard market price
+                - Revenue: $338,000
+                - Profit: $334,900
+
+                VERTEX: "Fast processing, high volume. Lower margins but less time and cost."
+            metadata_add:
+              metal_purity: "97.5"
+            next_section_and_step: "smelting_systems:furnace_control"
+
+          balance:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX balances purity and speed:
+
+                **Smelting Process (Two-pass):**
+                1. Primary smelt with flux
+                2. Secondary refine of high-value metals only
+
+                **Results:**
+                - Copper: 32 tons → 31.0 tons (99.2% pure)
+                - Aluminum: 25 tons → 24.2 tons (98.8% pure)
+                - Gold: 1.2 kg (99.8% pure) ← Extra refining!
+                - Silver: 12.4 kg (99.7% pure) ← Extra refining!
+
+                **Economics:**
+                - Processing time: 11 hours
+                - Fuel cost: $5,200
+                - Loss to slag: 4.1%
+                - Slight premium: +8%
+                - Revenue: $389,000
+                - Profit: $383,800
+
+                VERTEX: "Optimal balance. Premium purity for high-value metals,
+                standard for bulk materials. Smart resource allocation."
+
+                Santos: "This is the sweet spot, VERTEX. Good thinking."
+            metadata_add:
+              metal_purity: "99"
+            next_section_and_step: "smelting_systems:furnace_control"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "smelting_systems:metal_smelting"
+
+      - step_id: "glass_smelting"
+        title: "Glass Recycling & Smelting"
+        content_blocks:
+          - "You smelt recycled glass into new glass products..."
+          - ""
+          - "**Process:**"
+          - "1. Sort by color (clear, green, brown)"
+          - "2. Crush to cullet (small pieces)"
+          - "3. Remove contaminants (labels, caps)"
+          - "4. Smelt at 1,400°C"
+          - "5. Form into new bottles or fiberglass"
+          - ""
+          - "**Today's Glass:**"
+          - "- Clear: 14 tons → Revenue $1,120 (sells to bottlers)"
+          - "- Green: 5 tons → Revenue $340"
+          - "- Brown: 3 tons → Revenue $210"
+          - ""
+          - "Glass can be recycled infinitely without quality loss!"
+        next_section_and_step: "smelting_systems:furnace_control"
+
+      - step_id: "slag_recovery"
+        title: "Slag Material Recovery"
+        question: "Slag contains valuable metals trapped in waste. Process it for additional recovery? (yes/no)"
+        tokens_for_ai: "Categorize: 'yes', 'no'"
+        feedback_tokens_for_ai: |
+          Slag is the waste product from smelting.
+          It contains trapped metal particles that didn't fully separate.
+
+          Typical slag: 1-3% metal content (copper, aluminum, precious metals)
+
+          Recovery options:
+          - Re-smelt the slag (costs fuel but recovers more metal)
+          - Sell as aggregate (construction material)
+          - Landfill (wasted potential)
+
+        buckets: [yes, no, set_language]
+
+        transitions:
+          yes:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX re-processes the slag:
+
+                **Slag Analysis:**
+                - Volume: 2.8 tons
+                - Estimated metal content: 2.3% (64 kg)
+
+                **Recovery Process:**
+                - Re-smelt at 1,300°C with reducing agents
+                - Separate metal particles
+                - New slag is cleaner
+
+                **Results:**
+                - Copper recovered: 42 kg (~$360)
+                - Aluminum recovered: 18 kg (~$43)
+                - Precious metals: 4 grams gold (~$250)
+                - Total value: $653
+
+                Processing cost: $280 (fuel, labor)
+                Net profit: $373
+
+                VERTEX: "Every gram counts. We extracted value from what others call waste.
+                This is the UNWASTE philosophy."
+
+                SORTY-5: "We found treasure in the garbage's garbage!"
+            metadata_add:
+              slag_processed: "n+2.8"
+              zero_waste_score: "n+1"
+            next_section_and_step: "smelting_systems:furnace_control"
+
+          no:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX sells slag as construction aggregate:
+
+                Slag properties:
+                - Hard, durable
+                - Good for road base, concrete aggregate
+                - Low value but easy sale
+
+                Sale price: $45/ton
+                Revenue: 2.8 tons × $45 = $126
+
+                Note: Metals in slag are lost forever (value left on table)
+
+                VERTEX: "Quick revenue but not maximizing value. We should consider
+                slag processing upgrades in the future."
+            metadata_add:
+              slag_sold: "n+2.8"
+            next_section_and_step: "smelting_systems:furnace_control"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "smelting_systems:slag_recovery"
+
+  # ============================================================================
+  # SECTION: ENVIRONMENTAL SYSTEMS - Microplastic removal & pollution control
+  # ============================================================================
+  - section_id: "environmental_systems"
+    title: "Environmental Protection Systems"
+    steps:
+      - step_id: "microplastic_removal"
+        title: "Microplastic Filtration"
+        question: "Your advanced filtration system removes microplastics from water. Check system performance or upgrade filters?"
+        tokens_for_ai: "Categorize: 'performance', 'upgrade', 'return'"
+        feedback_tokens_for_ai: |
+          Microplastic filtration is CRITICAL!
+
+          Microplastics are tiny plastic particles (<5mm) that:
+          - Pollute water systems
+          - Enter food chain
+          - Accumulate in animals and humans
+          - Major environmental threat
+
+          UNWASTE Factory has advanced filtration:
+          - Multi-stage filtration down to 1 micron
+          - Removes 99.4% of microplastics from process water
+          - Captured plastics are burned or recycled
+
+        buckets: [performance, upgrade, return, set_language]
+
+        transitions:
+          performance:
+            ai_feedback:
+              tokens_for_ai: |
+                **Microplastic Filtration Performance:**
+
+                **Water Processed Today:**
+                - Process water: 4,200 m³
+                - Microplastic content (input): 820 mg/L (heavily contaminated!)
+                - Microplastic content (output): 5 mg/L (99.4% removal!)
+
+                **Microplastics Captured:**
+                - Total mass: 3,423 kg
+                - Fiber plastics: 1,840 kg (from textiles)
+                - Fragment plastics: 982 kg (from degraded products)
+                - Bead plastics: 601 kg (from personal care products)
+
+                **Disposal:**
+                - Burned for energy: 2,100 kg → 9.4 MWh
+                - Sent to chemical recycling: 1,323 kg
+
+                **Environmental Impact:**
+                - Microplastics prevented from entering waterways: 3.4 TONS!
+                - Fish, wildlife, humans protected
+
+                VERTEX: "We're not just processing waste. We're protecting the planet.
+                3.4 tons of microplastics removed from the water cycle TODAY."
+
+                Santos: "This is why we do what we do, VERTEX."
+            metadata_add:
+              microplastics_removed_kg: "n+3423"
+              environmental_score: "n+10"
+            next_section_and_step: "environmental_systems:microplastic_removal"
+
+          upgrade:
+            ai_feedback:
+              tokens_for_ai: |
+                **Filter Upgrade Options:**
+
+                **Option 1: Ultrafiltration Membranes**
+                - Cost: $85,000
+                - Removes particles down to 0.1 micron
+                - Captures 99.8% of microplastics
+                - Higher maintenance cost
+
+                **Option 2: Electrocoagulation Pre-treatment**
+                - Cost: $62,000
+                - Aggregates microplastics into larger particles
+                - Easier to filter
+                - 99.6% removal rate
+
+                **Option 3: Both (Ultimate System)**
+                - Cost: $135,000
+                - 99.9% removal rate
+                - Near-zero microplastic discharge
+                - Become industry leader
+
+                Which upgrade do you want?
+            next_section_and_step: "environmental_systems:filter_upgrades"
+
+          return:
+            next_section_and_step: "control_center:operations_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "environmental_systems:microplastic_removal"
+
+      - step_id: "filter_upgrades"
+        title: "Upgrade Filtration System"
+        question: "Choose your upgrade: (ultrafiltration, electrocoagulation, both, or cancel)"
+        tokens_for_ai: "Categorize: 'ultrafiltration', 'electrocoagulation', 'both', 'cancel'"
+        feedback_tokens_for_ai: |
+          Each upgrade has trade-offs:
+
+          Ultrafiltration: Best removal, highest cost
+          Electrocoagulation: Lower cost, good removal
+          Both: Ultimate performance, expensive
+          Cancel: Keep current system
+
+        buckets: [ultrafiltration, electrocoagulation, both, cancel, set_language]
+
+        transitions:
+          ultrafiltration:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX upgrades to ultrafiltration membranes!
+
+                **Installation:**
+                - Cost: $85,000
+                - Installation time: 2 weeks
+                - Membrane lifespan: 3 years
+
+                **New Performance:**
+                - Filtration: 0.1 micron (was 1 micron)
+                - Removal rate: 99.8% (was 99.4%)
+                - Microplastic discharge: 1.6 mg/L (was 5 mg/L)
+
+                **ROI:**
+                - Environmental credits: $18,000/year
+                - Payback: 4.7 years
+                - Plus: Huge environmental benefit!
+
+                VERTEX: "Upgraded. We're now removing 99.8% of microplastics.
+                This facility is a model for environmental responsibility."
+            metadata_add:
+              facility_level: "n+0.5"
+              microplastic_removal_rate: "99.8"
+              budget: "n-85000"
+            next_section_and_step: "environmental_systems:microplastic_removal"
+
+          electrocoagulation:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX installs electrocoagulation pre-treatment!
+
+                **System:**
+                - Electrodes create coagulant ions
+                - Microplastics clump together
+                - Easier to filter
+
+                **New Performance:**
+                - Removal rate: 99.6% (was 99.4%)
+                - Microplastic discharge: 3.3 mg/L (was 5 mg/L)
+                - Lower filter maintenance (larger particles)
+
+                **ROI:**
+                - Cost: $62,000
+                - Electricity cost: $12/day
+                - Filter cost savings: $8,000/year
+                - Payback: 7.75 years
+
+                VERTEX: "Smart upgrade. Better performance, lower operating costs."
+            metadata_add:
+              facility_level: "n+0.3"
+              microplastic_removal_rate: "99.6"
+              budget: "n-62000"
+            next_section_and_step: "environmental_systems:microplastic_removal"
+
+          both:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX goes all-in on environmental protection!
+
+                **Ultimate Filtration System:**
+                - Electrocoagulation + Ultrafiltration
+                - Cost: $135,000
+                - Best-in-class performance
+
+                **New Performance:**
+                - Removal rate: 99.9%
+                - Microplastic discharge: 0.8 mg/L
+                - Industry-leading environmental protection
+
+                **Recognition:**
+                - EPA excellence award
+                - Green certification premium
+                - Media coverage: "UNWASTE Factory Sets New Standard"
+
+                **ROI:**
+                - Environmental credits: $24,000/year
+                - Green premium contracts: $18,000/year
+                - Payback: 3.2 years
+
+                VERTEX: "We're not just a waste facility anymore. We're environmental leaders.
+                99.9% microplastic removal. No one else is doing this."
+
+                Santos: "Expensive, but we're making a real difference, VERTEX."
+            metadata_add:
+              facility_level: "n+1"
+              microplastic_removal_rate: "99.9"
+              environmental_leader: "true"
+              budget: "n-135000"
+            next_section_and_step: "environmental_systems:microplastic_removal"
+
+          cancel:
+            content_blocks:
+              - "Upgrade cancelled. Current system remains operational."
+            next_section_and_step: "environmental_systems:microplastic_removal"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "environmental_systems:filter_upgrades"
+
+  # ============================================================================
+  # SECTION: FACILITY UPGRADES - Tech tree and progression
+  # ============================================================================
+  - section_id: "facility_upgrades"
+    title: "Facility Upgrade Center"
+    steps:
+      - step_id: "upgrade_center"
+        title: "Upgrade Tech Tree"
+        question: "Review available upgrades. Current facility level: metadata.facility_level. What interests you? (sorting, smelting, energy, automation, or check_tree)"
+        tokens_for_ai: "Categorize: 'sorting', 'smelting', 'energy', 'automation', 'tree', 'return'"
+        feedback_tokens_for_ai: |
+          UNWASTE Factory progression system!
+
+          **Current Level:** metadata.facility_level (starts at 1)
+
+          **Upgrade Paths:**
+
+          **Sorting Technology:**
+          - Level 1: Basic optical sorting (94% accuracy) ← You are here
+          - Level 2: AI vision + hyperspectral (97% accuracy) [$120k]
+          - Level 3: Quantum sensors (99% accuracy) [$450k]
+
+          **Smelting & Refining:**
+          - Level 1: Arc furnaces (99% purity) ← You are here
+          - Level 2: Induction + vacuum (99.9% purity) [$280k]
+          - Level 3: Plasma arc + zone refining (99.999% purity) [$890k]
+
+          **Energy Systems:**
+          - Level 1: Basic incinerators (18 MW) ← You are here
+          - Level 2: Advanced combustion + heat recovery (28 MW) [$340k]
+          - Level 3: Plasma gasification (42 MW + synfuels) [$1.2M]
+
+          **Automation:**
+          - Level 1: Semi-automated (36 robots) ← You are here
+          - Level 2: Fully automated sorting (120 robots) [$550k]
+          - Level 3: AI swarm intelligence (250 robots) [$1.8M]
+
+          Upgrades require: Money + facility_level + sometimes materials
+
+        buckets: [sorting, smelting, energy, automation, tree, return, set_language]
+
+        transitions:
+          sorting:
+            next_section_and_step: "facility_upgrades:sorting_upgrades"
+
+          smelting:
+            next_section_and_step: "facility_upgrades:smelter_upgrades"
+
+          energy:
+            next_section_and_step: "facility_upgrades:energy_upgrades"
+
+          automation:
+            next_section_and_step: "facility_upgrades:automation_upgrades"
+
+          tree:
+            ai_feedback:
+              tokens_for_ai: |
+                **UNWASTE FACTORY TECH TREE:**
+
+                ```
+                Level 1 (Basic) ← Current
+                ├─ Sorting: Optical (94%)
+                ├─ Smelting: Arc furnace (99%)
+                ├─ Energy: Incinerators (18MW)
+                └─ Automation: Semi-auto (36 robots)
+
+                Level 2 (Advanced) - Requires $1.29M total
+                ├─ Sorting: AI+Hyperspectral (97%) [$120k]
+                ├─ Smelting: Induction+Vacuum (99.9%) [$280k]
+                ├─ Energy: Advanced combustion (28MW) [$340k]
+                └─ Automation: Full auto (120 robots) [$550k]
+
+                Level 3 (Elite) - Requires $4.34M total
+                ├─ Sorting: Quantum sensors (99%) [$450k]
+                ├─ Smelting: Plasma+Zone (99.999%) [$890k]
+                ├─ Energy: Plasma gasification (42MW) [$1.2M]
+                └─ Automation: AI swarm (250 robots) [$1.8M]
+                ```
+
+                **Your Progress:**
+                - Current level: metadata.facility_level
+                - Upgrades completed: [list from metadata]
+                - Budget available: metadata.budget
+                - Next recommended upgrade: [suggest based on needs]
+
+                VERTEX: "The path to zero waste is through continuous improvement."
+            counts_as_attempt: false
+            next_section_and_step: "facility_upgrades:upgrade_center"
+
+          return:
+            next_section_and_step: "control_center:operations_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "facility_upgrades:upgrade_center"
+
+      - step_id: "sorting_upgrades"
+        title: "Sorting Technology Upgrades"
+        question: "Upgrade sorting systems? (level2_ai_vision for $120k, level3_quantum for $450k, or cancel)"
+        tokens_for_ai: "Categorize: 'level2', 'level3', 'cancel'"
+        feedback_tokens_for_ai: |
+          Sorting upgrades improve accuracy and revenue.
+
+          Better sorting = More recyclables recovered = Higher profit
+
+          Level 2 is affordable, good improvement
+          Level 3 is expensive but near-perfect
+
+        buckets: [level2, level3, cancel, set_language]
+
+        transitions:
+          level2:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX upgrades to Level 2 AI Vision + Hyperspectral!
+
+                **Installed:**
+                - AI vision: Deep learning material recognition
+                - Hyperspectral imaging: Chemical fingerprinting
+                - 94 upgraded cameras
+
+                **Performance:**
+                - Accuracy: 94% → 97% (+3%)
+                - New materials detected: Biodegradables, composites, medical waste
+                - Speed: 92 → 105 items/minute
+
+                **Economics:**
+                - Cost: $120,000
+                - Increased recovery: ~15 tons/day more recyclables
+                - Additional revenue: ~$85,000/month
+                - Payback: 1.4 months!
+
+                VERTEX: "Upgrade complete. We're now sorting materials we couldn't even
+                identify before. Revenue increase pays for this in 6 weeks."
+
+                Miller: "These new cameras are incredible. They see things I can't."
+            metadata_add:
+              sorting_level: "2"
+              sorting_accuracy: "97"
+              facility_level: "n+0.3"
+              budget: "n-120000"
+            next_section_and_step: "facility_upgrades:upgrade_center"
+
+          level3:
+            ai_feedback:
+              tokens_for_ai: |
+                Check if facility_level is high enough and budget sufficient.
+
+                If yes:
+                VERTEX upgrades to Level 3 Quantum Sensors!
+
+                **Revolutionary Technology:**
+                - Quantum entanglement sensors
+                - Molecular-level material identification
+                - AI processes at quantum speed
+
+                **Performance:**
+                - Accuracy: 97% → 99%
+                - Identifies materials by atomic structure
+                - Speed: 105 → 142 items/minute
+
+                **New Capabilities:**
+                - Detects trace contaminants (PPM level)
+                - Identifies alloy composition instantly
+                - Predicts material degradation state
+
+                **Economics:**
+                - Cost: $450,000
+                - Revenue increase: $180,000/month
+                - Payback: 2.5 months
+                - Industry-leading sorting
+
+                VERTEX: "We've achieved near-perfect sorting. This is the future.
+                Competitors can't match this."
+
+                If no: "Insufficient funds or facility level too low. Need upgrades first."
+            metadata_add:
+              sorting_level: "3"
+              sorting_accuracy: "99"
+              facility_level: "n+1"
+              budget: "n-450000"
+            next_section_and_step: "facility_upgrades:upgrade_center"
+
+          cancel:
+            next_section_and_step: "facility_upgrades:upgrade_center"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "facility_upgrades:sorting_upgrades"
+
+      - step_id: "smelter_upgrades"
+        title: "Smelting Technology Upgrades"
+        content_blocks:
+          - "Smelter upgrade options:"
+          - "- Level 2: Induction + Vacuum furnaces → 99.9% purity [$280k]"
+          - "- Level 3: Plasma arc + Zone refining → 99.999% purity [$890k]"
+          - ""
+          - "Higher purity = Premium prices from buyers"
+          - "99.999% 'five-nines' purity commands 40% price premium!"
+        next_section_and_step: "facility_upgrades:upgrade_center"
+
+      - step_id: "energy_upgrades"
+        title: "Energy Generation Upgrades"
+        content_blocks:
+          - "Energy system upgrades:"
+          - "- Level 2: Advanced combustion + heat recovery → 28 MW [$340k]"
+          - "- Level 3: Plasma gasification → 42 MW + synfuels [$1.2M]"
+          - ""
+          - "Plasma gasification can convert ANY waste to syngas"
+          - "Even hazardous materials can be safely destroyed and converted to energy"
+        next_section_and_step: "facility_upgrades:upgrade_center"
+
+      - step_id: "automation_upgrades"
+        title: "Automation Technology Upgrades"
+        content_blocks:
+          - "Automation upgrades:"
+          - "- Level 2: Fully automated sorting → 120 robots [$550k]"
+          - "- Level 3: AI swarm intelligence → 250 robots [$1.8M]"
+          - ""
+          - "AI swarm: Robots coordinate autonomously, learn from each other"
+          - "Reduce labor costs, increase efficiency, 24/7 operations"
+        next_section_and_step: "facility_upgrades:upgrade_center"
+
+  # ============================================================================
+  # SECTION: ECONOMICS - Market analysis and value optimization
+  # ============================================================================
+  - section_id: "economics"
+    title: "Economics & Market Analysis"
+    steps:
+      - step_id: "market_analysis"
+        title: "Materials Market Analysis"
+        classifier_model: "MODEL_1"  # Hermes for categorization
+        feedback_model: "MODEL_2"    # Qwen for market calculations and predictions
+        question: "You monitor global materials markets. What do you want to analyze? (prices, trends, sell_timing, or arbitrage)"
+        tokens_for_ai: "Categorize: 'prices', 'trends', 'timing', 'arbitrage', 'return'"
+        feedback_tokens_for_ai: |
+          VERTEX tracks commodity markets in real-time!
+
+          Materials prices fluctuate daily:
+          - Copper: $8,200-8,800/ton
+          - Aluminum: $2,300-2,600/ton
+          - Gold: $60,000-65,000/kg
+          - Lithium: $14,000-18,000/ton
+
+          Smart timing = Maximum profit!
+
+          Can store materials and sell when prices peak.
+          Can predict market trends using AI.
+
+        buckets: [prices, trends, timing, arbitrage, return, set_language]
+
+        transitions:
+          prices:
+            ai_feedback:
+              tokens_for_ai: |
+                **Current Market Prices (Real-time):**
+
+                **Metals:**
+                - Copper: $8,620/ton (↑ 2.3% today)
+                - Aluminum: $2,480/ton (↓ 0.8% today)
+                - Steel: $720/ton (→ stable)
+                - Stainless: $2,140/ton (↑ 1.2%)
+
+                **Precious Metals:**
+                - Gold: $62,400/kg (↑ 0.5%)
+                - Silver: $728/kg (↑ 1.8%)
+                - Palladium: $30,200/kg (↓ 3.2%)
+                - Platinum: $30,800/kg (↑ 0.9%)
+
+                **Battery Materials:**
+                - Lithium: $16,200/ton (↑ 4.1% - HIGH DEMAND!)
+                - Cobalt: $31,000/ton (↑ 2.7%)
+                - Nickel: $18,400/ton (↑ 1.5%)
+
+                **Rare Earths:**
+                - Neodymium: $245/kg (→ stable)
+                - Dysprosium: $298/kg (↑ 0.7%)
+
+                VERTEX: "Lithium prices are surging. EV demand is driving the market.
+                We should prioritize battery recovery."
+            next_section_and_step: "economics:market_analysis"
+
+          trends:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX analyzes market trends using AI:
+
+                **90-Day Predictions:**
+
+                **Copper:** ↑ Bullish
+                - Forecast: $9,200/ton (+6.7%)
+                - Drivers: Construction boom, EVs need copper
+
+                **Lithium:** ↑↑ Very Bullish
+                - Forecast: $21,000/ton (+29.6%)
+                - Drivers: Battery gigafactories, limited supply
+
+                **Aluminum:** → Neutral
+                - Forecast: $2,520/ton (+1.6%)
+                - Drivers: Recycling supply increasing
+
+                **Gold:** ↑ Slightly Bullish
+                - Forecast: $64,800/kg (+3.8%)
+                - Drivers: Economic uncertainty, safe haven
+
+                **Strategic Recommendation:**
+                1. Stockpile lithium and cobalt (prices rising fast)
+                2. Sell aluminum soon (price peaking)
+                3. Hold copper for 60 days (gradual rise)
+                4. Gold stable - sell as recovered
+
+                VERTEX: "My predictive models suggest lithium stockpiling.
+                Prices will be 30% higher in 3 months."
+            next_section_and_step: "economics:market_analysis"
+
+          timing:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX optimizes sell timing:
+
+                **Today's Inventory:**
+                - Copper: 245 tons
+                - Aluminum: 187 tons
+                - Lithium: 2.4 tons
+                - Gold: 12.3 kg
+
+                **AI Recommendation:**
+
+                **SELL NOW:**
+                - Aluminum (187 tons) → $463,760
+                  Reason: Price at 90-day peak, about to decline
+
+                **HOLD 30 DAYS:**
+                - Copper (245 tons) → Projected +$147,000 gain
+                  Reason: Rising trend, peak in 4-6 weeks
+
+                **HOLD 90 DAYS:**
+                - Lithium (2.4 tons) → Projected +$11,520 gain
+                  Reason: Strong uptrend, supply shortage
+
+                **SELL NOW:**
+                - Gold (12.3 kg) → $767,520
+                  Reason: Price stable, no storage benefit
+
+                Total potential arbitrage gain: $158,520 by optimizing timing
+
+                VERTEX: "Market timing is how we extract maximum value.
+                This is the difference between profit and MAXIMUM profit."
+
+                Santos: "I trust your analysis, VERTEX. Execute the strategy."
+            next_section_and_step: "economics:market_analysis"
+
+          arbitrage:
+            ai_feedback:
+              tokens_for_ai: |
+                VERTEX identifies arbitrage opportunities:
+
+                **Opportunity 1: Regional Price Differences**
+                - Local copper price: $8,620/ton
+                - Export market (Asia): $9,040/ton
+                - Spread: $420/ton
+                - Inventory: 245 tons
+                - Potential gain: $102,900 (minus $18,000 shipping)
+                - Net arbitrage: $84,900
+
+                **Opportunity 2: Form Factor Premium**
+                - Copper wire scrap: $8,200/ton
+                - Refined copper ingots: $8,920/ton
+                - Spread: $720/ton
+                - Process cost: $340/ton
+                - Net gain: $380/ton
+                - For 245 tons: $93,100 extra profit
+
+                **Opportunity 3: Purity Premium**
+                - 99% pure gold: $62,400/kg
+                - 99.99% pure gold: $64,900/kg
+                - Spread: $2,500/kg
+                - Refining cost: $800/kg
+                - Net gain: $1,700/kg
+                - For 12.3 kg: $20,910 extra
+
+                Total arbitrage potential: $198,910
+
+                VERTEX: "These are market inefficiencies. We can exploit them
+                for nearly $200k additional profit. This is financial optimization."
+            next_section_and_step: "economics:market_analysis"
+
+          return:
+            next_section_and_step: "control_center:operations_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "economics:market_analysis"
+
+      - step_id: "materials_market"
+        title: "Materials Trading"
+        content_blocks:
+          - "You execute trades on the materials market..."
+          - "Buy low, sell high. Store materials when prices are depressed."
+          - "Sell when markets peak. This is value extraction mastery."
+        next_section_and_step: "economics:market_analysis"
+
+  # ============================================================================
+  # SECTION: CHALLENGES - Random difficulties
+  # ============================================================================
+  - section_id: "challenges"
+    title: "Operational Challenges"
+    steps:
+      - step_id: "handle_challenge"
+        title: "Challenge Response"
+        question: "CHALLENGE: metadata.challenge_type. How do you respond?"
+        tokens_for_ai: |
+          Random challenge based on metadata.challenge_type:
+
+          - contaminated_load: Hazardous waste mixed in
+          - equipment_failure: Critical equipment breaks
+          - toxic_waste_alert: Dangerous materials detected
+          - market_crash: Commodity prices crash
+          - regulatory_inspection: Surprise inspection
+
+          Categorize response: 'immediate_action', 'analyze', 'consult_team', 'safety_first'
+
+        feedback_tokens_for_ai: |
+          Describe challenge dramatically.
+          Show VERTEX's decision-making under pressure.
+          Consequences depend on response.
+
+        buckets: [immediate_action, analyze, consult_team, safety_first, set_language]
+
+        transitions:
+          immediate_action:
+            ai_feedback:
+              tokens_for_ai: "VERTEX acts decisively to resolve challenge. Describe outcome."
+            metadata_add:
+              challenges_handled: "n+1"
+            next_section_and_step: "control_center:operations_hub"
+
+          analyze:
+            ai_feedback:
+              tokens_for_ai: "VERTEX analyzes the situation before acting. Sometimes good, sometimes too slow."
+            next_section_and_step: "control_center:operations_hub"
+
+          consult_team:
+            ai_feedback:
+              tokens_for_ai: "VERTEX consults human experts. Team collaboration resolves issue."
+            metadata_add:
+              team_trust: "high"
+            next_section_and_step: "control_center:operations_hub"
+
+          safety_first:
+            ai_feedback:
+              tokens_for_ai: "VERTEX prioritizes safety over profit. Always the right call."
+            metadata_add:
+              safety_record: "excellent"
+            next_section_and_step: "control_center:operations_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "challenges:handle_challenge"
+
+  # ============================================================================
+  # SECTION: OPPORTUNITIES - Random beneficial events
+  # ============================================================================
+  - section_id: "opportunities"
+    title: "Business Opportunities"
+    steps:
+      - step_id: "handle_opportunity"
+        title: "Opportunity Assessment"
+        question: "OPPORTUNITY: metadata.opportunity_type. Take advantage of it?"
+        tokens_for_ai: "Categorize: 'yes', 'negotiate', 'decline'"
+        feedback_tokens_for_ai: |
+          Opportunities can be profitable!
+
+          - high_value_ewaste: Server farm decommissioning (gold mine!)
+          - bulk_contract: Long-term supply agreement
+          - grant_available: Government research funding
+          - technology_breakthrough: New process discovered
+          - premium_buyer: Luxury brand wants recycled materials
+
+          Each has potential reward and some risk/cost.
+
+        buckets: [yes, negotiate, decline, set_language]
+
+        transitions:
+          yes:
+            ai_feedback:
+              tokens_for_ai: "VERTEX seizes opportunity! Describe windfall/benefit."
+            metadata_add:
+              opportunities_seized: "n+1"
+            next_section_and_step: "control_center:operations_hub"
+
+          negotiate:
+            ai_feedback:
+              tokens_for_ai: "VERTEX negotiates better terms. Smart business!"
+            next_section_and_step: "control_center:operations_hub"
+
+          decline:
+            ai_feedback:
+              tokens_for_ai: "VERTEX declines. Sometimes the smart move if risky."
+            next_section_and_step: "control_center:operations_hub"
+
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "opportunities:handle_opportunity"

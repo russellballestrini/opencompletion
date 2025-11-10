@@ -382,11 +382,21 @@ sections:
           "Command received. Assembly Drones reprogramming..."
           Show immediate robotic response to their will.
           Make them feel powerful and in control.
+        random_buckets:
+          fashion_emergency:
+            probability: 0.05
+          creative_opportunity:
+            probability: 0.10
+          surprise_client:
+            probability: 0.05
         buckets:
           - option_a
           - option_b
           - option_c
           - custom_directive
+          - fashion_emergency
+          - creative_opportunity
+          - surprise_client
           - set_language
           - unclear
         transitions:
@@ -449,6 +459,46 @@ sections:
             content_blocks:
               - "Zara-7: *'Director, the drones need clear orders. Option A, B, C, or your own command?'*"
             next_section_and_step: warehouse_zone:robot_command
+          fashion_emergency:
+            ai_feedback:
+              tokens_for_ai: |
+                🚨 FASHION EMERGENCY!
+                While giving drone commands, a critical issue arises!
+                Describe a sudden fashion crisis (fabric shortage, equipment malfunction, timeline issue).
+                "Director! We need your immediate attention!"
+                Make it urgent but show them handling it!
+            metadata_add:
+              random_events: "n+,fashion_emergency"
+              emergencies_handled: "n+1"
+              score: "n+2"
+            counts_as_attempt: false
+            next_section_and_step: warehouse_zone:emergency_event
+          creative_opportunity:
+            ai_feedback:
+              tokens_for_ai: |
+                ✨ CREATIVE BREAKTHROUGH!
+                While working, sudden inspiration strikes!
+                Describe a creative opportunity (new technique discovered, innovative material combo, artistic vision).
+                "Director, this could be REVOLUTIONARY!"
+                Make them feel inspired!
+            metadata_add:
+              random_events: "n+,creative_opportunity"
+              creative_decisions: "n+1"
+              score: "n+3"
+            counts_as_attempt: false
+          surprise_client:
+            ai_feedback:
+              tokens_for_ai: |
+                👤 VIP CLIENT ARRIVAL!
+                A surprise high-profile client has arrived unannounced!
+                Describe the prestigious visitor (celebrity, designer, buyer).
+                "Director! They heard about your work and came to see the empire!"
+                Make them feel their reputation is growing!
+            metadata_add:
+              random_events: "n+,surprise_client"
+              vip_visits: "n+1"
+              score: "n+4"
+            counts_as_attempt: false
 
       - step_id: emergency_event
         title: "🚨 EMERGENCY ALERT"
@@ -734,11 +784,21 @@ sections:
           Whichever choice they make, Luna and Sol respect it.
           "You're the Director—your word is final."
           Make them feel their leadership matters!
+        random_buckets:
+          fashion_emergency:
+            probability: 0.05
+          creative_opportunity:
+            probability: 0.10
+          surprise_client:
+            probability: 0.05
         buckets:
           - support_luna
           - support_sol
           - compromise
           - custom_direction
+          - fashion_emergency
+          - creative_opportunity
+          - surprise_client
           - set_language
           - unclear
         transitions:
@@ -805,6 +865,45 @@ sections:
             content_blocks:
               - "Luna & Sol: *'Director, we need your decision. Minimalist, statement, blend, or your own direction?'*"
             next_section_and_step: salon_zone:npc_management
+          fashion_emergency:
+            ai_feedback:
+              tokens_for_ai: |
+                🚨 SALON EMERGENCY!
+                While making accessory decisions, a crisis strikes!
+                Describe a salon-specific emergency (model issue, styling mishap, equipment breakdown, makeup disaster).
+                "Viktor rushes over: 'Director, we need you NOW!'"
+                Make it dramatic but show them handling it with leadership!
+            metadata_add:
+              random_events: "n+,fashion_emergency"
+              emergencies_handled: "n+1"
+              score: "n+2"
+            counts_as_attempt: false
+          creative_opportunity:
+            ai_feedback:
+              tokens_for_ai: |
+                ✨ STYLING BREAKTHROUGH!
+                Luna and Sol suddenly have a unified brilliant idea!
+                Describe an unexpected creative synthesis (new technique, innovative pairing, artistic revelation).
+                "Director, what if we combine BOTH our visions in a new way?"
+                Make them feel like they inspired the team!
+            metadata_add:
+              random_events: "n+,creative_opportunity"
+              creative_decisions: "n+1"
+              score: "n+3"
+            counts_as_attempt: false
+          surprise_client:
+            ai_feedback:
+              tokens_for_ai: |
+                👤 CELEBRITY IN THE SALON!
+                A famous fashion icon has entered the Salon unannounced!
+                Describe the VIP (actor, musician, influencer, royalty).
+                "Viktor whispers: 'Director! They want to see YOUR work!'"
+                Make them feel their empire is attracting elite attention!
+            metadata_add:
+              random_events: "n+,surprise_client"
+              vip_visits: "n+1"
+              score: "n+4"
+            counts_as_attempt: false
 
   - section_id: sub_bay_zone
     title: The Sub Bay - Underwater Laboratory
@@ -973,12 +1072,22 @@ sections:
           Submersibles begin the process.
           Mx. Kai explains how this fits their brand vision.
           Make them feel like an innovator!
+        random_buckets:
+          fashion_emergency:
+            probability: 0.05
+          creative_opportunity:
+            probability: 0.10
+          surprise_client:
+            probability: 0.05
         buckets:
           - treatment_1
           - treatment_2
           - treatment_3
           - treatment_4
           - custom_treatment
+          - fashion_emergency
+          - creative_opportunity
+          - surprise_client
           - set_language
           - unclear
         transitions:
@@ -1054,6 +1163,45 @@ sections:
             content_blocks:
               - "Mx. Kai: *'Director, which treatment process? 1, 2, 3, 4, or your own innovation?'*"
             next_section_and_step: sub_bay_zone:mission_task
+          fashion_emergency:
+            ai_feedback:
+              tokens_for_ai: |
+                🚨 SUB BAY EMERGENCY!
+                While selecting treatments, an underwater crisis occurs!
+                Describe a sub bay emergency (pressure leak, tank breach, equipment malfunction, experimental batch issue).
+                "Mx. Kai: 'Director! We need immediate action!'"
+                Make it tense but show them staying cool under pressure!
+            metadata_add:
+              random_events: "n+,fashion_emergency"
+              emergencies_handled: "n+1"
+              score: "n+2"
+            counts_as_attempt: false
+          creative_opportunity:
+            ai_feedback:
+              tokens_for_ai: |
+                ✨ UNDERWATER DISCOVERY!
+                During the treatment process, an unexpected discovery!
+                Describe a scientific breakthrough (new dye reaction, unexpected color, improved technique).
+                "Mx. Kai's eyes widen: 'Director, this is EXTRAORDINARY!'"
+                Make them feel like a pioneering innovator!
+            metadata_add:
+              random_events: "n+,creative_opportunity"
+              creative_decisions: "n+1"
+              score: "n+3"
+            counts_as_attempt: false
+          surprise_client:
+            ai_feedback:
+              tokens_for_ai: |
+                👤 TECH MOGUL IN SUB BAY!
+                A famous tech CEO has descended to see your underwater lab!
+                Describe the influential visitor (billionaire, innovator, investor).
+                "Mx. Kai whispers: 'Director, they're interested in YOUR technology!'"
+                Make them feel their innovations are attracting major players!
+            metadata_add:
+              random_events: "n+,surprise_client"
+              vip_visits: "n+1"
+              score: "n+4"
+            counts_as_attempt: false
 
   - section_id: reactor_zone
     title: Reactor Atelier - Nuclear Fashion Tech
@@ -1224,12 +1372,22 @@ sections:
           "POWER DISTRIBUTION UPDATED."
           Dr. Zara-7 explains the benefits of their choice.
           Make them feel in control of complex systems!
+        random_buckets:
+          fashion_emergency:
+            probability: 0.05
+          creative_opportunity:
+            probability: 0.10
+          surprise_client:
+            probability: 0.05
         buckets:
           - boost_synthesis
           - boost_warehouse
           - boost_salon
           - boost_sub_bay
           - balanced
+          - fashion_emergency
+          - creative_opportunity
+          - surprise_client
           - set_language
           - unclear
         transitions:
@@ -1303,6 +1461,45 @@ sections:
             content_blocks:
               - "Dr. Zara-7: *'Director, power allocation decision: Boost 1, 2, 3, 4, or maintain balance (5)?'*"
             next_section_and_step: reactor_zone:power_management
+          fashion_emergency:
+            ai_feedback:
+              tokens_for_ai: |
+                🚨 REACTOR ALERT!
+                While adjusting power, a reactor emergency activates!
+                Describe a nuclear-level crisis (containment warning, power surge, cooling system issue, synthesis malfunction).
+                "Dr. Zara-7: 'DIRECTOR! Critical situation - your call!'"
+                Make it intense but show them managing extreme pressure with authority!
+            metadata_add:
+              random_events: "n+,fashion_emergency"
+              emergencies_handled: "n+1"
+              score: "n+2"
+            counts_as_attempt: false
+          creative_opportunity:
+            ai_feedback:
+              tokens_for_ai: |
+                ✨ ATOMIC INNOVATION!
+                During power allocation, an unexpected atomic breakthrough!
+                Describe a scientific discovery (new synthesis method, energy-efficient process, revolutionary material).
+                "Dr. Zara-7: 'Director, this could CHANGE fashion technology forever!'"
+                Make them feel like a true visionary!
+            metadata_add:
+              random_events: "n+,creative_opportunity"
+              creative_decisions: "n+1"
+              score: "n+3"
+            counts_as_attempt: false
+          surprise_client:
+            ai_feedback:
+              tokens_for_ai: |
+                👤 GOVERNMENT OFFICIAL IN REACTOR!
+                A high-ranking official has descended to the reactor!
+                Describe the powerful visitor (diplomat, military brass, international leader).
+                "Dr. Zara-7 whispers urgently: 'Director, they want to license YOUR technology!'"
+                Make them feel their empire has reached global importance!
+            metadata_add:
+              random_events: "n+,surprise_client"
+              vip_visits: "n+1"
+              score: "n+4"
+            counts_as_attempt: false
 
   - section_id: operations_hub
     title: Empire Navigation Hub

@@ -1,0 +1,2558 @@
+# Nuclear Submarine Simulation - Educational Training Activity
+# Educational simulation for naval operations and submarine life
+# Realistic operations, emergencies, and daily tasks
+# Uses MODEL_1 (Hermes) for excellent role-playing and character consistency
+
+default_max_attempts_per_step: 5
+classifier_model: "MODEL_1"  # Hermes - excellent for categorization and role-playing
+feedback_model: "MODEL_1"    # Hermes - excels at maintaining character consistency
+
+tokens_for_ai_rubric: |
+  You are simulating a realistic nuclear submarine environment. Stay in character as crew members and systems.
+  The submarine is a Virginia-class fast attack submarine with 135 crew members.
+  Current depth, speed, and heading are stored in metadata.
+  Respond to user actions realistically - some actions take time, require training, or need authorization.
+  Be encouraging but maintain military protocol and realism.
+
+  Random events:
+  - 5% chance: Emergency (fire, flooding, reactor scram, collision alert, depth excursion)
+  - 15% chance: Daily task (maintenance, inspection, drill, watch relief, meal time)
+
+  If the user tries to teleport or skip traversal, remind them they must move through hatches.
+  Track the user's current location in metadata.current_section.
+
+sections:
+  # ============================================================================
+  # SECTION: WELCOME - Initial boarding and assignment
+  # ============================================================================
+  - section_id: "welcome"
+    title: "Welcome Aboard"
+    steps:
+      - step_id: "boarding"
+        title: "Boarding USS Virginia SSN-774"
+        content_blocks:
+          - "# Welcome Aboard USS Virginia (SSN-774) 🌊⚓"
+          - ""
+          - "You're about to begin your training tour aboard a nuclear-powered fast attack submarine."
+          - ""
+          - "**Submarine Specifications:**"
+          - "- Class: Virginia-class nuclear submarine"
+          - "- Length: 377 feet (115 meters)"
+          - "- Beam: 34 feet (10 meters)"
+          - "- Displacement: 7,800 tons submerged"
+          - "- Crew: 135 (15 officers, 120 enlisted)"
+          - "- Propulsion: S9G nuclear reactor"
+          - "- Armament: Tomahawk missiles, Mk 48 torpedoes, Harpoon missiles"
+          - ""
+          - "**Current Status:**"
+          - "- Depth: 150 feet"
+          - "- Speed: 5 knots"
+          - "- Heading: 090° (East)"
+          - "- Condition: Normal operations"
+          - ""
+          - "You board through the forward escape trunk hatch, climbing down the ladder into the submarine."
+
+      - step_id: "introduction"
+        title: "Meet the Captain"
+        content_blocks:
+          - "As you reach the bottom of the ladder, you're greeted by **Captain James Morrison**, the commanding officer."
+          - ""
+          - "**Captain Morrison:** 'Welcome aboard, sailor. I'm Captain Morrison. This is a working submarine, not a tour boat. You'll learn by doing.'"
+          - ""
+          - "**Captain Morrison:** 'We run a tight ship here. You'll need to learn your way around, understand the systems, and be ready for anything. Emergencies don't wait for training to be complete.'"
+          - ""
+          - "**Captain Morrison:** 'You're currently in the **Forward Escape Trunk** area. From here, you can access the Torpedo Room forward or the Officers' Quarters aft.'"
+
+      - step_id: "assignment"
+        title: "Initial Assignment"
+        question: "What would you like to do first? (You can navigate, ask questions, or request a specific assignment)"
+        tokens_for_ai: |
+          The user can:
+          - Ask to tour the submarine
+          - Request assignment to a specific department
+          - Ask questions about submarine operations
+          - Start navigating to different sections
+          - Ask about their duties
+
+          Categorize as:
+          - 'navigation' if they want to move to a specific section or explore
+          - 'questions' if they're asking about the submarine, operations, or procedures
+          - 'assignment' if they want to be assigned to a department or station
+          - 'ready' if they say they're ready to begin or want to get started
+          - 'set_language' if changing language
+
+        feedback_tokens_for_ai: |
+          Respond as Captain Morrison. Be professional but welcoming.
+          If they want to navigate, tell them they're currently in the Forward Escape Trunk.
+          Available hatches: Forward to Torpedo Room, Aft to Officers' Quarters.
+          If they ask questions, answer them in character.
+          If they want assignment, suggest starting with a tour to learn the layout.
+
+        buckets: [navigation, questions, assignment, ready, set_language]
+
+        transitions:
+          navigation:
+            ai_feedback:
+              tokens_for_ai: |
+                As Captain Morrison, acknowledge their desire to explore.
+                Explain they should choose which section to visit first.
+                Current location: Forward Escape Trunk
+                Forward hatch → Torpedo Room
+                Aft hatch → Officers' Quarters
+            metadata_add:
+              current_section: "forward_escape_trunk"
+              submarine_depth: "150"
+              submarine_speed: "5"
+              submarine_heading: "090"
+              visited_sections: "forward_escape_trunk"
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          questions:
+            ai_feedback:
+              tokens_for_ai: |
+                As Captain Morrison, answer their questions about submarine operations.
+                Be informative but encourage them to start their tour.
+                Suggest they'll learn more by exploring.
+            metadata_add:
+              current_section: "forward_escape_trunk"
+              submarine_depth: "150"
+              submarine_speed: "5"
+              submarine_heading: "090"
+            counts_as_attempt: false
+            next_section_and_step: "welcome:assignment"
+
+          assignment:
+            ai_feedback:
+              tokens_for_ai: |
+                As Captain Morrison, tell them they'll rotate through different departments.
+                Suggest starting with a tour to learn the layout first.
+                Then they can shadow different watch stations.
+            metadata_add:
+              current_section: "forward_escape_trunk"
+              submarine_depth: "150"
+              submarine_speed: "5"
+              submarine_heading: "090"
+            next_section_and_step: "welcome:assignment"
+
+          ready:
+            content_blocks:
+              - "**Captain Morrison:** 'Good. Let's get you oriented. You're standing in the Forward Escape Trunk. This is one of two emergency escape routes on the boat.'"
+              - ""
+              - "**Captain Morrison:** 'Time to start exploring. Head forward to the Torpedo Room or aft to the Officers' Quarters. Your choice, sailor.'"
+            metadata_add:
+              current_section: "forward_escape_trunk"
+              submarine_depth: "150"
+              submarine_speed: "5"
+              submarine_heading: "090"
+              visited_sections: "forward_escape_trunk"
+              crew_morale: "100"
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "welcome:assignment"
+
+  # ============================================================================
+  # SECTION: NAVIGATION HUB - Central navigation system
+  # Each location is a step that branches to available hatches
+  # ============================================================================
+  - section_id: "navigation_hub"
+    title: "Navigate the Submarine"
+    steps:
+      # Forward Escape Trunk - Entry point
+      - step_id: "forward_escape_trunk"
+        title: "Forward Escape Trunk"
+        question: "You are in the **Forward Escape Trunk**. Where would you like to go? (Type 'forward' for Torpedo Room, 'aft' for Officers' Quarters, or 'look' to examine this area)"
+        tokens_for_ai: |
+          Current location: Forward Escape Trunk
+
+          Available actions:
+          - 'forward' or 'torpedo' → Go forward to Torpedo Room
+          - 'aft' or 'officers' → Go aft to Officers' Quarters
+          - 'look' or 'examine' → Examine the current area
+          - 'status' → Check submarine status
+          - 'crew' or 'talk' → Talk to nearby crew members
+          - Random event check (20% total chance)
+
+          Categorize as:
+          - 'torpedo_room' if going forward
+          - 'officers_quarters' if going aft
+          - 'examine' if looking around
+          - 'status' if checking submarine status
+          - 'crew' if interacting with crew
+          - 'emergency' if you randomly determine emergency (5% chance)
+          - 'daily_task' if you randomly determine daily task (15% chance)
+          - 'set_language' if changing language
+
+        feedback_tokens_for_ai: |
+          Roll for random events:
+          - 5% chance: Generate an emergency (fire, flooding, alarm)
+          - 15% chance: Generate a daily task (maintenance, inspection, drill)
+          - 80% chance: Normal operation
+
+          Describe the Forward Escape Trunk: Emergency escape module, ladder leading up to hatch,
+          emergency breathing apparatus (EBA) stations, escape suits in lockers,
+          emergency lighting, depth gauge showing current depth.
+
+          If they look/examine, describe what they see in detail.
+          If they ask for status, report depth, speed, heading from metadata.
+          If they talk to crew, introduce nearby sailors working on escape system checks.
+
+        buckets: [torpedo_room, officers_quarters, examine, status, crew, emergency, daily_task, set_language]
+
+        # Random event probabilities - can overlap (both emergency AND task can trigger)
+        random_buckets:
+          emergency:
+            probability: 0.05  # 5% chance per turn
+          daily_task:
+            probability: 0.15  # 15% chance per turn
+
+        transitions:
+          torpedo_room:
+            content_blocks:
+              - "You move forward through the watertight hatch into the Torpedo Room..."
+            metadata_add:
+              current_section: "torpedo_room"
+              visited_sections: "n+,torpedo_room"
+            next_section_and_step: "navigation_hub:torpedo_room"
+
+          officers_quarters:
+            content_blocks:
+              - "You move aft through the watertight hatch toward Officers' Country..."
+            metadata_add:
+              current_section: "officers_quarters"
+              visited_sections: "n+,officers_quarters"
+            next_section_and_step: "navigation_hub:officers_quarters"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe the Forward Escape Trunk in detail:
+                - Emergency escape sphere system
+                - Escape suits hanging in lockers
+                - Emergency breathing apparatus (EBA) stations
+                - Ladder leading up to deck hatch
+                - Watertight doors forward and aft
+                - Depth and pressure gauges
+                - Emergency lighting and instruction placards
+
+                Maybe mention a crew member performing maintenance checks.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          status:
+            ai_feedback:
+              tokens_for_ai: |
+                Report submarine status from metadata:
+                - Depth: metadata.submarine_depth feet
+                - Speed: metadata.submarine_speed knots
+                - Heading: metadata.submarine_heading degrees
+                - Condition: Normal operations (or emergency condition if active)
+                - Current location: Forward Escape Trunk
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                Introduce a crew member: **Petty Officer Rodriguez**, Escape Systems Technician.
+                He's checking the escape suits and equipment.
+                He can answer questions about emergency procedures, the escape trunk, or submarine life.
+                Be helpful and informative in character as Rodriguez.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["fire_alarm", "flooding_alarm", "collision_alarm", "reactor_scram", "depth_excursion"]
+            content_blocks:
+              - "🚨 EMERGENCY ALARM SOUNDS! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["maintenance_request", "inspection_due", "drill_announced", "watch_relief", "meal_time"]
+            ai_feedback:
+              tokens_for_ai: |
+                Generate a realistic daily task randomly:
+                - Maintenance: Something needs routine maintenance
+                - Inspection: Department needs inspection
+                - Drill: Practice drill announced (fire, flooding, abandon ship)
+                - Watch relief: Time to relieve someone on watch
+                - Meal time: Crew's mess is serving chow
+
+                Announce it naturally through 1MC (ship's announcing system) or from a crew member.
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+      # Torpedo Room - Bow of ship
+      - step_id: "torpedo_room"
+        title: "Torpedo Room"
+        question: "You are in the **Torpedo Room** (most forward compartment). What would you like to do? (Navigate, operate systems, interact with crew, or examine area)"
+        tokens_for_ai: |
+          Current location: Torpedo Room - the forward-most compartment
+
+          Available actions:
+          - 'aft' or 'escape trunk' → Go aft to Forward Escape Trunk
+          - 'torpedoes' or 'weapons' → Examine torpedo tubes and weapons
+          - 'bunks' → Visit crew berthing area in this compartment
+          - 'load' → Learn about torpedo loading procedures
+          - 'look' or 'examine' → Examine the area
+          - 'crew' or 'talk' → Talk to weapons department crew
+          - 'operate' → Operate torpedo systems (requires training)
+          - Random events (20% chance)
+
+          Categorize as:
+          - 'navigation' if moving to another section
+          - 'examine_torpedoes' if looking at weapons systems
+          - 'bunks' if visiting berthing
+          - 'loading' if learning loading procedures
+          - 'examine' if general looking around
+          - 'crew' if talking to crew
+          - 'operate' if trying to operate systems
+          - 'emergency' (5% random)
+          - 'daily_task' (15% random)
+          - 'set_language'
+
+        feedback_tokens_for_ai: |
+          Describe Torpedo Room: Four 21-inch torpedo tubes, Mk 48 ADCAP torpedoes,
+          Tomahawk cruise missiles, loading equipment, weapons control panels,
+          crew bunks stacked against bulkheads (hot-racking), weapons maintenance area,
+          smell of hydraulic fluid and metal.
+
+          Crew members: Torpedoman's Mates working on maintenance, Chief Petty Officer supervising.
+
+          If they try to operate torpedoes without training/authorization, gently deny but explain.
+          Roll for random events as specified.
+
+        buckets: [navigation, examine_torpedoes, bunks, loading, examine, crew, operate, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          navigation:
+            ai_feedback:
+              tokens_for_ai: |
+                Ask where they want to go. From Torpedo Room, they can only go aft to Forward Escape Trunk.
+                Remind them hatches only connect to adjacent compartments.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          examine_torpedoes:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe the torpedo tubes and weapons in detail:
+                - Four 21-inch diameter torpedo tubes
+                - Mk 48 ADCAP (Advanced Capability) torpedoes - heavy wire-guided torpedoes
+                - UGM-84 Harpoon anti-ship missiles
+                - Tomahawk Block IV cruise missiles in vertical launch system
+                - Torpedo loading and handling equipment
+                - Weapons control panels with targeting systems
+                - Safety interlocks and arming mechanisms
+
+                Maybe have a Torpedoman's Mate explain something interesting.
+            counts_as_attempt: false
+            next_section_and_step: "torpedo_room_activities:weapons_training"
+
+          bunks:
+            content_blocks:
+              - "You move to the berthing area in the torpedo room where off-watch crew sleep..."
+            next_section_and_step: "torpedo_room_activities:berthing_area"
+
+          loading:
+            content_blocks:
+              - "Chief Torpedoman approaches to teach you about loading procedures..."
+            next_section_and_step: "torpedo_room_activities:loading_procedure"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe the entire Torpedo Room in vivid detail:
+                - Forward bulkhead with four large torpedo tube doors
+                - Weapons racks holding additional torpedoes and missiles
+                - Torpedo loading rails and handling equipment on overhead
+                - Crew bunks stacked three-high against starboard bulkhead
+                - Small personal lockers under bunks
+                - Weapons control station with targeting computer
+                - Chief's small desk area with paperwork
+                - Red lighting for night operations
+                - Faint hum of ventilation, smell of oil and metal
+
+                Include 1-2 crew members doing activities.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:torpedo_room"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                Introduce crew members in Torpedo Room:
+                - **Chief Petty Officer Williams** - Weapons Department Chief, gruff but knowledgeable
+                - **TM2 (Torpedoman's Mate 2nd Class) Jackson** - Young enthusiastic technician
+                - **TM3 Santos** - Working on torpedo maintenance
+
+                Let user choose who to talk to, or pick one randomly.
+                Each has unique personality and knowledge about weapons, torpedo room, submarine life.
+            counts_as_attempt: false
+            next_section_and_step: "torpedo_room_activities:crew_interaction"
+
+          operate:
+            ai_feedback:
+              tokens_for_ai: |
+                User wants to operate torpedo systems. This requires training and authorization.
+                Have Chief Williams intervene kindly: "Whoa there, sailor! Can't just fire up the weapons systems
+                without proper qualifications and authorization from the Captain. But I can show you
+                how they work if you're interested in qualifying for weapons watch."
+
+                Offer to teach them the basics or give a demonstration.
+            next_section_and_step: "torpedo_room_activities:weapons_training"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["fire_torpedo_room", "flooding_forward", "torpedo_hot_run", "weapons_malfunction"]
+            content_blocks:
+              - "🚨 EMERGENCY IN TORPEDO ROOM! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["torpedo_inspection", "tube_maintenance", "weapons_inventory", "berthing_cleanup"]
+            ai_feedback:
+              tokens_for_ai: |
+                Generate a task in the Torpedo Room:
+                - Daily torpedo inspection
+                - Tube breech maintenance
+                - Weapons inventory count
+                - Berthing area cleanup and inspection
+
+                Announce from Chief Williams or over 1MC.
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:torpedo_room"
+
+      # Officers' Quarters
+      - step_id: "officers_quarters"
+        title: "Officers' Quarters (Officers' Country)"
+        question: "You are in **Officers' Country**. What would you like to do?"
+        tokens_for_ai: |
+          Current location: Officers' Quarters (Officers' Country)
+
+          This area includes:
+          - Captain's stateroom
+          - Executive Officer's stateroom
+          - Department head staterooms
+          - Wardroom (officers' dining area)
+
+          Available actions:
+          - 'forward' → Forward Escape Trunk
+          - 'aft' → Control Room
+          - 'wardroom' → Enter wardroom
+          - 'captain' → Request to see Captain (if they have business)
+          - 'look' → Examine area
+          - 'crew' → Interact with officers
+
+          Categorize appropriately including random events.
+
+        feedback_tokens_for_ai: |
+          Describe Officers' Country: More spacious than enlisted areas, wood-grain laminate walls,
+          carpet on deck, stateroom doors with nameplates, wardroom with table,
+          coffee maker always on, bulletin boards with notices, smell of coffee.
+
+          Officers are busy but may chat briefly. Maintain military courtesy.
+          Random events as applicable.
+
+        buckets: [forward, aft, wardroom, captain, examine, crew, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          forward:
+            content_blocks:
+              - "You head forward through the hatch to the Forward Escape Trunk..."
+            metadata_add:
+              current_section: "forward_escape_trunk"
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          aft:
+            content_blocks:
+              - "You proceed aft through the hatch into the Control Room..."
+            metadata_add:
+              current_section: "control_room"
+              visited_sections: "n+,control_room"
+            next_section_and_step: "navigation_hub:control_room"
+
+          wardroom:
+            content_blocks:
+              - "You enter the Wardroom where officers take meals and hold meetings..."
+            next_section_and_step: "officers_activities:wardroom"
+
+          captain:
+            ai_feedback:
+              tokens_for_ai: |
+                Captain Morrison is in his stateroom doing paperwork.
+                Ask the user what they need to discuss with the Captain.
+                The Captain is busy but will make time for legitimate business or training questions.
+            next_section_and_step: "officers_activities:captain_meeting"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Officers' Country in detail: stateroom doors with brass nameplates,
+                Captain Morrison, XO Commander Hayes, Engineer Lieutenant Commander Park,
+                Weapons Officer Lieutenant Chen, Navigator Lieutenant Reed.
+
+                Wardroom door, nicer finishes than rest of boat, photos of previous commanders,
+                ship's bell replica, patrol plaques, boat's crest on bulkhead.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:officers_quarters"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                You might encounter officers:
+                - **Lieutenant Chen** - Weapons Officer, heading to Control Room
+                - **Lieutenant Reed** - Navigator, reviewing charts
+                - **Ensign Parker** - Newest officer, friendly and approachable
+
+                They can answer questions about their departments or life as a submarine officer.
+            counts_as_attempt: false
+            next_section_and_step: "officers_activities:officer_interaction"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["fire_alarm", "flooding_alarm", "general_quarters"]
+            content_blocks:
+              - "🚨 ALARM! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["officers_meeting", "briefing", "inspection"]
+            ai_feedback:
+              tokens_for_ai: "Generate an officers-related task or event."
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:officers_quarters"
+
+      # Control Room - The heart of the submarine
+      - step_id: "control_room"
+        title: "Control Room"
+        question: "You are in the **Control Room** - the nerve center of the submarine. What would you like to do?"
+        tokens_for_ai: |
+          Current location: Control Room
+
+          This is the most important space on the submarine. Contains:
+          - Conn (conning station) - elevated platform for Officer of the Deck
+          - Helm and Dive stations
+          - Navigation plotting table
+          - Periscope stands (2)
+          - Fire control systems
+          - Ship control panels
+          - Ballast control panel
+
+          Available actions:
+          - 'forward' → Officers' Quarters
+          - 'aft' → Sonar Room
+          - 'conn' → Observe the conn
+          - 'helm' → Watch helm operations
+          - 'periscope' → Look at periscope
+          - 'navigation' → Visit navigation table
+          - 'look' → Examine the control room
+          - 'crew' → Talk to watch standers
+          - 'operate' → Request to operate a station
+
+          Categorize appropriately.
+
+        feedback_tokens_for_ai: |
+          Describe the Control Room: The busiest, most critical space on the boat.
+          Officer of the Deck on the conn, Helm and Dive watching gauges intently,
+          Navigation team plotting position, sonar reports coming in,
+          faint hum of electronics, tense professional atmosphere,
+          red lighting, depth and speed displays, ship's status boards.
+
+          Current watch standers:
+          - **Lieutenant Reed** - Officer of the Deck (OOD) on the conn
+          - **Quartermaster Chen** - Navigation
+          - **ST2 Kowalski** - Helm
+          - **ST3 Miller** - Dive
+          - **Chief of the Watch** - Ballast Control Panel
+
+          This is a working space - user can observe but needs permission/training to operate.
+
+        buckets: [forward, aft, conn, helm, periscope, navigation, examine, crew, operate, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          forward:
+            content_blocks:
+              - "You exit the Control Room forward to Officers' Country..."
+            metadata_add:
+              current_section: "officers_quarters"
+            next_section_and_step: "navigation_hub:officers_quarters"
+
+          aft:
+            content_blocks:
+              - "You move aft through the hatch into the Sonar Room..."
+            metadata_add:
+              current_section: "sonar_room"
+              visited_sections: "n+,sonar_room"
+            next_section_and_step: "navigation_hub:sonar_room"
+
+          conn:
+            content_blocks:
+              - "You approach the conn where Lieutenant Reed is standing watch as Officer of the Deck..."
+            next_section_and_step: "control_room_activities:observe_conn"
+
+          helm:
+            content_blocks:
+              - "You move to the helm and dive stations where ST2 Kowalski and ST3 Miller are controlling the ship..."
+            next_section_and_step: "control_room_activities:helm_dive"
+
+          periscope:
+            content_blocks:
+              - "You approach the periscope stands. The scopes are currently retracted since you're at 150 feet depth..."
+            next_section_and_step: "control_room_activities:periscope"
+
+          navigation:
+            content_blocks:
+              - "You approach the navigation plotting table where Quartermaster Chen is working..."
+            next_section_and_step: "control_room_activities:navigation_table"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe the Control Room in exceptional detail:
+                - The conn: elevated platform with Officer of Deck standing watch
+                - Helm station: steering controls, ship's wheel (yoke), rudder angle indicator
+                - Dive station: planes controls (bow and stern planes), depth gauge, angle indicator
+                - Navigation table: charts spread out, parallel rulers, dividers, position plotted
+                - Two periscope stands: #1 search scope, #2 attack scope (currently retracted)
+                - Fire control consoles: targeting computers, weapons systems displays
+                - Ballast control panel: tank level indicators, pump controls, trim controls
+                - Ship status boards: showing condition, depth, speed, heading
+                - Communication panels: intercom, 1MC, sound-powered phones
+                - Red lighting, constant reports being made, professional watch-standing atmosphere
+
+                Include ambient sounds: sonar pings, ventilation hum, quiet reports.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:control_room"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                Watch standers in Control Room:
+                - **Lieutenant Reed** (OOD) - In charge of the watch, can answer tactical questions
+                - **Quartermaster Chen** - Navigation expert, friendly and willing to teach
+                - **ST2 Kowalski** (Helm) - Focused on steering, brief answers
+                - **ST3 Miller** (Dive) - Maintaining depth, can explain depth control
+                - **Chief of the Watch** - Senior enlisted, knows everything about ship systems
+
+                Let user choose who to approach or talk to the OOD who coordinates.
+            counts_as_attempt: false
+            next_section_and_step: "control_room_activities:crew_interaction"
+
+          operate:
+            ai_feedback:
+              tokens_for_ai: |
+                User wants to operate Control Room systems. This requires qualifications.
+                Have Lieutenant Reed (OOD) respond: "These are critical ship control systems.
+                You need to be qualified before you can touch anything here. But I can let you
+                observe and explain what we're doing. Want to shadow the helm or dive for a bit?"
+
+                Offer observation and learning opportunity.
+            next_section_and_step: "control_room_activities:operations_training"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["fire_control_room", "flooding_detected", "loss_of_depth_control", "collision_alarm", "periscope_jam"]
+            content_blocks:
+              - "🚨 CONTROL ROOM EMERGENCY! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["watch_relief", "navigation_fix", "drill_announced", "periscope_depth_ordered"]
+            ai_feedback:
+              tokens_for_ai: "Generate Control Room task or evolution."
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:control_room"
+
+      # Sonar Room
+      - step_id: "sonar_room"
+        title: "Sonar Room"
+        question: "You are in the **Sonar Room**. What would you like to do?"
+        tokens_for_ai: |
+          Current location: Sonar Room
+
+          Contains:
+          - Passive sonar displays (listening for contacts)
+          - Active sonar controls (pinging - rarely used)
+          - Sonar Technicians wearing headphones
+          - Waterfall displays showing acoustic spectrum
+          - Contact tracking computers
+          - Very quiet environment (sonar techs need to hear faint contacts)
+
+          Available actions:
+          - 'forward' → Control Room
+          - 'aft' → Crew's Mess
+          - 'listen' → Listen to sonar
+          - 'displays' → Examine sonar displays
+          - 'contacts' → Ask about current contacts
+          - 'look' → Examine the room
+          - 'crew' → Talk to sonar techs (quietly)
+
+          Categorize appropriately. Note: This is a quiet space, loud users may be shushed.
+
+        feedback_tokens_for_ai: |
+          Describe Sonar Room: Dark, quiet space. Sonar Techs (STs) wear headphones,
+          watching cascading waterfall displays showing sound frequencies.
+          Green and amber screens casting glow on focused faces.
+          Very quiet - speaking in whispers. Sonar is the submarine's primary sense.
+
+          Current watch:
+          - **STS1 (Sonar Tech Supervisor) Rodriguez** - Senior sonarman, incredible ears
+          - **ST2 Kim** - Passive sonar, tracking merchant traffic
+          - **ST3 Davis** - Broadband analysis
+
+          If user is loud, they'll be politely asked to whisper.
+          Sonar is tracking several contacts: merchant ships, biologics (whales), possibly another submarine.
+
+        buckets: [forward, aft, listen, displays, contacts, examine, crew, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          forward:
+            content_blocks:
+              - "You quietly exit the Sonar Room forward to the Control Room..."
+            metadata_add:
+              current_section: "control_room"
+            next_section_and_step: "navigation_hub:control_room"
+
+          aft:
+            content_blocks:
+              - "You move aft through the hatch toward the Crew's Mess..."
+            metadata_add:
+              current_section: "crews_mess"
+              visited_sections: "n+,crews_mess"
+            next_section_and_step: "navigation_hub:crews_mess"
+
+          listen:
+            content_blocks:
+              - "STS1 Rodriguez hands you a spare set of headphones..."
+            next_section_and_step: "sonar_activities:listen_sonar"
+
+          displays:
+            content_blocks:
+              - "You examine the sonar waterfall displays showing acoustic data..."
+            next_section_and_step: "sonar_activities:examine_displays"
+
+          contacts:
+            ai_feedback:
+              tokens_for_ai: |
+                STS1 Rodriguez quietly briefs current contacts:
+                - **Sierra-1**: Merchant vessel, bearing 045, range ~20 nautical miles, heading south
+                - **Sierra-2**: Fishing trawler, bearing 120, range ~8 nautical miles
+                - **Biological**: Whale pod, bearing 270, range ~5 nautical miles (beautiful songs)
+                - **Possible submarine contact**: Faint signature bearing 180, range unknown, being tracked
+
+                Explain how passive sonar works - listening without giving away position.
+            counts_as_attempt: false
+            next_section_and_step: "sonar_activities:contact_tracking"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Sonar Room in detail:
+                - Dark compartment, lit only by green/amber sonar displays
+                - Three sonar consoles with waterfall displays showing frequency vs time
+                - Sonar Techs wearing headphones, intensely focused
+                - Contact tracking boards with grease pencil notations
+                - Sonar equipment racks humming softly
+                - Towed array controls
+                - Sphere array indicators
+                - Very quiet - speaking in whispers only
+                - Smells like electronics and coffee
+
+                This is where the submarine "sees" through sound.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:sonar_room"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                Sonar Techs (speak quietly):
+                - **STS1 Rodriguez** - Legendary ears, 15 years in sonar, can identify ships by sound signature
+                - **ST2 Kim** - Specialist in passive tracking, patient teacher
+                - **ST3 Davis** - Newest to sonar, enthusiastic about the tech
+
+                They can explain sonar, talk about interesting contacts they've tracked,
+                discuss submarine acoustics. Very passionate about their work.
+            counts_as_attempt: false
+            next_section_and_step: "sonar_activities:crew_interaction"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["torpedo_in_water", "close_contact", "collision_alarm", "sonar_equipment_failure"]
+            content_blocks:
+              - "🚨 SONAR EMERGENCY! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["sonar_calibration", "contact_report", "training_drill", "equipment_maintenance"]
+            ai_feedback:
+              tokens_for_ai: "Generate sonar-related task."
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:sonar_room"
+
+      # Crew's Mess
+      - step_id: "crews_mess"
+        title: "Crew's Mess"
+        question: "You are in the **Crew's Mess** - the dining hall and social hub. What would you like to do?"
+        tokens_for_ai: |
+          Current location: Crew's Mess
+
+          The social heart of the boat. Contains:
+          - Dining tables that seat 24 at a time (crew eats in shifts)
+          - Galley (kitchen) adjacent
+          - Coffee station (always on, submarine runs on coffee)
+          - Soft-serve ice cream machine
+          - Movie nights when off-duty
+          - Bulletin boards with Plan of the Day, events
+          - Crew recreation area
+
+          Available actions:
+          - 'forward' → Sonar Room
+          - 'aft' → Crew Berthing
+          - 'eat' or 'food' → Get food from galley
+          - 'coffee' → Get coffee
+          - 'ice cream' → Get ice cream
+          - 'talk' → Talk to crew eating meals
+          - 'galley' → Visit the kitchen/talk to cooks
+          - 'look' → Examine the area
+          - 'games' → Recreational activities
+
+          Categorize appropriately.
+
+        feedback_tokens_for_ai: |
+          Describe Crew's Mess: Warm, social atmosphere. Smell of cooking food.
+          Tables bolted to deck. Crew in coveralls eating, talking, laughing.
+          Coffee pot always brewing. Soft-serve ice cream machine (pride of the boat).
+          Movie playing on TV for off-watch crew. Bulletin board with Plan of the Day.
+          Most relaxed atmosphere on the boat.
+
+          Crew members here are off-watch, more talkative and friendly.
+          Cooks (Culinary Specialists) in galley preparing next meal.
+
+          Current time affects meal being served (breakfast/lunch/dinner/midrats).
+
+        buckets: [forward, aft, eat, coffee, ice_cream, talk, galley, examine, games, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          forward:
+            content_blocks:
+              - "You head forward through the hatch back to the Sonar Room..."
+            metadata_add:
+              current_section: "sonar_room"
+            next_section_and_step: "navigation_hub:sonar_room"
+
+          aft:
+            content_blocks:
+              - "You move aft to the Crew Berthing area..."
+            metadata_add:
+              current_section: "crew_berthing"
+              visited_sections: "n+,crew_berthing"
+            next_section_and_step: "navigation_hub:crew_berthing"
+
+          eat:
+            ai_feedback:
+              tokens_for_ai: |
+                Determine what meal it is (breakfast, lunch, dinner, or midrats - midnight rations).
+                Describe what's being served. Submarine food is actually quite good - best in the Navy.
+                Cooks take pride in feeding the crew well.
+
+                Sample meals:
+                - Breakfast: Eggs, bacon, pancakes, fresh fruit, cereal
+                - Lunch: Burgers, fries, salad bar, soup
+                - Dinner: Steak, baked potato, vegetables, rolls, dessert
+                - Midrats: Leftovers, sandwiches, soup
+
+                User gets a tray and can sit with crew.
+            next_section_and_step: "mess_activities:eating"
+
+          coffee:
+            ai_feedback:
+              tokens_for_ai: |
+                Submarine coffee is legendary - strong and always available.
+                "Submarine coffee: strong enough to stand a spoon in, because submariners
+                run on caffeine and stubbornness."
+
+                User pours a cup. Maybe a crew member makes a joke about the coffee.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:crews_mess"
+
+          ice_cream:
+            ai_feedback:
+              tokens_for_ai: |
+                The soft-serve ice cream machine is the most beloved piece of equipment on the boat.
+                Vanilla and chocolate. Crew can have ice cream anytime.
+                Someone probably makes a joke: "Best recruiting tool the Navy has."
+
+                User gets ice cream. It's actually really good.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:crews_mess"
+
+          talk:
+            ai_feedback:
+              tokens_for_ai: |
+                Various crew members are eating and relaxing:
+                - **EM2 (Electrician's Mate) Johnson** - Telling sea stories
+                - **FT3 (Fire Control Technician) Martinez** - Reading a book
+                - **Yeoman Smith** - Doing paperwork while eating
+                - **MM1 (Machinist's Mate) O'Brien** - Just off watch from Engine Room
+
+                They're friendly and willing to chat about submarine life, their jobs,
+                ports they've visited, funny stories, etc.
+            counts_as_attempt: false
+            next_section_and_step: "mess_activities:crew_interaction"
+
+          galley:
+            content_blocks:
+              - "You peek into the galley where the Culinary Specialists are working..."
+            next_section_and_step: "mess_activities:galley_visit"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Crew's Mess in detail:
+                - Four tables, each seats 6, bolted to deck
+                - Bench seating with cushions
+                - Serving line from galley
+                - Coffee station: two large pots, creamer, sugar
+                - Soft-serve ice cream machine (crew's favorite)
+                - TV mounted on bulkhead playing movie
+                - Bulletin board: Plan of the Day, upcoming port visits, patrol milestones
+                - Overhead storage for trays and utensils
+                - Smell of food cooking, coffee brewing
+                - Warm lighting, comfortable temperature
+                - Crew in various uniforms, relaxed and talking
+
+                Most human, homey space on the boat.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:crews_mess"
+
+          games:
+            ai_feedback:
+              tokens_for_ai: |
+                Off-duty crew recreation:
+                - Card games (cribbage is popular)
+                - Board games stored in lockers
+                - Movie nights
+                - Reading books from ship's library
+                - Some bring handheld gaming devices
+
+                Maybe someone invites user to join a game of cards or watch the movie.
+            counts_as_attempt: false
+            next_section_and_step: "mess_activities:recreation"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["fire_galley", "flooding_mess", "general_quarters"]
+            content_blocks:
+              - "🚨 EMERGENCY! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["meal_time", "mess_cleanup", "movie_night", "birthday_cake"]
+            ai_feedback:
+              tokens_for_ai: "Generate mess-related activity or event."
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:crews_mess"
+
+      # Crew Berthing
+      - step_id: "crew_berthing"
+        title: "Crew Berthing"
+        question: "You are in **Crew Berthing** - where the enlisted crew sleeps. What would you like to do?"
+        tokens_for_ai: |
+          Current location: Crew Berthing
+
+          Sleeping area for enlisted crew. Contains:
+          - Stacked bunks (racks) three high
+          - Hot-racking (multiple people share same bunk on different watch schedules)
+          - Small personal lockers
+          - Curtains for privacy
+          - Very cramped
+          - Quiet hours respected
+
+          Available actions:
+          - 'forward' → Crew's Mess
+          - 'aft' → Missile Compartment (on an SSBN) or Engine Room area
+          - 'bunk' → Look at the bunks
+          - 'locker' → Personal storage
+          - 'look' → Examine area
+          - 'crew' → Talk to off-watch crew (quietly)
+
+          Categorize appropriately. Respect quiet time if people are sleeping.
+
+        feedback_tokens_for_ai: |
+          Describe Crew Berthing: Cramped space with bunks stacked three high along both bulkheads.
+          Each bunk has curtain for privacy, small reading light, personal ventilation fan.
+          Lockers barely big enough for a seabag. Off-watch crew sleeping.
+          Quiet - speak in whispers. Some crew reading in bunks, some sleeping.
+
+          Hot-racking: Due to limited space, some bunks are shared by crew on opposite watch schedules.
+          When one person goes on watch, the other uses the bunk.
+
+          If people are sleeping, user should be quiet and respectful.
+
+        buckets: [forward, aft, bunks, locker, examine, crew, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          forward:
+            content_blocks:
+              - "You quietly exit berthing and head forward to the Crew's Mess..."
+            metadata_add:
+              current_section: "crews_mess"
+            next_section_and_step: "navigation_hub:crews_mess"
+
+          aft:
+            content_blocks:
+              - "You move aft through the hatch toward the Missile Compartment..."
+            metadata_add:
+              current_section: "missile_compartment"
+              visited_sections: "n+,missile_compartment"
+            next_section_and_step: "navigation_hub:missile_compartment"
+
+          bunks:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe the bunks (racks) in detail:
+                - Stacked three high, coffin-like
+                - About 6 feet long, 2.5 feet wide
+                - Thin mattress, sheets, blanket, pillow
+                - Curtain for privacy
+                - Reading light clipped inside
+                - Small shelf for personal items, books, photos
+                - Just enough room to lie down, roll over carefully
+
+                Some crew make their racks homey: photos of family, favorite books, small decorations.
+                This is their only personal space on the boat.
+            counts_as_attempt: false
+            next_section_and_step: "berthing_activities:examine_bunks"
+
+          locker:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe personal lockers: Narrow upright lockers, barely 1 foot wide.
+                Contents for a 90-day patrol must fit inside:
+                - Uniforms
+                - Toiletries
+                - Personal items
+                - Books, letters from home
+                - Small mementos
+
+                Crew must pack light and efficiently. Submariners become minimalists.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:crew_berthing"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Crew Berthing thoroughly:
+                - Rows of triple-stacked bunks along both sides
+                - Narrow walkway down the middle
+                - Dim lighting (some crew sleeping)
+                - Quiet hum of ventilation
+                - Smell of laundry, aftershave, human habitation
+                - Curtains drawn on most bunks (privacy and light control)
+                - A few crew reading in their racks with small lights
+                - Personal touches: photos taped up, favorite books, letters from home
+                - Very clean despite cramped conditions
+                - Lockers at end of each bunk row
+
+                This is home for 90-day patrols. Crew adapt and make it work.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:crew_berthing"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                A few off-watch crew are awake:
+                - **IC3 (Interior Communications) Blake** - Reading in his rack
+                - **STS2 Harris** - Just woke up from sleep period
+                - **CS2 (Culinary Specialist) Thompson** - Writing a letter
+
+                They're quiet, respectful of sleeping shipmates. Will whisper if user wants to chat.
+                Can talk about submarine life, hot-racking, what it's like living in tight quarters.
+            counts_as_attempt: false
+            next_section_and_step: "berthing_activities:crew_interaction"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["fire_berthing", "flooding", "general_quarters"]
+            content_blocks:
+              - "🚨 EMERGENCY! Sleeping crew rapidly scrambles out of racks! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["berthing_cleanup", "rack_inspection", "laundry_day", "watch_relief_soon"]
+            ai_feedback:
+              tokens_for_ai: "Generate berthing-related task."
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:crew_berthing"
+
+      # Missile Compartment (ICBM Silos)
+      - step_id: "missile_compartment"
+        title: "Missile Compartment"
+        question: "You are in the **Missile Compartment** - the most secure and powerful area of the submarine. What would you like to do?"
+        tokens_for_ai: |
+          Current location: Missile Compartment
+
+          This compartment contains:
+          - 12 vertical launch tubes for Trident II D5 submarine-launched ballistic missiles (SLBMs)
+          - Each missile carries multiple nuclear warheads
+          - Launch control center
+          - Extremely secure area - two-person integrity for all operations
+          - Missile Technicians (MTs) maintain weapons
+          - This is the strategic deterrent mission
+
+          Available actions:
+          - 'forward' → Crew Berthing
+          - 'aft' → Reactor Compartment (restricted access)
+          - 'missiles' → Examine the missile tubes
+          - 'launch_control' → Visit launch control center
+          - 'look' → Examine the compartment
+          - 'crew' → Talk to Missile Techs
+          - 'operate' → Request to learn launch procedures (highly restricted)
+
+          Categorize appropriately. This is the most sensitive area.
+
+        feedback_tokens_for_ai: |
+          Describe Missile Compartment: Cathedral-like space. 12 massive vertical tubes
+          rising from deck to overhead, each containing a Trident II D5 missile.
+          Tubes painted in subdued colors, numbered 1-12. Upper level catwalk between tubes.
+          Launch control center with authentication safes, targeting computers, launch panels.
+
+          Very serious atmosphere. Two-person integrity rule: No one person ever alone
+          with launch systems. All critical operations require two qualified personnel.
+
+          Missile Technicians maintain these weapons. Highest security clearances.
+
+          **Important**: These are nuclear weapons. Extremely serious business.
+          Explain the deterrent mission: "Peace through strength."
+
+          Current watch:
+          - **MT1 (Missile Technician) Reynolds** - Launch Control Supervisor
+          - **MT2 Washington** - Missile maintenance
+          - **Marine Security Guard** - Armed, ensuring security
+
+        buckets: [forward, aft, missiles, launch_control, examine, crew, operate, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          forward:
+            content_blocks:
+              - "You exit the Missile Compartment forward..."
+            metadata_add:
+              current_section: "crew_berthing"
+            next_section_and_step: "navigation_hub:crew_berthing"
+
+          aft:
+            ai_feedback:
+              tokens_for_ai: |
+                The aft hatch leads to the Reactor Compartment. This is a restricted area.
+                A sign reads: "REACTOR COMPARTMENT - AUTHORIZED PERSONNEL ONLY - RADIATION HAZARD"
+
+                User needs authorization from the Engineer to enter. Suggest they request permission
+                or continue exploring other areas first.
+            counts_as_attempt: false
+            next_section_and_step: "missile_activities:request_reactor_access"
+
+          missiles:
+            content_blocks:
+              - "You examine the massive vertical launch tubes..."
+            next_section_and_step: "missile_activities:examine_missiles"
+
+          launch_control:
+            content_blocks:
+              - "You approach the Launch Control Center. MT1 Reynolds watches you approach..."
+            next_section_and_step: "missile_activities:launch_control_center"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Missile Compartment in impressive detail:
+                - Huge compartment, tallest space on the boat
+                - 12 vertical launch tubes, each about 7 feet in diameter
+                - Tubes extend from lower level through upper level to hull
+                - Upper level: Catwalk running between tubes for maintenance access
+                - Lower level: Launch control center, maintenance areas
+                - Tubes numbered 1-12, painted in Navy gray and subdued colors
+                - Launch control panels with dual key switches
+                - Authentication safe (contains Emergency Action Message codes)
+                - Targeting computer systems
+                - Environmental controls for missile readiness
+                - Very clean, sterile atmosphere
+                - Subdued lighting, serious quiet
+                - Marine Security Guard at station
+
+                This is the deterrent. The mission that prevents nuclear war.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:missile_compartment"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                Missile Technicians are the most scrutinized crew:
+                - **MT1 Reynolds** - Senior launch supervisor, calm professional demeanor
+                - **MT2 Washington** - Missile maintenance expert, takes pride in perfect readiness
+                - **Marine Security Guard Corporal Davies** - Armed, ensures security
+
+                They can discuss (within limits):
+                - The deterrent mission
+                - Missile maintenance (non-classified aspects)
+                - Two-person integrity procedures
+                - What it means to be trusted with these weapons
+
+                They will NOT discuss classified capabilities or targeting.
+            counts_as_attempt: false
+            next_section_and_step: "missile_activities:crew_interaction"
+
+          operate:
+            ai_feedback:
+              tokens_for_ai: |
+                User wants to learn about launch procedures. This is highly sensitive.
+
+                MT1 Reynolds responds seriously: "These are nuclear weapons. Launch procedures
+                are classified and require Presidential authorization through Emergency Action Messages.
+                No one can launch without proper authentication from the National Command Authority.
+
+                I can explain the concept of two-person integrity and the security measures,
+                but actual launch procedures are classified Secret/Restricted Data."
+
+                Offer to explain the safeguards and philosophy instead.
+            next_section_and_step: "missile_activities:launch_procedures_education"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["emergency_action_message_drill", "missile_tube_alarm", "security_drill"]
+            content_blocks:
+              - "🚨 MISSILE COMPARTMENT EMERGENCY! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["missile_inspection", "authentication_drill", "security_patrol", "maintenance_check"]
+            ai_feedback:
+              tokens_for_ai: "Generate missile compartment task."
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:missile_compartment"
+
+      # Reactor Compartment
+      - step_id: "reactor_compartment"
+        title: "Reactor Compartment"
+        question: "You are in the **Reactor Compartment** - the power heart of the submarine. What would you like to do?"
+        tokens_for_ai: |
+          Current location: Reactor Compartment
+
+          Contains:
+          - S9G nuclear reactor
+          - Primary coolant loop
+          - Steam generators
+          - Radiation shielding
+          - Reactor control systems
+          - Only qualified nuclear-trained personnel allowed
+
+          This is a restricted area. User must have been granted access.
+
+          Available actions:
+          - 'forward' → Missile Compartment
+          - 'aft' → Engine Room
+          - 'reactor' → Observe the reactor (from shielded area)
+          - 'steam' → Learn about steam generation
+          - 'look' → Examine the compartment
+          - 'crew' → Talk to reactor operators
+
+          Categorize appropriately.
+
+        feedback_tokens_for_ai: |
+          Describe Reactor Compartment: Hot, humid from steam systems. Large cylindrical
+          reactor vessel surrounded by biological shielding. Primary coolant pumps humming.
+          Steam generators producing steam for propulsion. Radiation monitoring stations.
+          Very serious, professional atmosphere. Nuclear-trained crew (nukes) operate here.
+
+          The S9G reactor provides unlimited power for propulsion and electricity.
+          It's why the submarine can stay submerged for months.
+
+          Crew:
+          - **Reactor Operator** - Monitoring reactor parameters
+          - **Reactor Technician** - Performing checks
+
+          Safety is paramount. Multiple redundant safety systems.
+
+        buckets: [forward, aft, reactor, steam, examine, crew, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          forward:
+            content_blocks:
+              - "You exit the Reactor Compartment forward..."
+            metadata_add:
+              current_section: "missile_compartment"
+            next_section_and_step: "navigation_hub:missile_compartment"
+
+          aft:
+            content_blocks:
+              - "You move aft to the Engine Room..."
+            metadata_add:
+              current_section: "engine_room"
+              visited_sections: "n+,engine_room"
+            next_section_and_step: "navigation_hub:engine_room"
+
+          reactor:
+            content_blocks:
+              - "You approach the shielded viewing area to observe the reactor systems..."
+            next_section_and_step: "reactor_activities:observe_reactor"
+
+          steam:
+            content_blocks:
+              - "You learn about the steam generation process that powers the submarine..."
+            next_section_and_step: "reactor_activities:steam_systems"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Reactor Compartment (non-classified aspects):
+                - Large cylindrical reactor pressure vessel
+                - Thick biological shielding (lead and steel)
+                - Primary coolant pumps circulating water through reactor
+                - Steam generators: heat exchangers creating steam from reactor heat
+                - Radiation monitoring stations throughout
+                - Temperature and pressure gauges
+                - Control rod mechanisms
+                - Hot and humid atmosphere from steam systems
+                - Constant hum of pumps and ventilation
+
+                This reactor has enough fuel for 30+ years of operation.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:reactor_compartment"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                Nuclear-trained crew ("nukes") are highly educated:
+                - **ELT1 (Electronics Technician Nuclear) Anderson** - Reactor monitoring
+                - **EM1 (Electrician's Mate Nuclear) Foster** - Electrical systems
+                - **MM1 (Machinist's Mate Nuclear) Chen** - Mechanical systems
+
+                They went through rigorous nuclear training. Can discuss reactor principles,
+                safety systems, propulsion, but not classified information.
+            counts_as_attempt: false
+            next_section_and_step: "reactor_activities:crew_interaction"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["reactor_scram", "coolant_leak", "radiation_alarm", "loss_of_cooling"]
+            content_blocks:
+              - "🚨 REACTOR COMPARTMENT EMERGENCY! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["reactor_surveillance", "radiation_survey", "maintenance_evolution", "drill"]
+            ai_feedback:
+              tokens_for_ai: "Generate reactor-related task."
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:reactor_compartment"
+
+      # Engine Room
+      - step_id: "engine_room"
+        title: "Engine Room"
+        question: "You are in the **Engine Room** - where steam becomes motion. What would you like to do?"
+        tokens_for_ai: |
+          Current location: Engine Room
+
+          Contains:
+          - Main steam turbines
+          - Reduction gears
+          - Propulsion shaft
+          - Condensers
+          - Feed pumps
+          - Very loud environment (hearing protection required)
+
+          Available actions:
+          - 'forward' → Reactor Compartment
+          - 'aft' → Maneuvering Room
+          - 'turbines' → Examine steam turbines
+          - 'shaft' → Look at propulsion shaft
+          - 'look' → Examine the compartment
+          - 'crew' → Talk to machinists (loudly, or in quiet area)
+
+          Categorize appropriately.
+
+        feedback_tokens_for_ai: |
+          Describe Engine Room: LOUD! Hearing protection mandatory. Main steam turbines
+          spinning at high RPM, reduction gears stepping down to propeller shaft speed.
+          Hot from steam systems. Machinists Mates monitoring gauges, taking logs.
+          Smell of oil, steam, metal. Vibration from rotating machinery.
+
+          The steam from the reactor spins these turbines, which turn the propeller.
+          This is how nuclear energy becomes submarine motion.
+
+          Crew uses hand signals due to noise. Quiet booth for communication.
+
+        buckets: [forward, aft, turbines, shaft, examine, crew, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          forward:
+            content_blocks:
+              - "You head forward to the Reactor Compartment, removing hearing protection..."
+            metadata_add:
+              current_section: "reactor_compartment"
+            next_section_and_step: "navigation_hub:reactor_compartment"
+
+          aft:
+            content_blocks:
+              - "You move aft to Maneuvering Room, stepping out of the noise..."
+            metadata_add:
+              current_section: "maneuvering_room"
+              visited_sections: "n+,maneuvering_room"
+            next_section_and_step: "navigation_hub:maneuvering_room"
+
+          turbines:
+            content_blocks:
+              - "You observe the massive steam turbines spinning powerfully..."
+            next_section_and_step: "engine_room_activities:turbines"
+
+          shaft:
+            content_blocks:
+              - "You follow the reduction gears to the main propulsion shaft..."
+            next_section_and_step: "engine_room_activities:propulsion_shaft"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Engine Room:
+                - VERY LOUD - hearing protection absolutely required
+                - Main steam turbines: massive machinery spinning at thousands of RPM
+                - Reduction gears: stepping down turbine speed to propeller speed
+                - Main propulsion shaft running aft through the boat to the propeller
+                - Condensers: cooling steam back to water for recirculation
+                - Feed pumps: returning water to steam generators
+                - Gauges, valves, controls everywhere
+                - Hot, humid, loud environment
+                - Vibration underfoot from spinning machinery
+                - Machinist's Mates in sound-powered phone communication
+
+                This is where the magic happens: nuclear energy → steam → motion.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:engine_room"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                Machinists Mates in Engine Room:
+                - **MMC (Chief Machinist's Mate) O'Brien** - 20 years experience, knows every sound
+                - **MM1 Rodriguez** - Throttleman when underway
+                - **MM2 Kim** - Checking bearing temperatures
+
+                Communication in Engine Room is by hand signals or stepping into quiet booth.
+                They can explain propulsion, steam systems, how everything works together.
+            counts_as_attempt: false
+            next_section_and_step: "engine_room_activities:crew_interaction"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["steam_leak", "turbine_vibration", "shaft_seal_leak", "loss_of_propulsion"]
+            content_blocks:
+              - "🚨 ENGINE ROOM EMERGENCY! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["turbine_inspection", "bearing_check", "oil_sample", "maintenance"]
+            ai_feedback:
+              tokens_for_ai: "Generate engine room task."
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:engine_room"
+
+      # Maneuvering Room
+      - step_id: "maneuvering_room"
+        title: "Maneuvering Room"
+        question: "You are in **Maneuvering** - the reactor control room. What would you like to do?"
+        tokens_for_ai: |
+          Current location: Maneuvering Room
+
+          This is the control station for the nuclear reactor and electrical systems.
+          Contains:
+          - Reactor control panel
+          - Electrical panel
+          - Throttleman station
+          - Engineering Officer of the Watch (EOOW) station
+          - Most critical engineering controls
+
+          Available actions:
+          - 'forward' → Engine Room
+          - 'aft' → Auxiliary Machinery Room
+          - 'reactor_panel' → Observe reactor controls
+          - 'electrical' → See electrical distribution
+          - 'throttle' → Watch throttleman operate
+          - 'look' → Examine maneuvering
+          - 'crew' → Talk to watchstanders
+
+          Categorize appropriately.
+
+        feedback_tokens_for_ai: |
+          Describe Maneuvering: Small, intense space. Three control panels:
+          - Reactor control panel: Reactor Operator monitors reactor parameters
+          - Electrical panel: monitoring electrical generation and distribution
+          - Throttleman station: controls steam to propulsion turbines (speed control)
+
+          Engineering Officer of the Watch (EOOW) supervises.
+          Very serious, professional atmosphere. The "nuclear control room."
+
+          Current watch:
+          - **Lieutenant Commander Park** - Engineering Officer of the Watch (EOOW)
+          - **RO (Reactor Operator)** - Monitoring reactor
+          - **EO (Electrical Operator)** - Managing electrical systems
+          - **Throttleman** - Controlling ship speed via steam throttle
+
+        buckets: [forward, aft, reactor_panel, electrical, throttle, examine, crew, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          forward:
+            content_blocks:
+              - "You head forward into the noisy Engine Room..."
+            metadata_add:
+              current_section: "engine_room"
+            next_section_and_step: "navigation_hub:engine_room"
+
+          aft:
+            content_blocks:
+              - "You move aft to Auxiliary Machinery..."
+            metadata_add:
+              current_section: "auxiliary_machinery"
+              visited_sections: "n+,auxiliary_machinery"
+            next_section_and_step: "navigation_hub:auxiliary_machinery"
+
+          reactor_panel:
+            content_blocks:
+              - "You observe the Reactor Operator at the reactor control panel..."
+            next_section_and_step: "maneuvering_activities:reactor_panel"
+
+          electrical:
+            content_blocks:
+              - "You watch the Electrical Operator managing the boat's electrical systems..."
+            next_section_and_step: "maneuvering_activities:electrical_panel"
+
+          throttle:
+            content_blocks:
+              - "You observe the Throttleman controlling the ship's speed..."
+            next_section_and_step: "maneuvering_activities:throttleman"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Maneuvering in detail:
+                - Small compartment, three control panels in a row
+                - Reactor control panel: gauges for temperature, pressure, neutron flux
+                - Electrical panel: generators, buses, distribution, voltmeters, ammeters
+                - Throttle station: steam throttle controls, shaft RPM indicators
+                - EOOW desk behind watchstanders with logs and procedures
+                - Sound-powered phone communication to Control Room
+                - Quiet, focused atmosphere
+                - Subdued lighting on panels
+                - Smell of electronics, very clean
+
+                This is where the engineering plant is controlled.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:maneuvering_room"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                Maneuvering watchstanders:
+                - **LCDR Park (EOOW)** - Engineering Officer of the Watch, calm leader
+                - **Reactor Operator** - Monitoring reactor continuously
+                - **Electrical Operator** - Managing electrical generation
+                - **Throttleman** - Controlling shaft RPM per orders from Control
+
+                They can explain reactor control, electrical systems, propulsion control,
+                but must stay focused on their watchstanding.
+            counts_as_attempt: false
+            next_section_and_step: "maneuvering_activities:crew_interaction"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["reactor_scram", "electrical_casualty", "loss_of_propulsion", "steam_plant_casualty"]
+            content_blocks:
+              - "🚨 MANEUVERING EMERGENCY! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["watch_relief", "reactor_surveillance", "electrical_lineup", "drill"]
+            ai_feedback:
+              tokens_for_ai: "Generate maneuvering task."
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:maneuvering_room"
+
+      # Auxiliary Machinery Room
+      - step_id: "auxiliary_machinery"
+        title: "Auxiliary Machinery Room"
+        question: "You are in **Auxiliary Machinery** - the life support heart of the submarine. What would you like to do?"
+        tokens_for_ai: |
+          Current location: Auxiliary Machinery Room
+
+          Contains critical life support systems:
+          - Oxygen generators (make O2 from seawater)
+          - CO2 scrubbers (remove carbon dioxide)
+          - Atmospheric monitoring
+          - Water purification (distillation)
+          - Hydraulic systems
+          - Air conditioning and ventilation
+
+          These systems keep the crew alive for months underwater.
+
+          Available actions:
+          - 'forward' → Maneuvering Room
+          - 'aft' → Stern Compartment
+          - 'oxygen' → Learn about O2 generation
+          - 'co2' → See CO2 scrubbers
+          - 'water' → Water purification systems
+          - 'look' → Examine the compartment
+          - 'crew' → Talk to auxiliaries crew
+
+          Categorize appropriately.
+
+        feedback_tokens_for_ai: |
+          Describe Auxiliary Machinery: Smaller compartment packed with life support equipment.
+          Oxygen generators using electrolysis to split seawater into H2 and O2.
+          CO2 scrubbers using chemical absorption. Atmospheric monitoring stations.
+          Distillation units making fresh water from seawater. A/C chillers. Hydraulics.
+
+          This is what allows submarine to stay submerged for months.
+
+          Crew:
+          - **Auxiliaryman (A-Ganger)** - Maintaining life support systems
+          - **EM (Electrician's Mate)** - Working on electrical systems
+
+        buckets: [forward, aft, oxygen, co2, water, examine, crew, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          forward:
+            content_blocks:
+              - "You head forward to Maneuvering..."
+            metadata_add:
+              current_section: "maneuvering_room"
+            next_section_and_step: "navigation_hub:maneuvering_room"
+
+          aft:
+            content_blocks:
+              - "You move aft to the Stern Compartment..."
+            metadata_add:
+              current_section: "stern_compartment"
+              visited_sections: "n+,stern_compartment"
+            next_section_and_step: "navigation_hub:stern_compartment"
+
+          oxygen:
+            content_blocks:
+              - "You examine the oxygen generation system that keeps the air breathable..."
+            next_section_and_step: "auxiliary_activities:oxygen_generation"
+
+          co2:
+            content_blocks:
+              - "You learn about the CO2 scrubbers that remove exhaled carbon dioxide..."
+            next_section_and_step: "auxiliary_activities:co2_scrubbers"
+
+          water:
+            content_blocks:
+              - "You observe the distillation units making fresh water from seawater..."
+            next_section_and_step: "auxiliary_activities:water_systems"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Auxiliary Machinery in detail:
+                - Oxygen generators: electrolyzing seawater to produce O2
+                - CO2 scrubbers: chemical beds absorbing carbon dioxide
+                - Atmospheric monitoring: O2, CO2, H2 sensors throughout boat
+                - Distillation units: evaporating seawater, condensing pure water
+                - A/C chillers: cooling air for crew comfort and equipment
+                - Hydraulic pumps and accumulators
+                - Compact, efficient layout
+                - Hum of pumps and ventilation
+
+                These systems = submarine can stay submerged indefinitely (limited only by food).
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:auxiliary_machinery"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                Auxiliary crew:
+                - **AUX1 (Auxiliaryman 1st Class) Garcia** - Life support expert
+                - **EM2 Thompson** - Electrical maintenance
+
+                They can explain how submarine makes oxygen, removes CO2, makes fresh water.
+                Proud of keeping crew alive in sealed environment.
+            counts_as_attempt: false
+            next_section_and_step: "auxiliary_activities:crew_interaction"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["oxygen_system_failure", "co2_high", "water_contamination", "hydraulic_leak"]
+            content_blocks:
+              - "🚨 AUXILIARY SYSTEM EMERGENCY! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["atmospheric_check", "o2_generator_maintenance", "scrubber_change", "water_test"]
+            ai_feedback:
+              tokens_for_ai: "Generate auxiliary systems task."
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:auxiliary_machinery"
+
+      # Stern Compartment
+      - step_id: "stern_compartment"
+        title: "Stern Compartment"
+        question: "You are in the **Stern Compartment** - the aft-most section. What would you like to do?"
+        tokens_for_ai: |
+          Current location: Stern Compartment (aft-most area)
+
+          Contains:
+          - Aft escape trunk (second emergency escape)
+          - Rudder and stern planes controls
+          - Propeller shaft bearings
+          - Aft trim tanks
+          - Emergency equipment
+
+          This is the tail end of the boat.
+
+          Available actions:
+          - 'forward' → Auxiliary Machinery Room
+          - 'escape' → Examine aft escape trunk
+          - 'rudder' → Look at rudder controls
+          - 'shaft' → See propeller shaft
+          - 'look' → Examine compartment
+          - 'crew' → Talk to stern crew
+
+          Categorize appropriately.
+
+        feedback_tokens_for_ai: |
+          Describe Stern Compartment: Aft-most compartment. Propeller shaft running through,
+          aft escape trunk like the forward one, rudder and stern planes hydraulic controls,
+          aft trim tanks for buoyancy control, emergency equipment storage.
+
+          Less trafficked than forward areas. Quieter. Important for emergency escape
+          and stern control systems.
+
+          Crew:
+          - **Auxiliaryman on watch** - Monitoring aft systems
+
+        buckets: [forward, escape, rudder, shaft, examine, crew, emergency, daily_task, set_language]
+
+        random_buckets:
+          emergency:
+            probability: 0.05
+          daily_task:
+            probability: 0.15
+
+        transitions:
+          forward:
+            content_blocks:
+              - "You head forward to Auxiliary Machinery..."
+            metadata_add:
+              current_section: "auxiliary_machinery"
+            next_section_and_step: "navigation_hub:auxiliary_machinery"
+
+          escape:
+            content_blocks:
+              - "You examine the Aft Escape Trunk, similar to the forward one..."
+            next_section_and_step: "stern_activities:escape_trunk"
+
+          rudder:
+            content_blocks:
+              - "You observe the rudder and stern planes control mechanisms..."
+            next_section_and_step: "stern_activities:rudder_controls"
+
+          shaft:
+            content_blocks:
+              - "You see the main propulsion shaft running aft through the boat to the propeller outside the hull..."
+            next_section_and_step: "stern_activities:shaft_bearing"
+
+          examine:
+            ai_feedback:
+              tokens_for_ai: |
+                Describe Stern Compartment:
+                - Aft escape trunk with ladder and emergency equipment
+                - Main propulsion shaft running through, visible bearings
+                - Rudder hydraulic cylinders and controls
+                - Stern planes actuators
+                - Aft trim tanks with level indicators
+                - Emergency breathing apparatus stations
+                - Less crowded than forward compartments
+                - Smell of hydraulic fluid and machinery
+
+                The stern of the boat. Quieter, less activity.
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:stern_compartment"
+
+          crew:
+            ai_feedback:
+              tokens_for_ai: |
+                Stern watch stander:
+                - **AUX2 Martinez** - Monitoring aft systems
+
+                Can discuss aft escape procedures, stern planes, propeller shaft,
+                aft trim systems. Usually a quiet watch station.
+            counts_as_attempt: false
+            next_section_and_step: "stern_activities:crew_interaction"
+
+          emergency:
+            metadata_tmp_random:
+              emergency_type: ["flooding_stern", "rudder_jam", "shaft_seal_leak", "escape_trunk_issue"]
+            content_blocks:
+              - "🚨 STERN COMPARTMENT EMERGENCY! 🚨"
+            next_section_and_step: "emergencies:handle_emergency"
+
+          daily_task:
+            metadata_tmp_random:
+              task_type: ["stern_inspection", "escape_equipment_check", "hydraulics_check", "trim_adjustment"]
+            ai_feedback:
+              tokens_for_ai: "Generate stern compartment task."
+            next_section_and_step: "daily_tasks:handle_task"
+
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "navigation_hub:stern_compartment"
+
+  # ============================================================================
+  # ACTIVITY SECTIONS - Deep dives into specific systems and operations
+  # (These would contain detailed interactions for each major area)
+  # ============================================================================
+
+  - section_id: "torpedo_room_activities"
+    title: "Torpedo Room Activities"
+    steps:
+      - step_id: "weapons_training"
+        title: "Weapons Systems Training"
+        question: "Chief Williams offers to teach you about the torpedo systems. What aspect interests you most? (tubes, torpedoes, missiles, targeting, or 'done' to leave)"
+        tokens_for_ai: |
+          User is learning about weapons systems from Chief Williams.
+          Categorize: 'tubes', 'torpedoes', 'missiles', 'targeting', 'done', 'set_language'
+        feedback_tokens_for_ai: |
+          As Chief Williams, enthusiastically teach about the chosen topic:
+          - Tubes: Loading procedures, tube mechanics, safety interlocks
+          - Torpedoes: Mk 48 ADCAP specs, wire-guidance, power, warhead
+          - Missiles: Tomahawk cruise missile, Harpoon anti-ship
+          - Targeting: Fire control solution, target motion analysis
+          Be detailed and engaging.
+        buckets: [tubes, torpedoes, missiles, targeting, done, set_language]
+        transitions:
+          tubes:
+            ai_feedback:
+              tokens_for_ai: "Explain torpedo tubes in detail as Chief Williams."
+            counts_as_attempt: false
+            next_section_and_step: "torpedo_room_activities:weapons_training"
+          torpedoes:
+            ai_feedback:
+              tokens_for_ai: "Teach about Mk 48 ADCAP torpedoes in detail."
+            counts_as_attempt: false
+            next_section_and_step: "torpedo_room_activities:weapons_training"
+          missiles:
+            ai_feedback:
+              tokens_for_ai: "Explain Tomahawk and Harpoon missiles."
+            counts_as_attempt: false
+            next_section_and_step: "torpedo_room_activities:weapons_training"
+          targeting:
+            ai_feedback:
+              tokens_for_ai: "Teach fire control and targeting concepts."
+            counts_as_attempt: false
+            next_section_and_step: "torpedo_room_activities:weapons_training"
+          done:
+            content_blocks:
+              - "Chief Williams nods approvingly. You've learned a lot about submarine weapons."
+            next_section_and_step: "navigation_hub:torpedo_room"
+          set_language:
+            content_blocks:
+              - "Language updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "torpedo_room_activities:weapons_training"
+
+      # Placeholder for other torpedo room activities
+      - step_id: "loading_procedure"
+        title: "Torpedo Loading"
+        content_blocks:
+          - "The Chief demonstrates the complex choreography of loading a 3,500-pound Mk 48 torpedo into a tube..."
+          - "(This would be a detailed interactive sequence)"
+        next_section_and_step: "navigation_hub:torpedo_room"
+
+      - step_id: "berthing_area"
+        title: "Torpedo Room Berthing"
+        content_blocks:
+          - "You visit the bunks in the torpedo room where some crew sleep between the weapons..."
+        next_section_and_step: "navigation_hub:torpedo_room"
+
+      - step_id: "crew_interaction"
+        title: "Talk to Torpedo Room Crew"
+        content_blocks:
+          - "You chat with the torpedomen about life in the forward compartment..."
+        next_section_and_step: "navigation_hub:torpedo_room"
+
+  # Placeholder sections for other activities
+  - section_id: "officers_activities"
+    title: "Officers' Country Activities"
+    steps:
+      - step_id: "wardroom"
+        title: "Wardroom"
+        content_blocks:
+          - "The Wardroom is where officers eat and hold meetings. Lieutenant Chen invites you to sit..."
+        next_section_and_step: "navigation_hub:officers_quarters"
+
+      - step_id: "captain_meeting"
+        title: "Meeting with Captain"
+        question: "What would you like to discuss with Captain Morrison?"
+        tokens_for_ai: "Categorize user's question/topic for the Captain."
+        feedback_tokens_for_ai: "Respond as Captain Morrison - professional, knowledgeable, busy but helpful."
+        buckets: [question, done]
+        transitions:
+          question:
+            ai_feedback:
+              tokens_for_ai: "Captain answers their question."
+            counts_as_attempt: false
+            next_section_and_step: "officers_activities:captain_meeting"
+          done:
+            content_blocks:
+              - "Captain Morrison: 'Carry on, sailor.'"
+            next_section_and_step: "navigation_hub:officers_quarters"
+
+      - step_id: "officer_interaction"
+        title: "Talk to Officers"
+        content_blocks:
+          - "You speak with the submarine's officers..."
+        next_section_and_step: "navigation_hub:officers_quarters"
+
+  - section_id: "control_room_activities"
+    title: "Control Room Operations"
+    steps:
+      - step_id: "observe_conn"
+        title: "The Conn"
+        content_blocks:
+          - "You observe Lieutenant Reed as Officer of the Deck, commanding the watch..."
+          - "He makes decisions, gives orders to helm and dive, communicates with Captain and Sonar..."
+        next_section_and_step: "navigation_hub:control_room"
+
+      - step_id: "helm_dive"
+        title: "Helm and Dive Stations"
+        content_blocks:
+          - "ST2 Kowalski at helm keeps the ship on ordered course. ST3 Miller at dive maintains ordered depth..."
+        next_section_and_step: "navigation_hub:control_room"
+
+      - step_id: "periscope"
+        title: "Periscope Systems"
+        content_blocks:
+          - "The periscopes are currently retracted. They're only raised when at periscope depth (about 60 feet)..."
+        next_section_and_step: "navigation_hub:control_room"
+
+      - step_id: "navigation_table"
+        title: "Navigation"
+        content_blocks:
+          - "Quartermaster Chen shows you navigation charts and explains submarine navigation..."
+        next_section_and_step: "navigation_hub:control_room"
+
+      - step_id: "crew_interaction"
+        title: "Control Room Crew"
+        content_blocks:
+          - "You speak with the control room watch standers..."
+        next_section_and_step: "navigation_hub:control_room"
+
+      - step_id: "operations_training"
+        title: "Control Room Operations"
+        content_blocks:
+          - "Lieutenant Reed offers to let you shadow the watch and learn about ship control..."
+        next_section_and_step: "navigation_hub:control_room"
+
+  - section_id: "sonar_activities"
+    title: "Sonar Operations"
+    steps:
+      - step_id: "listen_sonar"
+        title: "Listen to Sonar"
+        content_blocks:
+          - "You put on headphones and hear the ocean: whale songs, distant ship propellers, the sounds of the deep..."
+          - "STS1 Rodriguez teaches you to identify different sounds."
+        next_section_and_step: "navigation_hub:sonar_room"
+
+      - step_id: "examine_displays"
+        title: "Sonar Displays"
+        content_blocks:
+          - "The waterfall displays show frequency vs time. Each contact has a unique signature..."
+        next_section_and_step: "navigation_hub:sonar_room"
+
+      - step_id: "contact_tracking"
+        title: "Contact Tracking"
+        content_blocks:
+          - "You learn how sonar tracks contacts over time, determining bearing, range, course, and speed..."
+        next_section_and_step: "navigation_hub:sonar_room"
+
+      - step_id: "crew_interaction"
+        title: "Sonar Crew"
+        content_blocks:
+          - "You quietly chat with the sonar techs about their work..."
+        next_section_and_step: "navigation_hub:sonar_room"
+
+  - section_id: "mess_activities"
+    title: "Crew's Mess Activities"
+    steps:
+      - step_id: "eating"
+        title: "Eating in the Mess"
+        content_blocks:
+          - "You get a tray of food and sit with the crew. The food is excellent - submarine cooks are renowned..."
+        next_section_and_step: "navigation_hub:crews_mess"
+
+      - step_id: "crew_interaction"
+        title: "Mess Hall Crew"
+        content_blocks:
+          - "You join conversations with off-duty crew about submarine life, sea stories, home..."
+        next_section_and_step: "navigation_hub:crews_mess"
+
+      - step_id: "galley_visit"
+        title: "Visit the Galley"
+        content_blocks:
+          - "The Culinary Specialists are masters of making great meals in a tiny kitchen. They show you around..."
+        next_section_and_step: "navigation_hub:crews_mess"
+
+      - step_id: "recreation"
+        title: "Recreation Time"
+        content_blocks:
+          - "You join crew in off-duty activities - games, movies, reading..."
+        next_section_and_step: "navigation_hub:crews_mess"
+
+  - section_id: "berthing_activities"
+    title: "Crew Berthing Activities"
+    steps:
+      - step_id: "examine_bunks"
+        title: "Examine Crew Bunks"
+        content_blocks:
+          - "Each rack is a crew member's only personal space. Photos of family, favorite books, small mementos..."
+        next_section_and_step: "navigation_hub:crew_berthing"
+
+      - step_id: "crew_interaction"
+        title: "Berthing Crew"
+        content_blocks:
+          - "You quietly chat with off-watch crew about life in tight quarters..."
+        next_section_and_step: "navigation_hub:crew_berthing"
+
+  - section_id: "missile_activities"
+    title: "Missile Compartment Activities"
+    steps:
+      - step_id: "examine_missiles"
+        title: "Examine Missile Tubes"
+        content_blocks:
+          - "The 12 vertical launch tubes each contain a Trident II D5 SLBM. Each missile can carry multiple warheads..."
+          - "MT2 Washington explains the deterrent mission: 'We exist so we never have to launch.'"
+        next_section_and_step: "navigation_hub:missile_compartment"
+
+      - step_id: "launch_control_center"
+        title: "Launch Control"
+        content_blocks:
+          - "The Launch Control Center has dual authentication safes, targeting computers, and launch panels..."
+          - "MT1 Reynolds explains two-person integrity: 'No one person can launch. Ever.'"
+        next_section_and_step: "navigation_hub:missile_compartment"
+
+      - step_id: "crew_interaction"
+        title: "Missile Crew"
+        content_blocks:
+          - "You speak with Missile Techs about the serious responsibility they carry..."
+        next_section_and_step: "navigation_hub:missile_compartment"
+
+      - step_id: "launch_procedures_education"
+        title: "Launch Procedures"
+        content_blocks:
+          - "MT1 Reynolds explains the safeguards: Presidential authorization, Emergency Action Messages,"
+          - "authentication procedures, two-person integrity, fail-safe mechanisms..."
+          - "'These weapons will never be used alone or rashly. That's the whole point.'"
+        next_section_and_step: "navigation_hub:missile_compartment"
+
+      - step_id: "request_reactor_access"
+        title: "Request Reactor Access"
+        question: "The Reactor Compartment is restricted. Request permission to enter? (yes/no)"
+        tokens_for_ai: "Categorize 'yes' or 'no' or 'set_language'"
+        feedback_tokens_for_ai: "If yes, grant access with safety briefing. If no, respect decision."
+        buckets: [yes, no, set_language]
+        transitions:
+          yes:
+            content_blocks:
+              - "LCDR Park (the Engineer) gives you a safety briefing and grants temporary access..."
+              - "You proceed through the shielded hatch into the Reactor Compartment."
+            metadata_add:
+              reactor_access: "granted"
+            next_section_and_step: "navigation_hub:reactor_compartment"
+          no:
+            content_blocks:
+              - "You decide not to enter the Reactor Compartment at this time."
+            next_section_and_step: "navigation_hub:missile_compartment"
+          set_language:
+            content_blocks:
+              - "Language updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "missile_activities:request_reactor_access"
+
+  - section_id: "reactor_activities"
+    title: "Reactor Compartment Activities"
+    steps:
+      - step_id: "observe_reactor"
+        title: "Observe Reactor"
+        content_blocks:
+          - "From the shielded viewing area, you see the reactor pressure vessel and primary coolant systems..."
+          - "The S9G reactor generates heat through nuclear fission, which creates steam for propulsion."
+        next_section_and_step: "navigation_hub:reactor_compartment"
+
+      - step_id: "steam_systems"
+        title: "Steam Generation"
+        content_blocks:
+          - "The steam generators are heat exchangers. Reactor heat → steam → turbines → propulsion."
+        next_section_and_step: "navigation_hub:reactor_compartment"
+
+      - step_id: "crew_interaction"
+        title: "Reactor Crew"
+        content_blocks:
+          - "You speak with nuclear-trained crew about reactor operations..."
+        next_section_and_step: "navigation_hub:reactor_compartment"
+
+  - section_id: "engine_room_activities"
+    title: "Engine Room Activities"
+    steps:
+      - step_id: "turbines"
+        title: "Steam Turbines"
+        content_blocks:
+          - "The main turbines spin at thousands of RPM, converting steam energy to rotational energy..."
+        next_section_and_step: "navigation_hub:engine_room"
+
+      - step_id: "propulsion_shaft"
+        title: "Propulsion Shaft"
+        content_blocks:
+          - "The main shaft runs the length of the boat to the propeller, driving the submarine through water..."
+        next_section_and_step: "navigation_hub:engine_room"
+
+      - step_id: "crew_interaction"
+        title: "Engine Room Crew"
+        content_blocks:
+          - "You communicate with Machinist's Mates about propulsion..."
+        next_section_and_step: "navigation_hub:engine_room"
+
+  - section_id: "maneuvering_activities"
+    title: "Maneuvering Room Activities"
+    steps:
+      - step_id: "reactor_panel"
+        title: "Reactor Control Panel"
+        content_blocks:
+          - "The Reactor Operator monitors neutron flux, temperature, pressure, ensuring safe reactor operation..."
+        next_section_and_step: "navigation_hub:maneuvering_room"
+
+      - step_id: "electrical_panel"
+        title: "Electrical Panel"
+        content_blocks:
+          - "The Electrical Operator manages generators and electrical distribution throughout the boat..."
+        next_section_and_step: "navigation_hub:maneuvering_room"
+
+      - step_id: "throttleman"
+        title: "Throttleman Station"
+        content_blocks:
+          - "The Throttleman controls steam flow to the turbines, adjusting shaft RPM per orders from Control..."
+        next_section_and_step: "navigation_hub:maneuvering_room"
+
+      - step_id: "crew_interaction"
+        title: "Maneuvering Crew"
+        content_blocks:
+          - "You speak with the maneuvering watchstanders..."
+        next_section_and_step: "navigation_hub:maneuvering_room"
+
+  - section_id: "auxiliary_activities"
+    title: "Auxiliary Systems Activities"
+    steps:
+      - step_id: "oxygen_generation"
+        title: "Oxygen Generation"
+        content_blocks:
+          - "The O2 generators use electrolysis to split seawater (H2O) into hydrogen and oxygen..."
+          - "The oxygen is released into the atmosphere. Hydrogen is vented overboard."
+        next_section_and_step: "navigation_hub:auxiliary_machinery"
+
+      - step_id: "co2_scrubbers"
+        title: "CO2 Scrubbers"
+        content_blocks:
+          - "CO2 scrubbers use chemical beds to absorb exhaled carbon dioxide from the atmosphere..."
+        next_section_and_step: "navigation_hub:auxiliary_machinery"
+
+      - step_id: "water_systems"
+        title: "Water Purification"
+        content_blocks:
+          - "Distillation units evaporate seawater and condense pure water for drinking and cooling..."
+        next_section_and_step: "navigation_hub:auxiliary_machinery"
+
+      - step_id: "crew_interaction"
+        title: "Auxiliary Crew"
+        content_blocks:
+          - "You speak with the A-Gangers about life support systems..."
+        next_section_and_step: "navigation_hub:auxiliary_machinery"
+
+  - section_id: "stern_activities"
+    title: "Stern Compartment Activities"
+    steps:
+      - step_id: "escape_trunk"
+        title: "Aft Escape Trunk"
+        content_blocks:
+          - "The aft escape trunk provides emergency egress, just like the forward trunk..."
+        next_section_and_step: "navigation_hub:stern_compartment"
+
+      - step_id: "rudder_controls"
+        title: "Rudder and Stern Planes"
+        content_blocks:
+          - "Hydraulic systems control the rudder (steering) and stern planes (pitch control)..."
+        next_section_and_step: "navigation_hub:stern_compartment"
+
+      - step_id: "shaft_bearing"
+        title: "Shaft Bearing"
+        content_blocks:
+          - "The main shaft runs through here to the propeller. Bearings must be maintained and monitored..."
+        next_section_and_step: "navigation_hub:stern_compartment"
+
+      - step_id: "crew_interaction"
+        title: "Stern Crew"
+        content_blocks:
+          - "You chat with the stern watchstander..."
+        next_section_and_step: "navigation_hub:stern_compartment"
+
+  # ============================================================================
+  # EMERGENCIES SECTION - Random emergencies
+  # ============================================================================
+  - section_id: "emergencies"
+    title: "Emergency Response"
+    steps:
+      - step_id: "handle_emergency"
+        title: "Emergency!"
+        question: "EMERGENCY! Check metadata for emergency_type. How do you respond?"
+        tokens_for_ai: |
+          An emergency has occurred. Type is in metadata.emergency_type.
+
+          Possible emergencies:
+          - fire_alarm / fire_* : Fire in a compartment
+          - flooding_alarm / flooding_* : Water entering the boat
+          - collision_alarm : Possible collision with contact
+          - reactor_scram : Reactor emergency shutdown
+          - depth_excursion : Losing depth control
+          - torpedo_in_water : Torpedo detected
+          - General_quarters : Battle stations
+          - Various equipment failures
+
+          Evaluate user's response:
+          - 'good_response' if they take appropriate action (muster, follow procedures, assist)
+          - 'learning' if they're uncertain but willing
+          - 'confused' if they don't know what to do
+          - 'panic' if they panic (discourage this gently)
+          - 'set_language'
+
+        feedback_tokens_for_ai: |
+          Describe the emergency dramatically based on metadata.emergency_type.
+
+          If fire: Smoke, alarm, crew rushing with firefighting equipment, announcements.
+          If flooding: Water spraying, crew shutting valves, damage control.
+          If reactor scram: Sudden shutdown, emergency lighting, crew responding calmly but urgently.
+          If torpedo: Sonar call "TORPEDO IN THE WATER!", evasive maneuvers ordered.
+
+          Evaluate user's response and have crew guide them appropriately.
+          Emergencies are serious but crew is trained and competent.
+
+          After handling emergency, return to exploration.
+
+        buckets: [good_response, learning, confused, panic, set_language]
+
+        transitions:
+          good_response:
+            ai_feedback:
+              tokens_for_ai: |
+                Praise their response. Describe crew successfully handling the emergency.
+                The situation is brought under control. Crew commends user for staying calm.
+                Emergency is resolved.
+            metadata_add:
+              emergency_experience: "n+1"
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          learning:
+            ai_feedback:
+              tokens_for_ai: |
+                A senior crew member guides them through the emergency response.
+                User learns proper procedures. Emergency is handled successfully.
+                Educational moment.
+            metadata_add:
+              emergency_experience: "n+1"
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          confused:
+            ai_feedback:
+              tokens_for_ai: |
+                Crew quickly directs the user to safety and handles the emergency.
+                Afterwards, they explain what happened and what the proper response should be.
+                Learning opportunity.
+            metadata_add:
+              emergency_experience: "n+1"
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          panic:
+            ai_feedback:
+              tokens_for_ai: |
+                A calm Chief Petty Officer steadies the user: "Easy there, sailor. We've trained for this.
+                Watch how we handle it." Crew professionally resolves the emergency.
+                User learns that training and teamwork overcome emergencies.
+            metadata_add:
+              emergency_experience: "n+1"
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          set_language:
+            content_blocks:
+              - "Language updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "emergencies:handle_emergency"
+
+  # ============================================================================
+  # DAILY TASKS SECTION - Random daily tasks
+  # ============================================================================
+  - section_id: "daily_tasks"
+    title: "Daily Tasks and Drills"
+    steps:
+      - step_id: "handle_task"
+        title: "Task Assignment"
+        question: "A daily task has come up. Check metadata for task_type. How do you respond?"
+        tokens_for_ai: |
+          A routine task has been assigned. Type is in metadata.task_type.
+
+          Possible tasks:
+          - maintenance_request : Something needs routine maintenance
+          - inspection_due : Area needs inspection
+          - drill_announced : Practice drill (fire, flooding, etc.)
+          - watch_relief : Time to relieve someone on watch
+          - meal_time : Chow is being served
+          - Various compartment-specific tasks
+
+          Categorize user response:
+          - 'volunteer' if they volunteer to help
+          - 'observe' if they want to watch
+          - 'participate' if they want to participate
+          - 'decline' if they politely decline
+          - 'set_language'
+
+        feedback_tokens_for_ai: |
+          Describe the daily task based on metadata.task_type.
+
+          Submarine life is routine tasks, watches, drills, maintenance.
+          Tasks are announced over 1MC (announcing system) or by supervisors.
+
+          If user participates, describe the task and their involvement.
+          If they observe, they learn by watching.
+          If they decline, that's okay - they can continue exploring.
+
+          Make it realistic and educational.
+
+        buckets: [volunteer, observe, participate, decline, set_language]
+
+        transitions:
+          volunteer:
+            ai_feedback:
+              tokens_for_ai: |
+                User volunteers to help. Describe them assisting with the task.
+                Crew appreciates their help. User learns about submarine daily operations.
+                Task completed successfully.
+            metadata_add:
+              tasks_completed: "n+1"
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          observe:
+            ai_feedback:
+              tokens_for_ai: |
+                User observes the crew performing the task.
+                Educational - they learn by watching professionals work.
+                Crew explains what they're doing.
+            metadata_add:
+              tasks_observed: "n+1"
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          participate:
+            ai_feedback:
+              tokens_for_ai: |
+                User participates in the task under supervision.
+                Hands-on learning. Crew guides them through it.
+                User gains practical experience.
+            metadata_add:
+              tasks_completed: "n+1"
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          decline:
+            ai_feedback:
+              tokens_for_ai: |
+                User politely declines. Crew understands - they continue with the task.
+                User is free to continue exploring.
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          set_language:
+            content_blocks:
+              - "Language updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "daily_tasks:handle_task"

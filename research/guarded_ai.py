@@ -387,6 +387,18 @@ def simulate_activity(yaml_file_path):
         while attempts < max_attempts:
             user_response = input("\nYour Response: ")
 
+            # Roll for random buckets BEFORE categorization
+            triggered_random_buckets = []
+            if "random_buckets" in step:
+                for bucket_name, config in step["random_buckets"].items():
+                    probability = config.get("probability", 0)
+                    roll = random.random()
+                    if roll < probability:
+                        triggered_random_buckets.append(bucket_name)
+                        print(f"🎲 [RANDOM EVENT] '{bucket_name}' triggered! (rolled {roll:.3f} < {probability})")
+                    else:
+                        print(f"🎲 [RANDOM CHECK] '{bucket_name}' not triggered (rolled {roll:.3f} >= {probability})")
+
             # Execute pre-script if it exists (runs before categorization, with user_response available)
             if "pre_script" in step:
                 print(f"DEBUG: Executing pre-script")
@@ -407,176 +419,262 @@ def simulate_activity(yaml_file_path):
             )
             print(f"\nCategory: {category}")
 
-            # Determine the transition based on the category (with integer/boolean matching)
-            transition = None
-            if category in step["transitions"]:
-                transition = step["transitions"][category]
-            elif category.isdigit() and int(category) in step["transitions"]:
-                transition = step["transitions"][int(category)]
-            else:
-                if category.lower() in ["yes", "true"]:
-                    category = True
-                elif category.lower() in ["no", "false"]:
-                    category = False
-                if category in step["transitions"]:
-                    transition = step["transitions"][category]
+            # Combine user's category with triggered random buckets
+            # User's response is processed FIRST, then random events
+            all_active_buckets = [category] + triggered_random_buckets
+            print(f"📋 Processing buckets in order: {all_active_buckets}")
 
-            if not transition:
+            # Find transitions for all active buckets
+            active_transitions = []
+            for bucket in all_active_buckets:
+                transition = None
+                if bucket in step["transitions"]:
+                    transition = step["transitions"][bucket]
+                elif str(bucket).isdigit() and int(bucket) in step["transitions"]:
+                    transition = step["transitions"][int(bucket)]
+                else:
+                    # Try boolean conversion
+                    if str(bucket).lower() in ["yes", "true"]:
+                        bucket = True
+                    elif str(bucket).lower() in ["no", "false"]:
+                        bucket = False
+                    if bucket in step["transitions"]:
+                        transition = step["transitions"][bucket]
+
+                if transition:
+                    active_transitions.append((bucket, transition))
+                else:
+                    print(f"⚠️  Warning: No transition found for bucket '{bucket}'")
+
+            # If no valid transitions found at all (not even for user's category), error
+            if not active_transitions:
                 print(
                     f"\nError: No valid transition found for category '{category}'. Please try again."
                 )
                 continue
 
-            # Check metadata conditions
-            if "metadata_conditions" in transition:
-                conditions_met = all(
-                    metadata.get(key) == value
-                    for key, value in transition["metadata_conditions"].items()
-                )
-                if not conditions_met:
-                    print("\nYou do not meet the required conditions to proceed.")
-                    print(f"Current Metadata: {json.dumps(metadata, indent=2)}")
-                    continue
+            print(f"✓ Found {len(active_transitions)} transition(s) to process")
 
-            # Print transition content blocks if they exist
-            if "content_blocks" in transition:
-                transition_content = "\n\n".join(transition["content_blocks"])
-                translated_transition_content = translate_text(
-                    transition_content, user_language, feedback_model
-                )
-                print(translated_transition_content)
-
-            # Track temporary metadata keys
+            # Track temporary metadata keys across all transitions
             metadata_tmp_keys = []
 
-            # Update metadata based on user actions
-            if "metadata_add" in transition:
-                for key, value in transition["metadata_add"].items():
-                    if value == "the-users-response":
-                        value = user_response
-                    elif isinstance(value, str):
-                        if value.startswith("n+random(") and value.endswith(")"):
-                            # Extract the range and apply the random increment
-                            range_values = value[9:-1].split(",")
-                            if len(range_values) == 2:
-                                x, y = map(int, range_values)
-                                value = metadata.get(key, 0) + random.randint(x, y)
-                        elif value.startswith("n+") or value.startswith("n-"):
-                            # Extract the numeric part c and apply the operation +/-
-                            c = int(value[1:])
-                            if value.startswith("n+"):
-                                value = metadata.get(key, 0) + c
-                            elif value.startswith("n-"):
-                                value = metadata.get(key, 0) - c
-                    metadata[key] = value
+            # Track the final navigation target (use LAST transition's next_section_and_step)
+            final_next_section_and_step = None
 
-            if "metadata_tmp_add" in transition:
-                for key, value in transition["metadata_tmp_add"].items():
-                    if value == "the-users-response":
-                        value = user_response
-                    elif isinstance(value, str):
-                        if value.startswith("n+random(") and value.endswith(")"):
-                            # Extract the range and apply the random increment
-                            range_values = value[9:-1].split(",")
-                            if len(range_values) == 2:
-                                x, y = map(int, range_values)
-                                value = random.randint(x, y)
-                        elif value.startswith("n+") or value.startswith("n-"):
-                            # Extract the numeric part c and apply the operation +/-
-                            c = int(value[1:])
-                            if value.startswith("n+"):
-                                value = metadata.get(key, 0) + c
-                            elif value.startswith("n-"):
-                                value = metadata.get(key, 0) - c
-                    metadata[key] = value
-                    metadata_tmp_keys.append(key)  # Track temporary keys
+            # Track counts_as_attempt (if ANY transition counts, then it counts)
+            any_counts_as_attempt = False
 
-            if "metadata_remove" in transition:
-                for key in transition["metadata_remove"]:
-                    if key in metadata:
-                        del metadata[key]
+            # Process ALL active transitions in order
+            for bucket_name, transition in active_transitions:
+                print(f"\n{'='*60}")
+                print(f"Processing transition for bucket: '{bucket_name}'")
+                print(f"{'='*60}")
 
-            # Handle metadata_clear - clear all metadata if set to True
-            if "metadata_clear" in transition and transition["metadata_clear"] == True:
-                metadata.clear()
+                # Check metadata conditions
+                if "metadata_conditions" in transition:
+                    conditions_met = all(
+                        metadata.get(key) == value
+                        for key, value in transition["metadata_conditions"].items()
+                    )
+                    if not conditions_met:
+                        print(f"⚠️  Skipping '{bucket_name}' - metadata conditions not met")
+                        print(f"Current Metadata: {json.dumps(metadata, indent=2)}")
+                        continue
 
-            # Handle metadata_random
-            if "metadata_random" in transition:
-                random_key = random.choice(list(transition["metadata_random"].keys()))
-                random_value = transition["metadata_random"][random_key]
-                metadata[random_key] = random_value
+                # Print transition content blocks if they exist
+                if "content_blocks" in transition:
+                    transition_content = "\n\n".join(transition["content_blocks"])
+                    translated_transition_content = translate_text(
+                        transition_content, user_language, feedback_model
+                    )
+                    print(translated_transition_content)
 
-            if "metadata_tmp_random" in transition:
-                random_key = random.choice(
-                    list(transition["metadata_tmp_random"].keys())
-                )
-                random_value = transition["metadata_tmp_random"][random_key]
-                metadata[random_key] = random_value
-                metadata_tmp_keys.append(random_key)  # Track temporary keys
-
-            # Execute the processing script if it exists
-            if "processing_script" in step and transition.get(
-                "run_processing_script", False
-            ):
-                # Add user_response to metadata temporarily for processing script
-                temp_metadata = metadata.copy()
-                temp_metadata["user_response"] = user_response
-
-                result = execute_processing_script(
-                    temp_metadata, step["processing_script"]
-                )
-
-                # Copy any changes back to main metadata (except user_response)
-                for key, value in temp_metadata.items():
-                    if key != "user_response":
+                # Update metadata based on user actions
+                if "metadata_add" in transition:
+                    for key, value in transition["metadata_add"].items():
+                        if value == "the-users-response":
+                            value = user_response
+                        elif isinstance(value, str):
+                            if value.startswith("n+random(") and value.endswith(")"):
+                                # Extract the range and apply the random increment
+                                range_values = value[9:-1].split(",")
+                                if len(range_values) == 2:
+                                    x, y = map(int, range_values)
+                                    value = metadata.get(key, 0) + random.randint(x, y)
+                            elif value.startswith("n+") or value.startswith("n-"):
+                                # Check if this is string concatenation (n+,value) or numeric operation (n+5)
+                                if value.startswith("n+,") or value.startswith("n-,"):
+                                    # String concatenation: append/remove from existing value
+                                    operation = value[:2]  # "n+" or "n-"
+                                    suffix = value[3:]  # Everything after "n+," or "n-,"
+                                    existing_value = metadata.get(key, "")
+                                    if operation == "n+":
+                                        # Append with comma separator if existing value is non-empty
+                                        if existing_value:
+                                            value = f"{existing_value},{suffix}"
+                                        else:
+                                            value = suffix
+                                    elif operation == "n-":
+                                        # Remove suffix from existing value
+                                        if existing_value:
+                                            parts = existing_value.split(",")
+                                            parts = [p for p in parts if p != suffix]
+                                            value = ",".join(parts)
+                                        else:
+                                            value = existing_value
+                                else:
+                                    # Numeric operation: extract the numeric part c and apply the operation +/-
+                                    try:
+                                        c = int(value[2:])
+                                        if value.startswith("n+"):
+                                            value = metadata.get(key, 0) + c
+                                        elif value.startswith("n-"):
+                                            value = metadata.get(key, 0) - c
+                                    except ValueError:
+                                        print(f"Warning: Invalid numeric operation '{value}' for key '{key}'")
+                                        # Leave value as-is if parsing fails
                         metadata[key] = value
-                metadata["processing_script_result"] = result
-                metadata_tmp_keys.append("processing_script_result")
 
-                # Update metadata with results from the processing script
-                for key, value in result.get("metadata", {}).items():
-                    metadata[key] = value
+                if "metadata_tmp_add" in transition:
+                    for key, value in transition["metadata_tmp_add"].items():
+                        if value == "the-users-response":
+                            value = user_response
+                        elif isinstance(value, str):
+                            if value.startswith("n+random(") and value.endswith(")"):
+                                # Extract the range and apply the random increment
+                                range_values = value[9:-1].split(",")
+                                if len(range_values) == 2:
+                                    x, y = map(int, range_values)
+                                    value = random.randint(x, y)
+                            elif value.startswith("n+") or value.startswith("n-"):
+                                # Check if this is string concatenation (n+,value) or numeric operation (n+5)
+                                if value.startswith("n+,") or value.startswith("n-,"):
+                                    # String concatenation: append/remove from existing value
+                                    operation = value[:2]  # "n+" or "n-"
+                                    suffix = value[3:]  # Everything after "n+," or "n-,"
+                                    existing_value = metadata.get(key, "")
+                                    if operation == "n+":
+                                        # Append with comma separator if existing value is non-empty
+                                        if existing_value:
+                                            value = f"{existing_value},{suffix}"
+                                        else:
+                                            value = suffix
+                                    elif operation == "n-":
+                                        # Remove suffix from existing value
+                                        if existing_value:
+                                            parts = existing_value.split(",")
+                                            parts = [p for p in parts if p != suffix]
+                                            value = ",".join(parts)
+                                        else:
+                                            value = existing_value
+                                else:
+                                    # Numeric operation: extract the numeric part c and apply the operation +/-
+                                    try:
+                                        c = int(value[2:])
+                                        if value.startswith("n+"):
+                                            value = metadata.get(key, 0) + c
+                                        elif value.startswith("n-"):
+                                            value = metadata.get(key, 0) - c
+                                    except ValueError:
+                                        print(f"Warning: Invalid numeric operation '{value}' for key '{key}'")
+                                        # Leave value as-is if parsing fails
+                        metadata[key] = value
+                        metadata_tmp_keys.append(key)  # Track temporary keys
 
-            print(f"\nMetadata: {json.dumps(metadata, indent=2)}")
+                if "metadata_remove" in transition:
+                    for key in transition["metadata_remove"]:
+                        if key in metadata:
+                            del metadata[key]
 
-            # Provide feedback based on the category
-            feedback_messages = []
+                # Handle metadata_clear - clear all metadata if set to True
+                if "metadata_clear" in transition and transition["metadata_clear"] == True:
+                    metadata.clear()
 
-            if "feedback_prompts" in step:
-                # New multi-prompt system - legacy tokens get combined with each prompt
-                multi_feedback_messages = provide_feedback_prompts(
-                    transition,
-                    category,
-                    question,
-                    step["feedback_prompts"],
-                    user_response,
-                    user_language,
-                    metadata,
-                    step.get(
-                        "feedback_tokens_for_ai", ""
-                    ),  # Pass legacy tokens to be combined
-                    feedback_model,
-                )
-                feedback_messages.extend(multi_feedback_messages)
-            elif step.get("feedback_tokens_for_ai"):
-                # Legacy single feedback system - only if no feedback_prompts
-                feedback = provide_feedback(
-                    transition,
-                    category,
-                    question,
-                    user_response,
-                    user_language,
-                    step.get("feedback_tokens_for_ai", ""),
-                    metadata,
-                    feedback_model,
-                )
-                if feedback and feedback.strip():
-                    feedback_messages.append({"name": "Feedback", "content": feedback})
+                # Handle metadata_random
+                if "metadata_random" in transition:
+                    random_key = random.choice(list(transition["metadata_random"].keys()))
+                    random_value = transition["metadata_random"][random_key]
+                    metadata[random_key] = random_value
 
-            # Display all feedback messages
-            for feedback_msg in feedback_messages:
-                print(f"\n{feedback_msg['name']}: {feedback_msg['content']}")
+                if "metadata_tmp_random" in transition:
+                    random_key = random.choice(
+                        list(transition["metadata_tmp_random"].keys())
+                    )
+                    random_value = random.choice(transition["metadata_tmp_random"][random_key])
+                    metadata[random_key] = random_value
+                    metadata_tmp_keys.append(random_key)  # Track temporary keys
 
+                # Execute the processing script if it exists
+                if "processing_script" in step and transition.get(
+                    "run_processing_script", False
+                ):
+                    # Add user_response to metadata temporarily for processing script
+                    temp_metadata = metadata.copy()
+                    temp_metadata["user_response"] = user_response
+
+                    result = execute_processing_script(
+                        temp_metadata, step["processing_script"]
+                    )
+
+                    # Copy any changes back to main metadata (except user_response)
+                    for key, value in temp_metadata.items():
+                        if key != "user_response":
+                            metadata[key] = value
+                    metadata["processing_script_result"] = result
+                    metadata_tmp_keys.append("processing_script_result")
+
+                    # Update metadata with results from the processing script
+                    for key, value in result.get("metadata", {}).items():
+                        metadata[key] = value
+
+                print(f"\n[Metadata after '{bucket_name}']: {json.dumps(metadata, indent=2)}")
+
+                # Provide feedback for THIS bucket
+                if "feedback_prompts" in step:
+                    # New multi-prompt system - legacy tokens get combined with each prompt
+                    multi_feedback_messages = provide_feedback_prompts(
+                        transition,
+                        bucket_name,  # Use bucket_name instead of category
+                        question,
+                        step["feedback_prompts"],
+                        user_response,
+                        user_language,
+                        metadata,
+                        step.get(
+                            "feedback_tokens_for_ai", ""
+                        ),  # Pass legacy tokens to be combined
+                        feedback_model,
+                    )
+                    # Display feedback immediately for this bucket
+                    for feedback_msg in multi_feedback_messages:
+                        print(f"\n{feedback_msg['name']}: {feedback_msg['content']}")
+                elif step.get("feedback_tokens_for_ai"):
+                    # Legacy single feedback system - only if no feedback_prompts
+                    feedback = provide_feedback(
+                        transition,
+                        bucket_name,  # Use bucket_name instead of category
+                        question,
+                        user_response,
+                        user_language,
+                        step.get("feedback_tokens_for_ai", ""),
+                        metadata,
+                        feedback_model,
+                    )
+                    if feedback and feedback.strip():
+                        print(f"\nFeedback: {feedback}")
+
+                # Track navigation (LAST transition's next_section_and_step wins)
+                if "next_section_and_step" in transition:
+                    final_next_section_and_step = transition["next_section_and_step"]
+                    print(f"🎯 Navigation target set to: {final_next_section_and_step}")
+
+                # Track counts_as_attempt (if ANY transition counts, it counts)
+                if transition.get("counts_as_attempt", True):
+                    any_counts_as_attempt = True
+
+            # End of multi-bucket processing loop
+
+            # Check if we should break or continue attempting
             if category not in [
                 "partial_understanding",
                 "limited_effort",
@@ -586,9 +684,8 @@ def simulate_activity(yaml_file_path):
             ]:
                 break
 
-            # Access counts_as_attempt directly from the transition
-            counts_as_attempt = transition.get("counts_as_attempt", True)
-            if counts_as_attempt:
+            # Increment attempts if ANY transition counted
+            if any_counts_as_attempt:
                 attempts += 1
 
         if attempts == max_attempts:
@@ -599,11 +696,11 @@ def simulate_activity(yaml_file_path):
             if key in metadata:
                 del metadata[key]
 
-        # Access next_section_and_step directly from the transition
-        next_section_and_step = transition.get("next_section_and_step", None)
-        if next_section_and_step:
-            current_section_id, current_step_id = next_section_and_step.split(":")
+        # Use the final navigation target (from LAST processed transition)
+        if final_next_section_and_step:
+            current_section_id, current_step_id = final_next_section_and_step.split(":")
         else:
+            # No navigation specified, move to next step automatically
             current_section_id, current_step_id = get_next_section_and_step(
                 yaml_content, current_section_id, current_step_id
             )
