@@ -752,7 +752,7 @@ def simulate_activity(yaml_file_path):
             # End of multi-bucket processing loop
 
             # Check for progressive hints (v2.0)
-            if "hints" in step and attempts > 0:
+            if "hints" in step:
                 hint_context = create_template_context(
                     metadata=metadata,
                     current_attempt=attempts + 1,  # Next attempt
