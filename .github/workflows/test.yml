@@ -37,6 +37,8 @@ jobs:
       env:
         SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
         TESTING: "1"
+        MODEL_ENDPOINT_0: "https://test.api"
+        MODEL_API_KEY_0: "test-key"
 
     - name: Run functional tests
       run: |
@@ -44,6 +46,8 @@ jobs:
       env:
         SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
         TESTING: "1"
+        MODEL_ENDPOINT_0: "https://test.api"
+        MODEL_API_KEY_0: "test-key"
 
     - name: Run integration tests
       run: |
@@ -51,6 +55,8 @@ jobs:
       env:
         SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
         TESTING: "1"
+        MODEL_ENDPOINT_0: "https://test.api"
+        MODEL_API_KEY_0: "test-key"
 
     - name: Validate activity YAML files
       run: |

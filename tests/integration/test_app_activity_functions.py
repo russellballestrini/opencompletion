@@ -50,7 +50,7 @@ class TestFlaskAppActivityFunctions(unittest.TestCase):
         # Force db to use the new in-memory database by clearing the engine
         # This allows the in-memory database to be created
         # Note: Access db.engine AFTER pushing app context
-        if hasattr(db, 'engine'):
+        if hasattr(db, "engine"):
             db.engine.dispose()
         db.session.remove()
 
@@ -189,7 +189,9 @@ sections:
             )()
 
             # Test start_activity function
-            activity.start_activity("test_room", f"research/{activity_file}", "testuser")
+            activity.start_activity(
+                "test_room", f"research/{activity_file}", "testuser"
+            )
 
             # Verify activity state was created in database
             activity_state = ActivityState.query.filter_by(
@@ -300,7 +302,8 @@ sections:
             room = kwargs.get("room")
             emitted_messages.append({"event": event, "data": data, "room": room})
 
-        app.socketio = type(
+        # Mock activity.socketio directly (not app.socketio)
+        activity.socketio = type(
             "MockSocketIO",
             (),
             {"emit": mock_emit, "sleep": lambda *args, **kwargs: None},
@@ -364,7 +367,8 @@ sections:
             room = kwargs.get("room")
             emitted_messages.append({"event": event, "data": data, "room": room})
 
-        app.socketio = type(
+        # Mock activity.socketio directly (not app.socketio)
+        activity.socketio = type(
             "MockSocketIO",
             (),
             {"emit": mock_emit, "sleep": lambda *args, **kwargs: None},
@@ -394,16 +398,28 @@ sections:
             ActivityState.query.filter_by(room_id=self.test_room.id).first()
         )
 
-        # Verify cancellation message was emitted
+        # Verify cancellation messages were emitted
         self.assertTrue(
-            len(emitted_messages) > 0, "Should have emitted a cancellation message"
+            len(emitted_messages) > 0, "Should have emitted cancellation messages"
         )
 
-        # Check the cancellation message
-        cancel_message = emitted_messages[-1]
-        self.assertEqual(cancel_message["event"], "chat_message")
+        # Check for chat_message with cancellation content
+        chat_messages = [
+            msg
+            for msg in emitted_messages
+            if msg["event"] == "chat_message" and msg["data"]
+        ]
+        self.assertTrue(len(chat_messages) > 0, "Should have a chat message")
+        cancel_message = chat_messages[0]
         self.assertEqual(cancel_message["room"], "test_room")
         self.assertIn("canceled", cancel_message["data"]["content"].lower())
+
+        # Check for activity_status update
+        status_messages = [
+            msg for msg in emitted_messages if msg["event"] == "activity_status"
+        ]
+        self.assertTrue(len(status_messages) > 0, "Should have activity_status")
+        self.assertFalse(status_messages[0]["data"]["active"])
 
     def test_execute_processing_script_integration(self):
         """Test processing script execution with real metadata manipulation"""
@@ -510,7 +526,9 @@ script_result = {
         )
 
         # Test the actual categorization function
-        result = activity.categorize_response(question, response, buckets, tokens_for_ai)
+        result = activity.categorize_response(
+            question, response, buckets, tokens_for_ai
+        )
 
         # Result should be either "correct", "incorrect", or an error message
         self.assertIsInstance(result, str)
