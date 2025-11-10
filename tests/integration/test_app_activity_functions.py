@@ -91,8 +91,9 @@ class TestFlaskAppActivityFunctions(unittest.TestCase):
 
     def create_test_activity_file(self, content):
         """Create a temporary activity YAML file"""
-        # Ensure research directory exists
-        research_dir = Path("research")
+        # Get absolute path to research directory
+        base_dir = Path(__file__).parent.parent.parent
+        research_dir = base_dir / "research"
         research_dir.mkdir(exist_ok=True)
 
         # Create temporary file in research directory
@@ -146,7 +147,8 @@ sections:
 
         finally:
             # Clean up
-            os.unlink(Path("research") / activity_file)
+            base_dir = Path(__file__).parent.parent.parent
+            os.unlink(base_dir / "research" / activity_file)
 
     def test_start_activity_integration(self):
         """Test starting an activity with real database operations"""
@@ -207,7 +209,8 @@ sections:
 
         finally:
             # Clean up
-            os.unlink(Path("research") / activity_file)
+            base_dir = Path(__file__).parent.parent.parent
+            os.unlink(base_dir / "research" / activity_file)
 
     def test_handle_activity_response_integration(self):
         """Test handling activity responses with real categorization and database updates"""
@@ -280,7 +283,8 @@ sections:
 
         finally:
             # Clean up
-            os.unlink(Path("research") / activity_file)
+            base_dir = Path(__file__).parent.parent.parent
+            os.unlink(base_dir / "research" / activity_file)
 
     def test_display_activity_metadata_integration(self):
         """Test displaying activity metadata with real database state"""
