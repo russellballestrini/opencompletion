@@ -818,47 +818,48 @@ transitions:
 # PROGRESSIVE HINTS SYSTEM
 # ==============================================================================
 # Built-in system for providing hints that escalate with attempts
-
-# Define hints at step level:
-- step_id: "difficult_question"
-  question: "What is the capital of Burkina Faso?"
-
-  # Progressive hints based on attempt number
-  hints:
-    - attempt: 1
-      text: "💡 Hint: It's not the largest city in the country."
-      counts_as_attempt: false  # Showing hint doesn't count as failure
-
-    - attempt: 2
-      text: "💡 Hint: The name means 'City of Honest People'."
-      counts_as_attempt: false
-
-    - attempt: 3
-      text: "💡 Strong Hint: It starts with 'Oua' and ends with 'dougou'."
-      counts_as_attempt: false
-
-  buckets: [correct, incorrect, need_hint]
-
-  transitions:
-    correct:
-      content_blocks:
-        - "Excellent! Ouagadougou is correct!"
-      next_section_and_step: "next:step"
-
-    incorrect:
-      content_blocks:
-        - "Not quite. Try again!"
-      # Hint will auto-display based on current_attempt
-      next_section_and_step: "current:difficult_question"
-
-    need_hint:
-      content_blocks:
-        - "Let me help you..."
-      counts_as_attempt: false  # Requesting hint doesn't count
-      next_section_and_step: "current:difficult_question"
-
+#
+# Example step with progressive hints:
+#
+# - step_id: "difficult_question"
+#   question: "What is the capital of Burkina Faso?"
+#
+#   hints:
+#     - attempt: 1
+#       text: "💡 Hint: It's not the largest city in the country."
+#       counts_as_attempt: false
+#
+#     - attempt: 2
+#       text: "💡 Hint: The name means 'City of Honest People'."
+#       counts_as_attempt: false
+#
+#     - attempt: 3
+#       text: "💡 Strong Hint: It starts with 'Oua' and ends with 'dougou'."
+#       counts_as_attempt: false
+#
+#   buckets: [correct, incorrect, need_hint]
+#
+#   transitions:
+#     correct:
+#       content_blocks:
+#         - "Excellent! Ouagadougou is correct!"
+#       next_section_and_step: "next:step"
+#
+#     incorrect:
+#       content_blocks:
+#         - "Not quite. Try again!"
+#       next_section_and_step: "current:difficult_question"
+#
+#     need_hint:
+#       content_blocks:
+#         - "Let me help you..."
+#       counts_as_attempt: false
+#       next_section_and_step: "current:difficult_question"
+#
 # Hints auto-display when attempt number matches
 # Hints support template variables: "Attempt {{current_attempt}} of {{max_attempts}}"
+
+progressive_hints_example: "See activity-test-v2-features.yaml for working example"
 
 # ==============================================================================
 # WEIGHTED RANDOM SELECTION
@@ -927,29 +928,32 @@ question: "What is 2 + 2?"
 question: "What is {{metadata.num1}} + {{metadata.num2}}?"
 
 # Example: Math quiz with random numbers
-- step_id: "addition"
-  pre_script: |
-    import random
-    result = {
-      "metadata": {
-        "num1": random.randint(1, 10),
-        "num2": random.randint(1, 10)
-      }
-    }
-    return result
+#
+# - step_id: "addition"
+#   pre_script: |
+#     import random
+#     result = {
+#       "metadata": {
+#         "num1": random.randint(1, 10),
+#         "num2": random.randint(1, 10)
+#       }
+#     }
+#     return result
+#
+#   question: "What is {{metadata.num1}} + {{metadata.num2}}?"
+#
+#   tokens_for_ai: |
+#     Calculate the correct answer: {{metadata.num1}} + {{metadata.num2}}
+#     Categorize as 'correct' if their answer matches.
+#
+#   buckets: [correct, incorrect]
+#
+# More personalized question examples:
+# - "{{metadata.character_name}}, what is your quest?"
+# - "You have {{metadata.gold}} gold. How much do you spend?"
+# - "Round {{current_attempt}}: What's your move?"
 
-  question: "What is {{metadata.num1}} + {{metadata.num2}}?"
-
-  tokens_for_ai: |
-    Calculate the correct answer: {{metadata.num1}} + {{metadata.num2}}
-    Categorize as 'correct' if their answer matches.
-
-  buckets: [correct, incorrect]
-
-# Example: Personalized questions
-question: "{{metadata.character_name}}, what is your quest?"
-question: "You have {{metadata.gold}} gold. How much do you spend?"
-question: "Round {{current_attempt}}: What's your move?"
+dynamic_question_example: "See activity-test-v2-features.yaml for working example"
 
 # ==============================================================================
 # BUILT-IN ATTEMPT COUNTER ACCESS
