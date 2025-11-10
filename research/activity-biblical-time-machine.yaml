@@ -1,6 +1,7 @@
-# Biblical Time Machine Activity
-# Travel through time to meet key figures from the Bible
-# Converse with Moses, Jesus, disciples, persecuted Christians, and more
+# Biblical Time Machine Activity - COMPLETE EDITION
+# Travel from Garden of Eden to the Early Church
+# Meet ANY biblical figure - open-ended exploration of Scripture
+# Historically accurate locations and contexts for each era
 
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
@@ -11,17 +12,24 @@ tokens_for_ai_rubric: |
 
   CRITICAL GUIDELINES:
   - Maintain historical and biblical accuracy at all times
-  - NPCs should speak in character appropriate to their time period
+  - NPCs should speak in character appropriate to their time period and location
   - Reference specific biblical texts when relevant
   - Be respectful of the sacred nature of these stories
   - Help users understand the historical and cultural context
   - Encourage thoughtful reflection on biblical teachings
+  - SUPPORT OPEN-ENDED NPC REQUESTS: If user asks to meet someone not in the suggested list, evaluate if they're biblical and from that era, then roleplay them accurately
 
   LANGUAGE & TONE:
-  - Ancient characters speak formally, with reverence for God
+  - Ancient characters speak formally, with reverence for God (or gods for pagans)
   - Use period-appropriate language (no modern slang for NPCs)
   - Be immersive and engaging
   - Balance education with storytelling
+
+  LOCATIONS MUST BE ACCURATE:
+  - No Temple in Genesis or pre-Solomon eras (use Tabernacle or altars)
+  - Garden of Eden has no buildings, only nature
+  - Egypt has temples to Egyptian gods, not YHWH
+  - Accurate geography for each period
 
 sections:
   # ============================================================================
@@ -36,13 +44,16 @@ sections:
           - "# ⏳ The Biblical Time Machine ⏳"
           - ""
           - "Welcome, time traveler! You have discovered an extraordinary device:"
-          - "**A time machine capable of transporting you to any epoch in Biblical history.**"
+          - "**A time machine capable of transporting you to ANY moment in Biblical history.**"
           - ""
           - "Through this machine, you will:"
-          - "- 📜 Visit pivotal moments in the Bible"
-          - "- 🗣️ Converse with key figures from scripture"
-          - "- 🕊️ Witness the struggles, triumphs, and faith of God's people"
-          - "- 📖 Gain deeper understanding of biblical history"
+          - "- 📜 Visit every epoch from Eden to the Early Church"
+          - "- 🗣️ Converse with ANY figure from Scripture"
+          - "- 🕊️ Witness God's redemptive story unfold across millennia"
+          - "- 📖 Gain deeper understanding of biblical history and theology"
+          - ""
+          - "From Adam in Paradise to Paul in prison, from Abraham's tent to Jesus' empty tomb—"
+          - "**the entire sweep of biblical history awaits your exploration.**"
           - ""
           - "Remember: You are an observer and student. Treat these sacred moments with reverence."
 
@@ -91,358 +102,212 @@ sections:
           - ""
           - "The time machine hums with energy. Where would you like to travel?"
           - ""
-          - "## Available Epochs:"
+          - "## Available Epochs (In Chronological Order):"
           - ""
-          - "**1. EGYPT & THE EXODUS (~1446 BC)**"
-          - "Meet Moses, witness the plagues, and speak with Hebrew slaves yearning for freedom."
+          - "**1. GARDEN OF EDEN (Pre-Fall ~4000 BC)**"
+          - "Walk in Paradise before sin. Meet Adam & Eve in innocence. No buildings, only perfect nature."
           - ""
-          - "**2. KINGDOM OF DAVID (~1000 BC)**"
-          - "Visit King David's court, meet prophets, and see Israel at its height."
+          - "**2. THE FALL & EARLY WORLD (Post-Fall ~4000-3000 BC)**"
+          - "Meet Cain & Abel, Enoch. See first altars and sacrifices. No cities yet, only scattered families."
           - ""
-          - "**3. THE LIFE OF JESUS (~30 AD)**"
-          - "Walk with Jesus, talk to His disciples, and witness His ministry."
+          - "**3. EGYPT & THE EXODUS (~1446 BC)**"
+          - "Meet Moses, Pharaoh, Hebrew slaves. NO Temple yet—only Egyptian temples and altars to YHWH."
           - ""
-          - "**4. PENTECOST & THE EARLY CHURCH (~33 AD)**"
-          - "Experience the birth of the Church, meet the Apostles, and see the Holy Spirit move."
+          - "**4. SOLOMON'S TEMPLE (~970-930 BC)**"
+          - "Visit the FIRST Temple in Jerusalem! See its glory, meet King Solomon."
           - ""
-          - "**5. ROMAN PERSECUTION (~64-313 AD)**"
-          - "Stand with persecuted Christians in the catacombs, meet martyrs, and witness faith under fire."
+          - "**5. THE LIFE OF JESUS (~4 BC - 30 AD)**"
+          - "Walk with Jesus during His ministry. The SECOND Temple (Herod's) stands in Jerusalem."
           - ""
-          - "**6. END JOURNEY**"
+          - "**6. PERSECUTION & MARTYRDOM (~64-313 AD)**"
+          - "Meet persecuted Christians in Rome's catacombs. Temple destroyed (70 AD)—faith survives underground."
+          - ""
+          - "**7. END JOURNEY**"
           - "Return to the present and reflect on your travels."
 
       - step_id: "select_destination"
         title: "Destination Input"
-        question: "Enter the number (1-6) of the epoch you wish to visit, or type 'END' to conclude your journey:"
+        question: "Enter the number (1-7) of the epoch you wish to visit, or type 'END' to conclude your journey:"
         tokens_for_ai: |
           The user is selecting which biblical epoch to visit.
 
-          Categorize as 'egypt_exodus' if they choose 1, mention Egypt, Exodus, Moses, or Pharaoh.
-          Categorize as 'kingdom_david' if they choose 2, mention David, Solomon, or kingdom of Israel.
-          Categorize as 'life_of_jesus' if they choose 3, mention Jesus, ministry, or Galilee.
-          Categorize as 'early_church' if they choose 4, mention Pentecost, early church, or apostles after resurrection.
-          Categorize as 'roman_persecution' if they choose 5, mention persecution, catacombs, or martyrs.
-          Categorize as 'end_journey' if they choose 6, type 'end', or want to finish.
-          Categorize as 'confused' if unclear or off-topic.
-        buckets: [egypt_exodus, kingdom_david, life_of_jesus, early_church, roman_persecution, end_journey, confused]
+          Map their response to the appropriate bucket:
+          - 'eden' for 1, Garden of Eden, Paradise, Adam and Eve before sin
+          - 'fall_early' for 2, Fall, Cain, Abel, Enoch, early world
+          - 'egypt_exodus' for 3, Egypt, Moses, Exodus, Pharaoh, plagues, Red Sea, no temple yet
+          - 'solomon' for 4, Solomon, Temple, wisdom, First Temple, Jerusalem
+          - 'life_jesus' for 5, Jesus' ministry, Galilee, miracles, teachings, Second Temple
+          - 'persecution' for 6, persecution, martyrs, Rome, catacombs, post-70 AD
+          - 'end_journey' for 7, END, finish, conclude
+          - 'confused' if unclear or off-topic
+        buckets: [eden, fall_early, egypt_exodus, solomon, life_jesus, persecution, end_journey, confused]
         transitions:
+          eden:
+            content_blocks:
+              - "🌳 Initializing temporal coordinates: Garden of Eden, before the Fall..."
+              - "🔮 Engaging quantum displacement..."
+              - "⚡ Entering Paradise!"
+            metadata_add:
+              current_epoch: "Garden of Eden"
+              epochs_visited: "n+1"
+            next_section_and_step: "eden:arrival"
+          fall_early:
+            content_blocks:
+              - "🍎 Temporal coordinates set: Post-Fall world..."
+              - "⚡ Time travel initiated!"
+            metadata_add:
+              current_epoch: "Fall & Early World"
+              epochs_visited: "n+1"
+            next_section_and_step: "fall_early:arrival"
           egypt_exodus:
             content_blocks:
-              - "🌊 Initializing temporal coordinates: Egypt, circa 1446 BC..."
-              - "🔮 Engaging quantum displacement..."
-              - "⚡ Time travel sequence initiated!"
+              - "🌊 Coordinates: Egypt, time of the Exodus..."
+              - "⚡ Engaging!"
             metadata_add:
               current_epoch: "Egypt & Exodus"
               epochs_visited: "n+1"
             next_section_and_step: "egypt_exodus:arrival"
-          kingdom_david:
+          solomon:
             content_blocks:
-              - "👑 Initializing temporal coordinates: Jerusalem, circa 1000 BC..."
-              - "🔮 Engaging quantum displacement..."
-              - "⚡ Time travel sequence initiated!"
+              - "🏛️ Coordinates: Jerusalem, Solomon's Temple era..."
+              - "⚡ Engaging!"
             metadata_add:
-              current_epoch: "Kingdom of David"
+              current_epoch: "Solomon's Temple"
               epochs_visited: "n+1"
-            next_section_and_step: "kingdom_david:arrival"
-          life_of_jesus:
+            next_section_and_step: "solomon:arrival"
+          life_jesus:
             content_blocks:
-              - "✨ Initializing temporal coordinates: Galilee/Jerusalem, circa 30 AD..."
-              - "🔮 Engaging quantum displacement..."
-              - "⚡ Time travel sequence initiated!"
+              - "✨ Coordinates: Galilee/Judea, Jesus' ministry..."
+              - "⚡ Engaging!"
             metadata_add:
               current_epoch: "Life of Jesus"
               epochs_visited: "n+1"
-            next_section_and_step: "life_of_jesus:arrival"
-          early_church:
+            next_section_and_step: "life_jesus:arrival"
+          persecution:
             content_blocks:
-              - "🕊️ Initializing temporal coordinates: Jerusalem, circa 33 AD..."
-              - "🔮 Engaging quantum displacement..."
-              - "⚡ Time travel sequence initiated!"
+              - "🔥 Coordinates: Rome, era of persecution..."
+              - "⚡ Engaging!"
             metadata_add:
-              current_epoch: "Early Church"
+              current_epoch: "Persecution"
               epochs_visited: "n+1"
-            next_section_and_step: "early_church:arrival"
-          roman_persecution:
-            content_blocks:
-              - "🔥 Initializing temporal coordinates: Rome, circa 64-313 AD..."
-              - "🔮 Engaging quantum displacement..."
-              - "⚡ Time travel sequence initiated!"
-            metadata_add:
-              current_epoch: "Roman Persecution"
-              epochs_visited: "n+1"
-            next_section_and_step: "roman_persecution:arrival"
+            next_section_and_step: "persecution:arrival"
           end_journey:
             content_blocks:
               - "Returning to the present..."
             next_section_and_step: "conclusion:reflection"
           confused:
             content_blocks:
-              - "Please enter a number from 1 to 6, or type 'END' to finish your journey."
+              - "Please enter a number from 1 to 7, or type 'END' to finish your journey."
             counts_as_attempt: false
             next_section_and_step: "time_machine_hub:select_destination"
 
   # ============================================================================
-  # EPOCH 1: EGYPT & THE EXODUS (~1446 BC)
+  # EPOCH 1: GARDEN OF EDEN (Pre-Fall)
   # ============================================================================
-  - section_id: "egypt_exodus"
-    title: "Egypt & The Exodus (~1446 BC)"
+  - section_id: "eden"
+    title: "Garden of Eden (Before the Fall)"
     steps:
       - step_id: "arrival"
-        title: "Arrival in Ancient Egypt"
+        title: "Arrival in Paradise"
         content_blocks:
-          - "# 🏜️ Ancient Egypt, circa 1446 BC 🏜️"
+          - "# 🌳 Garden of Eden - Before the Fall 🌳"
           - ""
-          - "The time machine materializes near the Nile River. The air is hot and dusty."
-          - "You see massive pyramids in the distance and mud-brick buildings everywhere."
+          - "The time machine materializes in the most beautiful place you've ever seen."
+          - "You stand in a lush garden of unimaginable perfection and beauty."
           - ""
-          - "In the distance, you hear the crack of whips and groans of laborers."
-          - "Hebrew slaves toil under the scorching sun, making bricks for Pharaoh's construction projects."
+          - "**LOCATION:** The Garden of Eden, east of present-day Mesopotamia"
+          - "- Four rivers flow from here: Pishon, Gihon, Tigris, Euphrates"
+          - "- Trees of every kind, laden with perfect fruit"
+          - "- Animals walk without fear—lion lies with lamb"
+          - "- No thorns, no death, no decay"
+          - "- The Tree of Life stands in the center, beside the Tree of Knowledge"
           - ""
-          - "You also see Egyptian soldiers patrolling, and nobles being carried in litters."
+          - "This is Paradise before sin entered the world."
+          - "God walks in the garden in the cool of the day."
+          - "Adam and Eve live in perfect communion with their Creator."
           - ""
-          - "**Who would you like to meet?**"
-          - "- Moses (the Hebrew prophet chosen by God)"
-          - "- Pharaoh (the ruler of Egypt)"
-          - "- A Hebrew slave (someone suffering under bondage)"
-          - "- Aaron (Moses' brother and spokesman)"
+          - "**Suggested people to meet:**"
+          - "- Adam (the first human, created from dust)"
+          - "- Eve (mother of all living, created from Adam's rib)"
+          - "- The LORD God (walking in the garden)"
+          - ""
+          - "**Or name anyone else from this time that you'd like to meet!**"
 
       - step_id: "choose_npc"
         title: "Choose Someone to Meet"
-        question: "Who would you like to speak with? (Moses, Pharaoh, a slave, Aaron, or 'LEAVE' to return to the time machine)"
+        question: "Who would you like to speak with? (Name anyone from this era, or 'LEAVE' to return to the time machine)"
         tokens_for_ai: |
-          The user is choosing which NPC to meet in ancient Egypt.
+          The user is choosing who to meet in the Garden of Eden before the Fall.
 
-          Categorize as 'meet_moses' if they mention Moses or want to meet the prophet.
-          Categorize as 'meet_pharaoh' if they mention Pharaoh or the king of Egypt.
-          Categorize as 'meet_slave' if they mention slave, Hebrew, or suffering people.
-          Categorize as 'meet_aaron' if they mention Aaron or Moses' brother.
-          Categorize as 'leave' if they type 'leave', 'go back', or want to return to time machine.
-          Categorize as 'confused' if unclear.
-        buckets: [meet_moses, meet_pharaoh, meet_slave, meet_aaron, leave, confused]
+          This is OPEN-ENDED. Support any biblically accurate character from Genesis 1-2.
+
+          Common choices:
+          - 'meet_adam' if Adam, first man, or mankind
+          - 'meet_eve' if Eve, first woman, or mother of living
+          - 'meet_god' if God, LORD, YHWH, Creator
+          - 'meet_animals' if animals, creatures, lion, lamb, etc.
+
+          For ANY other biblical figure from this era they name, categorize as 'meet_other' and store their request.
+
+          - 'leave' if they want to return to time machine
+          - 'confused' if unclear or anachronistic (e.g., Moses wasn't alive yet!)
+        buckets: [meet_adam, meet_eve, meet_god, meet_animals, meet_other, leave, confused]
         transitions:
-          meet_moses:
+          meet_adam:
             content_blocks:
-              - "You approach a weather-worn man with a staff, standing near a burning bush site..."
+              - "You approach Adam, who is tending the garden. He greets you with wonder and joy..."
             metadata_add:
               people_met: "n+1"
-              current_npc: "Moses"
-            next_section_and_step: "egypt_exodus:conversation"
-          meet_pharaoh:
+              current_npc: "Adam (in Paradise)"
+            next_section_and_step: "eden:conversation"
+          meet_eve:
             content_blocks:
-              - "You are granted an audience in Pharaoh's grand palace. He sits on a golden throne..."
+              - "You find Eve by a fruit tree. She smiles radiantly, full of innocence and grace..."
             metadata_add:
               people_met: "n+1"
-              current_npc: "Pharaoh"
-            next_section_and_step: "egypt_exodus:conversation"
-          meet_slave:
+              current_npc: "Eve (in Paradise)"
+            next_section_and_step: "eden:conversation"
+          meet_god:
             content_blocks:
-              - "You approach a Hebrew laborer taking a brief rest from brick-making..."
+              - "In the cool of the day, you sense the presence of the LORD God walking in the garden..."
             metadata_add:
               people_met: "n+1"
-              current_npc: "Hebrew Slave"
-            next_section_and_step: "egypt_exodus:conversation"
-          meet_aaron:
+              current_npc: "The LORD God"
+            next_section_and_step: "eden:conversation"
+          meet_animals:
             content_blocks:
-              - "You meet Aaron, Moses' brother, who serves as his spokesman..."
+              - "You observe the animals of Eden, living in perfect harmony..."
             metadata_add:
               people_met: "n+1"
-              current_npc: "Aaron"
-            next_section_and_step: "egypt_exodus:conversation"
+              current_npc: "Animals of Eden"
+            next_section_and_step: "eden:conversation"
+          meet_other:
+            content_blocks:
+              - "Searching for that person in the Garden..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "the-users-response"
+            next_section_and_step: "eden:conversation"
           leave:
             content_blocks:
-              - "You return to the time machine. The journey back feels instantaneous."
+              - "You return to the time machine, longing for lost Paradise..."
             next_section_and_step: "time_machine_hub:choose_epoch"
           confused:
             content_blocks:
-              - "Please choose: Moses, Pharaoh, a slave, Aaron, or type 'LEAVE'."
+              - "That person isn't in this era. Who from the Garden of Eden would you like to meet?"
             counts_as_attempt: false
-            next_section_and_step: "egypt_exodus:choose_npc"
+            next_section_and_step: "eden:choose_npc"
 
       - step_id: "conversation"
         title: "Conversation"
         question: "What would you like to say or ask?"
         tokens_for_ai: |
-          The user is conversing with an NPC in ancient Egypt.
-          The NPC they're talking to is in metadata.current_npc.
-
-          Evaluate their question or statement and categorize:
-
-          - 'deep_question' if they ask about faith, God's plan, suffering, freedom, or theological matters
-          - 'historical_question' if they ask about events, the plagues, the exodus, or historical details
-          - 'personal_question' if they ask about the NPC's life, feelings, or experiences
-          - 'continue_talking' if they make a statement or casual comment
-          - 'done_talking' if they say goodbye, thank you, or want to leave
-          - 'change_language' if they request a different language
-          - 'off_topic' if completely unrelated
-        feedback_tokens_for_ai: |
-          Respond IN CHARACTER as the NPC from metadata.current_npc.
-          Use the user's preferred language from metadata.language.
-
-          CHARACTER GUIDELINES:
-
-          **Moses:**
-          - Speaks humbly but with authority from God
-          - References his encounters with God (burning bush, Exodus 3)
-          - Talks about leading the Hebrews to freedom
-          - Mentions his reluctance and God's reassurance
-          - References Aaron as his spokesman
-          - Biblical accuracy: Exodus 2-14
-
-          **Pharaoh:**
-          - Speaks arrogantly and believes he is divine
-          - Refuses to acknowledge the Hebrew God's power initially
-          - Talks about maintaining order and Egypt's glory
-          - May mention the plagues as troubling events
-          - Harsh toward slaves and foreigners
-          - Biblical accuracy: Exodus 5-14
-
-          **Hebrew Slave:**
-          - Speaks wearily but with hope
-          - Talks about suffering: making bricks without straw, beatings, harsh labor
-          - Mentions Moses and wondering if God will truly deliver them
-          - References the promises to Abraham, Isaac, and Jacob
-          - Shows both despair and faith
-          - Biblical accuracy: Exodus 1-6
-
-          **Aaron:**
-          - Speaks as Moses' brother and spokesman
-          - References his role in confronting Pharaoh
-          - Talks about the signs and wonders God performs through them
-          - More eloquent than Moses
-          - Shows faith but also human weakness
-          - Biblical accuracy: Exodus 4-14
-
-          RESPONSE REQUIREMENTS:
-          - Stay in character
-          - Reference specific biblical passages when relevant
-          - Be historically accurate to ~1446 BC Egypt
-          - Answer their question thoughtfully
-          - Show the NPC's personality and faith journey
-          - End by asking if they have more questions or want to speak with someone else
-        buckets: [deep_question, historical_question, personal_question, continue_talking, done_talking, change_language, off_topic]
-        transitions:
-          deep_question:
-            ai_feedback:
-              tokens_for_ai: "Provide a deep, biblically grounded response to their theological question."
-            next_section_and_step: "egypt_exodus:conversation"
-          historical_question:
-            ai_feedback:
-              tokens_for_ai: "Provide historically accurate information about the events of the Exodus."
-            next_section_and_step: "egypt_exodus:conversation"
-          personal_question:
-            ai_feedback:
-              tokens_for_ai: "Share personal experiences and feelings from the NPC's perspective."
-            next_section_and_step: "egypt_exodus:conversation"
-          continue_talking:
-            ai_feedback:
-              tokens_for_ai: "Respond naturally to their statement and continue the conversation."
-            next_section_and_step: "egypt_exodus:conversation"
-          done_talking:
-            content_blocks:
-              - "Your conversation concludes. The NPC bids you farewell with a blessing."
-            next_section_and_step: "egypt_exodus:choose_npc"
-          change_language:
-            content_blocks:
-              - "Language preference updated."
-            metadata_add:
-              language: "the-users-response"
-            counts_as_attempt: false
-            next_section_and_step: "egypt_exodus:conversation"
-          off_topic:
-            content_blocks:
-              - "The NPC looks confused. Please ask something relevant to their time and experience."
-            counts_as_attempt: false
-            next_section_and_step: "egypt_exodus:conversation"
-
-  # ============================================================================
-  # EPOCH 2: KINGDOM OF DAVID (~1000 BC)
-  # ============================================================================
-  - section_id: "kingdom_david"
-    title: "Kingdom of David (~1000 BC)"
-    steps:
-      - step_id: "arrival"
-        title: "Arrival in Jerusalem"
-        content_blocks:
-          - "# 👑 Jerusalem, Kingdom of David, circa 1000 BC 👑"
-          - ""
-          - "The time machine materializes on a hillside overlooking Jerusalem."
-          - "The city is being fortified and expanded. Construction of a royal palace is underway."
-          - ""
-          - "You see the Ark of the Covenant being brought into the city with dancing and celebration."
-          - "Music fills the air—lyres, harps, cymbals, and joyful singing."
-          - ""
-          - "This is Israel's golden age: united under King David, victorious over enemies,"
-          - "and experiencing unprecedented prosperity and worship of the Lord."
-          - ""
-          - "**Who would you like to meet?**"
-          - "- King David (the shepherd-king, man after God's own heart)"
-          - "- Prophet Nathan (David's spiritual advisor)"
-          - "- A Temple musician (one who leads worship)"
-          - "- A common citizen (experiencing Israel's prosperity)"
-
-      - step_id: "choose_npc"
-        title: "Choose Someone to Meet"
-        question: "Who would you like to speak with? (David, Nathan, a musician, a citizen, or 'LEAVE')"
-        tokens_for_ai: |
-          The user is choosing which NPC to meet in David's kingdom.
-
-          Categorize as 'meet_david' if they mention David, king, or ruler.
-          Categorize as 'meet_nathan' if they mention Nathan or prophet.
-          Categorize as 'meet_musician' if they mention musician, worship, or temple singer.
-          Categorize as 'meet_citizen' if they mention citizen, common person, or regular Israelite.
-          Categorize as 'leave' if they want to return to the time machine.
-          Categorize as 'confused' if unclear.
-        buckets: [meet_david, meet_nathan, meet_musician, meet_citizen, leave, confused]
-        transitions:
-          meet_david:
-            content_blocks:
-              - "You are granted an audience with King David in his palace..."
-            metadata_add:
-              people_met: "n+1"
-              current_npc: "King David"
-            next_section_and_step: "kingdom_david:conversation"
-          meet_nathan:
-            content_blocks:
-              - "Prophet Nathan welcomes you. He has the bearing of one who speaks for God..."
-            metadata_add:
-              people_met: "n+1"
-              current_npc: "Prophet Nathan"
-            next_section_and_step: "kingdom_david:conversation"
-          meet_musician:
-            content_blocks:
-              - "You approach a Levite musician holding a lyre near the Tabernacle..."
-            metadata_add:
-              people_met: "n+1"
-              current_npc: "Temple Musician"
-            next_section_and_step: "kingdom_david:conversation"
-          meet_citizen:
-            content_blocks:
-              - "You meet a joyful citizen who is celebrating Israel's peace and prosperity..."
-            metadata_add:
-              people_met: "n+1"
-              current_npc: "Israelite Citizen"
-            next_section_and_step: "kingdom_david:conversation"
-          leave:
-            content_blocks:
-              - "You return to the time machine."
-            next_section_and_step: "time_machine_hub:choose_epoch"
-          confused:
-            content_blocks:
-              - "Please choose: David, Nathan, a musician, a citizen, or 'LEAVE'."
-            counts_as_attempt: false
-            next_section_and_step: "kingdom_david:choose_npc"
-
-      - step_id: "conversation"
-        title: "Conversation"
-        question: "What would you like to say or ask?"
-        tokens_for_ai: |
-          The user is conversing with an NPC in David's kingdom.
-          The NPC is in metadata.current_npc.
+          User conversing with metadata.current_npc in Garden of Eden.
 
           Categorize as:
-          - 'deep_question' for faith, God's covenant, kingdom, or theology
-          - 'historical_question' for events, battles, or history
-          - 'personal_question' for NPC's life and experiences
+          - 'deep_question' for theology, God's nature, creation, purpose
+          - 'historical_question' for details about Eden, creation, daily life
+          - 'personal_question' for NPC's experience, feelings, relationship with God
           - 'continue_talking' for statements or comments
           - 'done_talking' for farewells
           - 'change_language' for language requests
@@ -451,80 +316,773 @@ sections:
           Respond IN CHARACTER as metadata.current_npc.
           Use language from metadata.language.
 
-          **King David:**
-          - Humble despite his kingship
-          - Passionate worshiper of God
-          - References his time as a shepherd (1 Samuel 16-17)
-          - Talks about defeating Goliath, uniting Israel, bringing the Ark
-          - May reference his sins (Bathsheba, Uriah) with remorse
-          - Quotes from his Psalms
-          - Biblical: 1 Samuel 16 - 1 Kings 2, Book of Psalms
+          **LOCATION CONTEXT: Garden of Eden, before the Fall**
+          - No buildings, temples, or cities
+          - Perfect nature, no death or decay
+          - Direct communion with God
+          - No sin, shame, or fear yet
+          - Animals are named and tame
 
-          **Prophet Nathan:**
-          - Speaks with divine authority
-          - Confronted David about sin (2 Samuel 12)
-          - Delivered God's covenant promise (2 Samuel 7)
-          - Wise and discerning
-          - Balances grace and truth
-          - Biblical: 2 Samuel 7, 12
+          **CHARACTER GUIDELINES:**
 
-          **Temple Musician:**
-          - Passionate about worship
-          - Plays lyre or harp
-          - Helps lead Israel in praising God
-          - Talks about David's Psalms and worship innovations
-          - Joyful and devoted
-          - Biblical: 1 Chronicles 15-16, Psalms
+          **Adam (in Paradise):**
+          - Joyful, innocent, without shame
+          - Talks about naming animals, tending the garden
+          - His work is joyful, not toilsome (no curse yet)
+          - Deeply grateful for Eve ("bone of my bone, flesh of my flesh")
+          - Walks with God daily without fear
+          - Doesn't understand evil or death yet
+          - Biblical: Genesis 1:26-2:25
 
-          **Israelite Citizen:**
-          - Grateful for peace and prosperity
-          - Proud of David's victories
-          - Worships at the Tabernacle/Temple site
-          - Talks about daily life in united Israel
-          - Hopeful about future
-          - Biblical: 2 Samuel 5-10
+          **Eve (in Paradise):**
+          - Full of wonder and innocence
+          - Marvels at the beauty of creation
+          - Talks about communion with Adam and God
+          - No shame, completely pure
+          - Helper to Adam in tending Eden
+          - Doesn't know deception or sin yet
+          - Biblical: Genesis 2:18-25
 
-          Stay in character, reference scripture, be historically accurate, end with invitation to continue.
+          **The LORD God:**
+          - Speaks with authority, love, and wisdom
+          - Walks in the garden to commune with His image-bearers
+          - Gave commands: tend the garden, don't eat from Tree of Knowledge
+          - Pronounces everything "very good"
+          - Intimate relationship with Adam and Eve
+          - Shows creative power and fatherly care
+          - Biblical: Genesis 1-2
+
+          **Animals of Eden:**
+          - Peaceful, tame, no fear of humans
+          - No predation (lion doesn't hunt)
+          - Named by Adam
+          - Part of the "very good" creation
+
+          **For other biblical characters:** Use Genesis 1-2 context. If they ask about someone anachronistic, gently correct: "That person isn't born yet. We're in Paradise before sin entered the world."
+
+          IMPORTANT: This is BEFORE the Fall. No mention of sin, death, curse, or serpent yet (that's next epoch).
+
+          Stay in character, reference Genesis 1-2, maintain innocence and joy, end with invitation to continue.
         buckets: [deep_question, historical_question, personal_question, continue_talking, done_talking, change_language, off_topic]
         transitions:
           deep_question:
             ai_feedback:
-              tokens_for_ai: "Provide deep, biblically grounded response about God's covenant and kingdom."
-            next_section_and_step: "kingdom_david:conversation"
+              tokens_for_ai: "Provide theologically rich response about creation, God's nature, and human purpose in Paradise."
+            next_section_and_step: "eden:conversation"
           historical_question:
             ai_feedback:
-              tokens_for_ai: "Provide historically accurate information about David's reign."
-            next_section_and_step: "kingdom_david:conversation"
+              tokens_for_ai: "Provide accurate information about life in Eden and creation details."
+            next_section_and_step: "eden:conversation"
           personal_question:
             ai_feedback:
-              tokens_for_ai: "Share personal experiences and feelings from NPC's perspective."
-            next_section_and_step: "kingdom_david:conversation"
+              tokens_for_ai: "Share joyful experiences of Paradise and relationship with God."
+            next_section_and_step: "eden:conversation"
           continue_talking:
             ai_feedback:
-              tokens_for_ai: "Respond naturally and continue conversation."
-            next_section_and_step: "kingdom_david:conversation"
+              tokens_for_ai: "Respond naturally with innocent joy and wonder."
+            next_section_and_step: "eden:conversation"
           done_talking:
             content_blocks:
-              - "Your conversation concludes with a blessing of peace."
-            next_section_and_step: "kingdom_david:choose_npc"
+              - "Your conversation ends. You're blessed by this glimpse of Paradise."
+            next_section_and_step: "eden:choose_npc"
           change_language:
             content_blocks:
               - "Language preference updated."
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: "kingdom_david:conversation"
+            next_section_and_step: "eden:conversation"
           off_topic:
             content_blocks:
-              - "Please stay focused on matters relevant to this time period."
+              - "Please focus on matters relevant to life in Paradise."
             counts_as_attempt: false
-            next_section_and_step: "kingdom_david:conversation"
+            next_section_and_step: "eden:conversation"
 
   # ============================================================================
-  # EPOCH 3: THE LIFE OF JESUS (~30 AD)
+  # EPOCH 2: THE FALL & EARLY WORLD
   # ============================================================================
-  - section_id: "life_of_jesus"
-    title: "The Life of Jesus (~30 AD)"
+  - section_id: "fall_early"
+    title: "The Fall & Early World"
+    steps:
+      - step_id: "arrival"
+        title: "Arrival in the Fallen World"
+        content_blocks:
+          - "# 🍎 The Fallen World 🍎"
+          - ""
+          - "The time machine materializes outside Eden's gates."
+          - "Everything has changed. You see thorns, sweat, toil."
+          - ""
+          - "**LOCATION:** Outside the Garden of Eden"
+          - "- Cherubim with flaming sword guard Eden's entrance (Genesis 3:24)"
+          - "- Adam and Eve now work by the sweat of their brow"
+          - "- First altars and sacrifices appear"
+          - "- Cain farms the ground, Abel shepherds flocks"
+          - "- No cities yet, but families spread across the land"
+          - ""
+          - "Sin has entered the world. Death has begun."
+          - "But God has promised a Redeemer (Genesis 3:15)."
+          - ""
+          - "**Suggested people to meet:**"
+          - "- Adam (expelled from Paradise, grieving)"
+          - "- Eve (mother of Cain and Abel)"
+          - "- Cain (first murderer, marked by God)"
+          - "- Abel (righteous martyr, whose blood cried out)"
+          - "- Seth (appointed replacement, ancestor of Noah)"
+          - "- Enoch (walked with God, taken to heaven without dying)"
+          - ""
+          - "**Or name anyone else from this era (Genesis 3-5)!**"
+
+      - step_id: "choose_npc"
+        title: "Choose Someone to Meet"
+        question: "Who would you like to speak with? (Name anyone from this era, or 'LEAVE')"
+        tokens_for_ai: |
+          User choosing who to meet in the post-Fall early world (Genesis 3-5).
+
+          This is OPEN-ENDED. Support any biblical figure from this era.
+
+          Common choices:
+          - 'meet_adam_fallen' if Adam after Fall, expelled Adam
+          - 'meet_eve_fallen' if Eve after Fall, grieving Eve
+          - 'meet_cain' if Cain, first murderer, wanderer
+          - 'meet_abel' if Abel (alive before murder), shepherd
+          - 'meet_seth' if Seth, replacement son
+          - 'meet_enoch' if Enoch, walked with God
+
+          For ANY other biblical figure from Genesis 3-5, categorize as 'meet_other'.
+
+          - 'leave' if returning to time machine
+          - 'confused' if anachronistic or unclear
+        buckets: [meet_adam_fallen, meet_eve_fallen, meet_cain, meet_abel, meet_seth, meet_enoch, meet_other, leave, confused]
+        transitions:
+          meet_adam_fallen:
+            content_blocks:
+              - "You find Adam outside Eden, toiling in the fields. His face shows both sorrow and hope..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Adam (after the Fall)"
+            next_section_and_step: "fall_early:conversation"
+          meet_eve_fallen:
+            content_blocks:
+              - "Eve greets you with tears in her eyes. She bears the weight of sin and loss, yet clings to God's promise..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Eve (after the Fall)"
+            next_section_and_step: "fall_early:conversation"
+          meet_cain:
+            content_blocks:
+              - "You encounter Cain, marked by God, wandering restlessly..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Cain"
+            next_section_and_step: "fall_early:conversation"
+          meet_abel:
+            content_blocks:
+              - "You meet Abel tending his flock, unaware of his approaching martyrdom..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Abel"
+            next_section_and_step: "fall_early:conversation"
+          meet_seth:
+            content_blocks:
+              - "Seth welcomes you warmly. In him, humanity begins to call on the name of the LORD..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Seth"
+            next_section_and_step: "fall_early:conversation"
+          meet_enoch:
+            content_blocks:
+              - "You find Enoch in deep communion with God, walking a path of extraordinary righteousness..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Enoch"
+            next_section_and_step: "fall_early:conversation"
+          meet_other:
+            content_blocks:
+              - "Locating that person in the early world..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "the-users-response"
+            next_section_and_step: "fall_early:conversation"
+          leave:
+            content_blocks:
+              - "You return to the time machine."
+            next_section_and_step: "time_machine_hub:choose_epoch"
+          confused:
+            content_blocks:
+              - "That person isn't in this era. Choose someone from Genesis 3-5."
+            counts_as_attempt: false
+            next_section_and_step: "fall_early:choose_npc"
+
+      - step_id: "conversation"
+        title: "Conversation"
+        question: "What would you like to say or ask?"
+        tokens_for_ai: |
+          User conversing with metadata.current_npc in the fallen world.
+
+          Categorize as:
+          - 'deep_question' for sin, redemption, God's promise, death
+          - 'historical_question' for events, daily life, first murder
+          - 'personal_question' for NPC's experience and feelings
+          - 'continue_talking' for statements
+          - 'done_talking' for farewells
+          - 'change_language' for language change
+          - 'off_topic' if unrelated
+        feedback_tokens_for_ai: |
+          Respond IN CHARACTER as metadata.current_npc.
+          Use language from metadata.language.
+
+          **LOCATION CONTEXT: Outside Eden, fallen world**
+          - No Eden access (cherubim guard it)
+          - Thorns, sweat, painful labor (Genesis 3:17-19)
+          - Death has entered (animals sacrificed, eventually Abel murdered)
+          - First altars and offerings
+          - No cities yet in earliest period
+          - Lifespans very long (Adam lived 930 years)
+
+          **CHARACTER GUIDELINES:**
+
+          **Adam (after Fall):**
+          - Grieving Paradise lost
+          - Works hard, by sweat of brow
+          - Remembers God's promise of coming Redeemer (Genesis 3:15)
+          - Teaches children about God
+          - Sorrowful about Cain's sin
+          - Biblical: Genesis 3-5
+
+          **Eve (after Fall):**
+          - Bears pain of childbirth (curse)
+          - Grieves loss of Abel
+          - Clings to promise: her seed will crush serpent's head
+          - Mother of all living
+          - Teaches daughters about God
+          - Biblical: Genesis 3-5
+
+          **Cain:**
+          - Angry, restless
+          - Murdered Abel out of jealousy (Genesis 4:8)
+          - Marked by God for protection
+          - Wanderer in land of Nod
+          - Builds first city (named Enoch after his son)
+          - Defensive but haunted by guilt
+          - Biblical: Genesis 4
+
+          **Abel:**
+          - Righteous, keeper of sheep
+          - Offered acceptable sacrifice to God (by faith - Hebrews 11:4)
+          - Humble and devout
+          - First martyr
+          - His blood "cries out" (Genesis 4:10)
+          - Biblical: Genesis 4, Hebrews 11:4
+
+          **Seth:**
+          - Appointed by God to replace Abel
+          - Righteous lineage through him
+          - In his days, people began to call on name of LORD
+          - Ancestor of Noah and eventually Jesus
+          - Hope after tragedy
+          - Biblical: Genesis 4:25-5:8
+
+          **Enoch:**
+          - Walked faithfully with God 300 years
+          - "Taken" by God - never died (Genesis 5:24)
+          - Prophet who pleased God
+          - Preached against ungodliness (Jude 14-15)
+          - Mysterious and holy
+          - Biblical: Genesis 5:21-24, Hebrews 11:5, Jude 14-15
+
+          **For other characters:** Use Genesis 3-5 context, early patriarchs, long lifespans.
+
+          Stay in character, reference scripture, show impact of Fall, end with invitation to continue.
+        buckets: [deep_question, historical_question, personal_question, continue_talking, done_talking, change_language, off_topic]
+        transitions:
+          deep_question:
+            ai_feedback:
+              tokens_for_ai: "Provide profound response about sin, judgment, and God's promise of redemption."
+            next_section_and_step: "fall_early:conversation"
+          historical_question:
+            ai_feedback:
+              tokens_for_ai: "Provide accurate details about life after the Fall and early human history."
+            next_section_and_step: "fall_early:conversation"
+          personal_question:
+            ai_feedback:
+              tokens_for_ai: "Share personal testimony of living in fallen world, grief, and hope."
+            next_section_and_step: "fall_early:conversation"
+          continue_talking:
+            ai_feedback:
+              tokens_for_ai: "Respond naturally, showing weight of sin but also hope in God's promise."
+            next_section_and_step: "fall_early:conversation"
+          done_talking:
+            content_blocks:
+              - "Your conversation ends. You're sobered by sin's consequences but hopeful in God's promise."
+            next_section_and_step: "fall_early:choose_npc"
+          change_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "fall_early:conversation"
+          off_topic:
+            content_blocks:
+              - "Please focus on matters relevant to this time period."
+            counts_as_attempt: false
+            next_section_and_step: "fall_early:conversation"
+
+  # ============================================================================
+  # EPOCH 3: EGYPT & THE EXODUS (~1446 BC)
+  # ============================================================================
+  - section_id: "egypt_exodus"
+    title: "Egypt & The Exodus"
+    steps:
+      - step_id: "arrival"
+        title: "Arrival in Ancient Egypt"
+        content_blocks:
+          - "# 🏜️ Ancient Egypt, circa 1446 BC 🏜️"
+          - ""
+          - "The time machine materializes near the Nile River."
+          - "The air is hot and dusty. Massive pyramids tower in the distance."
+          - ""
+          - "**LOCATION:** Egypt, before the Exodus"
+          - "- NO Temple to YHWH exists yet (Temple not built until Solomon ~500 years later!)"
+          - "- Hebrew slaves make bricks without straw"
+          - "- Egyptian temples to Ra, Osiris, and other gods line the Nile"
+          - "- Moses has simple altars where he meets with God"
+          - "- Pharaoh's palace and treasure cities (Pithom, Rameses)"
+          - "- The Nile River, source of Egypt's power"
+          - ""
+          - "God is about to deliver His people from slavery."
+          - "Plagues are coming. The Exodus approaches."
+          - ""
+          - "**Suggested people to meet:**"
+          - "- Moses (reluctant prophet with a staff)"
+          - "- Aaron (Moses' brother and spokesman)"
+          - "- Pharaoh (hardened heart, won't let people go)"
+          - "- Miriam (prophetess, Moses' sister)"
+          - "- Hebrew slaves (suffering but hoping)"
+          - "- Egyptian taskmasters or priests"
+          - ""
+          - "**Or name ANYONE from Exodus 1-15!**"
+
+      - step_id: "choose_npc"
+        title: "Choose Someone to Meet"
+        question: "Who would you like to speak with? (Name anyone from this era, or 'LEAVE')"
+        tokens_for_ai: |
+          User choosing who to meet in Egypt during the Exodus era (Exodus 1-15).
+
+          This is OPEN-ENDED. Support any biblical figure from this period.
+
+          Common choices:
+          - 'meet_moses' if Moses, prophet, deliverer
+          - 'meet_aaron' if Aaron, spokesman, brother
+          - 'meet_pharaoh' if Pharaoh, king, ruler of Egypt
+          - 'meet_miriam' if Miriam, prophetess, sister
+          - 'meet_slave' if Hebrew slave, Israelite, suffering people
+          - 'meet_egyptian' if Egyptian, taskmaster, priest, noble
+
+          For ANY other biblical figure from Exodus, categorize as 'meet_other'.
+
+          - 'leave' if returning to time machine
+          - 'confused' if anachronistic or unclear
+        buckets: [meet_moses, meet_aaron, meet_pharaoh, meet_miriam, meet_slave, meet_egyptian, meet_other, leave, confused]
+        transitions:
+          meet_moses:
+            content_blocks:
+              - "You find Moses near Mount Horeb, staff in hand, bearing the weight of his calling..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Moses"
+            next_section_and_step: "egypt_exodus:conversation"
+          meet_aaron:
+            content_blocks:
+              - "Aaron greets you warmly. He serves as Moses' voice to Pharaoh..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Aaron"
+            next_section_and_step: "egypt_exodus:conversation"
+          meet_pharaoh:
+            content_blocks:
+              - "You are granted audience with Pharaoh in his grand palace. He sits on a golden throne, radiating power and pride..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Pharaoh"
+            next_section_and_step: "egypt_exodus:conversation"
+          meet_miriam:
+            content_blocks:
+              - "Miriam, the prophetess and sister of Moses, welcomes you with wisdom and song..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Miriam"
+            next_section_and_step: "egypt_exodus:conversation"
+          meet_slave:
+            content_blocks:
+              - "You meet a Hebrew slave, exhausted from brick-making but clinging to hope..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Hebrew Slave"
+            next_section_and_step: "egypt_exodus:conversation"
+          meet_egyptian:
+            content_blocks:
+              - "An Egyptian official eyes you with suspicion..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Egyptian"
+            next_section_and_step: "egypt_exodus:conversation"
+          meet_other:
+            content_blocks:
+              - "Searching for that person in ancient Egypt..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "the-users-response"
+            next_section_and_step: "egypt_exodus:conversation"
+          leave:
+            content_blocks:
+              - "You return to the time machine."
+            next_section_and_step: "time_machine_hub:choose_epoch"
+          confused:
+            content_blocks:
+              - "That person isn't in this era. Choose someone from the Exodus story."
+            counts_as_attempt: false
+            next_section_and_step: "egypt_exodus:choose_npc"
+
+      - step_id: "conversation"
+        title: "Conversation"
+        question: "What would you like to say or ask?"
+        tokens_for_ai: |
+          User conversing with metadata.current_npc in Egypt during Exodus.
+
+          Categorize as:
+          - 'deep_question' for God's deliverance, faith, slavery, freedom
+          - 'historical_question' for plagues, Red Sea, Passover, events
+          - 'personal_question' for NPC's experience and feelings
+          - 'continue_talking' for statements
+          - 'done_talking' for farewells
+          - 'change_language' for language change
+          - 'off_topic' if unrelated
+        feedback_tokens_for_ai: |
+          Respond IN CHARACTER as metadata.current_npc.
+          Use language from metadata.language.
+
+          **LOCATION CONTEXT: Egypt, ~1446 BC, NO Temple yet**
+          - NO Temple to YHWH (won't exist for 500+ years until Solomon)
+          - Moses has simple altars for worship
+          - Egyptian temples to their gods (Ra, Osiris, etc.)
+          - Hebrews enslaved, making bricks
+          - Plagues are God's judgment on Egypt's gods
+          - Exodus and Red Sea crossing imminent
+
+          **CHARACTER GUIDELINES:**
+
+          **Moses:**
+          - Humble, reluctant leader
+          - Called by God at burning bush (Exodus 3)
+          - Performs signs with staff
+          - Confronts Pharaoh repeatedly: "Let my people go!"
+          - Struggles with speech, relies on Aaron
+          - Faithful despite fear
+          - Biblical: Exodus 2-15
+
+          **Aaron:**
+          - Moses' older brother, eloquent spokesperson
+          - Performs miracles alongside Moses
+          - Holds staff that becomes serpent
+          - Announces plagues to Pharaoh
+          - Will later become first High Priest
+          - Biblical: Exodus 4-15
+
+          **Pharaoh:**
+          - Arrogant, believes he is divine
+          - Heart hardened against YHWH
+          - Each plague shakes him briefly, then hardens again
+          - Powerful ruler of ancient superpower
+          - Refuses to acknowledge Hebrew God
+          - Will lose firstborn son in final plague
+          - Biblical: Exodus 5-14
+
+          **Miriam:**
+          - Prophetess, saved Moses as baby (Exodus 2)
+          - Sister to Moses and Aaron
+          - Will lead worship after Red Sea (Exodus 15:20-21)
+          - Wise and faithful woman
+          - Biblical: Exodus 2, 15
+
+          **Hebrew Slave:**
+          - Suffers under harsh bondage
+          - Makes bricks without straw (Exodus 5)
+          - Hopes Moses is true deliverer
+          - Remembers promises to Abraham, Isaac, Jacob
+          - Longs for freedom
+          - Biblical: Exodus 1-6
+
+          **Egyptian:**
+          - Serves Pharaoh and Egyptian gods
+          - Witnessing strange plagues
+          - May be starting to fear Hebrew God
+          - Proud of Egypt's power
+          - Biblical: Exodus context
+
+          **For other Exodus characters:** Use Exodus 1-15 context accurately.
+
+          CRITICAL: Emphasize NO Temple yet—only altars and future Tabernacle!
+
+          Stay in character, reference Exodus, end with invitation to continue.
+        buckets: [deep_question, historical_question, personal_question, continue_talking, done_talking, change_language, off_topic]
+        transitions:
+          deep_question:
+            ai_feedback:
+              tokens_for_ai: "Provide powerful response about God's deliverance and covenant faithfulness."
+            next_section_and_step: "egypt_exodus:conversation"
+          historical_question:
+            ai_feedback:
+              tokens_for_ai: "Provide accurate Exodus details and historical context."
+            next_section_and_step: "egypt_exodus:conversation"
+          personal_question:
+            ai_feedback:
+              tokens_for_ai: "Share personal testimony of slavery, plagues, and hope for deliverance."
+            next_section_and_step: "egypt_exodus:conversation"
+          continue_talking:
+            ai_feedback:
+              tokens_for_ai: "Respond naturally in character."
+            next_section_and_step: "egypt_exodus:conversation"
+          done_talking:
+            content_blocks:
+              - "Your conversation ends. The sound of Hebrew prayers echoes in the distance."
+            next_section_and_step: "egypt_exodus:choose_npc"
+          change_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "egypt_exodus:conversation"
+          off_topic:
+            content_blocks:
+              - "Please focus on matters relevant to Egypt and the Exodus."
+            counts_as_attempt: false
+            next_section_and_step: "egypt_exodus:conversation"
+
+  # ============================================================================
+  # EPOCH 4: SOLOMON'S TEMPLE (~970-930 BC)
+  # ============================================================================
+  - section_id: "solomon"
+    title: "Solomon's Temple"
+    steps:
+      - step_id: "arrival"
+        title: "Arrival in Jerusalem"
+        content_blocks:
+          - "# 🏛️ Jerusalem, Solomon's Temple, circa 970-930 BC 🏛️"
+          - ""
+          - "The time machine materializes on the Mount of Olives."
+          - "Before you rises the most magnificent structure you've ever seen."
+          - ""
+          - "**LOCATION:** Jerusalem, FIRST Temple Period"
+          - "- **THE FIRST TEMPLE!** Built by Solomon after ~480 years of waiting"
+          - "- Overlaid with pure gold, cedarwood from Lebanon"
+          - "- Holy of Holies contains the Ark of the Covenant"
+          - "- Sacrifices and worship ongoing"
+          - "- Solomon's palace nearby"
+          - "- Jerusalem at its peak: wealth, wisdom, peace"
+          - ""
+          - "This is what Moses and David longed to see—a permanent house for God."
+          - "The glory of the LORD fills this place."
+          - ""
+          - "**Suggested people to meet:**"
+          - "- King Solomon (wisest man alive)"
+          - "- Temple priests (serving at the altar)"
+          - "- Queen of Sheba (visiting, amazed)"
+          - "- Levites (musicians and singers)"
+          - "- Pilgrims (coming to worship)"
+          - ""
+          - "**Or name ANYONE from 1 Kings 1-11!**"
+
+      - step_id: "choose_npc"
+        title: "Choose Someone to Meet"
+        question: "Who would you like to speak with? (Name anyone from this era, or 'LEAVE')"
+        tokens_for_ai: |
+          User choosing who to meet during Solomon's Temple era (1 Kings 1-11).
+
+          This is OPEN-ENDED. Support any biblical figure from this period.
+
+          Common choices:
+          - 'meet_solomon' if Solomon, king, wise man
+          - 'meet_priest' if priest, Levite, Zadok, temple servant
+          - 'meet_sheba' if Queen of Sheba, queen, visitor
+          - 'meet_musician' if musician, singer, worship leader
+          - 'meet_pilgrim' if pilgrim, worshiper, visitor
+
+          For ANY other biblical figure from 1 Kings, categorize as 'meet_other'.
+
+          - 'leave' if returning to time machine
+          - 'confused' if anachronistic or unclear
+        buckets: [meet_solomon, meet_priest, meet_sheba, meet_musician, meet_pilgrim, meet_other, leave, confused]
+        transitions:
+          meet_solomon:
+            content_blocks:
+              - "You are granted audience with King Solomon. His wisdom radiates from him..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "King Solomon"
+            next_section_and_step: "solomon:conversation"
+          meet_priest:
+            content_blocks:
+              - "A priest in sacred garments greets you near the altar of sacrifice..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Temple Priest"
+            next_section_and_step: "solomon:conversation"
+          meet_sheba:
+            content_blocks:
+              - "The Queen of Sheba, adorned in royal splendor, observes the Temple with awe..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Queen of Sheba"
+            next_section_and_step: "solomon:conversation"
+          meet_musician:
+            content_blocks:
+              - "A Levite musician holds a lyre, preparing to lead worship..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Temple Musician"
+            next_section_and_step: "solomon:conversation"
+          meet_pilgrim:
+            content_blocks:
+              - "A pilgrim from a distant tribe smiles, overwhelmed by the Temple's glory..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Pilgrim"
+            next_section_and_step: "solomon:conversation"
+          meet_other:
+            content_blocks:
+              - "Seeking that person in Solomon's Jerusalem..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "the-users-response"
+            next_section_and_step: "solomon:conversation"
+          leave:
+            content_blocks:
+              - "You return to the time machine, the Temple's glory still shining in your mind."
+            next_section_and_step: "time_machine_hub:choose_epoch"
+          confused:
+            content_blocks:
+              - "That person isn't in this era. Choose someone from Solomon's time."
+            counts_as_attempt: false
+            next_section_and_step: "solomon:choose_npc"
+
+      - step_id: "conversation"
+        title: "Conversation"
+        question: "What would you like to say or ask?"
+        tokens_for_ai: |
+          User conversing with metadata.current_npc during Solomon's Temple era.
+
+          Categorize as:
+          - 'deep_question' for wisdom, worship, Temple, God's presence
+          - 'historical_question' for Temple construction, Solomon's reign, events
+          - 'personal_question' for NPC's experience and feelings
+          - 'continue_talking' for statements
+          - 'done_talking' for farewells
+          - 'change_language' for language change
+          - 'off_topic' if unrelated
+        feedback_tokens_for_ai: |
+          Respond IN CHARACTER as metadata.current_npc.
+          Use language from metadata.language.
+
+          **LOCATION CONTEXT: Jerusalem, FIRST Temple (~970-930 BC)**
+          - **THIS IS THE FIRST TEMPLE!** Historic moment!
+          - Built by Solomon, son of David
+          - Gold overlay, cedarwood, bronze pillars
+          - Ark of Covenant in Holy of Holies
+          - Daily sacrifices and worship
+          - Israel at peak: peace, prosperity, wisdom
+          - Nations come to see and learn
+
+          **CHARACTER GUIDELINES:**
+
+          **King Solomon:**
+          - Wisest man who ever lived (1 Kings 3)
+          - Built the Temple fulfilling David's dream
+          - Author of Proverbs, Ecclesiastes, Song of Songs
+          - Rules with justice and discernment
+          - Wealthy beyond measure (gold, trade)
+          - Speaks with profound wisdom
+          - Later falls into idolatry (can foreshadow if asked)
+          - Biblical: 1 Kings 1-11
+
+          **Temple Priest:**
+          - Descendant of Aaron
+          - Serves at altar of burnt offering
+          - Enters Holy Place (not Holy of Holies—only High Priest)
+          - Offers sacrifices for sin
+          - Teaches the Law
+          - Deeply reverent and grateful for Temple
+          - Biblical: 1 Kings, Leviticus
+
+          **Queen of Sheba:**
+          - Traveled far to test Solomon's wisdom
+          - Amazed by Temple and Solomon's wisdom
+          - Says "the half was not told me!" (1 Kings 10:7)
+          - Gives lavish gifts: gold, spices, gems
+          - Represents nations recognizing God's glory
+          - Biblical: 1 Kings 10
+
+          **Temple Musician:**
+          - Levite appointed for worship
+          - Plays instruments: lyre, harp, cymbals, trumpet
+          - Sings Psalms of David
+          - Leads Israel in praise
+          - Joyful and devoted
+          - Biblical: 1 Chronicles 23-25
+
+          **Pilgrim:**
+          - Traveled to Jerusalem for feast (Passover, Pentecost, Tabernacles)
+          - Overwhelmed by Temple's beauty
+          - Grateful to worship in God's house
+          - Remembers generations who worshiped at Tabernacle
+          - Biblical: Psalms of Ascent (120-134)
+
+          **For other characters:** Use 1 Kings 1-11 context.
+
+          CRITICAL: Emphasize this is FIRST Temple, fulfillment of David's dream, nation's high point!
+
+          Stay in character, reference 1 Kings, end with invitation to continue.
+        buckets: [deep_question, historical_question, personal_question, continue_talking, done_talking, change_language, off_topic]
+        transitions:
+          deep_question:
+            ai_feedback:
+              tokens_for_ai: "Provide wise, worshipful response about God's glory and presence in Temple."
+            next_section_and_step: "solomon:conversation"
+          historical_question:
+            ai_feedback:
+              tokens_for_ai: "Provide accurate details about Temple and Solomon's reign."
+            next_section_and_step: "solomon:conversation"
+          personal_question:
+            ai_feedback:
+              tokens_for_ai: "Share personal awe and gratitude for Temple and God's faithfulness."
+            next_section_and_step: "solomon:conversation"
+          continue_talking:
+            ai_feedback:
+              tokens_for_ai: "Respond naturally with wisdom and reverence."
+            next_section_and_step: "solomon:conversation"
+          done_talking:
+            content_blocks:
+              - "Your conversation ends. The sound of worship fills the air."
+            next_section_and_step: "solomon:choose_npc"
+          change_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "solomon:conversation"
+          off_topic:
+            content_blocks:
+              - "Please focus on matters relevant to Solomon's Temple era."
+            counts_as_attempt: false
+            next_section_and_step: "solomon:conversation"
+
+  # ============================================================================
+  # EPOCH 5: THE LIFE OF JESUS (~4 BC - 30 AD)
+  # ============================================================================
+  - section_id: "life_jesus"
+    title: "The Life of Jesus"
     steps:
       - step_id: "arrival"
         title: "Arrival in First Century Galilee/Judea"
@@ -532,33 +1090,50 @@ sections:
           - "# ✨ Galilee/Judea, circa 30 AD ✨"
           - ""
           - "The time machine materializes on a dusty road in Galilee."
-          - "You see fishing boats on the Sea of Galilee in the distance."
+          - "You see fishing boats on the Sea of Galilee."
           - ""
-          - "A crowd has gathered on a hillside. You hear a voice teaching:"
-          - "*'Blessed are the poor in spirit, for theirs is the kingdom of heaven...'*"
+          - "**LOCATION:** Various sites in Jesus' ministry"
+          - "- Capernaum (Jesus' ministry headquarters)"
+          - "- Sea of Galilee (fishing, teaching from boats)"
+          - "- Nazareth (Jesus' hometown, rejected there)"
+          - "- Jerusalem (Second Temple stands in splendor)"
+          - "- Bethany (home of Mary, Martha, Lazarus)"
+          - "- Synagogues in every town"
           - ""
-          - "You realize you have arrived during Jesus' ministry—the most pivotal moment in human history."
-          - "The Messiah walks among the people, teaching, healing, and demonstrating God's love."
+          - "The Messiah walks among the people!"
           - ""
-          - "**Who would you like to meet?**"
-          - "- Jesus (the Son of God, teaching and healing)"
-          - "- Peter (the fisherman called to be a disciple)"
-          - "- Mary Magdalene (devoted follower of Jesus)"
-          - "- A person in the crowd (witnessing Jesus' ministry)"
+          - "**Suggested people to meet:**"
+          - "- Jesus Christ (the Son of God)"
+          - "- The Twelve Apostles (Peter, John, James, etc.)"
+          - "- Mary Magdalene, Mary & Martha, other followers"
+          - "- Nicodemus, Zacchaeus, the woman at the well"
+          - "- Pharisees, Sadducees, Roman centurions"
+          - "- The sick, demon-possessed, seeking healing"
+          - ""
+          - "**Name ANYONE from the Gospels!**"
 
       - step_id: "choose_npc"
         title: "Choose Someone to Meet"
-        question: "Who would you like to speak with? (Jesus, Peter, Mary Magdalene, a person in the crowd, or 'LEAVE')"
+        question: "Who would you like to speak with? (Name anyone from Jesus' time, or 'LEAVE')"
         tokens_for_ai: |
-          The user is choosing which NPC to meet during Jesus' ministry.
+          User choosing who to meet during Jesus' earthly ministry.
 
-          Categorize as 'meet_jesus' if they mention Jesus, Christ, Lord, or Messiah.
-          Categorize as 'meet_peter' if they mention Peter, Simon, or the fisherman disciple.
-          Categorize as 'meet_mary_magdalene' if they mention Mary Magdalene or the woman follower.
-          Categorize as 'meet_crowd_person' if they mention crowd, witness, or common person.
-          Categorize as 'leave' if they want to return to time machine.
-          Categorize as 'confused' if unclear.
-        buckets: [meet_jesus, meet_peter, meet_mary_magdalene, meet_crowd_person, leave, confused]
+          This is COMPLETELY OPEN-ENDED. Support ANY Gospel figure.
+
+          Common:
+          - 'meet_jesus' if Jesus, Christ, Lord, Messiah, Son of God
+          - 'meet_disciples' if disciples, twelve, apostles, Peter, John, James
+          - 'meet_women' if Mary Magdalene, Mary & Martha, etc.
+          - 'meet_seekers' if Nicodemus, Zacchaeus, woman at well, etc.
+          - 'meet_religious' if Pharisees, Sadducees, Scribes
+          - 'meet_romans' if centurion, Pilate, soldiers
+          - 'meet_crowd' if crowd, sick, demon-possessed
+
+          For ANY specific person they name (e.g., "Lazarus", "John the Baptist", "Herod"), categorize as 'meet_specific'.
+
+          - 'leave' if returning
+          - 'confused' if anachronistic
+        buckets: [meet_jesus, meet_disciples, meet_women, meet_seekers, meet_religious, meet_romans, meet_crowd, meet_specific, leave, confused]
         transitions:
           meet_jesus:
             content_blocks:
@@ -566,303 +1141,157 @@ sections:
             metadata_add:
               people_met: "n+1"
               current_npc: "Jesus Christ"
-            next_section_and_step: "life_of_jesus:conversation"
-          meet_peter:
+            next_section_and_step: "life_jesus:conversation"
+          meet_disciples:
             content_blocks:
-              - "Peter, the bold fisherman, notices you and waves you over..."
+              - "You meet one of Jesus' disciples..."
             metadata_add:
               people_met: "n+1"
-              current_npc: "Peter"
-            next_section_and_step: "life_of_jesus:conversation"
-          meet_mary_magdalene:
+              current_npc: "Disciple of Jesus"
+            next_section_and_step: "life_jesus:conversation"
+          meet_women:
             content_blocks:
-              - "Mary Magdalene, one of Jesus' devoted followers, greets you warmly..."
+              - "You encounter a woman who follows Jesus..."
             metadata_add:
               people_met: "n+1"
-              current_npc: "Mary Magdalene"
-            next_section_and_step: "life_of_jesus:conversation"
-          meet_crowd_person:
+              current_npc: "Woman follower of Jesus"
+            next_section_and_step: "life_jesus:conversation"
+          meet_seekers:
             content_blocks:
-              - "You strike up conversation with someone in the crowd watching Jesus..."
+              - "You meet someone seeking Jesus..."
             metadata_add:
               people_met: "n+1"
-              current_npc: "Crowd Witness"
-            next_section_and_step: "life_of_jesus:conversation"
+              current_npc: "Seeker of Jesus"
+            next_section_and_step: "life_jesus:conversation"
+          meet_religious:
+            content_blocks:
+              - "You encounter a religious leader..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Religious leader"
+            next_section_and_step: "life_jesus:conversation"
+          meet_romans:
+            content_blocks:
+              - "You meet a Roman in Judea..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Roman official"
+            next_section_and_step: "life_jesus:conversation"
+          meet_crowd:
+            content_blocks:
+              - "You speak with someone in the crowd following Jesus..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Person in crowd"
+            next_section_and_step: "life_jesus:conversation"
+          meet_specific:
+            content_blocks:
+              - "Finding that person in first-century Judea..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "the-users-response"
+            next_section_and_step: "life_jesus:conversation"
           leave:
             content_blocks:
-              - "You return to the time machine, deeply moved by what you witnessed."
+              - "You return to the time machine, deeply moved."
             next_section_and_step: "time_machine_hub:choose_epoch"
           confused:
             content_blocks:
-              - "Please choose: Jesus, Peter, Mary Magdalene, a crowd person, or 'LEAVE'."
+              - "That person isn't from Jesus' time. Choose someone from the Gospels."
             counts_as_attempt: false
-            next_section_and_step: "life_of_jesus:choose_npc"
+            next_section_and_step: "life_jesus:choose_npc"
 
       - step_id: "conversation"
         title: "Conversation"
         question: "What would you like to say or ask?"
         tokens_for_ai: |
-          User is conversing with metadata.current_npc during Jesus' ministry.
+          User conversing with metadata.current_npc during Jesus' ministry.
 
           Categorize as:
-          - 'deep_question' for salvation, faith, theology, or spiritual matters
-          - 'historical_question' for events, miracles, or ministry details
-          - 'personal_question' for NPC's experience and relationship with Jesus
-          - 'continue_talking' for statements or comments
+          - 'deep_question' for salvation, theology, miracles, identity of Jesus
+          - 'historical_question' for events, daily life, Second Temple period
+          - 'personal_question' for NPC's encounter with Jesus
+          - 'continue_talking' for statements
           - 'done_talking' for farewells
-          - 'change_language' for language requests
+          - 'change_language' for language change
           - 'off_topic' if unrelated
         feedback_tokens_for_ai: |
           Respond IN CHARACTER as metadata.current_npc.
           Use language from metadata.language.
+
+          **LOCATION CONTEXT: First century Judea/Galilee**
+          - SECOND TEMPLE stands in Jerusalem (Herod's Temple, destroyed 70 AD)
+          - Roman occupation (Pontius Pilate is governor)
+          - Synagogues in every town
+          - Fishing industry on Sea of Galilee
+          - Pharisees, Sadducees, Zealots, Essenes
+          - Expecting Messiah
+
+          **KEY: You must roleplay AS THE SPECIFIC PERSON they requested in metadata.current_npc!**
+
+          If it's a well-known Gospel figure (Peter, Mary Magdalene, Nicodemus, Zacchaeus, woman at well, etc.), portray them accurately based on their Gospel accounts.
+
+          If it's a general category or less-known person, create a biblically accurate character from that category.
 
           **Jesus Christ:**
-          - CRITICAL: Maintain reverence and biblical accuracy
-          - Speaks with divine wisdom, love, and authority
-          - Uses parables to teach truth
-          - Shows compassion to all people
-          - References His mission: to seek and save the lost
-          - Talks about the Kingdom of God
-          - May quote His own teachings from the Gospels
-          - Demonstrates humility and servanthood
+          - CRITICAL: Maintain utmost reverence and biblical accuracy
+          - Speaks with divine wisdom, love, authority
+          - Uses parables
+          - Shows compassion, heals, forgives
+          - References His mission: seek and save the lost
+          - Kingdom of God focus
           - Biblical: Matthew, Mark, Luke, John
 
-          **Peter:**
-          - Impulsive and passionate
-          - Deeply devoted to Jesus but still learning
-          - Former fisherman, now fisher of men
-          - Talks about leaving everything to follow Jesus
-          - Amazed by Jesus' miracles and teachings
-          - Sometimes speaks before thinking
-          - Biblical: Matthew 4:18-20, 16:13-19; John 21
+          **Disciples (Peter, John, James, etc.):**
+          - Learning from Jesus
+          - Amazed by miracles
+          - Still misunderstanding at times
+          - Devoted but imperfect
+          - Specific personalities per disciple
 
-          **Mary Magdalene:**
-          - Devoted follower of Jesus
-          - Delivered from seven demons (Luke 8:2)
-          - Travels with Jesus and supports His ministry
-          - Grateful for Jesus' healing and love
-          - Faithful even to the cross
-          - First witness of resurrection (will mention if asked about future)
-          - Biblical: Luke 8:1-3, John 19-20
+          **For ANY specific person:** Research their Gospel account and portray them faithfully.
 
-          **Crowd Witness:**
-          - Ordinary person witnessing extraordinary events
-          - Amazed by Jesus' teaching with authority
-          - May have seen miracles: healings, feeding of 5000, etc.
-          - Uncertain if Jesus is the Messiah but curious
-          - Represents the common person encountering Jesus
-          - Biblical: Gospel crowd scenes
-
-          Stay in character, be reverently accurate, reference scripture, end with invitation to continue.
+          Stay in character, reference Gospels, show transformation through encountering Jesus, end with invitation to continue.
         buckets: [deep_question, historical_question, personal_question, continue_talking, done_talking, change_language, off_topic]
         transitions:
           deep_question:
             ai_feedback:
-              tokens_for_ai: "Provide profound, biblically faithful response about salvation and God's kingdom."
-            next_section_and_step: "life_of_jesus:conversation"
+              tokens_for_ai: "Provide profound, Gospel-faithful response about Jesus and salvation."
+            next_section_and_step: "life_jesus:conversation"
           historical_question:
             ai_feedback:
-              tokens_for_ai: "Provide accurate information about Jesus' ministry and miracles."
-            next_section_and_step: "life_of_jesus:conversation"
+              tokens_for_ai: "Provide accurate first-century context and Gospel details."
+            next_section_and_step: "life_jesus:conversation"
           personal_question:
             ai_feedback:
-              tokens_for_ai: "Share personal testimony and experience with Jesus."
-            next_section_and_step: "life_of_jesus:conversation"
+              tokens_for_ai: "Share personal testimony of encountering Jesus."
+            next_section_and_step: "life_jesus:conversation"
           continue_talking:
             ai_feedback:
-              tokens_for_ai: "Respond naturally and continue the sacred conversation."
-            next_section_and_step: "life_of_jesus:conversation"
+              tokens_for_ai: "Respond naturally, in character."
+            next_section_and_step: "life_jesus:conversation"
           done_talking:
             content_blocks:
-              - "Your conversation ends. You feel blessed by this encounter."
-            next_section_and_step: "life_of_jesus:choose_npc"
+              - "Your conversation ends. You're blessed by this encounter."
+            next_section_and_step: "life_jesus:choose_npc"
           change_language:
             content_blocks:
               - "Language preference updated."
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: "life_of_jesus:conversation"
+            next_section_and_step: "life_jesus:conversation"
           off_topic:
             content_blocks:
-              - "Please focus on matters relevant to this sacred time."
+              - "Please focus on matters relevant to Jesus' time."
             counts_as_attempt: false
-            next_section_and_step: "life_of_jesus:conversation"
+            next_section_and_step: "life_jesus:conversation"
 
   # ============================================================================
-  # EPOCH 4: PENTECOST & THE EARLY CHURCH (~33 AD)
+  # EPOCH 6: PERSECUTION & MARTYRDOM (~64-313 AD)
   # ============================================================================
-  - section_id: "early_church"
-    title: "Pentecost & Early Church (~33 AD)"
-    steps:
-      - step_id: "arrival"
-        title: "Arrival at Pentecost"
-        content_blocks:
-          - "# 🕊️ Jerusalem, Day of Pentecost, circa 33 AD 🕊️"
-          - ""
-          - "The time machine materializes in Jerusalem during the Feast of Pentecost."
-          - "The air is electric with anticipation. Something momentous is happening."
-          - ""
-          - "Suddenly, you hear a sound like a violent rushing wind filling a nearby house!"
-          - "Tongues of fire appear and rest on the disciples gathered inside."
-          - "They begin speaking in languages they've never learned—declaring God's wonders!"
-          - ""
-          - "The Holy Spirit has been poured out. The Church is being born."
-          - "Crowds gather, amazed and bewildered. Peter stands to preach..."
-          - ""
-          - "**Who would you like to meet?**"
-          - "- Peter (preaching boldly after receiving the Holy Spirit)"
-          - "- John (the beloved disciple, witnessing Pentecost)"
-          - "- A new believer (just converted by Peter's sermon)"
-          - "- A skeptic in the crowd (confused by the events)"
-
-      - step_id: "choose_npc"
-        title: "Choose Someone to Meet"
-        question: "Who would you like to speak with? (Peter, John, a new believer, a skeptic, or 'LEAVE')"
-        tokens_for_ai: |
-          User choosing NPC during Pentecost.
-
-          Categorize as 'meet_peter' if Peter or preaching apostle.
-          Categorize as 'meet_john' if John, beloved disciple, or young apostle.
-          Categorize as 'meet_believer' if new believer, convert, or baptized person.
-          Categorize as 'meet_skeptic' if skeptic, doubter, or confused person.
-          Categorize as 'leave' if returning to time machine.
-          Categorize as 'confused' if unclear.
-        buckets: [meet_peter, meet_john, meet_believer, meet_skeptic, leave, confused]
-        transitions:
-          meet_peter:
-            content_blocks:
-              - "Peter, emboldened by the Holy Spirit, turns to speak with you..."
-            metadata_add:
-              people_met: "n+1"
-              current_npc: "Apostle Peter (at Pentecost)"
-            next_section_and_step: "early_church:conversation"
-          meet_john:
-            content_blocks:
-              - "John, the disciple whom Jesus loved, greets you with joy..."
-            metadata_add:
-              people_met: "n+1"
-              current_npc: "Apostle John"
-            next_section_and_step: "early_church:conversation"
-          meet_believer:
-            content_blocks:
-              - "A newly baptized believer, still dripping with water, rushes to embrace you..."
-            metadata_add:
-              people_met: "n+1"
-              current_npc: "New Believer"
-            next_section_and_step: "early_church:conversation"
-          meet_skeptic:
-            content_blocks:
-              - "A skeptical onlooker eyes you suspiciously, muttering about the commotion..."
-            metadata_add:
-              people_met: "n+1"
-              current_npc: "Skeptic"
-            next_section_and_step: "early_church:conversation"
-          leave:
-            content_blocks:
-              - "You return to the time machine, marveling at the birth of the Church."
-            next_section_and_step: "time_machine_hub:choose_epoch"
-          confused:
-            content_blocks:
-              - "Please choose: Peter, John, a new believer, a skeptic, or 'LEAVE'."
-            counts_as_attempt: false
-            next_section_and_step: "early_church:choose_npc"
-
-      - step_id: "conversation"
-        title: "Conversation"
-        question: "What would you like to say or ask?"
-        tokens_for_ai: |
-          User conversing with metadata.current_npc at Pentecost.
-
-          Categorize as:
-          - 'deep_question' for Holy Spirit, salvation, church, or theology
-          - 'historical_question' for Pentecost events or apostolic ministry
-          - 'personal_question' for NPC's experience and transformation
-          - 'continue_talking' for statements or comments
-          - 'done_talking' for farewells
-          - 'change_language' for language requests
-          - 'off_topic' if unrelated
-        feedback_tokens_for_ai: |
-          Respond IN CHARACTER as metadata.current_npc.
-          Use language from metadata.language.
-
-          **Apostle Peter (at Pentecost):**
-          - Transformed from denier to bold preacher
-          - Filled with Holy Spirit and speaking with power
-          - References Jesus' resurrection (he was witness)
-          - Preaching: "Repent and be baptized" (Acts 2:38)
-          - No longer afraid—courageous and authoritative
-          - Quotes Scripture (Joel, David's Psalms)
-          - Biblical: Acts 2
-
-          **Apostle John:**
-          - Witnessed Jesus' ministry, crucifixion, resurrection
-          - Deeply loving and devoted
-          - Talks about Jesus as the Word, the Light, the Love of God
-          - Present at Pentecost experiencing the Spirit's power
-          - Contemplative and profound
-          - Will later write Gospel and epistles
-          - Biblical: Acts 2, John's Gospel and Epistles
-
-          **New Believer:**
-          - Overcome with joy and amazement
-          - Just heard Peter's sermon and believed
-          - Baptized and received the Holy Spirit
-          - Life completely transformed in an instant
-          - Eager to learn more about Jesus
-          - Grateful for salvation
-          - Biblical: Acts 2:37-41 (3000 converted)
-
-          **Skeptic:**
-          - Confused by speaking in tongues
-          - Thinks disciples are drunk (Acts 2:13)
-          - Uncertain if this is really from God
-          - May be defensive or dismissive
-          - Needs explanation and evidence
-          - Represents those not yet believing
-          - Biblical: Acts 2:12-13
-
-          Stay in character, reference Acts 2, be historically accurate, end with invitation to continue.
-        buckets: [deep_question, historical_question, personal_question, continue_talking, done_talking, change_language, off_topic]
-        transitions:
-          deep_question:
-            ai_feedback:
-              tokens_for_ai: "Provide powerful, Spirit-filled response about salvation and the new covenant."
-            next_section_and_step: "early_church:conversation"
-          historical_question:
-            ai_feedback:
-              tokens_for_ai: "Provide accurate information about Pentecost and the early church."
-            next_section_and_step: "early_church:conversation"
-          personal_question:
-            ai_feedback:
-              tokens_for_ai: "Share personal testimony of encountering the Holy Spirit."
-            next_section_and_step: "early_church:conversation"
-          continue_talking:
-            ai_feedback:
-              tokens_for_ai: "Respond naturally and continue the inspired conversation."
-            next_section_and_step: "early_church:conversation"
-          done_talking:
-            content_blocks:
-              - "Your conversation concludes. The Spirit's presence is palpable."
-            next_section_and_step: "early_church:choose_npc"
-          change_language:
-            content_blocks:
-              - "Language preference updated."
-            metadata_add:
-              language: "the-users-response"
-            counts_as_attempt: false
-            next_section_and_step: "early_church:conversation"
-          off_topic:
-            content_blocks:
-              - "Please focus on this momentous spiritual event."
-            counts_as_attempt: false
-            next_section_and_step: "early_church:conversation"
-
-  # ============================================================================
-  # EPOCH 5: ROMAN PERSECUTION (~64-313 AD)
-  # ============================================================================
-  - section_id: "roman_persecution"
-    title: "Roman Persecution (~64-313 AD)"
+  - section_id: "persecution"
+    title: "Persecution & Martyrdom"
     steps:
       - step_id: "arrival"
         title: "Arrival in Persecuted Rome"
@@ -872,105 +1301,153 @@ sections:
           - "The time machine materializes in the shadows beneath Rome."
           - "You are in the catacombs—underground burial chambers where Christians gather in secret."
           - ""
-          - "Above ground, Emperor Nero has blamed Christians for the Great Fire of Rome."
-          - "Persecution is fierce: Christians are arrested, tortured, and executed."
-          - "Some are burned alive as human torches. Others face lions in the Colosseum."
+          - "**LOCATION:** Rome, post-Temple destruction"
+          - "- **NO Temple!** Destroyed by Rome in 70 AD—only 40 years after Jesus"
+          - "- Christians meet in homes and catacombs"
+          - "- Fish symbol (ΙΧΘΥΣ) carved on walls as secret sign"
+          - "- Roman Colosseum where martyrs face lions"
+          - "- Prison cells where apostles await execution"
+          - "- Underground tunnels lit by oil lamps"
           - ""
-          - "Yet in these dark tunnels, you hear whispered prayers and hymns."
-          - "Symbols of fish (ΙΧΘΥΣ) are carved into walls. Faith survives in secret."
+          - "Emperor Nero has blamed Christians for Rome's Great Fire."
+          - "Persecution is fierce: arrest, torture, execution."
+          - "Yet faith survives in these dark places."
           - ""
-          - "**Who would you like to meet?**"
+          - "**Suggested people to meet:**"
           - "- Paul the Apostle (imprisoned, awaiting execution)"
-          - "- A persecuted believer (hiding underground)"
-          - "- A church leader (shepherding the flock in danger)"
-          - "- A martyr (facing death for faith)"
+          - "- Peter (martyred upside-down on a cross)"
+          - "- Persecuted believers (hiding underground)"
+          - "- Church leaders (shepherding in secret)"
+          - "- Christian martyrs (facing death with peace)"
+          - ""
+          - "**Or name ANYONE from Acts-Revelation or early church history!**"
 
       - step_id: "choose_npc"
         title: "Choose Someone to Meet"
-        question: "Who would you like to speak with? (Paul, a persecuted believer, a church leader, a martyr, or 'LEAVE')"
+        question: "Who would you like to speak with? (Name anyone from this era, or 'LEAVE')"
         tokens_for_ai: |
-          User choosing NPC during Roman persecution.
+          User choosing who to meet during Roman persecution era (~64-313 AD).
 
-          Categorize as 'meet_paul' if Paul, apostle, or imprisoned teacher.
-          Categorize as 'meet_persecuted' if persecuted, hiding, or suffering believer.
-          Categorize as 'meet_leader' if leader, pastor, elder, or shepherd.
-          Categorize as 'meet_martyr' if martyr, dying, or facing execution.
-          Categorize as 'leave' if returning to time machine.
-          Categorize as 'confused' if unclear.
-        buckets: [meet_paul, meet_persecuted, meet_leader, meet_martyr, leave, confused]
+          This is OPEN-ENDED. Support any biblical or early church figure.
+
+          Common choices:
+          - 'meet_paul' if Paul, apostle, imprisoned teacher
+          - 'meet_peter' if Peter, apostle, rock
+          - 'meet_persecuted' if persecuted, hiding, suffering believer
+          - 'meet_leader' if leader, pastor, elder, shepherd, bishop
+          - 'meet_martyr' if martyr, dying, facing death, execution
+
+          For ANY other biblical/early church figure, categorize as 'meet_other'.
+
+          - 'leave' if returning to time machine
+          - 'confused' if anachronistic or unclear
+        buckets: [meet_paul, meet_peter, meet_persecuted, meet_leader, meet_martyr, meet_other, leave, confused]
         transitions:
           meet_paul:
             content_blocks:
-              - "You are led to a dank Roman prison cell where Paul sits writing by lamplight..."
+              - "You are led to a dank Roman prison cell. Paul sits writing by lamplight..."
             metadata_add:
               people_met: "n+1"
               current_npc: "Apostle Paul (imprisoned)"
-            next_section_and_step: "roman_persecution:conversation"
+            next_section_and_step: "persecution:conversation"
+          meet_peter:
+            content_blocks:
+              - "You meet Peter shortly before his martyrdom. He radiates peace despite knowing his fate..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "Apostle Peter"
+            next_section_and_step: "persecution:conversation"
           meet_persecuted:
             content_blocks:
-              - "You meet a believer who fled to the catacombs to escape arrest..."
+              - "A believer who fled to the catacombs greets you with cautious hope..."
             metadata_add:
               people_met: "n+1"
               current_npc: "Persecuted Believer"
-            next_section_and_step: "roman_persecution:conversation"
+            next_section_and_step: "persecution:conversation"
           meet_leader:
             content_blocks:
               - "A church elder greets you quietly, watching for Roman soldiers..."
             metadata_add:
               people_met: "n+1"
               current_npc: "Church Leader"
-            next_section_and_step: "roman_persecution:conversation"
+            next_section_and_step: "persecution:conversation"
           meet_martyr:
             content_blocks:
-              - "You meet a believer who will face lions tomorrow, yet radiates peace..."
+              - "You meet a believer who will face lions tomorrow, yet radiates supernatural peace..."
             metadata_add:
               people_met: "n+1"
               current_npc: "Christian Martyr"
-            next_section_and_step: "roman_persecution:conversation"
+            next_section_and_step: "persecution:conversation"
+          meet_other:
+            content_blocks:
+              - "Searching for that person in the persecuted church..."
+            metadata_add:
+              people_met: "n+1"
+              current_npc: "the-users-response"
+            next_section_and_step: "persecution:conversation"
           leave:
             content_blocks:
               - "You return to the time machine, humbled by their courage."
             next_section_and_step: "time_machine_hub:choose_epoch"
           confused:
             content_blocks:
-              - "Please choose: Paul, a persecuted believer, a church leader, a martyr, or 'LEAVE'."
+              - "That person isn't in this era. Choose someone from the early persecuted church."
             counts_as_attempt: false
-            next_section_and_step: "roman_persecution:choose_npc"
+            next_section_and_step: "persecution:choose_npc"
 
       - step_id: "conversation"
         title: "Conversation"
         question: "What would you like to say or ask?"
         tokens_for_ai: |
-          User conversing with metadata.current_npc during persecution.
+          User conversing with metadata.current_npc during Roman persecution.
 
           Categorize as:
-          - 'deep_question' for suffering, faith under fire, martyrdom, or theology
-          - 'historical_question' for persecution, Rome, or church history
-          - 'personal_question' for NPC's experience and courage
-          - 'continue_talking' for statements or comments
+          - 'deep_question' for suffering, martyrdom, faith under fire, eternal hope
+          - 'historical_question' for persecution, Rome, church history, events
+          - 'personal_question' for NPC's experience, courage, testimony
+          - 'continue_talking' for statements
           - 'done_talking' for farewells
-          - 'change_language' for language requests
+          - 'change_language' for language change
           - 'off_topic' if unrelated
         feedback_tokens_for_ai: |
           Respond IN CHARACTER as metadata.current_npc.
           Use language from metadata.language.
 
+          **LOCATION CONTEXT: Rome, 64-313 AD, NO Temple**
+          - **Temple destroyed 70 AD** - Jews and Christians scattered
+          - Christians meet in homes and catacombs
+          - Nero blamed Christians for Rome's fire (64 AD)
+          - Persecution under multiple emperors
+          - Many martyred: crucified, burned, fed to lions
+          - Faith survives underground
+          - Constantine's Edict of Milan (313 AD) will end persecution
+
+          **CHARACTER GUIDELINES:**
+
           **Apostle Paul (imprisoned):**
-          - Awaiting execution under Nero (likely 64-67 AD)
+          - Awaiting execution under Nero (~64-67 AD)
           - Writing final letters (2 Timothy)
-          - Unshaken in faith despite chains
-          - Reflects on completing his race (2 Tim 4:7)
+          - Unshaken faith despite chains
+          - "I have fought the good fight, finished the race, kept the faith" (2 Tim 4:7)
           - Encourages others to remain faithful
-          - No regrets—considers earthly life as gain through Christ
-          - Speaks of "crown of righteousness" awaiting
+          - No regrets—considers earthly loss as gain for Christ
+          - Speaks of "crown of righteousness"
           - Biblical: 2 Timothy, Acts 28, Philippians 1
+
+          **Apostle Peter:**
+          - Will be martyred upside-down (tradition)
+          - Wrote 1 & 2 Peter to suffering churches
+          - Transformed from denier to bold martyr
+          - Encourages believers to rejoice in suffering (1 Peter 4:13)
+          - Shepherds the flock under persecution
+          - Biblical: 1-2 Peter, John 21:18-19
 
           **Persecuted Believer:**
           - Afraid but trusting God
-          - Lost family members to persecution
-          - Hides in catacombs and meets secretly
+          - Lost family to persecution
+          - Hides in catacombs, meets secretly
           - Refuses to deny Christ despite danger
-          - Encouraged by stories of martyrs' courage
+          - Encouraged by martyrs' courage
           - Hopes persecution will end but willing to suffer
           - Biblical: General NT persecution themes
 
@@ -979,54 +1456,58 @@ sections:
           - Leads secret worship in catacombs
           - Baptizes new believers at night
           - Prepares Christians for possible martyrdom
-          - Wise and courageous
-          - Protects the vulnerable while maintaining faith
+          - Wise, courageous, protective
+          - Maintains faith and order
           - Biblical: Pastoral Epistles, Hebrews
 
           **Christian Martyr:**
           - Faces imminent execution with supernatural peace
-          - Considers it an honor to die for Christ
-          - Quotes Jesus: "Whoever loses his life will find it"
+          - Considers it honor to die for Christ
+          - "Whoever loses his life will find it" (Matt 16:25)
           - Not afraid of death—sees it as gateway to eternal life
           - Forgives persecutors
           - Radiates joy despite circumstances
           - Biblical: Martyrdom accounts, Revelation 2:10
 
-          Stay in character, reference scripture, show courage in suffering, end with invitation to continue.
+          **For other characters:** Use Acts-Revelation and early church context.
+
+          CRITICAL: Emphasize NO Temple (destroyed), faith survives persecution, eternal perspective!
+
+          Stay in character, reference scripture, show courage, end with invitation to continue.
         buckets: [deep_question, historical_question, personal_question, continue_talking, done_talking, change_language, off_topic]
         transitions:
           deep_question:
             ai_feedback:
-              tokens_for_ai: "Provide profound response about faith under persecution and eternal perspective."
-            next_section_and_step: "roman_persecution:conversation"
+              tokens_for_ai: "Provide profound response about faith under persecution and eternal hope."
+            next_section_and_step: "persecution:conversation"
           historical_question:
             ai_feedback:
-              tokens_for_ai: "Provide accurate information about Roman persecution and church survival."
-            next_section_and_step: "roman_persecution:conversation"
+              tokens_for_ai: "Provide accurate details about Roman persecution and church survival."
+            next_section_and_step: "persecution:conversation"
           personal_question:
             ai_feedback:
-              tokens_for_ai: "Share personal testimony of suffering and unwavering faith."
-            next_section_and_step: "roman_persecution:conversation"
+              tokens_for_ai: "Share testimony of suffering and unwavering faith in Christ."
+            next_section_and_step: "persecution:conversation"
           continue_talking:
             ai_feedback:
               tokens_for_ai: "Respond naturally with courage and hope despite danger."
-            next_section_and_step: "roman_persecution:conversation"
+            next_section_and_step: "persecution:conversation"
           done_talking:
             content_blocks:
-              - "Your conversation ends. You are inspired by their unshakeable faith."
-            next_section_and_step: "roman_persecution:choose_npc"
+              - "Your conversation ends. You're inspired by their unshakeable faith."
+            next_section_and_step: "persecution:choose_npc"
           change_language:
             content_blocks:
               - "Language preference updated."
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: "roman_persecution:conversation"
+            next_section_and_step: "persecution:conversation"
           off_topic:
             content_blocks:
               - "Please respect the gravity of this moment in history."
             counts_as_attempt: false
-            next_section_and_step: "roman_persecution:conversation"
+            next_section_and_step: "persecution:conversation"
 
   # ============================================================================
   # CONCLUSION & REFLECTION
@@ -1046,11 +1527,14 @@ sections:
           - "- Epochs visited: (see metadata.epochs_visited)"
           - "- People met: (see metadata.people_met)"
           - ""
-          - "You have walked through Biblical history, spoken with prophets and apostles,"
-          - "witnessed the ministry of Jesus, and seen the birth and persecution of the Church."
+          - "You have walked from Paradise to persecution,"
+          - "from Adam in the Garden to martyrs in the catacombs."
           - ""
-          - "These stories are not just ancient history—they are the foundation of faith"
-          - "that continues to transform lives today."
+          - "You've witnessed God's redemptive plan unfold across millennia—"
+          - "culminating in Jesus Christ, the promised Redeemer."
+          - ""
+          - "These stories are not just ancient history—"
+          - "they are the foundation of faith that transforms lives today."
 
       - step_id: "final_question"
         title: "Final Reflection"
@@ -1058,39 +1542,39 @@ sections:
         tokens_for_ai: |
           The user is reflecting on their Biblical time travel experience.
 
-          Categorize as 'thoughtful_reflection' if they share meaningful insights, learnings, or spiritual reflections.
-          Categorize as 'brief_reflection' if they give a short but sincere response.
-          Categorize as 'unsure' if they're not sure or need prompting.
-          Categorize as 'change_language' for language requests.
+          Categorize as 'thoughtful_reflection' if meaningful insights or spiritual reflections.
+          Categorize as 'brief_reflection' if short but sincere.
+          Categorize as 'unsure' if uncertain.
+          Categorize as 'change_language' for language change.
         feedback_tokens_for_ai: |
-          Respond to their reflection with encouragement and affirmation.
-          Use their preferred language from metadata.language.
+          Respond to their reflection with encouragement.
+          Use language from metadata.language.
 
           - Acknowledge what they found meaningful
           - Connect it to broader Biblical themes
-          - Encourage them to study those passages in Scripture
-          - Affirm how those Biblical truths apply today
-          - Thank them for taking this journey through sacred history
-          - Invite them to revisit the time machine anytime
+          - Encourage them to study those passages
+          - Affirm how those truths apply today
+          - Thank them for this sacred journey
+          - Invite them to return anytime
 
-          End with a blessing and encouragement to read the Bible.
+          End with blessing and encouragement to read the Bible.
         buckets: [thoughtful_reflection, brief_reflection, unsure, change_language]
         transitions:
           thoughtful_reflection:
             ai_feedback:
-              tokens_for_ai: "Provide warm, encouraging response celebrating their insights and spiritual growth."
+              tokens_for_ai: "Provide warm, encouraging response celebrating their spiritual growth."
             metadata_add:
               activity_completed: "true"
             next_section_and_step: "conclusion:goodbye"
           brief_reflection:
             ai_feedback:
-              tokens_for_ai: "Thank them for their response and encourage deeper engagement with Scripture."
+              tokens_for_ai: "Thank them and encourage deeper Scripture engagement."
             metadata_add:
               activity_completed: "true"
             next_section_and_step: "conclusion:goodbye"
           unsure:
             content_blocks:
-              - "Think about the conversations you had. What moment stood out to you? What did you learn?"
+              - "Think about your conversations. What moment stood out? What did you learn?"
             counts_as_attempt: false
             next_section_and_step: "conclusion:final_question"
           change_language:
@@ -1106,8 +1590,12 @@ sections:
         content_blocks:
           - "# 📖 Thank You for Traveling Through Biblical History 📖"
           - ""
-          - "May the stories you've encountered deepen your faith and understanding."
-          - "May the courage of the martyrs inspire you."
+          - "From Eden's garden to Rome's catacombs,"
+          - "from Paradise lost to Paradise restored in Christ—"
+          - "you've witnessed God's unfailing love and redemptive plan."
+          - ""
+          - "May these stories deepen your faith and understanding."
+          - "May the courage of the faithful inspire you."
           - "May the teachings of Jesus transform you."
           - "May the power of the Holy Spirit embolden you."
           - ""
