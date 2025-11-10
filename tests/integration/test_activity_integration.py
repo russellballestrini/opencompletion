@@ -137,7 +137,6 @@ sections:
             content_blocks:
               - "Try again!"
             counts_as_attempt: true
-            next_section_and_step: "section_1:step_1"
       - step_id: "step_2"
         title: "Question 2"
         question: "What is 3+3?"

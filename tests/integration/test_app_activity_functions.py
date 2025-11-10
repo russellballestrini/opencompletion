@@ -32,17 +32,23 @@ class TestFlaskAppActivityFunctions(unittest.TestCase):
 
     def setUp(self):
         """Set up test Flask application with in-memory database"""
-        # Configure test app
+        # Store original database URI
+        self.original_db_uri = app.app.config.get("SQLALCHEMY_DATABASE_URI")
+
+        # Configure test app BEFORE pushing context
         app.app.config["TESTING"] = True
         app.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
         app.app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
         app.app.config["LOCAL_ACTIVITIES"] = True  # Use local YAML files
         app.app.config["WTF_CSRF_ENABLED"] = False
 
-        # Create test client
+        # Create test client and push context
         self.client = app.app.test_client()
         self.app_context = app.app.app_context()
         self.app_context.push()
+
+        # Reinitialize db with the test app to pick up new config
+        db.init_app(app.app)
 
         # Re-initialize db with test config to use in-memory database
         try:
@@ -67,11 +73,16 @@ class TestFlaskAppActivityFunctions(unittest.TestCase):
     def tearDown(self):
         """Clean up test environment"""
         db.session.remove()
-        db.drop_all()
+        try:
+            db.drop_all()
+        except Exception:
+            pass
         self.app_context.pop()
 
-        # Restore original socketio
+        # Restore original socketio and database URI
         app.socketio = self.original_socketio
+        if self.original_db_uri:
+            app.app.config["SQLALCHEMY_DATABASE_URI"] = self.original_db_uri
 
     def create_test_activity_file(self, content):
         """Create a temporary activity YAML file"""
