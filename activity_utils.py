@@ -127,18 +127,18 @@ def evaluate_condition(metadata: Dict[str, Any], condition_key: str, condition_v
         except (ValueError, TypeError):
             return False
 
+    elif condition_key.endswith('_not_contains'):
+        key = condition_key[:-13]
+        value_str = str(metadata.get(key, ''))
+        items = [item.strip() for item in value_str.split(',') if item.strip()]
+        return str(condition_value) not in items
+
     elif condition_key.endswith('_contains'):
         key = condition_key[:-9]
         value_str = str(metadata.get(key, ''))
         # Split by comma and check if condition_value is in list
         items = [item.strip() for item in value_str.split(',') if item.strip()]
         return str(condition_value) in items
-
-    elif condition_key.endswith('_not_contains'):
-        key = condition_key[:-13]
-        value_str = str(metadata.get(key, ''))
-        items = [item.strip() for item in value_str.split(',') if item.strip()]
-        return str(condition_value) not in items
 
     elif condition_key.endswith('_matches'):
         key = condition_key[:-8]
@@ -148,19 +148,19 @@ def evaluate_condition(metadata: Dict[str, Any], condition_key: str, condition_v
         except re.error:
             return False
 
-    elif condition_key.endswith('_exists'):
-        key = condition_key[:-7]
-        if condition_value:
-            return key in metadata
-        else:
-            return key not in metadata
-
     elif condition_key.endswith('_not_exists'):
         key = condition_key[:-11]
         if condition_value:
             return key not in metadata
         else:
             return key in metadata
+
+    elif condition_key.endswith('_exists'):
+        key = condition_key[:-7]
+        if condition_value:
+            return key in metadata
+        else:
+            return key not in metadata
 
     else:
         # Simple equality check
