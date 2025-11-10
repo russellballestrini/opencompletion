@@ -122,6 +122,9 @@ sections:
           - name_provided
           - set_language
           - off_topic
+          - emergency      # Random bucket - also in buckets list
+          - surprise       # Random bucket - also in buckets list
+          - bonus          # Random bucket - also in buckets list
 
         # ======================================================================
         # RANDOM BUCKETS (Optional)
@@ -270,7 +273,7 @@ sections:
             # NAVIGATION (Optional)
             # Where to go next
             # ----------------------------------------------------------------
-            next_section_and_step: "section_2:step_1"
+            next_section_and_step: "introduction:processing_example"
             # Format: "section_id:step_id"
             # If omitted, stays on current step (useful for retry loops)
             # If ALL transitions omit this, activity terminates
@@ -332,6 +335,15 @@ sections:
               bonus_points: "n+random(5,15)"
             counts_as_attempt: false
 
+          bonus:
+            ai_feedback:
+              tokens_for_ai: |
+                🎁 BONUS EVENT!
+                You earned a bonus!
+            metadata_add:
+              bonuses_collected: "n+1"
+            counts_as_attempt: false
+
       # ========================================================================
       # PROCESSING SCRIPTS
       # ========================================================================
@@ -386,7 +398,7 @@ sections:
               tokens_for_ai: "Confirm their number and show calculated results from metadata"
             metadata_add:
               attempts: "n+1"
-            next_section_and_step: "introduction:next_step"
+            next_section_and_step: "introduction:feedback_prompts_example"
 
           invalid:
             content_blocks:
@@ -415,13 +427,15 @@ sections:
           # Technical reviewer - focuses on implementation
           - name: "Tech Lead"
             emoji: "🔧"
-            system_prompt: |
+            tokens_for_ai: |
               You are a senior technical architect.
               Review solutions for:
               - Technical feasibility
               - Scalability concerns
               - Implementation complexity
               Be constructive but thorough.
+            system_prompt: |
+              You are a senior technical architect reviewing student solutions.
 
             # Conditions for when this agent provides feedback
             metadata_conditions:
@@ -433,26 +447,30 @@ sections:
           # Creative reviewer - focuses on innovation
           - name: "Design Guru"
             emoji: "🎨"
-            system_prompt: |
+            tokens_for_ai: |
               You are a creative design expert.
               Evaluate solutions for:
               - Innovation and originality
               - User experience considerations
               - Aesthetic appeal
               Inspire them to think outside the box!
+            system_prompt: |
+              You are a creative design expert evaluating student work.
 
             # This agent responds to all buckets (default)
 
           # Encouraging mentor - provides emotional support
           - name: "Mentor"
             emoji: "🌟"
-            system_prompt: |
+            tokens_for_ai: |
               You are an encouraging mentor.
               Provide:
               - Emotional support
               - Encouragement to continue
               - Recognition of effort
               Always be positive and uplifting!
+            system_prompt: |
+              You are an encouraging mentor supporting students.
 
             # Always include this agent's feedback
             always_include: true
@@ -468,12 +486,12 @@ sections:
             # Each agent in feedback_prompts provides their perspective
             metadata_add:
               score: "n+10"
-            next_section_and_step: "advanced:next_challenge"
+            next_section_and_step: "advanced:coding_challenge"
 
           good:
             metadata_add:
               score: "n+5"
-            next_section_and_step: "intermediate:next_step"
+            next_section_and_step: "advanced:coding_challenge"
 
           needs_work:
             content_blocks:
@@ -509,7 +527,7 @@ sections:
                 - Code style and readability
                 - Algorithmic efficiency
                 - Edge case handling
-            next_section_and_step: "advanced:next_challenge"
+            next_section_and_step: "conclusion:goodbye_content"
           incorrect:
             ai_feedback:
               tokens_for_ai: "Provide hints without giving away the solution"
