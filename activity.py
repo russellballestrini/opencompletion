@@ -25,6 +25,18 @@ get_openai_client_and_model = None
 # Import SYSTEM_USERS from app.py
 SYSTEM_USERS = None
 
+# Import activity utilities for v2.0 features
+from activity_utils import (
+    render_template,
+    evaluate_condition,
+    check_conditions,
+    filter_content_blocks,
+    resolve_conditional_navigation,
+    select_weighted_random,
+    get_progressive_hint,
+    create_template_context
+)
+
 
 def handle_get_activity_status(data):
     """Get the current activity status for a room."""
@@ -121,28 +133,57 @@ def loop_through_steps_until_question(
 
         # Emit the current step content blocks
         if "content_blocks" in step:
-            content = "\n\n".join(step["content_blocks"])
-            translated_content = translate_text(content, user_language, feedback_model)
-            new_message = Message(
-                username="System", content=translated_content, room_id=room.id
+            # Create template context
+            context = create_template_context(
+                metadata=activity_state.dict_metadata,
+                current_attempt=activity_state.attempts,
+                max_attempts=activity_state.max_attempts,
+                current_section=current_section_id,
+                current_step=current_step_id,
+                username=username
             )
-            db.session.add(new_message)
-            db.session.commit()
 
-            socketio.emit(
-                "chat_message",
-                {
-                    "id": new_message.id,
-                    "username": "System",
-                    "content": translated_content,
-                },
-                room=room_name,
+            # Filter and render content blocks (supports conditional blocks and templates)
+            filtered_blocks = filter_content_blocks(
+                step["content_blocks"],
+                activity_state.dict_metadata,
+                context
             )
-            socketio.sleep(0.1)
+
+            if filtered_blocks:
+                content = "\n\n".join(filtered_blocks)
+                translated_content = translate_text(content, user_language, feedback_model)
+                new_message = Message(
+                    username="System", content=translated_content, room_id=room.id
+                )
+                db.session.add(new_message)
+                db.session.commit()
+
+                socketio.emit(
+                    "chat_message",
+                    {
+                        "id": new_message.id,
+                        "username": "System",
+                        "content": translated_content,
+                    },
+                    room=room_name,
+                )
+                socketio.sleep(0.1)
 
         # Check if the current step has a question
         if "question" in step:
-            question_content = step["question"]
+            # Create template context
+            context = create_template_context(
+                metadata=activity_state.dict_metadata,
+                current_attempt=activity_state.attempts,
+                max_attempts=activity_state.max_attempts,
+                current_section=current_section_id,
+                current_step=current_step_id,
+                username=username
+            )
+
+            # Render template variables in question
+            question_content = render_template(step["question"], context)
             translated_question_content = translate_text(
                 question_content, user_language, feedback_model
             )
@@ -486,11 +527,11 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         )
                         socketio.sleep(0.05)
 
-                    # Check metadata conditions for the current step
+                    # Check metadata conditions for the current step (v2.0 advanced conditions)
                     if "metadata_conditions" in transition:
-                        conditions_met = all(
-                            activity_state.dict_metadata.get(key) == value
-                            for key, value in transition["metadata_conditions"].items()
+                        conditions_met = check_conditions(
+                            activity_state.dict_metadata,
+                            transition["metadata_conditions"]
                         )
                         if not conditions_met:
                             # Skip this transition if conditions not met
@@ -685,6 +726,21 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         metadata_tmp_keys.append(random_key)
                         activity_state.add_metadata(random_key, random_value)
 
+                    # Handle metadata_weighted_random (v2.0)
+                    if "metadata_weighted_random" in transition:
+                        for key, weighted_options in transition["metadata_weighted_random"].items():
+                            selected_value = select_weighted_random(weighted_options)
+                            new_metadata[key] = selected_value
+                            activity_state.add_metadata(key, selected_value)
+
+                    # Handle metadata_tmp_weighted_random (v2.0)
+                    if "metadata_tmp_weighted_random" in transition:
+                        for key, weighted_options in transition["metadata_tmp_weighted_random"].items():
+                            selected_value = select_weighted_random(weighted_options)
+                            new_metadata[key] = selected_value
+                            metadata_tmp_keys.append(key)
+                            activity_state.add_metadata(key, selected_value)
+
                     # Execute the post-script if it exists (supports both old and new naming)
                     post_script = step.get("post_script") or step.get("processing_script")
                     if post_script and (
@@ -763,30 +819,48 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
 
                     user_language = activity_state.dict_metadata.get("language", "English")
 
-                    # Emit the transition content blocks if they exist
+                    # Emit the transition content blocks if they exist (v2.0 with templates & conditions)
                     if "content_blocks" in transition:
-                        transition_content = "\n\n".join(transition["content_blocks"])
-                        translated_transition_content = translate_text(
-                            transition_content, user_language, feedback_model
+                        # Create template context
+                        context = create_template_context(
+                            metadata=activity_state.dict_metadata,
+                            current_attempt=activity_state.attempts,
+                            max_attempts=activity_state.max_attempts,
+                            current_section=activity_state.section_id,
+                            current_step=activity_state.step_id,
+                            username=username
                         )
-                        new_message = Message(
-                            username="System",
-                            content=translated_transition_content,
-                            room_id=room.id,
-                        )
-                        db.session.add(new_message)
-                        db.session.commit()
 
-                        socketio.emit(
-                            "chat_message",
-                            {
-                                "id": new_message.id,
-                                "username": "System",
-                                "content": translated_transition_content,
-                            },
-                            room=room_name,
+                        # Filter and render content blocks (supports conditional blocks and templates)
+                        filtered_blocks = filter_content_blocks(
+                            transition["content_blocks"],
+                            activity_state.dict_metadata,
+                            context
                         )
-                        socketio.sleep(0.1)
+
+                        if filtered_blocks:
+                            transition_content = "\n\n".join(filtered_blocks)
+                            translated_transition_content = translate_text(
+                                transition_content, user_language, feedback_model
+                            )
+                            new_message = Message(
+                                username="System",
+                                content=translated_transition_content,
+                                room_id=room.id,
+                            )
+                            db.session.add(new_message)
+                            db.session.commit()
+
+                            socketio.emit(
+                                "chat_message",
+                                {
+                                    "id": new_message.id,
+                                    "username": "System",
+                                    "content": translated_transition_content,
+                                },
+                                room=room_name,
+                            )
+                            socketio.sleep(0.1)
 
                     # if "correct" or max_attempts reached.
                     # Provide feedback based on the category
@@ -885,6 +959,43 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
 
                 # End of multi-bucket processing loop
 
+                # Check for progressive hints (v2.0)
+                if "hints" in step and activity_state.attempts > 0:
+                    context = create_template_context(
+                        metadata=activity_state.dict_metadata,
+                        current_attempt=activity_state.attempts + 1,  # Next attempt
+                        max_attempts=activity_state.max_attempts,
+                        current_section=activity_state.section_id,
+                        current_step=activity_state.step_id,
+                        username=username
+                    )
+                    hint = get_progressive_hint(step["hints"], activity_state.attempts + 1, context)
+                    if hint:
+                        # Display hint
+                        translated_hint = translate_text(hint['text'], user_language, feedback_model)
+                        new_message = Message(
+                            username="System (Hint)",
+                            content=translated_hint,
+                            room_id=room.id
+                        )
+                        db.session.add(new_message)
+                        db.session.commit()
+
+                        socketio.emit(
+                            "chat_message",
+                            {
+                                "id": new_message.id,
+                                "username": "System (Hint)",
+                                "content": translated_hint,
+                            },
+                            room=room_name,
+                        )
+                        socketio.sleep(0.1)
+
+                        # If hint doesn't count as attempt, don't increment
+                        if not hint['counts_as_attempt']:
+                            any_counts_as_attempt = False
+
                 if (
                     category
                     not in [
@@ -898,20 +1009,32 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                     or final_next_section_and_step  # Use final navigation from last transition
                 ):
                     if final_next_section_and_step:
-                        (
-                            current_section_id,
-                            current_step_id,
-                        ) = final_next_section_and_step.split(":")
-                        next_section = next(
-                            s
-                            for s in activity_content["sections"]
-                            if s["section_id"] == current_section_id
+                        # Resolve conditional navigation (v2.0)
+                        resolved_navigation = resolve_conditional_navigation(
+                            final_next_section_and_step,
+                            activity_state.dict_metadata
                         )
-                        next_step = next(
-                            s
-                            for s in next_section["steps"]
-                            if s["step_id"] == current_step_id
-                        )
+
+                        if resolved_navigation:
+                            (
+                                current_section_id,
+                                current_step_id,
+                            ) = resolved_navigation.split(":")
+                            next_section = next(
+                                s
+                                for s in activity_content["sections"]
+                                if s["section_id"] == current_section_id
+                            )
+                            next_step = next(
+                                s
+                                for s in next_section["steps"]
+                                if s["step_id"] == current_step_id
+                            )
+                        else:
+                            # No navigation resolved, move to next step
+                            next_section, next_step = get_next_step(
+                                activity_content, section["section_id"], step["step_id"]
+                            )
                     else:
                         # Move to the next step or section
                         next_section, next_step = get_next_step(
@@ -939,8 +1062,16 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         db.session.add(activity_state)
                         db.session.commit()
 
-                    # Emit the question again
-                    question_content = step["question"]
+                    # Emit the question again (v2.0 with templates)
+                    context = create_template_context(
+                        metadata=activity_state.dict_metadata,
+                        current_attempt=activity_state.attempts,
+                        max_attempts=activity_state.max_attempts,
+                        current_section=activity_state.section_id,
+                        current_step=activity_state.step_id,
+                        username=username
+                    )
+                    question_content = render_template(step["question"], context)
                     translated_question_content = translate_text(
                         question_content, user_language, feedback_model
                     )

@@ -78,6 +78,36 @@
 
 ## Activity YAML Schema
 
+### Session Persistence & Multi-User Model ("Twitch Plays Pokemon")
+
+**How OpenCompletion Activities Work:**
+
+- **Single Shared Game State**: One activity instance per room/channel
+- **Multiple Players**: Zero or more users can participate from different devices
+- **Collaborative Control**: Any user can provide input to advance the shared game
+- **Persistent Metadata**: State is stored in the database per-room, survives browser refreshes
+- **Like "Twitch Plays Pokemon"**: Everyone sees the same state, anyone can control
+
+**Key Implications:**
+- `metadata` is **shared** across all users in the room - it's the game state, not player-specific
+- When user "Alice" adds metadata, user "Bob" sees it too (same activity instance)
+- Use metadata for: scores, progress, choices, inventory, flags - anything that's part of the game
+- All users see the same content_blocks, questions, and transitions
+- Multiple users can answer the same question - first valid answer advances the game
+- Activities can be canceled, which deletes the room's activity state
+
+**Session Lifecycle:**
+1. Activity starts → Initial state saved to database (room_id, section_id, step_id, metadata)
+2. Users interact → Metadata updates, state progresses through sections/steps
+3. Activity completes → State deleted from database
+4. Activity canceled → State deleted from database
+
+**Use Cases:**
+- Classroom activities where teacher projects screen, students call out answers
+- Collaborative puzzles where multiple people work together
+- Public challenges where community collectively progresses
+- Educational games where everyone learns from same shared experience
+
 ### Model Configuration (New Feature)
 
 Activities can specify separate models for classification and feedback generation:

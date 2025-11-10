@@ -81,7 +81,9 @@ class ActivityYAMLValidator:
             return len(self.errors) == 0, self.errors, self.warnings
 
         except Exception as e:
+            import traceback
             self.errors.append(f"Unexpected error: {e}")
+            self.errors.append(f"Traceback: {traceback.format_exc()}")
             return False, self.errors, self.warnings
 
     def _validate_structure(self, data: Dict[str, Any]):
@@ -228,7 +230,7 @@ class ActivityYAMLValidator:
     def _validate_content_blocks(
         self, content_blocks: List[str], section_id: str, step_id: str
     ):
-        """Validate content blocks"""
+        """Validate content blocks (v2.0 supports conditional blocks)"""
         if not isinstance(content_blocks, list):
             self.errors.append(
                 f"Section {section_id}, step {step_id}: content_blocks must be a list"
@@ -236,9 +238,28 @@ class ActivityYAMLValidator:
             return
 
         for i, block in enumerate(content_blocks):
-            if not isinstance(block, str):
+            if isinstance(block, str):
+                # Simple string block - always valid
+                continue
+            elif isinstance(block, dict):
+                # Conditional block (v2.0)
+                if 'text' not in block:
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}: content_blocks[{i}] dict must have 'text' field"
+                    )
+                elif not isinstance(block['text'], str):
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}: content_blocks[{i}]['text'] must be a string"
+                    )
+
+                if 'show_if' in block:
+                    if not isinstance(block['show_if'], dict):
+                        self.errors.append(
+                            f"Section {section_id}, step {step_id}: content_blocks[{i}]['show_if'] must be a dict"
+                        )
+            else:
                 self.errors.append(
-                    f"Section {section_id}, step {step_id}: content_blocks[{i}] must be a string"
+                    f"Section {section_id}, step {step_id}: content_blocks[{i}] must be a string or dict"
                 )
 
     def _validate_question_step(
@@ -268,6 +289,10 @@ class ActivityYAMLValidator:
             self._validate_feedback_prompts(
                 step["feedback_prompts"], section_id, step_id
             )
+
+        # Validate hints (v2.0 progressive hints)
+        if "hints" in step:
+            self._validate_hints(step["hints"], section_id, step_id)
 
         # Validate buckets and transitions
         if "buckets" in step:
@@ -469,16 +494,21 @@ class ActivityYAMLValidator:
             )
             return
 
-        # Validate next_section_and_step format
+        # Validate next_section_and_step format (v2.0 supports conditional navigation)
         if "next_section_and_step" in transition:
             next_step = transition["next_section_and_step"]
-            if not isinstance(next_step, str):
+            if isinstance(next_step, str):
+                # Simple string navigation
+                if ":" not in next_step:
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}, bucket {bucket}: 'next_section_and_step' must be in format 'section_id:step_id'"
+                    )
+            elif isinstance(next_step, list):
+                # Conditional navigation (v2.0)
+                self._validate_conditional_navigation(next_step, bucket, section_id, step_id)
+            else:
                 self.errors.append(
-                    f"Section {section_id}, step {step_id}, bucket {bucket}: 'next_section_and_step' must be a string"
-                )
-            elif ":" not in next_step:
-                self.errors.append(
-                    f"Section {section_id}, step {step_id}, bucket {bucket}: 'next_section_and_step' must be in format 'section_id:step_id'"
+                    f"Section {section_id}, step {step_id}, bucket {bucket}: 'next_section_and_step' must be a string or list"
                 )
 
         # Validate metadata operations
@@ -488,6 +518,8 @@ class ActivityYAMLValidator:
             "metadata_remove",
             "metadata_clear",
             "metadata_feedback_filter",
+            "metadata_weighted_random",  # v2.0
+            "metadata_tmp_weighted_random",  # v2.0
         ]
         for field in metadata_fields:
             if field in transition:
@@ -554,11 +586,110 @@ class ActivityYAMLValidator:
                     f"Section {section_id}, step {step_id}, bucket {bucket}: 'content_blocks' must be a list"
                 )
             else:
-                for i, block in enumerate(transition["content_blocks"]):
-                    if not isinstance(block, str):
-                        self.errors.append(
-                            f"Section {section_id}, step {step_id}, bucket {bucket}: content_blocks[{i}] must be a string"
-                        )
+                # v2.0: content_blocks can be strings or dicts with text/show_if
+                self._validate_content_blocks(transition["content_blocks"], section_id, f"{step_id}:{bucket}")
+
+    def _validate_hints(self, hints: List[Dict[str, Any]], section_id: str, step_id: str):
+        """Validate progressive hints system (v2.0)"""
+        if not isinstance(hints, list):
+            self.errors.append(
+                f"Section {section_id}, step {step_id}: 'hints' must be a list"
+            )
+            return
+
+        if not hints:
+            self.warnings.append(
+                f"Section {section_id}, step {step_id}: Empty hints list"
+            )
+            return
+
+        for i, hint in enumerate(hints):
+            if not isinstance(hint, dict):
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: hints[{i}] must be a dictionary"
+                )
+                continue
+
+            # Validate required fields
+            if 'attempt' not in hint:
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: hints[{i}] missing required field 'attempt'"
+                )
+            elif not isinstance(hint['attempt'], int) or hint['attempt'] < 1:
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: hints[{i}]['attempt'] must be a positive integer"
+                )
+
+            if 'text' not in hint:
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: hints[{i}] missing required field 'text'"
+                )
+            elif not isinstance(hint['text'], str):
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: hints[{i}]['text'] must be a string"
+                )
+
+            # Validate optional fields
+            if 'counts_as_attempt' in hint and not isinstance(hint['counts_as_attempt'], bool):
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: hints[{i}]['counts_as_attempt'] must be a boolean"
+                )
+
+    def _validate_conditional_navigation(
+        self, nav_list: List[Dict[str, Any]], bucket: str, section_id: str, step_id: str
+    ):
+        """Validate conditional navigation structure (v2.0)"""
+        if not isinstance(nav_list, list):
+            self.errors.append(
+                f"Section {section_id}, step {step_id}, bucket {bucket}: conditional navigation must be a list"
+            )
+            return
+
+        has_else = False
+        for i, branch in enumerate(nav_list):
+            if not isinstance(branch, dict):
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}, bucket {bucket}: navigation[{i}] must be a dictionary"
+                )
+                continue
+
+            # Check for if/elif/else
+            if 'if' in branch:
+                if not isinstance(branch['if'], dict):
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}, bucket {bucket}: navigation[{i}]['if'] must be a dict"
+                    )
+            elif 'elif' in branch:
+                if not isinstance(branch['elif'], dict):
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}, bucket {bucket}: navigation[{i}]['elif'] must be a dict"
+                    )
+            elif 'else' in branch:
+                has_else = True
+                # else doesn't need conditions
+            else:
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}, bucket {bucket}: navigation[{i}] must have 'if', 'elif', or 'else'"
+                )
+
+            # Check for goto
+            if 'goto' not in branch:
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}, bucket {bucket}: navigation[{i}] missing required field 'goto'"
+                )
+            elif not isinstance(branch['goto'], str):
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}, bucket {bucket}: navigation[{i}]['goto'] must be a string"
+                )
+            elif ':' not in branch['goto']:
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}, bucket {bucket}: navigation[{i}]['goto'] must be in format 'section_id:step_id'"
+                )
+
+        if not has_else:
+            self.warnings.append(
+                f"Section {section_id}, step {step_id}, bucket {bucket}: conditional navigation has no 'else' clause - may not always resolve"
+            )
 
     def _validate_python_code(self, data: Dict[str, Any]):
         """Validate Python code blocks in scripts"""
@@ -697,9 +828,12 @@ class ActivityYAMLValidator:
                     # Check if any transition continues the flow
                     has_continuing_transition = False
                     for transition in step["transitions"].values():
-                        if "next_section_and_step" in transition:
-                            has_continuing_transition = True
-                            break
+                        if isinstance(transition, dict) and "next_section_and_step" in transition:
+                            # v2.0: next_section_and_step can be string or list (conditional)
+                            next_step_value = transition["next_section_and_step"]
+                            if next_step_value:  # Not None or empty
+                                has_continuing_transition = True
+                                break
 
                     # If this is the last step of the last section and has no continuing transitions
                     if (
@@ -808,12 +942,24 @@ class ActivityYAMLValidator:
                     continue
 
                 for bucket, transition in step["transitions"].items():
-                    if "next_section_and_step" in transition:
+                    if isinstance(transition, dict) and "next_section_and_step" in transition:
                         target = transition["next_section_and_step"]
-                        if target not in all_steps:
-                            self.errors.append(
-                                f"Section {section_id}, step {step_id}: Invalid transition target '{target}'"
-                            )
+
+                        # v2.0: target can be string or list (conditional navigation)
+                        if isinstance(target, str):
+                            if target not in all_steps:
+                                self.errors.append(
+                                    f"Section {section_id}, step {step_id}: Invalid transition target '{target}'"
+                                )
+                        elif isinstance(target, list):
+                            # Conditional navigation - check all goto targets
+                            for branch in target:
+                                if isinstance(branch, dict) and 'goto' in branch:
+                                    goto_target = branch['goto']
+                                    if goto_target not in all_steps:
+                                        self.errors.append(
+                                            f"Section {section_id}, step {step_id}: Invalid conditional navigation target '{goto_target}'"
+                                        )
 
 
 def main():

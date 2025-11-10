@@ -1,0 +1,203 @@
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_0"
+feedback_model: "MODEL_0"
+
+tokens_for_ai_rubric: |
+  Test activity for v2.0 features.
+  Evaluate responses generously - this is just a demo!
+
+sections:
+  - section_id: intro
+    title: V2.0 Features Demo
+    steps:
+      # Test: Template variables in content blocks
+      - step_id: welcome
+        title: Welcome with Templates
+        content_blocks:
+          - "# Welcome to OpenCompletion V2.0! 🎉"
+          - ""
+          - "This activity demonstrates all new v2.0 features."
+          - "Current section: {{current_section}}"
+          - "Current step: {{current_step}}"
+        question: "What's your name?"
+        tokens_for_ai: |
+          Categorize as 'name_provided' if they give a name.
+          Otherwise 'off_topic'.
+        buckets: [name_provided, off_topic]
+        transitions:
+          name_provided:
+            content_blocks:
+              - "Great to meet you!"
+            metadata_add:
+              player_name: "the-users-response"
+              score: "n+1"
+            next_section_and_step: "templates:test_templates"
+          off_topic:
+            content_blocks:
+              - "Please tell me your name."
+            next_section_and_step: "intro:welcome"
+
+  # Section: Template Variables
+  - section_id: templates
+    title: Template Variables Test
+    steps:
+      - step_id: test_templates
+        title: Testing Templates
+        content_blocks:
+          - "# Template Variables Test"
+          - ""
+          - "Welcome back, {{metadata.player_name}}!"
+          - "Your score: {{metadata.score}}"
+          - "Attempt {{current_attempt}} of {{max_attempts}}"
+          - "Attempts remaining: {{attempts_remaining}}"
+        question: "Ready to test conditional content? (yes/no)"
+        tokens_for_ai: "Categorize as 'yes' or 'no' based on their response."
+        buckets: [yes, no]
+        transitions:
+          yes:
+            content_blocks:
+              - "Excellent!"
+            next_section_and_step: "conditionals:test_conditional_blocks"
+          no:
+            content_blocks:
+              - "Take your time!"
+            next_section_and_step: "templates:test_templates"
+
+  # Section: Conditional Content Blocks
+  - section_id: conditionals
+    title: Conditional Content Test
+    steps:
+      - step_id: test_conditional_blocks
+        title: Conditional Content Blocks
+        content_blocks:
+          # Always shown
+          - "# Conditional Content Test"
+          - ""
+          # Conditional - only if score >= 1
+          - text: "🌟 You have points! Great job!"
+            show_if:
+              score_gte: 1
+          # Conditional - only if score < 1
+          - text: "Start earning points!"
+            show_if:
+              score_lt: 1
+          # Conditional - personalized
+          - text: "Hello {{metadata.player_name}}, let's continue!"
+            show_if:
+              player_name_exists: true
+        question: "What's 5 + 3?"
+        tokens_for_ai: "Categorize as 'correct' if 8 or eight, otherwise 'incorrect'."
+        buckets: [correct, incorrect]
+
+        # Progressive hints test
+        hints:
+          - attempt: 1
+            text: "💡 Hint: It's less than 10"
+            counts_as_attempt: false
+          - attempt: 2
+            text: "💡 Strong Hint: 5 + 3 = ?"
+            counts_as_attempt: false
+
+        transitions:
+          correct:
+            content_blocks:
+              - "Perfect! ✅"
+            metadata_add:
+              score: "n+5"
+            next_section_and_step: "weighted_random:test_weighted"
+          incorrect:
+            content_blocks:
+              - "Try again!"
+            next_section_and_step: "conditionals:test_conditional_blocks"
+
+  # Section: Weighted Random
+  - section_id: weighted_random
+    title: Weighted Random Test
+    steps:
+      - step_id: test_weighted
+        title: Weighted Random Selection
+        content_blocks:
+          - "# Weighted Random Test"
+          - ""
+          - "Let's test weighted random selection!"
+        question: "Roll the dice! (type 'roll')"
+        tokens_for_ai: "Categorize as 'roll'."
+        buckets: [roll]
+        transitions:
+          roll:
+            metadata_weighted_random:
+              loot:
+                - value: "common_item"
+                  weight: 70
+                - value: "rare_item"
+                  weight: 25
+                - value: "legendary_item"
+                  weight: 5
+            ai_feedback:
+              tokens_for_ai: |
+                The user found: {{metadata.loot}}
+                If common_item: "You found a Common Item"
+                If rare_item: "You found a Rare Item! 🌟"
+                If legendary_item: "LEGENDARY ITEM FOUND! 🏆"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: "conditional_nav:test_nav"
+
+  # Section: Conditional Navigation
+  - section_id: conditional_nav
+    title: Conditional Navigation Test
+    steps:
+      - step_id: test_nav
+        title: Conditional Navigation
+        content_blocks:
+          - "# Conditional Navigation Test"
+          - ""
+          - "Your current score: {{metadata.score}}"
+          - ""
+          - "Based on your score, you'll be routed to different paths!"
+        question: "Continue? (yes)"
+        tokens_for_ai: "Categorize as 'continue'."
+        buckets: [continue]
+        transitions:
+          continue:
+            # Conditional navigation based on score
+            next_section_and_step:
+              - if:
+                  score_gte: 10
+                goto: "endings:high_score"
+              - elif:
+                  score_gte: 5
+                goto: "endings:medium_score"
+              - else:
+                goto: "endings:low_score"
+
+  # Section: Different Endings
+  - section_id: endings
+    title: Endings
+    steps:
+      - step_id: high_score
+        title: High Score Ending
+        content_blocks:
+          - "# 🏆 AMAZING! High Score!"
+          - ""
+          - "{{metadata.player_name}}, you scored {{metadata.score}} points!"
+          - ""
+          - "You're a V2.0 features master!"
+
+      - step_id: medium_score
+        title: Medium Score Ending
+        content_blocks:
+          - "# 🌟 GOOD JOB! Medium Score!"
+          - ""
+          - "{{metadata.player_name}}, you scored {{metadata.score}} points!"
+          - ""
+          - "Great understanding of V2.0 features!"
+
+      - step_id: low_score
+        title: Low Score Ending
+        content_blocks:
+          - "# ✨ Good Start!"
+          - ""
+          - "{{metadata.player_name}}, you scored {{metadata.score}} points!"
+          - ""
+          - "You've learned the basics of V2.0 features!"
