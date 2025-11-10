@@ -25,13 +25,9 @@ class TestRandomBucketRolling(unittest.TestCase):
 
     def test_random_bucket_triggers_when_roll_below_probability(self):
         """Test that random bucket triggers when roll < probability"""
-        step = {
-            "random_buckets": {
-                "emergency": {"probability": 0.5}
-            }
-        }
+        step = {"random_buckets": {"emergency": {"probability": 0.5}}}
 
-        with patch('random.random', return_value=0.3):  # 0.3 < 0.5
+        with patch("random.random", return_value=0.3):  # 0.3 < 0.5
             triggered_buckets = []
             for bucket_name, config in step["random_buckets"].items():
                 probability = config.get("probability", 0)
@@ -44,13 +40,9 @@ class TestRandomBucketRolling(unittest.TestCase):
 
     def test_random_bucket_does_not_trigger_when_roll_above_probability(self):
         """Test that random bucket doesn't trigger when roll >= probability"""
-        step = {
-            "random_buckets": {
-                "emergency": {"probability": 0.5}
-            }
-        }
+        step = {"random_buckets": {"emergency": {"probability": 0.5}}}
 
-        with patch('random.random', return_value=0.7):  # 0.7 >= 0.5
+        with patch("random.random", return_value=0.7):  # 0.7 >= 0.5
             triggered_buckets = []
             for bucket_name, config in step["random_buckets"].items():
                 probability = config.get("probability", 0)
@@ -65,12 +57,12 @@ class TestRandomBucketRolling(unittest.TestCase):
         step = {
             "random_buckets": {
                 "emergency": {"probability": 0.5},
-                "task": {"probability": 0.5}
+                "task": {"probability": 0.5},
             }
         }
 
         # Mock random to always return low values
-        with patch('random.random', return_value=0.2):  # 0.2 < 0.5 for both
+        with patch("random.random", return_value=0.2):  # 0.2 < 0.5 for both
             triggered_buckets = []
             for bucket_name, config in step["random_buckets"].items():
                 probability = config.get("probability", 0)
@@ -87,7 +79,7 @@ class TestRandomBucketRolling(unittest.TestCase):
         step = {
             "random_buckets": {
                 "emergency": {"probability": 0.15},
-                "task": {"probability": 0.15}
+                "task": {"probability": 0.15},
             }
         }
 
@@ -107,14 +99,18 @@ class TestRandomBucketRolling(unittest.TestCase):
 
             if len(triggered_buckets) == 2:
                 double_trigger_found = True
-                print(f"✓ Double trigger found on iteration {iterations}: {triggered_buckets}")
+                print(
+                    f"✓ Double trigger found on iteration {iterations}: {triggered_buckets}"
+                )
                 break
 
         # With 15% probability each, chance of both triggering = 0.15 * 0.15 = 0.0225 (2.25%)
         # Over 20 trials, probability of at least one double = 1 - (1 - 0.0225)^20 ≈ 36%
         # This test may occasionally fail due to randomness, but should pass most of the time
         if not double_trigger_found:
-            print(f"⚠️  Warning: No double trigger found in {iterations} iterations (expected ~36% success rate)")
+            print(
+                f"⚠️  Warning: No double trigger found in {iterations} iterations (expected ~36% success rate)"
+            )
 
         # We don't assert here because random tests can fail
         # Instead we just report the result
@@ -126,7 +122,7 @@ class TestRandomBucketRolling(unittest.TestCase):
             "random_buckets": {
                 "emergency": {"probability": 1.0},  # 100% to prevent flaky tests
                 "task": {"probability": 1.0},  # 100% to prevent flaky tests
-                "challenge": {"probability": 1.0}  # 100% to prevent flaky tests
+                "challenge": {"probability": 1.0},  # 100% to prevent flaky tests
             }
         }
 
@@ -146,20 +142,25 @@ class TestRandomBucketRolling(unittest.TestCase):
 
             if len(triggered_buckets) == 3:
                 triple_trigger_found = True
-                print(f"✓ Triple trigger found on iteration {iterations}: {triggered_buckets}")
+                print(
+                    f"✓ Triple trigger found on iteration {iterations}: {triggered_buckets}"
+                )
                 break
 
         # With 100% probability each, all three should trigger on first iteration
-        self.assertTrue(triple_trigger_found, "Triple trigger should have been found with 100% probabilities")
-        self.assertEqual(iterations, 1, "Triple trigger should happen on first iteration with 100% probabilities")
+        self.assertTrue(
+            triple_trigger_found,
+            "Triple trigger should have been found with 100% probabilities",
+        )
+        self.assertEqual(
+            iterations,
+            1,
+            "Triple trigger should happen on first iteration with 100% probabilities",
+        )
 
     def test_zero_probability_never_triggers(self):
         """Test that 0% probability never triggers"""
-        step = {
-            "random_buckets": {
-                "impossible": {"probability": 0.0}
-            }
-        }
+        step = {"random_buckets": {"impossible": {"probability": 0.0}}}
 
         # Try 100 times - should never trigger
         for _ in range(100):
@@ -174,11 +175,7 @@ class TestRandomBucketRolling(unittest.TestCase):
 
     def test_100_percent_probability_always_triggers(self):
         """Test that 100% probability always triggers"""
-        step = {
-            "random_buckets": {
-                "guaranteed": {"probability": 1.0}
-            }
-        }
+        step = {"random_buckets": {"guaranteed": {"probability": 1.0}}}
 
         # Try 10 times - should always trigger
         for _ in range(10):
@@ -310,7 +307,9 @@ class TestStringConcatenationMetadata(unittest.TestCase):
             else:
                 metadata[key] = suffix
 
-        self.assertEqual(metadata["visited_sections"], "forward_escape_trunk,torpedo_room")
+        self.assertEqual(
+            metadata["visited_sections"], "forward_escape_trunk,torpedo_room"
+        )
 
     def test_string_append_multiple_times(self):
         """Test multiple append operations"""
@@ -404,30 +403,30 @@ class TestRandomBucketIntegration(unittest.TestCase):
         step = {
             "random_buckets": {
                 "emergency": {"probability": 0.05},
-                "daily_task": {"probability": 0.15}
+                "daily_task": {"probability": 0.15},
             },
             "transitions": {
                 "torpedo_room": {
                     "metadata_add": {
                         "current_section": "torpedo_room",
-                        "visited_sections": "n+,torpedo_room"
+                        "visited_sections": "n+,torpedo_room",
                     },
-                    "next_section_and_step": "navigation_hub:torpedo_room"
+                    "next_section_and_step": "navigation_hub:torpedo_room",
                 },
                 "emergency": {
                     "metadata_add": {"emergency_active": "true"},
-                    "next_section_and_step": "emergency:handle"
+                    "next_section_and_step": "emergency:handle",
                 },
                 "daily_task": {
                     "metadata_add": {"task_active": "true"},
-                    "next_section_and_step": "task:handle"
-                }
-            }
+                    "next_section_and_step": "task:handle",
+                },
+            },
         }
 
         # Simulate one emergency triggering
         triggered_random_buckets = []
-        with patch('random.random') as mock_random:
+        with patch("random.random") as mock_random:
             # First call: emergency (0.03 < 0.05) - triggers
             # Second call: daily_task (0.9 >= 0.15) - doesn't trigger
             mock_random.side_effect = [0.03, 0.9]
@@ -477,22 +476,22 @@ class TestRandomBucketIntegration(unittest.TestCase):
         step = {
             "random_buckets": {
                 "emergency": {"probability": 1.0},  # Guaranteed
-                "daily_task": {"probability": 1.0}   # Guaranteed
+                "daily_task": {"probability": 1.0},  # Guaranteed
             },
             "transitions": {
                 "examine": {
                     "next_section_and_step": "navigation_hub:forward_escape_trunk",
-                    "counts_as_attempt": False  # Add this so examine doesn't count
+                    "counts_as_attempt": False,  # Add this so examine doesn't count
                 },
                 "emergency": {
                     "metadata_add": {"emergency_count": "n+1"},
-                    "counts_as_attempt": False
+                    "counts_as_attempt": False,
                 },
                 "daily_task": {
                     "metadata_add": {"task_count": "n+1"},
-                    "counts_as_attempt": False
-                }
-            }
+                    "counts_as_attempt": False,
+                },
+            },
         }
 
         # Both random events trigger (100% probability)
@@ -512,7 +511,11 @@ class TestRandomBucketIntegration(unittest.TestCase):
 
             if "metadata_add" in transition:
                 for key, value in transition["metadata_add"].items():
-                    if isinstance(value, str) and value.startswith("n+") and not value.startswith("n+,"):
+                    if (
+                        isinstance(value, str)
+                        and value.startswith("n+")
+                        and not value.startswith("n+,")
+                    ):
                         increment = int(value[2:])
                         metadata[key] = metadata.get(key, 0) + increment
 
@@ -537,37 +540,34 @@ class TestRandomBucketIntegration(unittest.TestCase):
             "random_buckets": {
                 "emergency": {"probability": 1.0},  # Guaranteed
                 "daily_task": {"probability": 1.0},  # Guaranteed
-                "bonus_challenge": {"probability": 1.0}  # Guaranteed
+                "bonus_challenge": {"probability": 1.0},  # Guaranteed
             },
             "transitions": {
                 "correct_answer": {
                     "metadata_add": {"score": "n+10"},
                     "next_section_and_step": "quiz:next_question",
-                    "counts_as_attempt": False
+                    "counts_as_attempt": False,
                 },
                 "emergency": {
                     "metadata_add": {
                         "emergency_count": "n+1",
-                        "score": "n-5"  # Emergency penalty
+                        "score": "n-5",  # Emergency penalty
                     },
                     "counts_as_attempt": False,
-                    "next_section_and_step": "emergency:handle"
+                    "next_section_and_step": "emergency:handle",
                 },
                 "daily_task": {
-                    "metadata_add": {
-                        "task_count": "n+1",
-                        "score": "n+2"  # Task bonus
-                    },
-                    "counts_as_attempt": False
+                    "metadata_add": {"task_count": "n+1", "score": "n+2"},  # Task bonus
+                    "counts_as_attempt": False,
                 },
                 "bonus_challenge": {
                     "metadata_add": {
                         "challenge_count": "n+1",
-                        "score": "n+15"  # Big bonus
+                        "score": "n+15",  # Big bonus
                     },
-                    "counts_as_attempt": False
-                }
-            }
+                    "counts_as_attempt": False,
+                },
+            },
         }
 
         # All three random events trigger (100% probability)
@@ -589,10 +589,18 @@ class TestRandomBucketIntegration(unittest.TestCase):
 
             if "metadata_add" in transition:
                 for key, value in transition["metadata_add"].items():
-                    if isinstance(value, str) and value.startswith("n+") and not value.startswith("n+,"):
+                    if (
+                        isinstance(value, str)
+                        and value.startswith("n+")
+                        and not value.startswith("n+,")
+                    ):
                         increment = int(value[2:])
                         metadata[key] = metadata.get(key, 0) + increment
-                    elif isinstance(value, str) and value.startswith("n-") and not value.startswith("n-,"):
+                    elif (
+                        isinstance(value, str)
+                        and value.startswith("n-")
+                        and not value.startswith("n-,")
+                    ):
                         decrement = int(value[2:])
                         metadata[key] = metadata.get(key, 0) - decrement
 

@@ -165,16 +165,22 @@ def get_openai_client_and_model(
                         response = client.models.list()
                         if response.data:
                             actual_model = response.data[0].id
-                            print(f"[DEBUG] Using first model from {endpoint}: {actual_model}")
+                            print(
+                                f"[DEBUG] Using first model from {endpoint}: {actual_model}"
+                            )
                             return client, actual_model
                     except Exception as e:
                         print(f"Warning: Could not query models from {endpoint}: {e}")
 
                     # Final fallback
-                    print(f"Warning: No models found for {endpoint}, using 'model' as fallback")
+                    print(
+                        f"Warning: No models found for {endpoint}, using 'model' as fallback"
+                    )
                     return client, "model"
             else:
-                print(f"Warning: MODEL_{model_num} not configured ({endpoint_key} or {api_key_key} missing)")
+                print(
+                    f"Warning: MODEL_{model_num} not configured ({endpoint_key} or {api_key_key} missing)"
+                )
                 # Fall back to default model
                 model_name = "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic"
         except Exception as e:

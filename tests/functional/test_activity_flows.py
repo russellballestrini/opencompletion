@@ -2,7 +2,7 @@
 """
 Comprehensive activity flow tests that exercise all transitions
 
-These tests run complete activity walkthroughs to validate that all 
+These tests run complete activity walkthroughs to validate that all
 transitions work correctly, especially after our YAML changes.
 """
 

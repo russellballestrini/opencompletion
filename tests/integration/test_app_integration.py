@@ -139,7 +139,7 @@ class TestDatabaseModelsIntegration(unittest.TestCase):
             step_id="step_1",
             s3_file_path="activity.yaml",
             attempts=0,
-            max_attempts=3
+            max_attempts=3,
         )
         self.db.session.add(state)
         self.db.session.commit()

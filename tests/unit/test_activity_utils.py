@@ -21,7 +21,7 @@ from activity_utils import (
     resolve_conditional_navigation,
     select_weighted_random,
     get_progressive_hint,
-    create_template_context
+    create_template_context,
 )
 
 
@@ -37,7 +37,9 @@ class TestRenderTemplate:
     def test_metadata_variable(self):
         """Test metadata.key syntax"""
         context = {"metadata": {"player_name": "Alice", "level": 5}}
-        result = render_template("Player: {{metadata.player_name}}, Level: {{metadata.level}}", context)
+        result = render_template(
+            "Player: {{metadata.player_name}}, Level: {{metadata.level}}", context
+        )
         assert result == "Player: Alice, Level: 5"
 
     def test_built_in_variables(self):
@@ -48,11 +50,11 @@ class TestRenderTemplate:
             "attempts_remaining": 1,
             "current_section": "intro",
             "current_step": "welcome",
-            "username": "Bob"
+            "username": "Bob",
         }
         result = render_template(
             "Attempt {{current_attempt}}/{{max_attempts}} ({{attempts_remaining}} left) - {{username}}",
-            context
+            context,
         )
         assert result == "Attempt 2/3 (1 left) - Bob"
 
@@ -137,21 +139,52 @@ class TestEvaluateCondition:
 
     def test_contains(self):
         """Test contains operator (_contains) for comma-separated lists"""
-        assert evaluate_condition({"inventory": "sword,shield,potion"}, "inventory_contains", "sword") is True
-        assert evaluate_condition({"inventory": "sword,shield,potion"}, "inventory_contains", "axe") is False
-        assert evaluate_condition({"inventory": "sword"}, "inventory_contains", "sword") is True
-        assert evaluate_condition({"inventory": ""}, "inventory_contains", "sword") is False
+        assert (
+            evaluate_condition(
+                {"inventory": "sword,shield,potion"}, "inventory_contains", "sword"
+            )
+            is True
+        )
+        assert (
+            evaluate_condition(
+                {"inventory": "sword,shield,potion"}, "inventory_contains", "axe"
+            )
+            is False
+        )
+        assert (
+            evaluate_condition({"inventory": "sword"}, "inventory_contains", "sword")
+            is True
+        )
+        assert (
+            evaluate_condition({"inventory": ""}, "inventory_contains", "sword")
+            is False
+        )
 
     def test_not_contains(self):
         """Test not contains operator (_not_contains)"""
-        assert evaluate_condition({"inventory": "sword,shield"}, "inventory_not_contains", "axe") is True
-        assert evaluate_condition({"inventory": "sword,shield"}, "inventory_not_contains", "sword") is False
+        assert (
+            evaluate_condition(
+                {"inventory": "sword,shield"}, "inventory_not_contains", "axe"
+            )
+            is True
+        )
+        assert (
+            evaluate_condition(
+                {"inventory": "sword,shield"}, "inventory_not_contains", "sword"
+            )
+            is False
+        )
 
     def test_matches(self):
         """Test regex match operator (_matches)"""
         assert evaluate_condition({"name": "Alice"}, "name_matches", r"^[A-Z]") is True
         assert evaluate_condition({"name": "alice"}, "name_matches", r"^[A-Z]") is False
-        assert evaluate_condition({"email": "test@example.com"}, "email_matches", r".*@.*\.com") is True
+        assert (
+            evaluate_condition(
+                {"email": "test@example.com"}, "email_matches", r".*@.*\.com"
+            )
+            is True
+        )
 
     def test_exists(self):
         """Test existence check operator (_exists)"""
@@ -163,7 +196,9 @@ class TestEvaluateCondition:
     def test_not_exists(self):
         """Test non-existence check operator (_not_exists)"""
         assert evaluate_condition({}, "missing_not_exists", True) is True
-        assert evaluate_condition({"has_key": True}, "has_key_not_exists", True) is False
+        assert (
+            evaluate_condition({"has_key": True}, "has_key_not_exists", True) is False
+        )
 
     def test_invalid_number_comparison(self):
         """Test numeric comparison with non-numeric values"""
@@ -177,7 +212,9 @@ class TestEvaluateCondition:
 
     def test_invalid_regex(self):
         """Test matches with invalid regex"""
-        assert evaluate_condition({"value": "test"}, "value_matches", "[invalid") is False
+        assert (
+            evaluate_condition({"value": "test"}, "value_matches", "[invalid") is False
+        )
 
 
 class TestCheckConditions:
@@ -190,20 +227,13 @@ class TestCheckConditions:
     def test_all_conditions_met(self):
         """Test all conditions must be met"""
         metadata = {"score": 100, "level": 5, "inventory": "sword,shield"}
-        conditions = {
-            "score_gte": 100,
-            "level": 5,
-            "inventory_contains": "sword"
-        }
+        conditions = {"score_gte": 100, "level": 5, "inventory_contains": "sword"}
         assert check_conditions(metadata, conditions) is True
 
     def test_some_conditions_not_met(self):
         """Test fails if any condition not met"""
         metadata = {"score": 50, "level": 5}
-        conditions = {
-            "score_gte": 100,
-            "level": 5
-        }
+        conditions = {"score_gte": 100, "level": 5}
         assert check_conditions(metadata, conditions) is False
 
     def test_mixed_operators(self):
@@ -213,7 +243,7 @@ class TestCheckConditions:
             "score_gte": 50,
             "score_lt": 100,
             "status_ne": "inactive",
-            "name_matches": r"^[A-Z]"
+            "name_matches": r"^[A-Z]",
         }
         assert check_conditions(metadata, conditions) is True
 
@@ -230,9 +260,7 @@ class TestFilterContentBlocks:
 
     def test_conditional_block_shown(self):
         """Test conditional block shown when condition met"""
-        blocks = [
-            {"text": "High score!", "show_if": {"score_gte": 50}}
-        ]
+        blocks = [{"text": "High score!", "show_if": {"score_gte": 50}}]
         metadata = {"score": 100}
         context = {"metadata": metadata}
         result = filter_content_blocks(blocks, metadata, context)
@@ -240,9 +268,7 @@ class TestFilterContentBlocks:
 
     def test_conditional_block_hidden(self):
         """Test conditional block hidden when condition not met"""
-        blocks = [
-            {"text": "High score!", "show_if": {"score_gte": 50}}
-        ]
+        blocks = [{"text": "High score!", "show_if": {"score_gte": 50}}]
         metadata = {"score": 20}
         context = {"metadata": metadata}
         result = filter_content_blocks(blocks, metadata, context)
@@ -254,7 +280,7 @@ class TestFilterContentBlocks:
             "Always shown",
             {"text": "High score!", "show_if": {"score_gte": 50}},
             {"text": "Low score", "show_if": {"score_lt": 50}},
-            "Also always shown"
+            "Also always shown",
         ]
         metadata = {"score": 75}
         context = {"metadata": metadata}
@@ -265,7 +291,7 @@ class TestFilterContentBlocks:
         """Test that templates are rendered in filtered blocks"""
         blocks = [
             "Score: {{metadata.score}}",
-            {"text": "Level: {{metadata.level}}", "show_if": {"level_gte": 1}}
+            {"text": "Level: {{metadata.level}}", "show_if": {"level_gte": 1}},
         ]
         metadata = {"score": 100, "level": 5}
         context = {"metadata": metadata}
@@ -290,7 +316,7 @@ class TestResolveConditionalNavigation:
         """Test if branch when condition matches"""
         nav = [
             {"if": {"score_gte": 100}, "goto": "expert:challenge"},
-            {"else": {}, "goto": "beginner:tutorial"}
+            {"else": {}, "goto": "beginner:tutorial"},
         ]
         metadata = {"score": 150}
         result = resolve_conditional_navigation(nav, metadata)
@@ -301,7 +327,7 @@ class TestResolveConditionalNavigation:
         nav = [
             {"if": {"score_gte": 100}, "goto": "expert:challenge"},
             {"elif": {"score_gte": 50}, "goto": "intermediate:lesson"},
-            {"else": {}, "goto": "beginner:tutorial"}
+            {"else": {}, "goto": "beginner:tutorial"},
         ]
         metadata = {"score": 75}
         result = resolve_conditional_navigation(nav, metadata)
@@ -312,7 +338,7 @@ class TestResolveConditionalNavigation:
         nav = [
             {"if": {"score_gte": 100}, "goto": "expert:challenge"},
             {"elif": {"score_gte": 50}, "goto": "intermediate:lesson"},
-            {"else": {}, "goto": "beginner:tutorial"}
+            {"else": {}, "goto": "beginner:tutorial"},
         ]
         metadata = {"score": 20}
         result = resolve_conditional_navigation(nav, metadata)
@@ -322,7 +348,7 @@ class TestResolveConditionalNavigation:
         """Test returns None when no conditions match and no else"""
         nav = [
             {"if": {"score_gte": 100}, "goto": "expert:challenge"},
-            {"elif": {"score_gte": 50}, "goto": "intermediate:lesson"}
+            {"elif": {"score_gte": 50}, "goto": "intermediate:lesson"},
         ]
         metadata = {"score": 20}
         result = resolve_conditional_navigation(nav, metadata)
@@ -332,7 +358,7 @@ class TestResolveConditionalNavigation:
         """Test branch with multiple conditions (AND logic)"""
         nav = [
             {"if": {"score_gte": 100, "level_gte": 10}, "goto": "expert:challenge"},
-            {"else": {}, "goto": "beginner:tutorial"}
+            {"else": {}, "goto": "beginner:tutorial"},
         ]
         metadata = {"score": 100, "level": 10}
         result = resolve_conditional_navigation(nav, metadata)
@@ -342,7 +368,7 @@ class TestResolveConditionalNavigation:
         """Test that first matching branch is used"""
         nav = [
             {"if": {"score_gte": 50}, "goto": "first:path"},
-            {"elif": {"score_gte": 50}, "goto": "second:path"}
+            {"elif": {"score_gte": 50}, "goto": "second:path"},
         ]
         metadata = {"score": 75}
         result = resolve_conditional_navigation(nav, metadata)
@@ -357,7 +383,7 @@ class TestSelectWeightedRandom:
         options = [
             {"value": "common", "weight": 70},
             {"value": "rare", "weight": 25},
-            {"value": "legendary", "weight": 5}
+            {"value": "legendary", "weight": 5},
         ]
 
         # Run multiple times and check distribution is roughly correct
@@ -368,8 +394,8 @@ class TestSelectWeightedRandom:
 
         # Allow 10% variance from expected distribution
         assert 600 < common_count < 800  # Expected ~700
-        assert 150 < rare_count < 350    # Expected ~250
-        assert 0 < legendary_count < 100 # Expected ~50
+        assert 150 < rare_count < 350  # Expected ~250
+        assert 0 < legendary_count < 100  # Expected ~50
 
     def test_single_option(self):
         """Test selection with single option"""
@@ -382,7 +408,7 @@ class TestSelectWeightedRandom:
         options = [
             {"value": "a", "weight": 1},
             {"value": "b", "weight": 1},
-            {"value": "c", "weight": 1}
+            {"value": "c", "weight": 1},
         ]
         results = [select_weighted_random(options) for _ in range(300)]
         # Each should appear roughly 100 times (allow variance)
@@ -397,10 +423,7 @@ class TestSelectWeightedRandom:
 
     def test_missing_weight(self):
         """Test option with missing weight defaults to 1"""
-        options = [
-            {"value": "a", "weight": 10},
-            {"value": "b"}  # No weight
-        ]
+        options = [{"value": "a", "weight": 10}, {"value": "b"}]  # No weight
         # Should not crash
         result = select_weighted_random(options)
         assert result in ["a", "b"]
@@ -414,7 +437,7 @@ class TestGetProgressiveHint:
         hints = [
             {"attempt": 1, "text": "First hint", "counts_as_attempt": False},
             {"attempt": 2, "text": "Second hint", "counts_as_attempt": False},
-            {"attempt": 3, "text": "Third hint", "counts_as_attempt": False}
+            {"attempt": 3, "text": "Third hint", "counts_as_attempt": False},
         ]
         context = {}
         result = get_progressive_hint(hints, 2, context)
@@ -422,9 +445,7 @@ class TestGetProgressiveHint:
 
     def test_no_hint_for_attempt(self):
         """Test returns None when no hint for attempt"""
-        hints = [
-            {"attempt": 1, "text": "First hint", "counts_as_attempt": False}
-        ]
+        hints = [{"attempt": 1, "text": "First hint", "counts_as_attempt": False}]
         result = get_progressive_hint(hints, 2, {})
         assert result is None
 
@@ -436,7 +457,11 @@ class TestGetProgressiveHint:
     def test_template_rendering_in_hint(self):
         """Test that templates are rendered in hint text"""
         hints = [
-            {"attempt": 1, "text": "Attempt {{current_attempt}} of {{max_attempts}}", "counts_as_attempt": False}
+            {
+                "attempt": 1,
+                "text": "Attempt {{current_attempt}} of {{max_attempts}}",
+                "counts_as_attempt": False,
+            }
         ]
         context = {"current_attempt": 1, "max_attempts": 3}
         result = get_progressive_hint(hints, 1, context)
@@ -444,17 +469,13 @@ class TestGetProgressiveHint:
 
     def test_counts_as_attempt_field(self):
         """Test counts_as_attempt field is preserved"""
-        hints = [
-            {"attempt": 1, "text": "Hint", "counts_as_attempt": True}
-        ]
+        hints = [{"attempt": 1, "text": "Hint", "counts_as_attempt": True}]
         result = get_progressive_hint(hints, 1, {})
         assert result["counts_as_attempt"] is True
 
     def test_missing_counts_as_attempt(self):
         """Test missing counts_as_attempt defaults to False"""
-        hints = [
-            {"attempt": 1, "text": "Hint"}
-        ]
+        hints = [{"attempt": 1, "text": "Hint"}]
         result = get_progressive_hint(hints, 1, {})
         assert result["counts_as_attempt"] is False
 
@@ -471,7 +492,7 @@ class TestCreateTemplateContext:
             max_attempts=3,
             current_section="intro",
             current_step="welcome",
-            username="Alice"
+            username="Alice",
         )
 
         assert context["metadata"] == metadata
@@ -490,7 +511,7 @@ class TestCreateTemplateContext:
             max_attempts=3,
             current_section="s",
             current_step="st",
-            username="User"
+            username="User",
         )
         assert context["attempts_remaining"] == 2
 
@@ -502,7 +523,7 @@ class TestCreateTemplateContext:
             max_attempts=3,
             current_section="s",
             current_step="st",
-            username="User"
+            username="User",
         )
         assert context["attempts_remaining"] == 0
 
@@ -513,7 +534,7 @@ class TestCreateTemplateContext:
             current_attempt=1,
             max_attempts=3,
             current_section="s",
-            current_step="st"
+            current_step="st",
         )
         assert context["username"] == "User"
 
@@ -524,8 +545,11 @@ class TestIntegration:
     def test_template_and_conditions_together(self):
         """Test templates work with conditions in content blocks"""
         blocks = [
-            {"text": "Welcome {{metadata.player_name}}!", "show_if": {"player_name_exists": True}},
-            {"text": "Score: {{metadata.score}}", "show_if": {"score_gte": 0}}
+            {
+                "text": "Welcome {{metadata.player_name}}!",
+                "show_if": {"player_name_exists": True},
+            },
+            {"text": "Score: {{metadata.score}}", "show_if": {"score_gte": 0}},
         ]
         metadata = {"player_name": "Alice", "score": 50}
         context = create_template_context(
@@ -534,7 +558,7 @@ class TestIntegration:
             max_attempts=3,
             current_section="intro",
             current_step="welcome",
-            username="Alice"
+            username="Alice",
         )
 
         # Add exists condition to metadata for testing
@@ -549,16 +573,10 @@ class TestIntegration:
         nav = [
             {
                 "if": {"score_gte": 100, "level_gte": 10, "inventory_contains": "key"},
-                "goto": "secret:room"
+                "goto": "secret:room",
             },
-            {
-                "elif": {"score_gte": 50},
-                "goto": "intermediate:level"
-            },
-            {
-                "else": {},
-                "goto": "beginner:start"
-            }
+            {"elif": {"score_gte": 50}, "goto": "intermediate:level"},
+            {"else": {}, "goto": "beginner:start"},
         ]
 
         # Test first branch

@@ -17,7 +17,7 @@ from activity_utils import (
     resolve_conditional_navigation,
     select_weighted_random,
     get_progressive_hint,
-    create_template_context
+    create_template_context,
 )
 
 # Global model-client mapping
@@ -48,13 +48,17 @@ def initialize_model_map():
                 try:
                     response = client.models.list()
                     model_list = response.data
-                    print(f"[DEBUG] {endpoint} returned models: {[m.id for m in model_list]}")
+                    print(
+                        f"[DEBUG] {endpoint} returned models: {[m.id for m in model_list]}"
+                    )
                     for m in model_list:
                         model_id = m.id
                         if model_id and model_id not in MODEL_CLIENT_MAP:
                             MODEL_CLIENT_MAP[model_id] = (client, endpoint)
                 except Exception as e:
-                    print(f"Warning: Could not list models for endpoint '{endpoint}': {e}")
+                    print(
+                        f"Warning: Could not list models for endpoint '{endpoint}': {e}"
+                    )
             except Exception as e:
                 print(f"Warning: Failed to initialize endpoint {endpoint}: {e}")
 
@@ -94,13 +98,17 @@ def get_openai_client_and_model(model_name=None):
                         response = client.models.list()
                         if response.data:
                             actual_model = response.data[0].id
-                            print(f"[DEBUG] Using first model from {endpoint}: {actual_model}")
+                            print(
+                                f"[DEBUG] Using first model from {endpoint}: {actual_model}"
+                            )
                             return client, actual_model
                     except Exception as e:
                         print(f"Warning: Could not query models from {endpoint}: {e}")
 
                     # Final fallback
-                    print(f"Warning: No models found for {endpoint}, using 'model' as fallback")
+                    print(
+                        f"Warning: No models found for {endpoint}, using 'model' as fallback"
+                    )
                     return client, "model"
         except Exception as e:
             print(f"Warning: Failed to load {model_name}: {e}, falling back to default")
@@ -168,7 +176,9 @@ def categorize_response(question, response, buckets, tokens_for_ai, model="MODEL
 
 
 # Generate AI feedback
-def generate_ai_feedback(category, question, user_response, tokens_for_ai, metadata, model="MODEL_1"):
+def generate_ai_feedback(
+    category, question, user_response, tokens_for_ai, metadata, model="MODEL_1"
+):
     messages = [
         {
             "role": "system",
@@ -271,7 +281,12 @@ def provide_feedback_prompts(
             filtered_user_response = ""  # Remove user response if not in filter
 
         ai_feedback = generate_ai_feedback(
-            category, question, filtered_user_response, tokens_for_ai, prompt_metadata, model
+            category,
+            question,
+            filtered_user_response,
+            tokens_for_ai,
+            prompt_metadata,
+            model,
         )
 
         # Only add feedback if it has content and isn't exactly the STFU token
@@ -392,20 +407,20 @@ def simulate_activity(yaml_file_path):
             max_attempts=step_max_attempts,
             current_section=current_section_id,
             current_step=current_step_id,
-            username="User"
+            username="User",
         )
 
         # Translate and print all content blocks once per step (v2.0 with templates & conditionals)
         if "content_blocks" in step:
             # Filter and render content blocks
             filtered_blocks = filter_content_blocks(
-                step["content_blocks"],
-                metadata,
-                context
+                step["content_blocks"], metadata, context
             )
             if filtered_blocks:
                 content = "\n\n".join(filtered_blocks)
-                translated_content = translate_text(content, user_language, feedback_model)
+                translated_content = translate_text(
+                    content, user_language, feedback_model
+                )
                 print(translated_content)
 
         # Skip classification and feedback if there's no question
@@ -428,7 +443,7 @@ def simulate_activity(yaml_file_path):
                 max_attempts=step_max_attempts,
                 current_section=current_section_id,
                 current_step=current_step_id,
-                username="User"
+                username="User",
             )
 
             user_response = input("\nYour Response: ")
@@ -441,9 +456,13 @@ def simulate_activity(yaml_file_path):
                     roll = random.random()
                     if roll < probability:
                         triggered_random_buckets.append(bucket_name)
-                        print(f"🎲 [RANDOM EVENT] '{bucket_name}' triggered! (rolled {roll:.3f} < {probability})")
+                        print(
+                            f"🎲 [RANDOM EVENT] '{bucket_name}' triggered! (rolled {roll:.3f} < {probability})"
+                        )
                     else:
-                        print(f"🎲 [RANDOM CHECK] '{bucket_name}' not triggered (rolled {roll:.3f} >= {probability})")
+                        print(
+                            f"🎲 [RANDOM CHECK] '{bucket_name}' not triggered (rolled {roll:.3f} >= {probability})"
+                        )
 
             # Execute pre-script if it exists (runs before categorization, with user_response available)
             if "pre_script" in step:
@@ -461,7 +480,11 @@ def simulate_activity(yaml_file_path):
                 print(f"DEBUG: Pre-script completed, updated metadata")
 
             category = categorize_response(
-                question, user_response, step["buckets"], step["tokens_for_ai"], classifier_model
+                question,
+                user_response,
+                step["buckets"],
+                step["tokens_for_ai"],
+                classifier_model,
             )
             print(f"\nCategory: {category}")
 
@@ -519,11 +542,12 @@ def simulate_activity(yaml_file_path):
                 # Check metadata conditions (v2.0 advanced conditions)
                 if "metadata_conditions" in transition:
                     conditions_met = check_conditions(
-                        metadata,
-                        transition["metadata_conditions"]
+                        metadata, transition["metadata_conditions"]
                     )
                     if not conditions_met:
-                        print(f"⚠️  Skipping '{bucket_name}' - metadata conditions not met")
+                        print(
+                            f"⚠️  Skipping '{bucket_name}' - metadata conditions not met"
+                        )
                         print(f"Current Metadata: {json.dumps(metadata, indent=2)}")
                         continue
 
@@ -536,14 +560,12 @@ def simulate_activity(yaml_file_path):
                         max_attempts=max_attempts,
                         current_section=current_section_id,
                         current_step=current_step_id,
-                        username="User"
+                        username="User",
                     )
 
                     # Filter and render content blocks (supports conditional blocks and templates)
                     filtered_blocks = filter_content_blocks(
-                        transition["content_blocks"],
-                        metadata,
-                        context
+                        transition["content_blocks"], metadata, context
                     )
 
                     if filtered_blocks:
@@ -570,7 +592,9 @@ def simulate_activity(yaml_file_path):
                                 if value.startswith("n+,") or value.startswith("n-,"):
                                     # String concatenation: append/remove from existing value
                                     operation = value[:2]  # "n+" or "n-"
-                                    suffix = value[3:]  # Everything after "n+," or "n-,"
+                                    suffix = value[
+                                        3:
+                                    ]  # Everything after "n+," or "n-,"
                                     existing_value = metadata.get(key, "")
                                     if operation == "n+":
                                         # Append with comma separator if existing value is non-empty
@@ -595,7 +619,9 @@ def simulate_activity(yaml_file_path):
                                         elif value.startswith("n-"):
                                             value = metadata.get(key, 0) - c
                                     except ValueError:
-                                        print(f"Warning: Invalid numeric operation '{value}' for key '{key}'")
+                                        print(
+                                            f"Warning: Invalid numeric operation '{value}' for key '{key}'"
+                                        )
                                         # Leave value as-is if parsing fails
                         metadata[key] = value
 
@@ -615,7 +641,9 @@ def simulate_activity(yaml_file_path):
                                 if value.startswith("n+,") or value.startswith("n-,"):
                                     # String concatenation: append/remove from existing value
                                     operation = value[:2]  # "n+" or "n-"
-                                    suffix = value[3:]  # Everything after "n+," or "n-,"
+                                    suffix = value[
+                                        3:
+                                    ]  # Everything after "n+," or "n-,"
                                     existing_value = metadata.get(key, "")
                                     if operation == "n+":
                                         # Append with comma separator if existing value is non-empty
@@ -640,7 +668,9 @@ def simulate_activity(yaml_file_path):
                                         elif value.startswith("n-"):
                                             value = metadata.get(key, 0) - c
                                     except ValueError:
-                                        print(f"Warning: Invalid numeric operation '{value}' for key '{key}'")
+                                        print(
+                                            f"Warning: Invalid numeric operation '{value}' for key '{key}'"
+                                        )
                                         # Leave value as-is if parsing fails
                         metadata[key] = value
                         metadata_tmp_keys.append(key)  # Track temporary keys
@@ -651,12 +681,17 @@ def simulate_activity(yaml_file_path):
                             del metadata[key]
 
                 # Handle metadata_clear - clear all metadata if set to True
-                if "metadata_clear" in transition and transition["metadata_clear"] == True:
+                if (
+                    "metadata_clear" in transition
+                    and transition["metadata_clear"] == True
+                ):
                     metadata.clear()
 
                 # Handle metadata_random
                 if "metadata_random" in transition:
-                    random_key = random.choice(list(transition["metadata_random"].keys()))
+                    random_key = random.choice(
+                        list(transition["metadata_random"].keys())
+                    )
                     random_value = transition["metadata_random"][random_key]
                     metadata[random_key] = random_value
 
@@ -664,19 +699,25 @@ def simulate_activity(yaml_file_path):
                     random_key = random.choice(
                         list(transition["metadata_tmp_random"].keys())
                     )
-                    random_value = random.choice(transition["metadata_tmp_random"][random_key])
+                    random_value = random.choice(
+                        transition["metadata_tmp_random"][random_key]
+                    )
                     metadata[random_key] = random_value
                     metadata_tmp_keys.append(random_key)  # Track temporary keys
 
                 # Handle metadata_weighted_random (v2.0)
                 if "metadata_weighted_random" in transition:
-                    for key, weighted_options in transition["metadata_weighted_random"].items():
+                    for key, weighted_options in transition[
+                        "metadata_weighted_random"
+                    ].items():
                         selected_value = select_weighted_random(weighted_options)
                         metadata[key] = selected_value
 
                 # Handle metadata_tmp_weighted_random (v2.0)
                 if "metadata_tmp_weighted_random" in transition:
-                    for key, weighted_options in transition["metadata_tmp_weighted_random"].items():
+                    for key, weighted_options in transition[
+                        "metadata_tmp_weighted_random"
+                    ].items():
                         selected_value = select_weighted_random(weighted_options)
                         metadata[key] = selected_value
                         metadata_tmp_keys.append(key)
@@ -704,7 +745,9 @@ def simulate_activity(yaml_file_path):
                     for key, value in result.get("metadata", {}).items():
                         metadata[key] = value
 
-                print(f"\n[Metadata after '{bucket_name}']: {json.dumps(metadata, indent=2)}")
+                print(
+                    f"\n[Metadata after '{bucket_name}']: {json.dumps(metadata, indent=2)}"
+                )
 
                 # Provide feedback for THIS bucket
                 if "feedback_prompts" in step:
@@ -759,14 +802,16 @@ def simulate_activity(yaml_file_path):
                     max_attempts=step_max_attempts,
                     current_section=current_section_id,
                     current_step=current_step_id,
-                    username="User"
+                    username="User",
                 )
                 hint = get_progressive_hint(step["hints"], attempts + 1, hint_context)
                 if hint:
-                    translated_hint = translate_text(hint['text'], user_language, feedback_model)
+                    translated_hint = translate_text(
+                        hint["text"], user_language, feedback_model
+                    )
                     print(f"\n💡 Hint: {translated_hint}")
                     # If hint doesn't count as attempt, adjust counting
-                    if not hint['counts_as_attempt']:
+                    if not hint["counts_as_attempt"]:
                         any_counts_as_attempt = False
 
             # Check if we should break or continue attempting
@@ -795,8 +840,7 @@ def simulate_activity(yaml_file_path):
         # v2.0: Resolve conditional navigation
         if final_next_section_and_step:
             resolved_navigation = resolve_conditional_navigation(
-                final_next_section_and_step,
-                metadata
+                final_next_section_and_step, metadata
             )
             if resolved_navigation:
                 current_section_id, current_step_id = resolved_navigation.split(":")

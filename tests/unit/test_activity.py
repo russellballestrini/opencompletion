@@ -30,7 +30,7 @@ class TestGetActivityContent(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         # Mock app config
-        self.app_patcher = patch('activity.app')
+        self.app_patcher = patch("activity.app")
         self.mock_app = self.app_patcher.start()
 
     def tearDown(self):
@@ -46,7 +46,9 @@ class TestGetActivityContent(unittest.TestCase):
         # Create a temporary YAML file
         test_content = {"sections": [{"section_id": "test"}]}
 
-        with patch('builtins.open', unittest.mock.mock_open(read_data=yaml.dump(test_content))):
+        with patch(
+            "builtins.open", unittest.mock.mock_open(read_data=yaml.dump(test_content))
+        ):
             result = get_activity_content("research/test_activity.yaml")
 
         self.assertEqual(result["sections"][0]["section_id"], "test")
@@ -100,6 +102,7 @@ class TestExecuteProcessingScript(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         from activity import execute_processing_script
+
         self.execute_processing_script = execute_processing_script
 
     def test_execute_processing_script_simple(self):
@@ -123,7 +126,7 @@ else:
 
         result = self.execute_processing_script(metadata, script)
 
-        self.assertEqual(result, 'healthy')
+        self.assertEqual(result, "healthy")
 
     def test_execute_processing_script_none_result(self):
         """Test script that doesn't set result"""
@@ -159,6 +162,7 @@ class TestGetNextStep(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         from activity import get_next_step
+
         self.get_next_step = get_next_step
 
         # Sample activity content
@@ -170,15 +174,15 @@ class TestGetNextStep(unittest.TestCase):
                         {"step_id": "step_1"},
                         {"step_id": "step_2"},
                         {"step_id": "step_3"},
-                    ]
+                    ],
                 },
                 {
                     "section_id": "section_2",
                     "steps": [
                         {"step_id": "step_4"},
                         {"step_id": "step_5"},
-                    ]
-                }
+                    ],
+                },
             ]
         }
 
@@ -231,7 +235,7 @@ class TestGetNextStep(unittest.TestCase):
 class TestCategorizeResponse(unittest.TestCase):
     """Test cases for categorize_response function"""
 
-    @patch('activity.get_openai_client_and_model')
+    @patch("activity.get_openai_client_and_model")
     def test_categorize_response_simple_format(self, mock_get_client):
         """Test categorization with simple bucket format"""
         from activity import categorize_response
@@ -246,19 +250,16 @@ class TestCategorizeResponse(unittest.TestCase):
 
         buckets = [
             {"bucket_name": "correct", "bucket_criteria": "Answer is correct"},
-            {"bucket_name": "incorrect", "bucket_criteria": "Answer is wrong"}
+            {"bucket_name": "incorrect", "bucket_criteria": "Answer is wrong"},
         ]
 
         result = categorize_response(
-            "What is 2+2?",
-            "4",
-            buckets,
-            "Categorize this answer"
+            "What is 2+2?", "4", buckets, "Categorize this answer"
         )
 
         self.assertEqual(result, "correct")
 
-    @patch('activity.get_openai_client_and_model')
+    @patch("activity.get_openai_client_and_model")
     def test_categorize_response_analysis_format(self, mock_get_client):
         """Test categorization with analysis bucket format"""
         from activity import categorize_response
@@ -274,19 +275,16 @@ class TestCategorizeResponse(unittest.TestCase):
 
         buckets = [
             {"bucket_name": "correct", "bucket_criteria": "Answer is correct"},
-            {"bucket_name": "incorrect", "bucket_criteria": "Answer is wrong"}
+            {"bucket_name": "incorrect", "bucket_criteria": "Answer is wrong"},
         ]
 
         result = categorize_response(
-            "What is 2+2?",
-            "4",
-            buckets,
-            "Categorize this answer"
+            "What is 2+2?", "4", buckets, "Categorize this answer"
         )
 
         self.assertEqual(result, "correct")
 
-    @patch('activity.get_openai_client_and_model')
+    @patch("activity.get_openai_client_and_model")
     def test_categorize_response_with_spaces(self, mock_get_client):
         """Test categorization handles extra spaces"""
         from activity import categorize_response
@@ -308,7 +306,7 @@ class TestCategorizeResponse(unittest.TestCase):
 class TestGenerateAIFeedback(unittest.TestCase):
     """Test cases for generate_ai_feedback function"""
 
-    @patch('activity.get_openai_client_and_model')
+    @patch("activity.get_openai_client_and_model")
     def test_generate_ai_feedback(self, mock_get_client):
         """Test generating AI feedback"""
         from activity import generate_ai_feedback
@@ -328,12 +326,12 @@ class TestGenerateAIFeedback(unittest.TestCase):
             "Provide encouraging feedback",
             "alice",
             "{}",
-            "{}"
+            "{}",
         )
 
         self.assertEqual(result, "Great answer!")
 
-    @patch('activity.get_openai_client_and_model')
+    @patch("activity.get_openai_client_and_model")
     def test_generate_ai_feedback_with_metadata(self, mock_get_client):
         """Test feedback generation with metadata"""
         from activity import generate_ai_feedback
@@ -348,23 +346,17 @@ class TestGenerateAIFeedback(unittest.TestCase):
         metadata = json.dumps({"score": 100, "level": 5})
 
         result = generate_ai_feedback(
-            "correct",
-            "Question",
-            "Answer",
-            "Tokens",
-            "alice",
-            metadata,
-            "{}"
+            "correct", "Question", "Answer", "Tokens", "alice", metadata, "{}"
         )
 
         # Verify metadata was included in the call
         call_args = mock_client.chat.completions.create.call_args
-        messages = call_args[1]['messages']
+        messages = call_args[1]["messages"]
 
         # Check that metadata is in one of the messages
         found_metadata = False
         for msg in messages:
-            if 'score' in str(msg) and '100' in str(msg):
+            if "score" in str(msg) and "100" in str(msg):
                 found_metadata = True
                 break
 
@@ -374,7 +366,7 @@ class TestGenerateAIFeedback(unittest.TestCase):
 class TestTranslateText(unittest.TestCase):
     """Test cases for translate_text function"""
 
-    @patch('activity.get_openai_client_and_model')
+    @patch("activity.get_openai_client_and_model")
     def test_translate_text_to_spanish(self, mock_get_client):
         """Test translating text to Spanish"""
         from activity import translate_text
@@ -391,7 +383,7 @@ class TestTranslateText(unittest.TestCase):
 
         self.assertEqual(result, "Hola mundo")
 
-    @patch('activity.get_openai_client_and_model')
+    @patch("activity.get_openai_client_and_model")
     def test_translate_text_english_bypass(self, mock_get_client):
         """Test that English text is not translated"""
         from activity import translate_text
@@ -402,7 +394,7 @@ class TestTranslateText(unittest.TestCase):
         self.assertEqual(result, "Hello world")
         mock_get_client.assert_not_called()
 
-    @patch('activity.get_openai_client_and_model')
+    @patch("activity.get_openai_client_and_model")
     def test_translate_text_error_handling(self, mock_get_client):
         """Test translation error handling"""
         from activity import translate_text
@@ -421,16 +413,14 @@ class TestTranslateText(unittest.TestCase):
 class TestProvideFeedback(unittest.TestCase):
     """Test cases for provide_feedback function"""
 
-    @patch('activity.generate_ai_feedback')
+    @patch("activity.generate_ai_feedback")
     def test_provide_feedback_with_ai_feedback(self, mock_generate):
         """Test providing feedback with AI feedback enabled"""
         from activity import provide_feedback
 
         mock_generate.return_value = "Good job!"
 
-        transition = {
-            "ai_feedback": {"tokens_for_ai": "Be encouraging"}
-        }
+        transition = {"ai_feedback": {"tokens_for_ai": "Be encouraging"}}
 
         result = provide_feedback(
             transition,
@@ -441,7 +431,7 @@ class TestProvideFeedback(unittest.TestCase):
             "English",
             "alice",
             "{}",
-            "{}"
+            "{}",
         )
 
         self.assertIn("Good job!", result)
@@ -461,7 +451,7 @@ class TestProvideFeedback(unittest.TestCase):
             "English",
             "alice",
             "{}",
-            "{}"
+            "{}",
         )
 
         self.assertEqual(result, "")

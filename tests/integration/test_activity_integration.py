@@ -42,6 +42,7 @@ class TestActivityIntegration(unittest.TestCase):
 
         # Create a fresh Flask app for testing
         from flask import Flask
+
         test_app = Flask(__name__)
         test_app.config["TESTING"] = True
         test_app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
@@ -149,14 +150,14 @@ sections:
 """
         # Write to research directory
         with tempfile.NamedTemporaryFile(
-            mode='w', suffix='.yaml', dir='research', delete=False
+            mode="w", suffix=".yaml", dir="research", delete=False
         ) as f:
             f.write(activity_content)
             # Return just the filename (not the full path)
             return os.path.basename(f.name), room
 
-    @patch('activity.socketio')
-    @patch('activity.get_openai_client_and_model')
+    @patch("activity.socketio")
+    @patch("activity.get_openai_client_and_model")
     def test_start_activity(self, mock_get_client, mock_socketio):
         """Test starting an activity creates proper state"""
         from models import ActivityState
@@ -179,7 +180,7 @@ sections:
         self.assertEqual(state.step_id, "step_1")
         self.assertEqual(state.attempts, 0)
 
-    @patch('activity.socketio')
+    @patch("activity.socketio")
     def test_cancel_activity(self, mock_socketio):
         """Test canceling an activity"""
         from models import ActivityState, Room
@@ -194,7 +195,7 @@ sections:
             room_id=room.id,
             section_id="test_section",
             step_id="test_step",
-            s3_file_path="test.yaml"
+            s3_file_path="test.yaml",
         )
         self.db.session.add(state)
         self.db.session.commit()
@@ -209,7 +210,7 @@ sections:
         # Verify socket event was emitted
         mock_socketio.emit.assert_called()
 
-    @patch('activity.socketio')
+    @patch("activity.socketio")
     def test_display_activity_metadata(self, mock_socketio):
         """Test displaying activity metadata"""
         from models import ActivityState, Room
@@ -224,7 +225,7 @@ sections:
             room_id=room.id,
             section_id="test_section",
             step_id="test_step",
-            s3_file_path="test.yaml"
+            s3_file_path="test.yaml",
         )
         state.add_metadata("score", 100)
         state.add_metadata("level", 5)
@@ -241,9 +242,11 @@ sections:
         self.assertIn("chat_message", str(call_args))
         self.assertIn("score", str(call_args)) or self.assertIn("level", str(call_args))
 
-    @patch('activity.socketio')
-    @patch('activity.get_openai_client_and_model')
-    def test_handle_activity_response_correct_answer(self, mock_get_client, mock_socketio):
+    @patch("activity.socketio")
+    @patch("activity.get_openai_client_and_model")
+    def test_handle_activity_response_correct_answer(
+        self, mock_get_client, mock_socketio
+    ):
         """Test handling a correct answer advances to next step"""
         from models import ActivityState
         import activity
@@ -256,7 +259,7 @@ sections:
             room_id=room.id,
             section_id="section_1",
             step_id="step_1",
-            s3_file_path=f"research/{filename}"
+            s3_file_path=f"research/{filename}",
         )
         self.db.session.add(state)
         self.db.session.commit()
@@ -277,12 +280,16 @@ sections:
 
         # Verify state advanced to next step
         updated_state = ActivityState.query.filter_by(room_id=room.id).first()
-        self.assertIsNotNone(updated_state, "ActivityState should still exist after correct answer")
+        self.assertIsNotNone(
+            updated_state, "ActivityState should still exist after correct answer"
+        )
         self.assertEqual(updated_state.step_id, "step_2")
 
-    @patch('activity.socketio')
-    @patch('activity.get_openai_client_and_model')
-    def test_handle_activity_response_increments_attempts(self, mock_get_client, mock_socketio):
+    @patch("activity.socketio")
+    @patch("activity.get_openai_client_and_model")
+    def test_handle_activity_response_increments_attempts(
+        self, mock_get_client, mock_socketio
+    ):
         """Test that incorrect answers increment attempt counter"""
         from models import ActivityState
         import activity
@@ -295,7 +302,7 @@ sections:
             room_id=room.id,
             section_id="section_1",
             step_id="step_1",
-            s3_file_path=f"research/{filename}"
+            s3_file_path=f"research/{filename}",
         )
         self.db.session.add(state)
         self.db.session.commit()
@@ -322,7 +329,7 @@ sections:
         # Should still be on same step
         self.assertEqual(updated_state.step_id, "step_1")
 
-    @patch('activity.socketio')
+    @patch("activity.socketio")
     def test_execute_processing_script_with_metadata_operations(self, mock_socketio):
         """Test processing script that modifies metadata"""
         from models import ActivityState, Room
@@ -334,10 +341,7 @@ sections:
         self.db.session.commit()
 
         state = ActivityState(
-            room_id=room.id,
-            section_id="test",
-            step_id="test",
-            s3_file_path="test.yaml"
+            room_id=room.id, section_id="test", step_id="test", s3_file_path="test.yaml"
         )
         state.add_metadata("counter", 0)
         self.db.session.add(state)
@@ -353,8 +357,8 @@ script_result = metadata['counter']
 
         self.assertEqual(result, 1)
 
-    @patch('activity.socketio')
-    @patch('activity.get_openai_client_and_model')
+    @patch("activity.socketio")
+    @patch("activity.get_openai_client_and_model")
     def test_loop_through_steps_until_question(self, mock_get_client, mock_socketio):
         """Test looping through info steps until reaching a question"""
         from models import ActivityState
@@ -380,13 +384,14 @@ sections:
           - bucket_name: "yes"
 """
         with tempfile.NamedTemporaryFile(
-            mode='w', suffix='.yaml', dir='research', delete=False
+            mode="w", suffix=".yaml", dir="research", delete=False
         ) as f:
             f.write(activity_content)
             filename = os.path.basename(f.name)
 
         # Create room
         from models import Room
+
         room = Room(name="test_room")
         self.db.session.add(room)
         self.db.session.commit()
@@ -396,7 +401,7 @@ sections:
             room_id=room.id,
             section_id="intro",
             step_id="info_1",
-            s3_file_path=f"research/{filename}"
+            s3_file_path=f"research/{filename}",
         )
         self.db.session.add(state)
         self.db.session.commit()
@@ -409,9 +414,7 @@ sections:
         mock_get_client.return_value = (mock_client, "qwen-2.5-72b")
 
         # Loop through steps
-        activity.loop_through_steps_until_question(
-            content, state, room.name, "alice"
-        )
+        activity.loop_through_steps_until_question(content, state, room.name, "alice")
 
         # Should have advanced to question_1
         updated_state = ActivityState.query.filter_by(room_id=room.id).first()
@@ -472,10 +475,7 @@ class TestActivityMetadataOperations(unittest.TestCase):
 
         # Create state with metadata
         state = ActivityState(
-            room_id=room.id,
-            section_id="test",
-            step_id="test",
-            s3_file_path="test.yaml"
+            room_id=room.id, section_id="test", step_id="test", s3_file_path="test.yaml"
         )
         state.add_metadata("score", 100)
         state.add_metadata("level", 5)
@@ -500,10 +500,7 @@ class TestActivityMetadataOperations(unittest.TestCase):
         self.db.session.commit()
 
         state = ActivityState(
-            room_id=room.id,
-            section_id="test",
-            step_id="test",
-            s3_file_path="test.yaml"
+            room_id=room.id, section_id="test", step_id="test", s3_file_path="test.yaml"
         )
         state.add_metadata("temp", "value")
         state.add_metadata("keep", "important")

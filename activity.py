@@ -34,7 +34,7 @@ from activity_utils import (
     resolve_conditional_navigation,
     select_weighted_random,
     get_progressive_hint,
-    create_template_context
+    create_template_context,
 )
 
 
@@ -103,7 +103,12 @@ def get_activity_content(file_path):
 
 
 def loop_through_steps_until_question(
-    activity_content, activity_state, room_name, username, classifier_model="MODEL_0", feedback_model="MODEL_0"
+    activity_content,
+    activity_state,
+    room_name,
+    username,
+    classifier_model="MODEL_0",
+    feedback_model="MODEL_0",
 ):
     room = get_room(room_name)
 
@@ -140,19 +145,19 @@ def loop_through_steps_until_question(
                 max_attempts=activity_state.max_attempts,
                 current_section=current_section_id,
                 current_step=current_step_id,
-                username=username
+                username=username,
             )
 
             # Filter and render content blocks (supports conditional blocks and templates)
             filtered_blocks = filter_content_blocks(
-                step["content_blocks"],
-                activity_state.dict_metadata,
-                context
+                step["content_blocks"], activity_state.dict_metadata, context
             )
 
             if filtered_blocks:
                 content = "\n\n".join(filtered_blocks)
-                translated_content = translate_text(content, user_language, feedback_model)
+                translated_content = translate_text(
+                    content, user_language, feedback_model
+                )
                 new_message = Message(
                     username="System", content=translated_content, room_id=room.id
                 )
@@ -179,7 +184,7 @@ def loop_through_steps_until_question(
                 max_attempts=activity_state.max_attempts,
                 current_section=current_section_id,
                 current_step=current_step_id,
-                username=username
+                username=username,
             )
 
             # Render template variables in question
@@ -270,8 +275,12 @@ def start_activity(room_name, s3_file_path, username):
 
         # Loop through steps until a question is found or the end is reached
         loop_through_steps_until_question(
-            activity_content, activity_state, room_name, username,
-            classifier_model=classifier_model, feedback_model=feedback_model
+            activity_content,
+            activity_state,
+            room_name,
+            username,
+            classifier_model=classifier_model,
+            feedback_model=feedback_model,
         )
 
         # Emit activity status update
@@ -531,7 +540,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                     if "metadata_conditions" in transition:
                         conditions_met = check_conditions(
                             activity_state.dict_metadata,
-                            transition["metadata_conditions"]
+                            transition["metadata_conditions"],
                         )
                         if not conditions_met:
                             # Skip this transition if conditions not met
@@ -558,7 +567,9 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                             elif value == "the-llms-response":
                                 continue
                             elif isinstance(value, str):
-                                if value.startswith("n+random(") and value.endswith(")"):
+                                if value.startswith("n+random(") and value.endswith(
+                                    ")"
+                                ):
                                     # Extract the range and apply the random increment
                                     range_values = value[9:-1].split(",")
                                     if len(range_values) == 2:
@@ -568,11 +579,17 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                                         ) + random.randint(x, y)
                                 elif value.startswith("n+") or value.startswith("n-"):
                                     # Check if this is string concatenation (n+,value) or numeric operation (n+5)
-                                    if value.startswith("n+,") or value.startswith("n-,"):
+                                    if value.startswith("n+,") or value.startswith(
+                                        "n-,"
+                                    ):
                                         # String concatenation: append/remove from existing value
                                         operation = value[:2]  # "n+" or "n-"
-                                        suffix = value[3:]  # Everything after "n+," or "n-,"
-                                        existing_value = activity_state.dict_metadata.get(key, "")
+                                        suffix = value[
+                                            3:
+                                        ]  # Everything after "n+," or "n-,"
+                                        existing_value = (
+                                            activity_state.dict_metadata.get(key, "")
+                                        )
                                         if operation == "n+":
                                             # Append with comma separator if existing value is non-empty
                                             if existing_value:
@@ -583,7 +600,9 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                                             # Remove suffix from existing value
                                             if existing_value:
                                                 parts = existing_value.split(",")
-                                                parts = [p for p in parts if p != suffix]
+                                                parts = [
+                                                    p for p in parts if p != suffix
+                                                ]
                                                 value = ",".join(parts)
                                             else:
                                                 value = existing_value
@@ -592,11 +611,23 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                                         try:
                                             c = int(value[2:])
                                             if value.startswith("n+"):
-                                                value = activity_state.dict_metadata.get(key, 0) + c
+                                                value = (
+                                                    activity_state.dict_metadata.get(
+                                                        key, 0
+                                                    )
+                                                    + c
+                                                )
                                             elif value.startswith("n-"):
-                                                value = activity_state.dict_metadata.get(key, 0) - c
+                                                value = (
+                                                    activity_state.dict_metadata.get(
+                                                        key, 0
+                                                    )
+                                                    - c
+                                                )
                                         except ValueError:
-                                            print(f"Warning: Invalid numeric operation '{value}' for key '{key}'")
+                                            print(
+                                                f"Warning: Invalid numeric operation '{value}' for key '{key}'"
+                                            )
                             new_metadata[key] = value
                             activity_state.add_metadata(key, value)
 
@@ -608,7 +639,9 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                             elif value == "the-llms-response":
                                 continue
                             elif isinstance(value, str):
-                                if value.startswith("n+random(") and value.endswith(")"):
+                                if value.startswith("n+random(") and value.endswith(
+                                    ")"
+                                ):
                                     # Extract the range and apply the random increment
                                     range_values = value[9:-1].split(",")
                                     if len(range_values) == 2:
@@ -618,11 +651,17 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                                         ) + random.randint(x, y)
                                 elif value.startswith("n+") or value.startswith("n-"):
                                     # Check if this is string concatenation (n+,value) or numeric operation (n+5)
-                                    if value.startswith("n+,") or value.startswith("n-,"):
+                                    if value.startswith("n+,") or value.startswith(
+                                        "n-,"
+                                    ):
                                         # String concatenation: append/remove from existing value
                                         operation = value[:2]  # "n+" or "n-"
-                                        suffix = value[3:]  # Everything after "n+," or "n-,"
-                                        existing_value = activity_state.dict_metadata.get(key, "")
+                                        suffix = value[
+                                            3:
+                                        ]  # Everything after "n+," or "n-,"
+                                        existing_value = (
+                                            activity_state.dict_metadata.get(key, "")
+                                        )
                                         if operation == "n+":
                                             # Append with comma separator if existing value is non-empty
                                             if existing_value:
@@ -633,7 +672,9 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                                             # Remove suffix from existing value
                                             if existing_value:
                                                 parts = existing_value.split(",")
-                                                parts = [p for p in parts if p != suffix]
+                                                parts = [
+                                                    p for p in parts if p != suffix
+                                                ]
                                                 value = ",".join(parts)
                                             else:
                                                 value = existing_value
@@ -642,11 +683,23 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                                         try:
                                             c = int(value[2:])
                                             if value.startswith("n+"):
-                                                value = activity_state.dict_metadata.get(key, 0) + c
+                                                value = (
+                                                    activity_state.dict_metadata.get(
+                                                        key, 0
+                                                    )
+                                                    + c
+                                                )
                                             elif value.startswith("n-"):
-                                                value = activity_state.dict_metadata.get(key, 0) - c
+                                                value = (
+                                                    activity_state.dict_metadata.get(
+                                                        key, 0
+                                                    )
+                                                    - c
+                                                )
                                         except ValueError:
-                                            print(f"Warning: Invalid numeric operation '{value}' for key '{key}'")
+                                            print(
+                                                f"Warning: Invalid numeric operation '{value}' for key '{key}'"
+                                            )
                             new_metadata[key] = value
                             metadata_tmp_keys.append(key)
                             activity_state.add_metadata(key, value)
@@ -728,21 +781,27 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
 
                     # Handle metadata_weighted_random (v2.0)
                     if "metadata_weighted_random" in transition:
-                        for key, weighted_options in transition["metadata_weighted_random"].items():
+                        for key, weighted_options in transition[
+                            "metadata_weighted_random"
+                        ].items():
                             selected_value = select_weighted_random(weighted_options)
                             new_metadata[key] = selected_value
                             activity_state.add_metadata(key, selected_value)
 
                     # Handle metadata_tmp_weighted_random (v2.0)
                     if "metadata_tmp_weighted_random" in transition:
-                        for key, weighted_options in transition["metadata_tmp_weighted_random"].items():
+                        for key, weighted_options in transition[
+                            "metadata_tmp_weighted_random"
+                        ].items():
                             selected_value = select_weighted_random(weighted_options)
                             new_metadata[key] = selected_value
                             metadata_tmp_keys.append(key)
                             activity_state.add_metadata(key, selected_value)
 
                     # Execute the post-script if it exists (supports both old and new naming)
-                    post_script = step.get("post_script") or step.get("processing_script")
+                    post_script = step.get("post_script") or step.get(
+                        "processing_script"
+                    )
                     if post_script and (
                         transition.get("run_post_script", False)
                         or transition.get("run_processing_script", False)
@@ -767,7 +826,9 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
 
                         # Check if processing script wants to override the transition
                         if "next_section_and_step" in result:
-                            final_next_section_and_step = result["next_section_and_step"]
+                            final_next_section_and_step = result[
+                                "next_section_and_step"
+                            ]
                             print(
                                 f"DEBUG: Processing script overriding transition to: {final_next_section_and_step}"
                             )
@@ -817,7 +878,9 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                     db.session.add(activity_state)
                     db.session.commit()
 
-                    user_language = activity_state.dict_metadata.get("language", "English")
+                    user_language = activity_state.dict_metadata.get(
+                        "language", "English"
+                    )
 
                     # Emit the transition content blocks if they exist (v2.0 with templates & conditions)
                     if "content_blocks" in transition:
@@ -828,14 +891,14 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                             max_attempts=activity_state.max_attempts,
                             current_section=activity_state.section_id,
                             current_step=activity_state.step_id,
-                            username=username
+                            username=username,
                         )
 
                         # Filter and render content blocks (supports conditional blocks and templates)
                         filtered_blocks = filter_content_blocks(
                             transition["content_blocks"],
                             activity_state.dict_metadata,
-                            context
+                            context,
                         )
 
                         if filtered_blocks:
@@ -878,7 +941,9 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                             user_response,
                             user_language,
                             username,
-                            json.dumps(activity_state.dict_metadata),  # Pass full metadata
+                            json.dumps(
+                                activity_state.dict_metadata
+                            ),  # Pass full metadata
                             json.dumps(new_metadata),
                             feedback_tokens_for_ai,  # Pass legacy tokens to be combined
                             feedback_model,
@@ -941,7 +1006,9 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         for key, value in transition.get("metadata_append", {}).items():
                             if value == "the-llms-response":
                                 # Ensure the key exists and is a list
-                                current_value = activity_state.dict_metadata.get(key, [])
+                                current_value = activity_state.dict_metadata.get(
+                                    key, []
+                                )
                                 if not isinstance(current_value, list):
                                     current_value = [current_value]
 
@@ -951,7 +1018,9 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
 
                     # Track navigation (LAST transition's next_section_and_step wins)
                     if "next_section_and_step" in transition:
-                        final_next_section_and_step = transition["next_section_and_step"]
+                        final_next_section_and_step = transition[
+                            "next_section_and_step"
+                        ]
 
                     # Track counts_as_attempt (if ANY transition counts, it counts)
                     if transition.get("counts_as_attempt", True):
@@ -967,16 +1036,20 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         max_attempts=activity_state.max_attempts,
                         current_section=activity_state.section_id,
                         current_step=activity_state.step_id,
-                        username=username
+                        username=username,
                     )
-                    hint = get_progressive_hint(step["hints"], activity_state.attempts + 1, context)
+                    hint = get_progressive_hint(
+                        step["hints"], activity_state.attempts + 1, context
+                    )
                     if hint:
                         # Display hint
-                        translated_hint = translate_text(hint['text'], user_language, feedback_model)
+                        translated_hint = translate_text(
+                            hint["text"], user_language, feedback_model
+                        )
                         new_message = Message(
                             username="System (Hint)",
                             content=translated_hint,
-                            room_id=room.id
+                            room_id=room.id,
                         )
                         db.session.add(new_message)
                         db.session.commit()
@@ -993,7 +1066,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         socketio.sleep(0.1)
 
                         # If hint doesn't count as attempt, don't increment
-                        if not hint['counts_as_attempt']:
+                        if not hint["counts_as_attempt"]:
                             any_counts_as_attempt = False
 
                 if (
@@ -1011,8 +1084,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                     if final_next_section_and_step:
                         # Resolve conditional navigation (v2.0)
                         resolved_navigation = resolve_conditional_navigation(
-                            final_next_section_and_step,
-                            activity_state.dict_metadata
+                            final_next_section_and_step, activity_state.dict_metadata
                         )
 
                         if resolved_navigation:
@@ -1051,8 +1123,12 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
 
                         # Loop through steps until a question is found or the end is reached
                         loop_through_steps_until_question(
-                            activity_content, activity_state, room_name, username,
-                            classifier_model=classifier_model, feedback_model=feedback_model
+                            activity_content,
+                            activity_state,
+                            room_name,
+                            username,
+                            classifier_model=classifier_model,
+                            feedback_model=feedback_model,
                         )
                 else:
                     # the user response is any bucket other than correct.
@@ -1069,7 +1145,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         max_attempts=activity_state.max_attempts,
                         current_section=activity_state.section_id,
                         current_step=activity_state.step_id,
-                        username=username
+                        username=username,
                     )
                     question_content = render_template(step["question"], context)
                     translated_question_content = translate_text(
@@ -1112,8 +1188,12 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
             else:
                 # Handle steps without a question
                 loop_through_steps_until_question(
-                    activity_content, activity_state, room_name, username,
-                    classifier_model=classifier_model, feedback_model=feedback_model
+                    activity_content,
+                    activity_state,
+                    room_name,
+                    username,
+                    classifier_model=classifier_model,
+                    feedback_model=feedback_model,
                 )
 
         except Exception as e:
