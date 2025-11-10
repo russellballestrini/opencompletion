@@ -222,6 +222,8 @@ export MODEL_API_KEY_3=dummy
 
 ## Creating Activity YAML Files - Expert Guide
 
+**IMPORTANT: Before creating or modifying any activity YAML files, ALWAYS read `research/SPEC.yaml` first to ensure you have the latest specification and examples.**
+
 When creating activities for OpenCompletion, follow these expert guidelines to ensure your activities **validate properly**, are **FUN and engaging**, and **terminate correctly**.
 
 ### Core Activity Structure
