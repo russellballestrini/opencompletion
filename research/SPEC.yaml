@@ -633,6 +633,407 @@ sections:
 # true / false                 → Store boolean
 
 # ==============================================================================
+# ADVANCED FEATURES (New in v2.0)
+# ==============================================================================
+
+# ==============================================================================
+# TEMPLATE VARIABLES
+# ==============================================================================
+# Use {{variable_name}} syntax to insert dynamic values into content
+
+# Available in: content_blocks, questions, ai_feedback tokens
+
+# Built-in Variables:
+# -------------------
+# {{current_attempt}}        → Current attempt number (1, 2, 3...)
+# {{max_attempts}}           → Maximum attempts allowed for this step
+# {{attempts_remaining}}     → How many attempts left (max - current)
+# {{current_section}}        → Current section_id
+# {{current_step}}           → Current step_id
+# {{username}}               → Name of the user who last responded
+
+# Metadata Variables:
+# -------------------
+# {{metadata.key_name}}      → Access any metadata value
+# {{metadata.score}}         → Example: access score
+# {{metadata.player_name}}   → Example: access player name
+
+# Example Usage:
+content_blocks:
+  - "## Your Progress"
+  - "Welcome back, {{metadata.player_name}}!"
+  - "Score: {{metadata.score}}"
+  - "Level: {{metadata.level}}"
+  - "Attempt {{current_attempt}} of {{max_attempts}}"
+  - "You have {{attempts_remaining}} tries remaining"
+
+question: "{{metadata.character_name}} asks: What will you do?"
+
+# Templates work in:
+# - step content_blocks
+# - transition content_blocks
+# - question text
+# - ai_feedback tokens_for_ai (for context, not rendered directly)
+
+# ==============================================================================
+# CONDITIONAL CONTENT BLOCKS
+# ==============================================================================
+# Show/hide content blocks based on metadata conditions
+
+# Format: Each content block can be a string OR an object with conditions
+
+content_blocks:
+  # Simple string - always shown
+  - "This is always displayed"
+
+  # Conditional block - only shown if conditions met
+  - text: "You're doing great! Keep going!"
+    show_if:
+      score_gte: 50  # Only show if score >= 50
+
+  - text: "Need more practice. Don't give up!"
+    show_if:
+      score_lt: 50  # Only show if score < 50
+
+  - text: "You found the secret key! 🗝️"
+    show_if:
+      inventory_contains: "key"  # Only if inventory contains "key"
+
+  - text: "Welcome, warrior! ⚔️"
+    show_if:
+      class: "warrior"  # Only if metadata.class equals "warrior"
+
+  - text: "Welcome, mage! 🔮"
+    show_if:
+      class: "mage"
+
+# Conditional blocks reduce step duplication - one step, multiple paths!
+
+# ==============================================================================
+# ADVANCED METADATA CONDITIONS
+# ==============================================================================
+# Rich comparison operators for metadata_conditions
+
+# Previously only supported equality:
+metadata_conditions:
+  level: 5  # metadata.level must equal 5
+
+# Now supports:
+# --------------
+
+# Equality & Inequality:
+metadata_conditions:
+  status: "active"           # Equal to "active"
+  status_ne: "inactive"      # Not equal to "inactive"
+
+# Numeric Comparisons:
+metadata_conditions:
+  score_gte: 100             # Greater than or equal to 100
+  score_gt: 99               # Greater than 99
+  score_lt: 200              # Less than 200
+  score_lte: 199             # Less than or equal to 199
+  level_between: [5, 10]     # Between 5 and 10 (inclusive)
+
+# String Operations:
+metadata_conditions:
+  inventory_contains: "sword"      # Comma-separated list contains "sword"
+  inventory_not_contains: "poison" # List does NOT contain "poison"
+  name_matches: "^[A-Z]"           # Regex match (starts with capital)
+
+# Existence Checks:
+metadata_conditions:
+  has_key_exists: true       # Key "has_key" must exist in metadata
+  temp_flag_not_exists: true # Key "temp_flag" must NOT exist
+
+# Boolean Checks:
+metadata_conditions:
+  is_admin: true             # metadata.is_admin must be true
+  is_locked: false           # metadata.is_locked must be false
+
+# Combining Multiple Conditions (ALL must be true):
+metadata_conditions:
+  score_gte: 100
+  level_gte: 5
+  inventory_contains: "key"
+  quest_completed: true
+# All four conditions must be met
+
+# ==============================================================================
+# CONDITIONAL NAVIGATION
+# ==============================================================================
+# Choose different paths based on metadata state
+
+# OLD WAY (still works):
+transitions:
+  answer_provided:
+    next_section_and_step: "section_2:step_1"
+
+# NEW WAY - Conditional branches:
+transitions:
+  answer_provided:
+    next_section_and_step:
+      - if:
+          score_gte: 100
+        goto: "expert:challenge"
+
+      - elif:
+          score_gte: 50
+        goto: "intermediate:lesson"
+
+      - elif:
+          score_gte: 25
+        goto: "beginner:practice"
+
+      - else:
+        goto: "tutorial:basics"
+
+# Another example: Quest completion paths
+transitions:
+  quest_complete:
+    next_section_and_step:
+      - if:
+          all_secrets_found: true
+          perfect_score: true
+        goto: "endings:perfect_ending"
+
+      - elif:
+          all_secrets_found: true
+        goto: "endings:good_ending"
+
+      - elif:
+          quest_failed: true
+        goto: "endings:bad_ending"
+
+      - else:
+        goto: "endings:neutral_ending"
+
+# Conditions use same operators as metadata_conditions:
+# - Equality: key: value
+# - Comparisons: key_gte, key_gt, key_lt, key_lte
+# - String ops: key_contains, key_not_contains, key_matches
+# - Existence: key_exists, key_not_exists
+# - Boolean: key: true/false
+
+# ==============================================================================
+# PROGRESSIVE HINTS SYSTEM
+# ==============================================================================
+# Built-in system for providing hints that escalate with attempts
+#
+# Example step with progressive hints:
+#
+# - step_id: "difficult_question"
+#   question: "What is the capital of Burkina Faso?"
+#
+#   hints:
+#     - attempt: 1
+#       text: "💡 Hint: It's not the largest city in the country."
+#       counts_as_attempt: false
+#
+#     - attempt: 2
+#       text: "💡 Hint: The name means 'City of Honest People'."
+#       counts_as_attempt: false
+#
+#     - attempt: 3
+#       text: "💡 Strong Hint: It starts with 'Oua' and ends with 'dougou'."
+#       counts_as_attempt: false
+#
+#   buckets: [correct, incorrect, need_hint]
+#
+#   transitions:
+#     correct:
+#       content_blocks:
+#         - "Excellent! Ouagadougou is correct!"
+#       next_section_and_step: "next:step"
+#
+#     incorrect:
+#       content_blocks:
+#         - "Not quite. Try again!"
+#       next_section_and_step: "current:difficult_question"
+#
+#     need_hint:
+#       content_blocks:
+#         - "Let me help you..."
+#       counts_as_attempt: false
+#       next_section_and_step: "current:difficult_question"
+#
+# Hints auto-display when attempt number matches
+# Hints support template variables: "Attempt {{current_attempt}} of {{max_attempts}}"
+
+progressive_hints_example: "See activity-test-v2-features.yaml for working example"
+
+# ==============================================================================
+# WEIGHTED RANDOM SELECTION
+# ==============================================================================
+# Choose random values with different probabilities
+
+# OLD WAY - Equal probability:
+metadata_random:
+  loot: "sword"    # 33% each
+  loot: "dagger"   # 33% each
+  loot: "staff"    # 33% each
+
+# NEW WAY - Weighted probabilities:
+metadata_weighted_random:
+  loot:
+    - value: "common_sword"
+      weight: 70         # 70% chance
+    - value: "rare_dagger"
+      weight: 25         # 25% chance
+    - value: "legendary_staff"
+      weight: 5          # 5% chance
+
+# Weights don't need to sum to 100 - they're relative:
+metadata_weighted_random:
+  reward:
+    - value: "gold"
+      weight: 10   # 10/(10+3+1) = 71.4%
+    - value: "gem"
+      weight: 3    # 3/(10+3+1) = 21.4%
+    - value: "artifact"
+      weight: 1    # 1/(10+3+1) = 7.1%
+
+# Also works with metadata_tmp_weighted_random for temporary values
+
+# Example: Random encounter
+transitions:
+  explore_forest:
+    metadata_weighted_random:
+      encounter:
+        - value: "nothing"
+          weight: 50       # 50% - No encounter
+        - value: "merchant"
+          weight: 30       # 30% - Friendly merchant
+        - value: "goblin"
+          weight: 15       # 15% - Fight goblin
+        - value: "treasure"
+          weight: 5        # 5% - Find treasure!
+
+    ai_feedback:
+      tokens_for_ai: |
+        Describe what happens based on metadata.encounter:
+        - nothing: Peaceful walk through forest
+        - merchant: Meet a traveling merchant
+        - goblin: Surprise goblin attack!
+        - treasure: Discover hidden treasure chest!
+
+# ==============================================================================
+# DYNAMIC QUESTION TEXT
+# ==============================================================================
+# Questions can now use template variables
+
+# Static question (old way):
+question: "What is 2 + 2?"
+
+# Dynamic question with templates (new way):
+question: "What is {{metadata.num1}} + {{metadata.num2}}?"
+
+# Example: Math quiz with random numbers
+#
+# - step_id: "addition"
+#   pre_script: |
+#     import random
+#     result = {
+#       "metadata": {
+#         "num1": random.randint(1, 10),
+#         "num2": random.randint(1, 10)
+#       }
+#     }
+#     return result
+#
+#   question: "What is {{metadata.num1}} + {{metadata.num2}}?"
+#
+#   tokens_for_ai: |
+#     Calculate the correct answer: {{metadata.num1}} + {{metadata.num2}}
+#     Categorize as 'correct' if their answer matches.
+#
+#   buckets: [correct, incorrect]
+#
+# More personalized question examples:
+# - "{{metadata.character_name}}, what is your quest?"
+# - "You have {{metadata.gold}} gold. How much do you spend?"
+# - "Round {{current_attempt}}: What's your move?"
+
+dynamic_question_example: "See activity-test-v2-features.yaml for working example"
+
+# ==============================================================================
+# BUILT-IN ATTEMPT COUNTER ACCESS
+# ==============================================================================
+# Access attempt information in templates
+
+# Available variables:
+# - {{current_attempt}}      : 1, 2, 3, ... (current attempt number)
+# - {{max_attempts}}         : 3 (or custom value from default_max_attempts_per_step)
+# - {{attempts_remaining}}   : max_attempts - current_attempt
+
+# Examples:
+
+content_blocks:
+  - "Attempt {{current_attempt}} of {{max_attempts}}"
+  - "You have {{attempts_remaining}} tries left"
+
+question: "Try {{current_attempt}}: What's your answer?"
+
+ai_feedback:
+  tokens_for_ai: |
+    This is attempt {{current_attempt}} of {{max_attempts}}.
+    {% if attempts_remaining == 1 %}
+      This is their last chance! Be clear and helpful.
+    {% elif attempts_remaining == 2 %}
+      They still have time. Provide a gentle hint.
+    {% else %}
+      Encourage them to think carefully.
+    {% endif %}
+
+# Conditional content based on attempts:
+content_blocks:
+  - text: "First try - think carefully!"
+    show_if:
+      current_attempt: 1
+
+  - text: "Second try - you're getting closer!"
+    show_if:
+      current_attempt: 2
+
+  - text: "Last chance! Here's a hint..."
+    show_if:
+      current_attempt: 3
+
+# ==============================================================================
+# SESSION PERSISTENCE (Twitch Plays Model)
+# ==============================================================================
+# How metadata and state persist across users and sessions
+
+# Key Facts:
+# ----------
+# 1. ONE GAME STATE PER ROOM: All users in a room share the same activity state
+# 2. METADATA IS SHARED: When one user updates metadata, all users see it
+# 3. DATABASE PERSISTENCE: State survives browser refreshes and reconnections
+# 4. ANYONE CAN CONTROL: Any user can provide input to advance the shared game
+# 5. LIKE TWITCH PLAYS POKEMON: Collaborative control of single game instance
+
+# Lifecycle:
+# ----------
+# Activity starts     → State saved to database (room_id, section_id, step_id, metadata)
+# User interacts      → Metadata updates, state progresses
+# Browser refreshes   → State persists (loaded from database)
+# Activity completes  → State deleted from database
+# Activity canceled   → State deleted from database
+
+# Use Cases:
+# ----------
+# - Classroom: Teacher projects, students call out answers collectively
+# - Collaboration: Multiple people solve puzzle together
+# - Public challenges: Community progresses through shared experience
+# - Learning together: Everyone learns from same shared game state
+
+# Implications for Activity Design:
+# ----------------------------------
+# - Design for SHARED state, not per-player state
+# - Metadata represents THE GAME, not individual players
+# - Multiple users may answer - first valid response advances
+# - Consider: "What if 10 people are playing together?"
+
+# ==============================================================================
 # VALIDATION RULES
 # ==============================================================================
 

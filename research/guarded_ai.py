@@ -3,7 +3,22 @@ import yaml
 import json
 import random
 import os
+import sys
 from openai import OpenAI
+
+# Add parent directory to path to import activity_utils
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import activity utilities for v2.0 features
+from activity_utils import (
+    render_template,
+    check_conditions,
+    filter_content_blocks,
+    resolve_conditional_navigation,
+    select_weighted_random,
+    get_progressive_hint,
+    create_template_context
+)
 
 # Global model-client mapping
 MODEL_CLIENT_MAP = {}
@@ -366,11 +381,32 @@ def simulate_activity(yaml_file_path):
         # Get the user's language preference from metadata
         user_language = metadata.get("language", "English")
 
-        # Translate and print all content blocks once per step
+        # Initialize attempts and max_attempts for this step
+        attempts = 0
+        step_max_attempts = step.get("max_attempts_per_step", max_attempts)
+
+        # Create template context for rendering
+        context = create_template_context(
+            metadata=metadata,
+            current_attempt=attempts,
+            max_attempts=step_max_attempts,
+            current_section=current_section_id,
+            current_step=current_step_id,
+            username="User"
+        )
+
+        # Translate and print all content blocks once per step (v2.0 with templates & conditionals)
         if "content_blocks" in step:
-            content = "\n\n".join(step["content_blocks"])
-            translated_content = translate_text(content, user_language, feedback_model)
-            print(translated_content)
+            # Filter and render content blocks
+            filtered_blocks = filter_content_blocks(
+                step["content_blocks"],
+                metadata,
+                context
+            )
+            if filtered_blocks:
+                content = "\n\n".join(filtered_blocks)
+                translated_content = translate_text(content, user_language, feedback_model)
+                print(translated_content)
 
         # Skip classification and feedback if there's no question
         if "question" not in step:
@@ -379,12 +415,22 @@ def simulate_activity(yaml_file_path):
             )
             continue
 
-        question = step["question"]
+        # Render template variables in question (v2.0)
+        question = render_template(step["question"], context)
         translated_question = translate_text(question, user_language, feedback_model)
         print(f"\nQuestion: {translated_question}")
 
-        attempts = 0
-        while attempts < max_attempts:
+        while attempts < step_max_attempts:
+            # Update context with current attempt
+            context = create_template_context(
+                metadata=metadata,
+                current_attempt=attempts + 1,  # 1-indexed for display
+                max_attempts=step_max_attempts,
+                current_section=current_section_id,
+                current_step=current_step_id,
+                username="User"
+            )
+
             user_response = input("\nYour Response: ")
 
             # Roll for random buckets BEFORE categorization
@@ -470,24 +516,42 @@ def simulate_activity(yaml_file_path):
                 print(f"Processing transition for bucket: '{bucket_name}'")
                 print(f"{'='*60}")
 
-                # Check metadata conditions
+                # Check metadata conditions (v2.0 advanced conditions)
                 if "metadata_conditions" in transition:
-                    conditions_met = all(
-                        metadata.get(key) == value
-                        for key, value in transition["metadata_conditions"].items()
+                    conditions_met = check_conditions(
+                        metadata,
+                        transition["metadata_conditions"]
                     )
                     if not conditions_met:
                         print(f"⚠️  Skipping '{bucket_name}' - metadata conditions not met")
                         print(f"Current Metadata: {json.dumps(metadata, indent=2)}")
                         continue
 
-                # Print transition content blocks if they exist
+                # Print transition content blocks if they exist (v2.0 with templates & conditionals)
                 if "content_blocks" in transition:
-                    transition_content = "\n\n".join(transition["content_blocks"])
-                    translated_transition_content = translate_text(
-                        transition_content, user_language, feedback_model
+                    # Create template context
+                    context = create_template_context(
+                        metadata=metadata,
+                        current_attempt=attempts,
+                        max_attempts=max_attempts,
+                        current_section=current_section_id,
+                        current_step=current_step_id,
+                        username="User"
                     )
-                    print(translated_transition_content)
+
+                    # Filter and render content blocks (supports conditional blocks and templates)
+                    filtered_blocks = filter_content_blocks(
+                        transition["content_blocks"],
+                        metadata,
+                        context
+                    )
+
+                    if filtered_blocks:
+                        transition_content = "\n\n".join(filtered_blocks)
+                        translated_transition_content = translate_text(
+                            transition_content, user_language, feedback_model
+                        )
+                        print(translated_transition_content)
 
                 # Update metadata based on user actions
                 if "metadata_add" in transition:
@@ -604,6 +668,19 @@ def simulate_activity(yaml_file_path):
                     metadata[random_key] = random_value
                     metadata_tmp_keys.append(random_key)  # Track temporary keys
 
+                # Handle metadata_weighted_random (v2.0)
+                if "metadata_weighted_random" in transition:
+                    for key, weighted_options in transition["metadata_weighted_random"].items():
+                        selected_value = select_weighted_random(weighted_options)
+                        metadata[key] = selected_value
+
+                # Handle metadata_tmp_weighted_random (v2.0)
+                if "metadata_tmp_weighted_random" in transition:
+                    for key, weighted_options in transition["metadata_tmp_weighted_random"].items():
+                        selected_value = select_weighted_random(weighted_options)
+                        metadata[key] = selected_value
+                        metadata_tmp_keys.append(key)
+
                 # Execute the processing script if it exists
                 if "processing_script" in step and transition.get(
                     "run_processing_script", False
@@ -674,6 +751,24 @@ def simulate_activity(yaml_file_path):
 
             # End of multi-bucket processing loop
 
+            # Check for progressive hints (v2.0)
+            if "hints" in step:
+                hint_context = create_template_context(
+                    metadata=metadata,
+                    current_attempt=attempts + 1,  # Next attempt
+                    max_attempts=step_max_attempts,
+                    current_section=current_section_id,
+                    current_step=current_step_id,
+                    username="User"
+                )
+                hint = get_progressive_hint(step["hints"], attempts + 1, hint_context)
+                if hint:
+                    translated_hint = translate_text(hint['text'], user_language, feedback_model)
+                    print(f"\n💡 Hint: {translated_hint}")
+                    # If hint doesn't count as attempt, adjust counting
+                    if not hint['counts_as_attempt']:
+                        any_counts_as_attempt = False
+
             # Check if we should break or continue attempting
             if category not in [
                 "partial_understanding",
@@ -688,7 +783,7 @@ def simulate_activity(yaml_file_path):
             if any_counts_as_attempt:
                 attempts += 1
 
-        if attempts == max_attempts:
+        if attempts == step_max_attempts:
             print("\nMaximum attempts reached. Moving to the next step.")
 
         # Remove temporary metadata at the end of the step
@@ -697,8 +792,14 @@ def simulate_activity(yaml_file_path):
                 del metadata[key]
 
         # Use the final navigation target (from LAST processed transition)
+        # v2.0: Resolve conditional navigation
         if final_next_section_and_step:
-            current_section_id, current_step_id = final_next_section_and_step.split(":")
+            resolved_navigation = resolve_conditional_navigation(
+                final_next_section_and_step,
+                metadata
+            )
+            if resolved_navigation:
+                current_section_id, current_step_id = resolved_navigation.split(":")
         else:
             # No navigation specified, move to next step automatically
             current_section_id, current_step_id = get_next_section_and_step(
