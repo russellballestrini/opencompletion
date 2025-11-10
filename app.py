@@ -88,7 +88,7 @@ def get_client_for_endpoint(endpoint, api_key):
 
 
 def initialize_model_map():
-    global MODEL_CLIENT_MAP, SYSTEM_USERS
+    global SYSTEM_USERS
     MODEL_CLIENT_MAP.clear()
     for ep_config in ENDPOINTS:
         base_url = ep_config["base_url"]

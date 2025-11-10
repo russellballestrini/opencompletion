@@ -31,8 +31,6 @@ def get_client_for_endpoint(endpoint, api_key):
 
 def initialize_model_map():
     """Initialize the model-client mapping from environment variables"""
-    global MODEL_CLIENT_MAP
-
     # Load endpoints from environment variables
     for i in range(1000):  # Support up to 1000 endpoints
         endpoint_key = f"MODEL_ENDPOINT_{i}"
