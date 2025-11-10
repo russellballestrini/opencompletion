@@ -82,7 +82,7 @@ sections:
       - step_id: morning_briefing
         title: Operations Status
         content_blocks:
-          - "## 📊 MORNING BRIEFING - Operations Dashboard"
+          - "## 📊 MORNING BRIEFING - Director {{metadata.director_name}}"
           - ""
           - "V.O.G.U.E. projects holographic stats:"
           - ""
@@ -98,16 +98,16 @@ sections:
           - "- Zara-7 (Lead Textile Engineer)"
           - "- Viktor (Senior Runway Coordinator)"
           - "- Luna & Sol (Twin Design Assistants)"
-          - "✓ Awaiting your direction"
+          - "✓ Awaiting Director {{metadata.director_name}}'s direction"
           - ""
           - "**📅 UPCOMING SHOWS**"
           - "- Tonight: **Neon Dreams Collection** (85% ready)"
           - "- This week: 3 client consultations"
           - "- Emergency Protocol: Active (rare, but ready)"
           - ""
-          - "V.O.G.U.E.: *Director, today's agenda includes missions, creative decisions, and operational oversight.*"
+          - "V.O.G.U.E.: *Director {{metadata.director_name}}, today's agenda includes missions, creative decisions, and operational oversight.*"
           - "*You have 15% routine tasks and approximately 5% chance of emergencies. Are you ready?*"
-        question: "Are you ready to run your empire today, Director?"
+        question: "Are you ready to run your empire today, Director {{metadata.director_name}}?"
         tokens_for_ai: |
           Accept any positive/ready response as 'ready'.
           If setting language, categorize as 'set_language'.
@@ -141,9 +141,9 @@ sections:
       - step_id: location_choice
         title: Choose Your Destination
         content_blocks:
-          - "## 🛗 LOCATION SELECTOR - Backrooms Fashion Empire"
+          - "## 🛗 LOCATION SELECTOR - {{metadata.director_name}}'s Fashion Empire"
           - ""
-          - "You stand in the **Central Elevator**—a chrome pod that accesses all levels of your underground empire."
+          - "Director {{metadata.director_name}}, you stand in the **Central Elevator**—a chrome pod that accesses all levels of your underground empire."
           - ""
           - "**Available Locations:**"
           - ""
@@ -171,8 +171,8 @@ sections:
           - "   - Your most experimental fashion tech"
           - "   - *Vibe: High-tech, powerful, cutting-edge*"
           - ""
-          - "Where shall we go first, Director?"
-        question: "Choose your destination: Warehouse, Salon, Sub Bay, or Reactor?"
+          - "Where shall we go first, Director {{metadata.director_name}}?"
+        question: "Director {{metadata.director_name}}, choose your destination: Warehouse, Salon, Sub Bay, or Reactor?"
         tokens_for_ai: |
           Categorize based on their location choice.
 
@@ -249,7 +249,7 @@ sections:
             next_section_and_step: exploration:location_choice
           unclear:
             content_blocks:
-              - "V.O.G.U.E.: *Director, please specify: Warehouse, Salon, Sub Bay, or Reactor?*"
+              - "V.O.G.U.E.: *Director {{metadata.director_name}}, please specify: Warehouse, Salon, Sub Bay, or Reactor?*"
             next_section_and_step: exploration:location_choice
 
   - section_id: warehouse_zone
@@ -272,9 +272,9 @@ sections:
           - "**👤 Employee Present:**"
           - "**Zara-7** (Lead Textile Engineer) approaches with a tablet."
           - ""
-          - "Zara-7: *'Director! Perfect timing. We just received a shipment of experimental fabrics from the Sub Bay.'*"
+          - "Zara-7: *'Director {{metadata.director_name}}! Perfect timing. We just received a shipment of experimental fabrics from the Sub Bay.'*"
           - "*'But we have a **mission**: Tonight's Neon Dreams show needs 50 yards of electric-reactive silk. I can prep it, but—what's your vision for the color palette?'*"
-        question: "What color direction should Zara-7 take for the Neon Dreams collection? (Choose: Cyan/Electric Blue, Hot Pink/Magenta, Acid Green/Lime, or your own neon vision!)"
+        question: "Director {{metadata.director_name}}, what color direction should Zara-7 take for the Neon Dreams collection? (Choose: Cyan/Electric Blue, Hot Pink/Magenta, Acid Green/Lime, or your own neon vision!)"
         tokens_for_ai: |
           This is a MISSION TASK (15% category).
           Store their color choice for the collection.
@@ -364,8 +364,8 @@ sections:
           - "**Option B:** Begin constructing pieces for next week's show (Forward-thinking)"
           - "**Option C:** Organize and optimize warehouse layout (Efficiency-focused)"
           - ""
-          - "What's your command, Director? You have **full control**."
-        question: "What task should the Assembly Drones prioritize next? (A, B, C, or your own directive)"
+          - "What's your command, Director {{metadata.director_name}}? You have **full control**."
+        question: "Director {{metadata.director_name}}, what task should the Assembly Drones prioritize next? (A, B, C, or your own directive)"
         tokens_for_ai: |
           This is a MANAGEMENT DECISION.
           They're controlling their robot workforce.

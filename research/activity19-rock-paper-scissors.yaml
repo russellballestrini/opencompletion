@@ -7,11 +7,17 @@ sections:
       - step_id: "step_0"
         title: "Challenge a Historical Figure"
         content_blocks:
-          - "Welcome to the Rock-Paper-Scissors challenge! 🎮"
-          - "You will be playing against a random historical figure."
+          - "# Welcome to Rock-Paper-Scissors! 🎮"
+          - "You will be playing against random historical figures."
+          - "Can you beat the legends of history?"
 
       - step_id: "step_1"
         title: "Shoot against a Historical Figure"
+        content_blocks:
+          - text: "**Games played: {{metadata.attempts}}**"
+            show_if:
+              attempts_exists: true
+        question: "Round {{metadata.round}}: Rock, paper, or scissors? 🤔"
         tokens_for_ai: |
           Careful to check if user is trying to 'set_language' and do that first. otherwise figure out if they are picking the bucket rock, paper, or scissors.
         feedback_tokens_for_ai: |
@@ -25,10 +31,8 @@ sections:
           * scissors always beats paper
 
           Finally continue to provide a witty fact as the figure. Don't ever mention AI.
-          The figure should also comment on the 'attempts' number and how many times played!
-          if you feel like it, jeer at the player about an early 'exit' & suggest they quit.
-
-        question: "What's your choice? Rock, paper, or scissors? 🤔"
+          The figure should also comment on round {{metadata.round}} and how many games have been played.
+          If round number is getting high (>10), jeer at the player and suggest they might want to exit.
         buckets:
           - rock
           - paper
@@ -38,9 +42,10 @@ sections:
         transitions:
           rock:
             ai_feedback:
-              tokens_for_ai: "Declare your move and then determine who wins the game and provide a witty fact from the historical figure's perspective."
+              tokens_for_ai: "Declare your move and then determine who wins the game and provide a witty fact from the historical figure's perspective. Reference that this is round {{metadata.round}}."
             metadata_add:
               attempts: "n+1"
+              round: "n+1"
             metadata_tmp_add:
               user_choice: "rock"
             metadata_tmp_random:
@@ -50,9 +55,10 @@ sections:
             next_section_and_step: "section_1:step_1"
           paper:
             ai_feedback:
-              tokens_for_ai: "Declare your move and then determine who wins the game and provide a witty fact from the historical figure's perspective."
+              tokens_for_ai: "Declare your move and then determine who wins the game and provide a witty fact from the historical figure's perspective. Reference that this is round {{metadata.round}}."
             metadata_add:
               attempts: "n+1"
+              round: "n+1"
             metadata_tmp_add:
               user_choice: "paper"
             metadata_tmp_random:
@@ -62,9 +68,10 @@ sections:
             next_section_and_step: "section_1:step_1"
           scissors:
             ai_feedback:
-              tokens_for_ai: "Declare your move and determine who wins the game and provide a witty fact from the historical figure's perspective."
+              tokens_for_ai: "Declare your move and determine who wins the game and provide a witty fact from the historical figure's perspective. Reference that this is round {{metadata.round}}."
             metadata_add:
               attempts: "n+1"
+              round: "n+1"
             metadata_tmp_add:
               user_choice: "scissors"
             metadata_tmp_random:
@@ -75,11 +82,10 @@ sections:
           set_language:
             content_blocks:
               - "Language preference updated. Please continue in your preferred language."
-            ai_feedback:
-              tokens_for_ai: "Acknowledge the language change and confirm the update."
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
+            next_section_and_step: "section_1:step_1"
           exit:
             next_section_and_step: "section_2:step_1"
 
@@ -89,4 +95,9 @@ sections:
       - step_id: "step_1"
         title: "Exit"
         content_blocks:
-          - "Thank you for playing! We hope you enjoyed the game. Have a great day! 🌟"
+          - "# Thanks for playing! 🌟"
+          - ""
+          - "**Total rounds played: {{metadata.round}}**"
+          - ""
+          - "You've competed against the greatest minds in history!"
+          - "Come back anytime for another match! 🎮"

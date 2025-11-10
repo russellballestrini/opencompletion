@@ -6,19 +6,33 @@ sections:
       - step_id: "step_0"
         title: "Introduction"
         content_blocks:
-          - "Welcome to the Magic 8 Ball! 🎱"
+          - "# Welcome to the Magic 8 Ball! 🎱"
           - "Think of a yes or no question and ask the Magic 8 Ball."
+          - ""
+          - "The mystic sphere holds the answers to all your questions..."
 
       - step_id: "step_1"
         title: "Ask the Magic 8 Ball"
-        question: "What is your question for the Magic 8 Ball?"
+        content_blocks:
+          - text: "**Questions asked: {{metadata.questions_asked}}**"
+            show_if:
+              questions_asked_exists: true
+        question: "Question #{{metadata.question_count}}: What is your question for the Magic 8 Ball?"
         tokens_for_ai: |
           Provide a random response from the Magic 8 Ball's set of answers.
           If the user wants to change the language, categorize as 'set_language'.
           If the user wants to exit, categorize as 'exit'.
         feedback_tokens_for_ai: |
-          Use the user's question to provide a random Magic 8 Ball response.
-          Consider the tone and style of traditional Magic 8 Ball answers.
+          The Magic 8 Ball's answer is in metadata.magic_8_ball_response.
+
+          Announce the answer dramatically: "🎱 The Magic 8 Ball says: [answer]"
+
+          Then on new lines:
+          - Reference their specific question to make it personal
+          - Make a witty joke or observation relating the question to the answer
+          - Encourage them to ask another question or exit
+
+          This is question #{{metadata.question_count}}.
         buckets:
           - ask_question
           - set_language
@@ -27,35 +41,63 @@ sections:
           ask_question:
             ai_feedback:
               tokens_for_ai: |
-                Your answer for the user is in the metadata.
-                Use the user's question to provide a random Magic 8 Ball response.
-                Use emoji at the end of the response to relate.
-                On a new line write two sentences making a joke or relating to the question and the result.
-            metadata_tmp_random:
+                The Magic 8 Ball's answer is in metadata.magic_8_ball_response.
+
+                Announce the answer dramatically: "🎱 The Magic 8 Ball says: [answer]"
+
+                Then on new lines:
+                - Reference their specific question to make it personal
+                - Make a witty joke or observation relating the question to the answer
+                - If this is their first question, encourage them to ask more
+                - If they've asked many questions (check metadata.questions_asked), gently tease them about their curiosity
+            metadata_add:
+              questions_asked: "n+1"
+              question_count: "n+1"
+            metadata_tmp_weighted_random:
               magic_8_ball_response:
-                # Positive answers
-                - "It is certain."
-                - "Without a doubt."
-                - "You may rely on it."
-                - "Yes, definitely."
-                - "As I see it, yes."
-                - "Most likely."
-                - "Outlook good."
-                - "Yes."
-                - "Signs point to yes."
-                - "Absolutely."
-                # Negative answers
-                - "Don't count on it."
-                - "My reply is no."
-                - "My sources say no."
-                - "Outlook not so good."
-                - "Very doubtful."
-                # Vague answers
-                - "Reply hazy, try again."
-                - "Ask again later."
-                - "Better not tell you now."
-                - "Cannot predict now."
-                - "Concentrate and ask again."
+                # Positive answers (50% total weight)
+                - value: "It is certain."
+                  weight: 5
+                - value: "Without a doubt."
+                  weight: 5
+                - value: "You may rely on it."
+                  weight: 5
+                - value: "Yes, definitely."
+                  weight: 5
+                - value: "As I see it, yes."
+                  weight: 5
+                - value: "Most likely."
+                  weight: 5
+                - value: "Outlook good."
+                  weight: 5
+                - value: "Yes."
+                  weight: 5
+                - value: "Signs point to yes."
+                  weight: 5
+                - value: "Absolutely."
+                  weight: 5
+                # Negative answers (25% total weight)
+                - value: "Don't count on it."
+                  weight: 5
+                - value: "My reply is no."
+                  weight: 5
+                - value: "My sources say no."
+                  weight: 5
+                - value: "Outlook not so good."
+                  weight: 5
+                - value: "Very doubtful."
+                  weight: 5
+                # Vague answers (25% total weight)
+                - value: "Reply hazy, try again."
+                  weight: 5
+                - value: "Ask again later."
+                  weight: 5
+                - value: "Better not tell you now."
+                  weight: 5
+                - value: "Cannot predict now."
+                  weight: 5
+                - value: "Concentrate and ask again."
+                  weight: 5
             next_section_and_step: "section_1:step_1"
           set_language:
             content_blocks:
@@ -70,5 +112,9 @@ sections:
       - step_id: "step_2"
         title: "Goodbye"
         content_blocks:
-          - "Thank you for playing with the Magic 8 Ball! 🎉"
-          - "Feel free to come back anytime to ask more questions."
+          - "# Thank you for consulting the Magic 8 Ball! 🎉"
+          - ""
+          - "**Total questions asked: {{metadata.questions_asked}}**"
+          - ""
+          - "The mystic sphere will be here whenever you need guidance."
+          - "Feel free to come back anytime to ask more questions!"
