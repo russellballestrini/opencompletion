@@ -976,13 +976,12 @@ question: "Try {{current_attempt}}: What's your answer?"
 ai_feedback:
   tokens_for_ai: |
     This is attempt {{current_attempt}} of {{max_attempts}}.
-    {% if attempts_remaining == 1 %}
-      This is their last chance! Be clear and helpful.
-    {% elif attempts_remaining == 2 %}
-      They still have time. Provide a gentle hint.
-    {% else %}
-      Encourage them to think carefully.
-    {% endif %}
+    They have {{attempts_remaining}} attempts remaining.
+
+    Adjust your feedback based on the attempt number:
+    - On their last attempt: Be clear and helpful
+    - With 2 attempts left: Provide a gentle hint
+    - With more attempts: Encourage them to think carefully
 
 # Conditional content based on attempts:
 content_blocks:
