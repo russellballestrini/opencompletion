@@ -960,7 +960,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                 # End of multi-bucket processing loop
 
                 # Check for progressive hints (v2.0)
-                if "hints" in step and activity_state.attempts > 0:
+                if "hints" in step:
                     context = create_template_context(
                         metadata=activity_state.dict_metadata,
                         current_attempt=activity_state.attempts + 1,  # Next attempt
