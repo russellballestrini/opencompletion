@@ -812,7 +812,6 @@ sections:
         finally:
             os.unlink(warning_file)
 
-
     def test_jinja2_control_structures_rejected(self):
         """Test that Jinja2 control structures are rejected"""
         jinja2_control_yaml = """
@@ -847,7 +846,12 @@ sections:
             self.assertGreater(len(jinja2_errors), 0)
             # Check that error messages mention the right thing
             self.assertTrue(any("NOT supported" in error for error in jinja2_errors))
-            self.assertTrue(any("show_if" in error or "pre-compute" in error for error in jinja2_errors))
+            self.assertTrue(
+                any(
+                    "show_if" in error or "pre-compute" in error
+                    for error in jinja2_errors
+                )
+            )
         finally:
             os.unlink(temp_file)
 
@@ -881,7 +885,9 @@ sections:
             handlebars_errors = [e for e in errors if "Handlebars" in e]
             self.assertGreater(len(handlebars_errors), 0)
             # Check that error messages mention the right thing
-            self.assertTrue(any("NOT supported" in error for error in handlebars_errors))
+            self.assertTrue(
+                any("NOT supported" in error for error in handlebars_errors)
+            )
         finally:
             os.unlink(temp_file)
 
@@ -925,7 +931,10 @@ sections:
         temp_file = self.create_temp_yaml(valid_substitutions_yaml)
         try:
             is_valid, errors, warnings = self.validator.validate_file(temp_file)
-            self.assertTrue(is_valid, f"Valid substitutions should be allowed but got errors: {errors}")
+            self.assertTrue(
+                is_valid,
+                f"Valid substitutions should be allowed but got errors: {errors}",
+            )
             self.assertEqual(len(errors), 0)
         finally:
             os.unlink(temp_file)

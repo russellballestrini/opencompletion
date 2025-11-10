@@ -297,17 +297,32 @@ class TestGuardedAI(unittest.TestCase):
             mock_client = MagicMock()
             mock_get_client.return_value = mock_client
 
+            # Mock the models.list() response
+            mock_model = MagicMock()
+            mock_model.id = "test-model-id"
+            mock_client.models.list.return_value.data = [mock_model]
+
             # Clear and reinitialize
             import guarded_ai
 
             guarded_ai.MODEL_CLIENT_MAP = {}
             initialize_model_map()
 
-            # Verify client was created and stored
+            # Verify client was created and stored with actual model ID
             mock_get_client.assert_called_with("http://test.com", "test-key")
-            self.assertIn("endpoint_0", guarded_ai.MODEL_CLIENT_MAP)
-            self.assertEqual(guarded_ai.MODEL_CLIENT_MAP["endpoint_0"][0], mock_client)
+            self.assertIn("test-model-id", guarded_ai.MODEL_CLIENT_MAP)
+            self.assertEqual(guarded_ai.MODEL_CLIENT_MAP["test-model-id"][0], mock_client)
+            self.assertEqual(
+                guarded_ai.MODEL_CLIENT_MAP["test-model-id"][1], "http://test.com"
+            )
 
+    @patch.dict(
+        "os.environ",
+        {
+            "MODEL_ENDPOINT_1": "http://hermes.test",
+            "MODEL_API_KEY_1": "hermes-key",
+        },
+    )
     def test_get_openai_client_and_model_default(self):
         """Test getting OpenAI client with default model"""
         with patch("guarded_ai.MODEL_CLIENT_MAP", {}):
@@ -315,9 +330,14 @@ class TestGuardedAI(unittest.TestCase):
                 mock_client = MagicMock()
                 mock_get_client.return_value = mock_client
 
+                # Mock the models.list() response for MODEL_1
+                mock_model = MagicMock()
+                mock_model.id = "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic"
+                mock_client.models.list.return_value.data = [mock_model]
+
                 client, model = get_openai_client_and_model()
 
-                # Should return default model name
+                # Should return MODEL_1's first model
                 self.assertEqual(model, "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic")
                 self.assertEqual(client, mock_client)
 

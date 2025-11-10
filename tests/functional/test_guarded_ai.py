@@ -440,10 +440,28 @@ class TestGuardedAIClientAndErrorHandling(unittest.TestCase):
                 mock_client2 = MagicMock()
                 mock_get_client.side_effect = [mock_client1, mock_client2]
 
+                # Mock the models.list() response for both clients
+                mock_model1 = MagicMock()
+                mock_model1.id = "test-model-1"
+                mock_client1.models.list.return_value.data = [mock_model1]
+
+                mock_model2 = MagicMock()
+                mock_model2.id = "test-model-2"
+                mock_client2.models.list.return_value.data = [mock_model2]
+
                 guarded_ai.initialize_model_map()
 
-                self.assertIn("endpoint_1", guarded_ai.MODEL_CLIENT_MAP)
-                self.assertIn("endpoint_2", guarded_ai.MODEL_CLIENT_MAP)
+                # Check that models were added to the map
+                self.assertIn("test-model-1", guarded_ai.MODEL_CLIENT_MAP)
+                self.assertIn("test-model-2", guarded_ai.MODEL_CLIENT_MAP)
+                self.assertEqual(
+                    guarded_ai.MODEL_CLIENT_MAP["test-model-1"][1],
+                    "https://api.test1.com",
+                )
+                self.assertEqual(
+                    guarded_ai.MODEL_CLIENT_MAP["test-model-2"][1],
+                    "https://api.test2.com",
+                )
 
     def test_initialize_model_map_with_errors(self):
         """Test error handling in model map initialization"""

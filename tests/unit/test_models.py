@@ -26,6 +26,7 @@ class TestRoomModel(unittest.TestCase):
         """Set up test fixtures"""
         # Import here to avoid issues
         from models import Room
+
         self.Room = Room
 
     def create_room(self, name="test_room", title=None):
@@ -141,6 +142,7 @@ class TestUserSessionModel(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         from models import UserSession
+
         self.UserSession = UserSession
 
     def test_user_session_creation(self):
@@ -163,11 +165,12 @@ class TestMessageModel(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         from models import Message
+
         self.Message = Message
 
     def test_message_creation(self):
         """Test creating a message"""
-        with patch('models.tiktoken.encoding_for_model') as mock_encoding:
+        with patch("models.tiktoken.encoding_for_model") as mock_encoding:
             mock_enc = MagicMock()
             mock_enc.encode.return_value = [1, 2, 3, 4, 5]  # 5 tokens
             mock_encoding.return_value = mock_enc
@@ -181,7 +184,7 @@ class TestMessageModel(unittest.TestCase):
 
     def test_count_tokens(self):
         """Test token counting for text messages"""
-        with patch('models.tiktoken.encoding_for_model') as mock_encoding:
+        with patch("models.tiktoken.encoding_for_model") as mock_encoding:
             mock_enc = MagicMock()
             mock_enc.encode.return_value = [1, 2, 3]  # 3 tokens
             mock_encoding.return_value = mock_enc
@@ -194,7 +197,7 @@ class TestMessageModel(unittest.TestCase):
 
     def test_count_tokens_cached(self):
         """Test that token count is cached after first calculation"""
-        with patch('models.tiktoken.encoding_for_model') as mock_encoding:
+        with patch("models.tiktoken.encoding_for_model") as mock_encoding:
             mock_enc = MagicMock()
             mock_enc.encode.return_value = [1, 2, 3]
             mock_encoding.return_value = mock_enc
@@ -230,7 +233,7 @@ class TestMessageModel(unittest.TestCase):
         """Test that images have zero token count"""
         content = '<img src="data:image/jpeg;base64,/9j/4AAQSkZJRg...">'
 
-        with patch('models.tiktoken.encoding_for_model') as mock_encoding:
+        with patch("models.tiktoken.encoding_for_model") as mock_encoding:
             msg = self.Message("alice", content, 1)
 
             self.assertEqual(msg.token_count, 0)
@@ -244,6 +247,7 @@ class TestActivityStateModel(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         from models import ActivityState
+
         self.ActivityState = ActivityState
 
     def create_activity_state(self):

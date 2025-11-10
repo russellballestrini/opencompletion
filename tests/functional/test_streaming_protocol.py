@@ -200,8 +200,8 @@ class StreamingProtocolTest(unittest.TestCase):
                     app.db.session, "commit"
                 ), patch.object(app.db.session, "query") as mock_query, patch.object(
                     app, "get_room", return_value=self.mock_room
-                ), patch.object(
-                    app, "get_s3_client", return_value=mock_client
+                ), patch(
+                    "boto3.client", return_value=mock_client
                 ), patch.object(
                     app, "socketio", self.mock_socketio
                 ), patch(
@@ -449,12 +449,13 @@ class StreamingProtocolTest(unittest.TestCase):
                     return_value=(mock_client, self.model_name),
                 ), patch.object(
                     app, "socketio", self.mock_socketio
+                ), patch(
+                    "app.Message", return_value=mock_message
                 ):
 
                     mock_query.return_value.filter.return_value.one_or_none.return_value = (
-                        None
+                        mock_message
                     )
-                    app.Message.return_value = mock_message
 
                     app.chat_gpt(self.username, self.room_name, self.model_name)
 
@@ -500,6 +501,9 @@ class StreamingProtocolTest(unittest.TestCase):
             ):
                 import app
 
+                mock_message = MagicMock()
+                mock_message.id = 444
+
                 with patch.object(app.db.session, "add"), patch.object(
                     app.db.session, "commit"
                 ), patch.object(app.db.session, "query") as mock_query, patch.object(
@@ -510,14 +514,13 @@ class StreamingProtocolTest(unittest.TestCase):
                     return_value=(mock_client, self.model_name),
                 ), patch.object(
                     app, "socketio", self.mock_socketio
+                ), patch(
+                    "app.Message", return_value=mock_message
                 ):
 
-                    mock_message = MagicMock()
-                    mock_message.id = 444
                     mock_query.return_value.filter.return_value.one_or_none.return_value = (
-                        None
+                        mock_message
                     )
-                    app.Message.return_value = mock_message
 
                     # Should not raise exception, should handle gracefully
                     try:
@@ -527,14 +530,13 @@ class StreamingProtocolTest(unittest.TestCase):
                             f"Streaming should handle errors gracefully, but got: {e}"
                         )
 
-                    # Should still send completion signal even after error
-                    completion_chunks = [
+                    # Should still send chat_message on error
+                    error_messages = [
                         msg
                         for msg in self.emitted_messages
-                        if msg["event"] == "message_chunk"
-                        and msg["data"].get("is_complete")
+                        if msg["event"] == "chat_message"
                     ]
-                    self.assertEqual(len(completion_chunks), 1)
+                    self.assertEqual(len(error_messages), 1)
 
 
 if __name__ == "__main__":

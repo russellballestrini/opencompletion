@@ -39,26 +39,32 @@ def render_template(text: str, context: Dict[str, Any]) -> str:
         return text
 
     # Find all {{variable}} patterns
-    pattern = r'\{\{([^}]+)\}\}'
+    pattern = r"\{\{([^}]+)\}\}"
 
     def replace_variable(match):
         var_name = match.group(1).strip()
 
         # Handle metadata.key syntax
-        if var_name.startswith('metadata.'):
+        if var_name.startswith("metadata."):
             key = var_name[9:]  # Remove 'metadata.' prefix
-            metadata = context.get('metadata', {})
-            value = metadata.get(key, f'{{{{metadata.{key}}}}}')  # Keep original if not found
-            return str(value) if value is not None else ''
+            metadata = context.get("metadata", {})
+            value = metadata.get(
+                key, f"{{{{metadata.{key}}}}}"
+            )  # Keep original if not found
+            return str(value) if value is not None else ""
 
         # Handle built-in variables
-        value = context.get(var_name, f'{{{{{var_name}}}}}')  # Keep original if not found
-        return str(value) if value is not None else ''
+        value = context.get(
+            var_name, f"{{{{{var_name}}}}}"
+        )  # Keep original if not found
+        return str(value) if value is not None else ""
 
     return re.sub(pattern, replace_variable, text)
 
 
-def evaluate_condition(metadata: Dict[str, Any], condition_key: str, condition_value: Any) -> bool:
+def evaluate_condition(
+    metadata: Dict[str, Any], condition_key: str, condition_value: Any
+) -> bool:
     """
     Evaluate a single condition against metadata.
 
@@ -85,39 +91,39 @@ def evaluate_condition(metadata: Dict[str, Any], condition_key: str, condition_v
         True if condition met, False otherwise
     """
     # Check for operator suffixes
-    if condition_key.endswith('_ne'):
+    if condition_key.endswith("_ne"):
         key = condition_key[:-3]
         return metadata.get(key) != condition_value
 
-    elif condition_key.endswith('_gt'):
+    elif condition_key.endswith("_gt"):
         key = condition_key[:-3]
         try:
             return float(metadata.get(key, 0)) > float(condition_value)
         except (ValueError, TypeError):
             return False
 
-    elif condition_key.endswith('_gte'):
+    elif condition_key.endswith("_gte"):
         key = condition_key[:-4]
         try:
             return float(metadata.get(key, 0)) >= float(condition_value)
         except (ValueError, TypeError):
             return False
 
-    elif condition_key.endswith('_lt'):
+    elif condition_key.endswith("_lt"):
         key = condition_key[:-3]
         try:
             return float(metadata.get(key, 0)) < float(condition_value)
         except (ValueError, TypeError):
             return False
 
-    elif condition_key.endswith('_lte'):
+    elif condition_key.endswith("_lte"):
         key = condition_key[:-4]
         try:
             return float(metadata.get(key, 0)) <= float(condition_value)
         except (ValueError, TypeError):
             return False
 
-    elif condition_key.endswith('_between'):
+    elif condition_key.endswith("_between"):
         key = condition_key[:-8]
         if not isinstance(condition_value, list) or len(condition_value) != 2:
             return False
@@ -127,35 +133,35 @@ def evaluate_condition(metadata: Dict[str, Any], condition_key: str, condition_v
         except (ValueError, TypeError):
             return False
 
-    elif condition_key.endswith('_not_contains'):
+    elif condition_key.endswith("_not_contains"):
         key = condition_key[:-13]
-        value_str = str(metadata.get(key, ''))
-        items = [item.strip() for item in value_str.split(',') if item.strip()]
+        value_str = str(metadata.get(key, ""))
+        items = [item.strip() for item in value_str.split(",") if item.strip()]
         return str(condition_value) not in items
 
-    elif condition_key.endswith('_contains'):
+    elif condition_key.endswith("_contains"):
         key = condition_key[:-9]
-        value_str = str(metadata.get(key, ''))
+        value_str = str(metadata.get(key, ""))
         # Split by comma and check if condition_value is in list
-        items = [item.strip() for item in value_str.split(',') if item.strip()]
+        items = [item.strip() for item in value_str.split(",") if item.strip()]
         return str(condition_value) in items
 
-    elif condition_key.endswith('_matches'):
+    elif condition_key.endswith("_matches"):
         key = condition_key[:-8]
-        value_str = str(metadata.get(key, ''))
+        value_str = str(metadata.get(key, ""))
         try:
             return bool(re.search(str(condition_value), value_str))
         except re.error:
             return False
 
-    elif condition_key.endswith('_not_exists'):
+    elif condition_key.endswith("_not_exists"):
         key = condition_key[:-11]
         if condition_value:
             return key not in metadata
         else:
             return key in metadata
 
-    elif condition_key.endswith('_exists'):
+    elif condition_key.endswith("_exists"):
         key = condition_key[:-7]
         if condition_value:
             return key in metadata
@@ -182,15 +188,14 @@ def check_conditions(metadata: Dict[str, Any], conditions: Dict[str, Any]) -> bo
         return True
 
     return all(
-        evaluate_condition(metadata, key, value)
-        for key, value in conditions.items()
+        evaluate_condition(metadata, key, value) for key, value in conditions.items()
     )
 
 
 def filter_content_blocks(
     content_blocks: List[Union[str, Dict[str, Any]]],
     metadata: Dict[str, Any],
-    context: Dict[str, Any]
+    context: Dict[str, Any],
 ) -> List[str]:
     """
     Filter and render content blocks based on show_if conditions.
@@ -217,8 +222,8 @@ def filter_content_blocks(
 
         elif isinstance(block, dict):
             # Conditional block - check show_if condition
-            text = block.get('text', '')
-            show_if = block.get('show_if', {})
+            text = block.get("text", "")
+            show_if = block.get("show_if", {})
 
             # Check if conditions are met
             if check_conditions(metadata, show_if):
@@ -229,8 +234,7 @@ def filter_content_blocks(
 
 
 def resolve_conditional_navigation(
-    next_section_and_step: Union[str, List[Dict[str, Any]]],
-    metadata: Dict[str, Any]
+    next_section_and_step: Union[str, List[Dict[str, Any]]], metadata: Dict[str, Any]
 ) -> Optional[str]:
     """
     Resolve conditional navigation (if/elif/else structure).
@@ -249,19 +253,19 @@ def resolve_conditional_navigation(
     # Conditional branches
     if isinstance(next_section_and_step, list):
         for branch in next_section_and_step:
-            if 'if' in branch:
+            if "if" in branch:
                 # if branch
-                if check_conditions(metadata, branch['if']):
-                    return branch.get('goto')
+                if check_conditions(metadata, branch["if"]):
+                    return branch.get("goto")
 
-            elif 'elif' in branch:
+            elif "elif" in branch:
                 # elif branch
-                if check_conditions(metadata, branch['elif']):
-                    return branch.get('goto')
+                if check_conditions(metadata, branch["elif"]):
+                    return branch.get("goto")
 
-            elif 'else' in branch:
+            elif "else" in branch:
                 # else branch - always taken if reached
-                return branch.get('goto')
+                return branch.get("goto")
 
     return None
 
@@ -280,8 +284,8 @@ def select_weighted_random(weighted_options: List[Dict[str, Any]]) -> Any:
         return None
 
     # Extract values and weights
-    values = [opt['value'] for opt in weighted_options]
-    weights = [opt.get('weight', 1) for opt in weighted_options]
+    values = [opt["value"] for opt in weighted_options]
+    weights = [opt.get("weight", 1) for opt in weighted_options]
 
     # Use random.choices for weighted selection
     selected = random.choices(values, weights=weights, k=1)
@@ -289,9 +293,7 @@ def select_weighted_random(weighted_options: List[Dict[str, Any]]) -> Any:
 
 
 def get_progressive_hint(
-    hints: List[Dict[str, Any]],
-    current_attempt: int,
-    context: Dict[str, Any]
+    hints: List[Dict[str, Any]], current_attempt: int, context: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """
     Get the hint for the current attempt number, if one exists.
@@ -308,12 +310,12 @@ def get_progressive_hint(
         return None
 
     for hint in hints:
-        if hint.get('attempt') == current_attempt:
+        if hint.get("attempt") == current_attempt:
             # Render template variables in hint text
-            hint_text = render_template(hint.get('text', ''), context)
+            hint_text = render_template(hint.get("text", ""), context)
             return {
-                'text': hint_text,
-                'counts_as_attempt': hint.get('counts_as_attempt', False)
+                "text": hint_text,
+                "counts_as_attempt": hint.get("counts_as_attempt", False),
             }
 
     return None
@@ -325,7 +327,7 @@ def create_template_context(
     max_attempts: int,
     current_section: str,
     current_step: str,
-    username: str = "User"
+    username: str = "User",
 ) -> Dict[str, Any]:
     """
     Create a template rendering context with all built-in variables.
@@ -342,11 +344,11 @@ def create_template_context(
         Context dictionary for template rendering
     """
     return {
-        'metadata': metadata,
-        'current_attempt': current_attempt,
-        'max_attempts': max_attempts,
-        'attempts_remaining': max(0, max_attempts - current_attempt),
-        'current_section': current_section,
-        'current_step': current_step,
-        'username': username
+        "metadata": metadata,
+        "current_attempt": current_attempt,
+        "max_attempts": max_attempts,
+        "attempts_remaining": max(0, max_attempts - current_attempt),
+        "current_section": current_section,
+        "current_step": current_step,
+        "username": username,
     }
