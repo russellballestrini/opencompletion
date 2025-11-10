@@ -40,6 +40,47 @@ class ActivityYAMLValidator:
         self.warnings = []
         self.current_file = None
 
+        # Regex patterns for template validation
+        # Jinja2 control structures (NOT ALLOWED)
+        self.jinja2_control_pattern = re.compile(r'\{%\s*(if|for|elif|else|endif|endfor|block|endblock|macro|endmacro|set|include|extends)\s')
+        # Handlebars control structures (NOT ALLOWED)
+        self.handlebars_control_pattern = re.compile(r'\{\{#(if|each|unless|with)|\{\{/(if|each|unless|with)\}\}|\{\{else\}\}')
+        # Valid substitution patterns (ALLOWED)
+        self.valid_substitution_pattern = re.compile(r'\{\{[a-zA-Z_][a-zA-Z0-9_\.]*\}\}')
+
+    def _check_template_syntax(self, text: str, location: str):
+        """
+        Check text for invalid template control structures.
+
+        OpenCompletion uses a substitution-only template system:
+        - ALLOWED: {{variable}}, {{metadata.key}}, {{current_attempt}}
+        - NOT ALLOWED: {% if %}, {{#if}}, loops, conditionals
+
+        Args:
+            text: The text content to check
+            location: Human-readable location string for error messages
+        """
+        if not isinstance(text, str):
+            return
+
+        # Check for Jinja2 control structures
+        jinja2_match = self.jinja2_control_pattern.search(text)
+        if jinja2_match:
+            self.errors.append(
+                f"{location}: Jinja2 control structures ({{%% %}}) are NOT supported. "
+                f"Found: '{jinja2_match.group(0)}...'. "
+                f"Use 'show_if' conditions or pre-compute values in scripts instead."
+            )
+
+        # Check for Handlebars control structures
+        handlebars_match = self.handlebars_control_pattern.search(text)
+        if handlebars_match:
+            self.errors.append(
+                f"{location}: Handlebars control structures ({{{{#}}}}) are NOT supported. "
+                f"Found: '{handlebars_match.group(0)}...'. "
+                f"Use 'show_if' conditions or pre-compute values in scripts instead."
+            )
+
     def validate_file(self, file_path: str) -> Tuple[bool, List[str], List[str]]:
         """
         Validate a YAML file and return results
@@ -239,8 +280,11 @@ class ActivityYAMLValidator:
 
         for i, block in enumerate(content_blocks):
             if isinstance(block, str):
-                # Simple string block - always valid
-                continue
+                # Simple string block - check for control structures
+                self._check_template_syntax(
+                    block,
+                    f"Section {section_id}, step {step_id}: content_blocks[{i}]"
+                )
             elif isinstance(block, dict):
                 # Conditional block (v2.0)
                 if 'text' not in block:
@@ -250,6 +294,12 @@ class ActivityYAMLValidator:
                 elif not isinstance(block['text'], str):
                     self.errors.append(
                         f"Section {section_id}, step {step_id}: content_blocks[{i}]['text'] must be a string"
+                    )
+                else:
+                    # Check text for control structures
+                    self._check_template_syntax(
+                        block['text'],
+                        f"Section {section_id}, step {step_id}: content_blocks[{i}]['text']"
                     )
 
                 if 'show_if' in block:
@@ -266,10 +316,17 @@ class ActivityYAMLValidator:
         self, step: Dict[str, Any], section_id: str, step_id: str
     ):
         """Validate question-type step"""
-        if "question" in step and not isinstance(step["question"], str):
-            self.errors.append(
-                f"Section {section_id}, step {step_id}: 'question' must be a string"
-            )
+        if "question" in step:
+            if not isinstance(step["question"], str):
+                self.errors.append(
+                    f"Section {section_id}, step {step_id}: 'question' must be a string"
+                )
+            else:
+                # Check question for control structures
+                self._check_template_syntax(
+                    step["question"],
+                    f"Section {section_id}, step {step_id}: 'question'"
+                )
 
         # Validate AI tokens
         if "tokens_for_ai" in step:
@@ -277,11 +334,23 @@ class ActivityYAMLValidator:
                 self.errors.append(
                     f"Section {section_id}, step {step_id}: 'tokens_for_ai' must be a string"
                 )
+            else:
+                # Check tokens_for_ai for control structures
+                self._check_template_syntax(
+                    step["tokens_for_ai"],
+                    f"Section {section_id}, step {step_id}: 'tokens_for_ai'"
+                )
 
         if "feedback_tokens_for_ai" in step:
             if not isinstance(step["feedback_tokens_for_ai"], str):
                 self.errors.append(
                     f"Section {section_id}, step {step_id}: 'feedback_tokens_for_ai' must be a string"
+                )
+            else:
+                # Check feedback_tokens_for_ai for control structures
+                self._check_template_syntax(
+                    step["feedback_tokens_for_ai"],
+                    f"Section {section_id}, step {step_id}: 'feedback_tokens_for_ai'"
                 )
 
         # Validate feedback_prompts (new multi-prompt system)
@@ -360,10 +429,16 @@ class ActivityYAMLValidator:
                     self.errors.append(
                         f"Section {section_id}, step {step_id}: feedback_prompts[{i}].tokens_for_ai must be a string"
                     )
-                # Check for STFU token usage (informational)
-                elif "STFU" in prompt["tokens_for_ai"]:
-                    # This is valid - STFU token is used to suppress empty feedback messages
-                    pass
+                else:
+                    # Check for control structures
+                    self._check_template_syntax(
+                        prompt["tokens_for_ai"],
+                        f"Section {section_id}, step {step_id}: feedback_prompts[{i}].tokens_for_ai"
+                    )
+                    # Check for STFU token usage (informational)
+                    if "STFU" in prompt["tokens_for_ai"]:
+                        # This is valid - STFU token is used to suppress empty feedback messages
+                        pass
 
             # Validate metadata_filter (optional)
             if "metadata_filter" in prompt:
@@ -573,12 +648,17 @@ class ActivityYAMLValidator:
                 self.errors.append(
                     f"Section {section_id}, step {step_id}, bucket {bucket}: 'ai_feedback' must be a dictionary"
                 )
-            elif "tokens_for_ai" in ai_feedback and not isinstance(
-                ai_feedback["tokens_for_ai"], str
-            ):
-                self.errors.append(
-                    f"Section {section_id}, step {step_id}, bucket {bucket}: ai_feedback.tokens_for_ai must be a string"
-                )
+            elif "tokens_for_ai" in ai_feedback:
+                if not isinstance(ai_feedback["tokens_for_ai"], str):
+                    self.errors.append(
+                        f"Section {section_id}, step {step_id}, bucket {bucket}: ai_feedback.tokens_for_ai must be a string"
+                    )
+                else:
+                    # Check ai_feedback tokens for control structures
+                    self._check_template_syntax(
+                        ai_feedback["tokens_for_ai"],
+                        f"Section {section_id}, step {step_id}, bucket {bucket}: ai_feedback.tokens_for_ai"
+                    )
 
         if "content_blocks" in transition:
             if not isinstance(transition["content_blocks"], list):
@@ -627,6 +707,12 @@ class ActivityYAMLValidator:
             elif not isinstance(hint['text'], str):
                 self.errors.append(
                     f"Section {section_id}, step {step_id}: hints[{i}]['text'] must be a string"
+                )
+            else:
+                # Check hint text for control structures
+                self._check_template_syntax(
+                    hint['text'],
+                    f"Section {section_id}, step {step_id}: hints[{i}]['text']"
                 )
 
             # Validate optional fields

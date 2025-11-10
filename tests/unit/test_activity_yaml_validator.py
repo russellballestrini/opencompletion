@@ -813,6 +813,295 @@ sections:
             os.unlink(warning_file)
 
 
+    def test_jinja2_control_structures_rejected(self):
+        """Test that Jinja2 control structures are rejected"""
+        jinja2_control_yaml = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test Step"
+        content_blocks:
+          - "Valid content"
+          - "{% if score > 80 %}High score{% else %}Low score{% endif %}"
+        question: "Test question {% for item in items %}{{item}}{% endfor %}"
+        tokens_for_ai: |
+          {% if attempts_remaining == 1 %}
+            Last chance
+          {% else %}
+            Keep trying
+          {% endif %}
+        buckets:
+          - test
+        transitions:
+          test:
+            content_blocks: ["Done"]
+"""
+        temp_file = self.create_temp_yaml(jinja2_control_yaml)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertFalse(is_valid)
+            # Should have multiple errors for different Jinja2 control structures
+            jinja2_errors = [e for e in errors if "Jinja2" in e]
+            self.assertGreater(len(jinja2_errors), 0)
+            # Check that error messages mention the right thing
+            self.assertTrue(any("NOT supported" in error for error in jinja2_errors))
+            self.assertTrue(any("show_if" in error or "pre-compute" in error for error in jinja2_errors))
+        finally:
+            os.unlink(temp_file)
+
+    def test_handlebars_control_structures_rejected(self):
+        """Test that Handlebars control structures are rejected"""
+        handlebars_yaml = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test Step"
+        content_blocks:
+          - "{{#if premium}}Premium content{{else}}Free content{{/if}}"
+          - "{{#each items}}Item: {{name}}{{/each}}"
+        question: "{{#unless answered}}Please answer{{/unless}}"
+        feedback_tokens_for_ai: "{{#if correct}}Good job{{else}}Try again{{/if}}"
+        buckets:
+          - test
+        transitions:
+          test:
+            ai_feedback:
+              tokens_for_ai: "{{#with user}}Hello {{name}}{{/with}}"
+            content_blocks: ["Done"]
+"""
+        temp_file = self.create_temp_yaml(handlebars_yaml)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertFalse(is_valid)
+            # Should have multiple errors for different Handlebars control structures
+            handlebars_errors = [e for e in errors if "Handlebars" in e]
+            self.assertGreater(len(handlebars_errors), 0)
+            # Check that error messages mention the right thing
+            self.assertTrue(any("NOT supported" in error for error in handlebars_errors))
+        finally:
+            os.unlink(temp_file)
+
+    def test_valid_substitutions_allowed(self):
+        """Test that valid {{variable}} substitutions are allowed"""
+        valid_substitutions_yaml = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test Step"
+        content_blocks:
+          - "Hello {{username}}!"
+          - "Score: {{metadata.score}}"
+          - "Attempt {{current_attempt}} of {{max_attempts}}"
+          - "You have {{attempts_remaining}} attempts left"
+        question: "Ready {{username}}? Try {{current_attempt}}"
+        tokens_for_ai: |
+          User {{username}} is on attempt {{current_attempt}}.
+          Their score is {{metadata.score}}.
+        feedback_tokens_for_ai: |
+          Provide feedback to {{username}}.
+          Reference their {{metadata.last_answer}}.
+        buckets:
+          - test
+        transitions:
+          test:
+            ai_feedback:
+              tokens_for_ai: "Great job {{username}}! Score: {{metadata.score}}"
+            content_blocks:
+              - "Well done {{username}}!"
+              - "Final score: {{metadata.score}}"
+            next_section_and_step: "section_1:step_2"
+
+      - step_id: "step_2"
+        title: "Final"
+        content_blocks:
+          - "Goodbye {{username}}!"
+"""
+        temp_file = self.create_temp_yaml(valid_substitutions_yaml)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertTrue(is_valid, f"Valid substitutions should be allowed but got errors: {errors}")
+            self.assertEqual(len(errors), 0)
+        finally:
+            os.unlink(temp_file)
+
+    def test_control_structures_in_hints(self):
+        """Test that control structures in hints are rejected"""
+        hints_with_control_yaml = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test Step"
+        question: "What is 2+2?"
+        hints:
+          - attempt: 2
+            text: "{% if score > 50 %}Think harder{% else %}You can do it{% endif %}"
+          - attempt: 3
+            text: "{{#if last_try}}This is your last chance{{/if}}"
+        buckets:
+          - test
+        transitions:
+          test:
+            content_blocks: ["Done"]
+"""
+        temp_file = self.create_temp_yaml(hints_with_control_yaml)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertFalse(is_valid)
+            # Should catch control structures in hints
+            hint_errors = [e for e in errors if "hints" in e]
+            self.assertGreater(len(hint_errors), 0)
+        finally:
+            os.unlink(temp_file)
+
+    def test_control_structures_in_feedback_prompts(self):
+        """Test that control structures in feedback_prompts are rejected"""
+        feedback_prompts_control_yaml = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test Step"
+        question: "Test?"
+        feedback_prompts:
+          - name: "status"
+            tokens_for_ai: "{% if health > 50 %}Healthy{% else %}Injured{% endif %}"
+          - name: "items"
+            tokens_for_ai: "{{#each inventory}}{{item}}{{/each}}"
+        buckets:
+          - test
+        transitions:
+          test:
+            content_blocks: ["Done"]
+"""
+        temp_file = self.create_temp_yaml(feedback_prompts_control_yaml)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertFalse(is_valid)
+            # Should catch control structures in feedback_prompts
+            feedback_errors = [e for e in errors if "feedback_prompts" in e]
+            self.assertGreater(len(feedback_errors), 0)
+        finally:
+            os.unlink(temp_file)
+
+    def test_control_structures_in_conditional_content_blocks(self):
+        """Test that control structures in conditional content_blocks are rejected"""
+        conditional_blocks_yaml = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test Step"
+        content_blocks:
+          - text: "{% if score > 90 %}Excellent!{% endif %}"
+            show_if:
+              score_gte: 90
+          - text: "{{#if premium}}Premium user{{/if}}"
+            show_if:
+              premium: true
+        question: "Test?"
+        buckets:
+          - test
+        transitions:
+          test:
+            content_blocks:
+              - text: "{% for i in range(5) %}Step {{i}}{% endfor %}"
+            next_section_and_step: "section_1:step_2"
+
+      - step_id: "step_2"
+        title: "Final"
+        content_blocks:
+          - "Done"
+"""
+        temp_file = self.create_temp_yaml(conditional_blocks_yaml)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertFalse(is_valid)
+            # Should catch control structures in conditional content blocks
+            control_errors = [e for e in errors if "Jinja2" in e or "Handlebars" in e]
+            self.assertGreater(len(control_errors), 0)
+        finally:
+            os.unlink(temp_file)
+
+    def test_mixed_valid_and_invalid_templates(self):
+        """Test file with both valid substitutions and invalid control structures"""
+        mixed_yaml = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test Step"
+        content_blocks:
+          - "Hello {{username}}!"  # VALID
+          - "Score: {{metadata.score}}"  # VALID
+          - "{% if score > 80 %}High{% else %}Low{% endif %}"  # INVALID
+        question: "Ready {{username}}?"  # VALID
+        tokens_for_ai: |
+          User {{username}} on attempt {{current_attempt}}.  # VALID
+          {% if attempts_remaining == 1 %}Last chance{% endif %}  # INVALID
+        buckets:
+          - test
+        transitions:
+          test:
+            content_blocks: ["Done"]
+"""
+        temp_file = self.create_temp_yaml(mixed_yaml)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertFalse(is_valid)
+            # Should only have errors for the control structures, not the valid substitutions
+            control_errors = [e for e in errors if "Jinja2" in e or "Handlebars" in e]
+            self.assertGreater(len(control_errors), 0)
+            # Should have exactly 2 errors (one for content_block, one for tokens_for_ai)
+            self.assertEqual(len(control_errors), 2)
+        finally:
+            os.unlink(temp_file)
+
+    def test_various_jinja2_statements(self):
+        """Test detection of various Jinja2 statement types"""
+        various_jinja2_yaml = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test with various Jinja2"
+        content_blocks:
+          - "{% if x %}test{% endif %}"
+          - "{% for item in list %}{{item}}{% endfor %}"
+          - "{% elif condition %}branch{% endif %}"
+          - "{% else %}default{% endif %}"
+          - "{% set var = value %}"
+          - "{% block content %}test{% endblock %}"
+        question: "Test?"
+        buckets:
+          - test
+        transitions:
+          test:
+            content_blocks: ["Done"]
+"""
+        temp_file = self.create_temp_yaml(various_jinja2_yaml)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertFalse(is_valid)
+            # Should catch all the different Jinja2 statement types
+            jinja2_errors = [e for e in errors if "Jinja2" in e]
+            # Should have multiple errors for different statements
+            self.assertGreaterEqual(len(jinja2_errors), 5)
+        finally:
+            os.unlink(temp_file)
+
+
 if __name__ == "__main__":
     # Run the tests
     unittest.main(verbosity=2)
