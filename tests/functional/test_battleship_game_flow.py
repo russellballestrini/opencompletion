@@ -31,6 +31,7 @@ with patch.dict(
     },
 ):
     import app
+    import activity
 
 
 class MockBattleshipState:
@@ -162,10 +163,10 @@ script_result = {
         mock_metadata["ai_board"][90:92] = ["Destroyer"] * 2  # Destroyer
 
         with patch.object(
-            app, "execute_processing_script", return_value={"metadata": mock_metadata}
+            activity, "execute_processing_script", return_value={"metadata": mock_metadata}
         ) as mock_exec:
             metadata = {}
-            result = app.execute_processing_script(metadata, setup_script)
+            result = activity.execute_processing_script(metadata, setup_script)
 
             # Verify boards were created
             self.assertIn("user_board", result["metadata"])
@@ -242,7 +243,7 @@ if 0 <= user_shot < 100 and user_shot not in user_shots:
             "ai_hits": [],
         }
 
-        result = app.execute_processing_script(metadata, shot_script)
+        result = activity.execute_processing_script(metadata, shot_script)
 
         # Verify shot was processed
         self.assertIn("user_shots", result["metadata"])
@@ -331,9 +332,9 @@ script_result = {
         }
 
         with patch.object(
-            app, "execute_processing_script", return_value=mock_result
+            activity, "execute_processing_script", return_value=mock_result
         ) as mock_exec:
-            result = app.execute_processing_script(metadata, sinking_script)
+            result = activity.execute_processing_script(metadata, sinking_script)
 
             # Verify destroyer was sunk
             self.assertIn("Destroyer", result["metadata"]["user_sunk_ships"])
@@ -397,7 +398,7 @@ script_result = {
             "ai_hits": [10],  # Partial hit on user ships
         }
 
-        result = app.execute_processing_script(metadata_user_wins, win_script)
+        result = activity.execute_processing_script(metadata_user_wins, win_script)
 
         self.assertTrue(result["metadata"]["game_over"])
         self.assertTrue(result["metadata"]["user_wins"])
@@ -411,7 +412,7 @@ script_result = {
             "ai_hits": [10, 20, 30],  # Hit all user ships (complete cruiser)
         }
 
-        result = app.execute_processing_script(metadata_ai_wins, win_script)
+        result = activity.execute_processing_script(metadata_ai_wins, win_script)
 
         self.assertTrue(result["metadata"]["game_over"])
         self.assertFalse(result["metadata"]["user_wins"])
@@ -443,7 +444,7 @@ script_result = {
         metadata = {"ai_shots": [0, 1, 2, 3, 4]}
 
         with patch("random.choice", return_value=50):  # Mock random choice
-            result = app.execute_processing_script(metadata, random_ai_script)
+            result = activity.execute_processing_script(metadata, random_ai_script)
 
             self.assertEqual(result["metadata"]["ai_shot"], 50)
             self.assertEqual(result["metadata"]["ai_mode"], "random")
@@ -495,7 +496,7 @@ script_result = {
             "ai_hits": [45],  # Hit at position 45
         }
 
-        result = app.execute_processing_script(metadata_with_hit, hunter_ai_script)
+        result = activity.execute_processing_script(metadata_with_hit, hunter_ai_script)
 
         # Should target adjacent to the hit (35, 55, 44, or 46, but 46 already shot)
         expected_targets = [
@@ -554,7 +555,7 @@ script_result = {
             "ai_hits": [10],
         }
 
-        result = app.execute_processing_script(valid_metadata, validation_script)
+        result = activity.execute_processing_script(valid_metadata, validation_script)
 
         self.assertTrue(result["metadata"]["is_valid_state"])
         self.assertEqual(len(result["metadata"]["validation_errors"]), 0)
@@ -567,7 +568,7 @@ script_result = {
             "ai_hits": [10],
         }
 
-        result = app.execute_processing_script(invalid_metadata, validation_script)
+        result = activity.execute_processing_script(invalid_metadata, validation_script)
 
         self.assertFalse(result["metadata"]["is_valid_state"])
         self.assertGreater(len(result["metadata"]["validation_errors"]), 0)
@@ -599,7 +600,7 @@ script_result = {{
 }}
 """
 
-            result = app.execute_processing_script({}, validation_script)
+            result = activity.execute_processing_script({}, validation_script)
             self.assertFalse(result["metadata"]["is_valid_shot"])
 
     def test_duplicate_shot_handling(self):
@@ -622,14 +623,14 @@ script_result = {
 
         # First shot - should not be duplicate
         metadata = {"user_shots": [1, 2, 3]}
-        result = app.execute_processing_script(metadata, duplicate_shot_script)
+        result = activity.execute_processing_script(metadata, duplicate_shot_script)
 
         self.assertFalse(result["metadata"]["is_duplicate"])
         self.assertIn(42, result["metadata"]["user_shots"])
 
         # Second shot - should be duplicate
         metadata = {"user_shots": [1, 2, 3, 42]}
-        result = app.execute_processing_script(metadata, duplicate_shot_script)
+        result = activity.execute_processing_script(metadata, duplicate_shot_script)
 
         self.assertTrue(result["metadata"]["is_duplicate"])
 
@@ -678,9 +679,9 @@ script_result = {
         }
 
         with patch.object(
-            app, "execute_processing_script", return_value=mock_result
+            activity, "execute_processing_script", return_value=mock_result
         ) as mock_exec:
-            result = app.execute_processing_script({}, simultaneous_win_script)
+            result = activity.execute_processing_script({}, simultaneous_win_script)
 
             self.assertTrue(result["metadata"]["game_over"])
             self.assertTrue(result["metadata"]["user_wins"])
