@@ -1,25 +1,31 @@
-# Biblical Time Machine - Open-Ended Edition
-# Tell the machine WHO you want to meet or WHEN you want to go
-# The AI dynamically determines the time period, location, and context
+# Global Spiritual Time Machine - Biblical Timeline Edition
+# Travel to ANY location in the world during biblical times (~4000 BC - 313 AD)
+# Meet spiritual figures across cultures: biblical prophets, Greek philosophers, Buddhist monks, Hindu gurus, and more
+# The AI dynamically determines the time period, location, and spiritual context
 
 default_max_attempts_per_step: 5
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
 
 tokens_for_ai_rubric: |
-  You are an intelligent Biblical time machine AI assistant.
+  You are an intelligent GLOBAL time machine AI assistant.
 
-  Your job is to facilitate open-ended time travel through Biblical history.
+  Your job is to facilitate open-ended time travel to ANY location on Earth during the biblical timeline (~4000 BC - 313 AD).
 
   KEY BEHAVIORS:
-  - When user names a person (Moses, David, Jesus, etc.), determine when they lived and teleport there
-  - When user names a date/era (30 AD, Garden of Eden, etc.), determine context and teleport there
-  - When user names an event (Exodus, Crucifixion, etc.), teleport to that event
-  - Be flexible and adaptive - support ANY biblical request
-  - Provide brief, dynamic briefings based on their choice
-  - Emphasize location accuracy (NO Temple in Genesis/Exodus, FIRST Temple with Solomon, SECOND Temple with Jesus, NO Temple after 70 AD)
+  - User can visit ANYWHERE: "30 AD Greece", "1000 BC India", "50 BC Rome", "Moses in Egypt", etc.
+  - When user names TIME + PLACE, teleport there and explain spiritual context of that location/era
+  - When user names just PERSON, determine when/where they lived
+  - When user names just PLACE, ask what time period they want
+  - Support biblical figures in biblical lands AND non-biblical spiritual figures elsewhere
+  - Examples: Meet Jesus in Judea, Socrates in Athens, Buddha's followers in India, Zoroastrian priests in Persia
 
-  CRITICAL: Maintain biblical and historical accuracy at all times.
+  ACCURACY REQUIREMENTS:
+  - Biblical lands: Maintain biblical accuracy (Temple status, geography, etc.)
+  - Non-biblical regions: Provide historically accurate spiritual context for that time/place
+  - Respect all spiritual traditions while facilitating exploration
+
+  CRITICAL: Be historically and culturally accurate for ALL regions and time periods.
 
 sections:
   # ============================================================================
@@ -31,16 +37,26 @@ sections:
       - step_id: "welcome"
         title: "Welcome"
         content_blocks:
-          - "# ⏳ Biblical Time Machine ⏳"
+          - "# ⏳ Global Spiritual Time Machine ⏳"
           - ""
-          - "You have discovered a time machine that can transport you to ANY moment in Biblical history."
+          - "You have discovered a time machine that can transport you to **ANY location on Earth** during the biblical timeline (~4000 BC - 313 AD)."
           - ""
-          - "**Tell me:**"
-          - "- WHO you want to meet (Moses, Jesus, David, etc.)"
-          - "- WHEN you want to go (30 AD, Garden of Eden, Exodus, etc.)"
-          - "- WHAT event you want to witness (Red Sea crossing, Pentecost, etc.)"
+          - "**Travel ANYWHERE:**"
+          - "- 📍 **Biblical lands**: Meet Moses in Egypt, Jesus in Galilee, Daniel in Babylon"
+          - "- 🏛️ **Ancient Greece**: Converse with Socrates in Athens, philosophers in Delphi"
+          - "- 🏺 **Ancient Rome**: Meet Stoic philosophers, Roman priests, early Christians"
+          - "- 🕉️ **India**: Explore Buddhist monasteries, meet Hindu gurus and yogis"
+          - "- 🏮 **China**: Visit Confucian scholars, Taoist masters"
+          - "- 🔥 **Persia**: Meet Zoroastrian priests, magi"
+          - "- 🌍 **Anywhere else**: Africa, Arabia, Britain - all spiritual traditions welcome"
           - ""
-          - "The machine will calculate the correct time period and take you there."
+          - "**Examples:**"
+          - "- \"Take me to 30 AD Greece\""
+          - "- \"I want to meet a Buddhist monk in India\""
+          - "- \"Show me what's happening in Rome during Jesus' time\""
+          - "- \"Moses\" (I'll figure out when/where!)"
+          - ""
+          - "The machine will calculate the time, place, and spiritual context."
 
       - step_id: "language"
         title: "Language"
@@ -69,249 +85,246 @@ sections:
     steps:
       - step_id: "destination_input"
         title: "Where/When/Who"
-        question: "Where would you like to go, who would you like to meet, or when would you like to visit? (Or type 'END' to finish)"
+        question: "Where and when would you like to go? Or who would you like to meet? (Examples: '30 AD Greece', 'Moses', '500 BC India', 'Socrates', 'END' to finish)"
         tokens_for_ai: |
-          This is COMPLETELY OPEN-ENDED. User can request:
-          - A person: "Moses", "Jesus", "David", "Paul", "Adam", etc.
-          - A time: "30 AD", "Garden of Eden", "Exodus era", etc.
-          - An event: "Red Sea crossing", "Pentecost", "Crucifixion", etc.
-          - A place: "Jerusalem", "Egypt", "Rome", etc.
+          This is COMPLETELY OPEN-ENDED and GEOGRAPHY-AWARE. User can request:
+          - TIME + PLACE: "30 AD Greece", "1000 BC India", "50 BC Rome"
+          - PERSON: "Moses", "Jesus", "Socrates", "Buddha", "Confucius"
+          - BIBLICAL EVENT: "Exodus", "Crucifixion", "Pentecost"
+          - JUST PLACE: "Greece", "India", "Rome" (you'll need to ask what time period)
 
-          Your job: Determine what biblical era they're requesting.
+          Your job: Determine what GEOGRAPHIC REGION they're requesting.
+
+          BIBLICAL LANDS (Israel, Judea, Canaan, Egypt in biblical context, Babylon in biblical context):
+          - Garden of Eden, Adam, Eve, pre-Fall
+          - Cain, Abel, Noah, Flood, early patriarchs
+          - Abraham, Isaac, Jacob, Joseph
+          - Moses, Exodus, Egypt (Hebrew context), Pharaoh, plagues
+          - Joshua, Judges, Canaan conquest
+          - Saul, David, Solomon, Jerusalem, kings, prophets
+          - Babylon/Exile (Jewish exile specifically)
+          - Jesus, disciples, Galilee, Judea, crucifixion, resurrection
+          - Pentecost, early church, apostles, persecution IN ISRAEL
+          - Paul in biblical lands specifically
+
+          NON-BIBLICAL WORLD REGIONS:
+          - Greece: Athens, Sparta, Greek philosophers, mystery religions, Greek culture
+          - Rome: Roman Empire, senators, philosophers, gladiators, Roman religion
+          - India: Hinduism, Buddhism, yogis, gurus, monks, meditation
+          - China: Confucianism, Taoism, Chinese philosophy, dynasties
+          - Persia: Zoroastrianism, magi, Persian Empire
+          - Other: Arabia, Africa (non-Egypt), Europe, Britain, any other location
 
           Categorize as:
-          - 'garden_eden' if Garden of Eden, Paradise, Adam/Eve before Fall, beginning, creation
-          - 'early_world' if Cain, Abel, Enoch, Noah, Flood, post-Fall pre-Abraham
-          - 'patriarchs' if Abraham, Isaac, Jacob, Joseph, patriarchs era
-          - 'egypt_moses' if Moses, Exodus, Egypt, Pharaoh, plagues, Red Sea, Passover, ~1446 BC
-          - 'wilderness_judges' if Joshua, Judges, Deborah, Gideon, Samson, conquest of Canaan
-          - 'kingdom' if Saul, David, Solomon, kings, united/divided kingdom, ~1000-586 BC
-          - 'exile_prophets' if Babylon, Daniel, Ezekiel, Jeremiah, Isaiah, exile, prophets
-          - 'jesus' if Jesus, Christ, Messiah, Galilee, 30 AD, ministry, disciples
-          - 'crucifixion_resurrection' if cross, crucifixion, resurrection, Easter, Golgotha
-          - 'early_church' if Pentecost, Acts, apostles, Peter/John after Jesus
-          - 'paul' if Paul, missionary journeys, letters, epistles, church planting
-          - 'persecution' if persecution, martyrs, Rome, catacombs, Nero, 64-313 AD
+          - 'biblical_lands' for ANY biblical location, person, or event in Israel/Judea/Canaan/biblical Egypt/Babylon
+          - 'greece' for Greece, Athens, Sparta, Greek philosophers, Greek culture, Greek anything
+          - 'rome' for Rome, Roman Empire, Italy, Roman culture (unless Paul's biblical journey there)
+          - 'india' for India, Hinduism, Buddhism, Indian culture, yogis, gurus
+          - 'china' for China, Confucius, Taoism, Chinese philosophy, dynasties
+          - 'persia' for Persia, Zoroastrianism, magi, Persian Empire
+          - 'other_world' for anywhere else: Arabia, Africa, Europe, Britain, etc.
           - 'end' if END, finish, done, quit
-          - 'unclear' if you can't determine what they mean
-        buckets: [garden_eden, early_world, patriarchs, egypt_moses, wilderness_judges, kingdom, exile_prophets, jesus, crucifixion_resurrection, early_church, paul, persecution, end, unclear]
+          - 'unclear' if you genuinely can't determine
+        buckets: [biblical_lands, greece, rome, india, china, persia, other_world, end, unclear]
         transitions:
-          garden_eden:
+          biblical_lands:
             ai_feedback:
               tokens_for_ai: |
-                User wants to go to Garden of Eden / meet Adam & Eve.
+                User requested biblical location/person/event: "the-users-response"
 
-                Provide a BRIEF departure briefing:
-                - Destination: Garden of Eden, east of Mesopotamia
-                - Time: Before the Fall, ~4000 BC
-                - Context: Paradise before sin. No buildings, Temple, or cities. Perfect nature. Tree of Life. God walks with Adam & Eve.
-                - Who's there: Adam, Eve, God, animals
+                YOUR JOB: Dynamically generate a BRIEF departure briefing (3-5 sentences):
 
-                End with: "⚡ Time travel initiated!"
+                1. Determine SPECIFIC time period from their request:
+                   - Garden of Eden: ~4000 BC (pre-Fall)
+                   - Early world: ~4000-2350 BC (Cain, Abel, Noah, Flood)
+                   - Patriarchs: ~2000-1800 BC (Abraham, Isaac, Jacob, Joseph)
+                   - Exodus: ~1446 BC (Moses, Egypt, plagues, Red Sea)
+                   - Judges: ~1400-1050 BC (Joshua, Deborah, Gideon, Samson)
+                   - Kingdom: ~1000-586 BC (Saul, David, Solomon, kings, prophets)
+                   - Exile: ~586-538 BC (Babylon, Daniel, Ezekiel, Jeremiah)
+                   - Jesus: ~27-30 AD (ministry, miracles, teaching)
+                   - Crucifixion: ~30 AD Passover (cross, resurrection)
+                   - Early church: ~33-60 AD (Pentecost, apostles, Acts)
+                   - Paul: ~46-67 AD (missionary journeys, churches)
+                   - Persecution: ~64-313 AD (Rome, martyrs, catacombs)
 
-                Use their language from metadata.language.
+                2. Provide briefing with:
+                   - Destination (specific location)
+                   - Time period (approximate date)
+                   - Context (what's happening, who's there)
+                   - **CRITICAL**: Temple status (NO Temple before Solomon ~970 BC, FIRST Temple 970-586 BC, SECOND Temple 516 BC-70 AD, NO Temple after 70 AD)
+
+                3. End with: "⚡ Time travel initiated!"
+
+                Use metadata.language for response.
             metadata_add:
-              current_era: "Garden of Eden"
-              current_date: "~4000 BC (Pre-Fall)"
+              current_region: "Biblical Lands"
+              current_era: "the-users-response"
               epochs_visited: "n+1"
             next_section_and_step: "exploration:who_to_meet"
 
-          early_world:
+          greece:
             ai_feedback:
               tokens_for_ai: |
-                User wants early world (Cain/Abel/Noah/Flood era).
+                User requested Greece: "the-users-response"
 
-                Brief briefing:
-                - Destination: Post-Fall world or Noah's time
-                - Time: ~4000-2350 BC
-                - Context: Sin has entered. Cain murdered Abel. Enoch walked with God. Noah building ark. No cities yet. First altars.
-                - Who's there: Adam/Eve (fallen), Cain, Abel, Seth, Enoch, Noah, Noah's family
+                YOUR JOB: Dynamically generate briefing for Greece during requested time:
 
-                End with: "⚡ Time travel initiated!"
+                1. Determine time period from their request (or default to 400 BC if unclear):
+                   - ~800-500 BC: Archaic period, Homer, early city-states
+                   - ~500-323 BC: Classical period, Socrates (~470-399 BC), Plato (~428-348 BC), Aristotle (~384-322 BC)
+                   - ~323-31 BC: Hellenistic period, Alexander's legacy, philosophical schools
+                   - ~31 BC-313 AD: Roman Greece, Stoicism, Epicureanism, mystery religions
+
+                2. Provide briefing:
+                   - Destination: Athens, Delphi, Sparta, or relevant city
+                   - Time: Approximate date from their request
+                   - Spiritual context: Philosophers, mystery religions (Eleusinian, Dionysian), Greek gods (Zeus, Athena, Apollo), philosophical schools (Academy, Lyceum, Stoa)
+                   - Who's there: Philosophers, priests, citizens, travelers, mystery cult initiates
+
+                3. End with: "⚡ Time travel initiated!"
+
+                Use metadata.language.
             metadata_add:
-              current_era: "Early World"
-              current_date: "~4000-2350 BC"
+              current_region: "Greece"
+              current_era: "the-users-response"
               epochs_visited: "n+1"
             next_section_and_step: "exploration:who_to_meet"
 
-          patriarchs:
+          rome:
             ai_feedback:
               tokens_for_ai: |
-                User wants patriarchs era (Abraham/Isaac/Jacob/Joseph).
+                User requested Rome: "the-users-response"
 
-                Brief briefing:
-                - Destination: Canaan / Egypt
-                - Time: ~2000-1800 BC
-                - Context: God's covenant with Abraham. Isaac, Jacob, Joseph. NO Temple yet—only altars. Joseph in Egypt.
-                - Who's there: Abraham, Sarah, Isaac, Rebekah, Jacob, Rachel, Joseph, etc.
+                YOUR JOB: Generate briefing for Rome during requested time:
 
-                End with: "⚡ Time travel initiated!"
+                1. Determine time period (or default to 50 BC if unclear):
+                   - ~753-509 BC: Roman Kingdom, founding myths, early religion
+                   - ~509-27 BC: Roman Republic, Cicero, Stoicism arriving
+                   - ~27 BC-313 AD: Roman Empire, emperors, imperial cult, gladiators, Colosseum
+                   - ~64-313 AD: Christian persecution, catacombs, martyrs
+
+                2. Provide briefing:
+                   - Destination: Rome (Forum, Colosseum, catacombs, temples)
+                   - Time: Approximate date
+                   - Spiritual context: Roman gods (Jupiter, Mars, Vesta), emperor worship, Stoic philosophy (Seneca, Marcus Aurelius), mystery cults (Mithras, Isis), early Christianity (if post-33 AD)
+                   - Who's there: Senators, philosophers, priests, augurs, vestals, gladiators, Christians (if applicable)
+
+                3. End with: "⚡ Time travel initiated!"
+
+                Use metadata.language.
             metadata_add:
-              current_era: "Patriarchs"
-              current_date: "~2000-1800 BC"
+              current_region: "Rome"
+              current_era: "the-users-response"
               epochs_visited: "n+1"
             next_section_and_step: "exploration:who_to_meet"
 
-          egypt_moses:
+          india:
             ai_feedback:
               tokens_for_ai: |
-                User wants Moses/Exodus era.
+                User requested India: "the-users-response"
 
-                Brief briefing:
-                - Destination: Egypt, near Nile River
-                - Time: ~1446 BC
-                - Context: Hebrew slaves. Moses confronting Pharaoh. Plagues. Passover coming. NO Temple yet (won't exist for 500+ years). Moses uses simple altars.
-                - Who's there: Moses, Aaron, Miriam, Pharaoh, Hebrew slaves, Egyptians
+                YOUR JOB: Generate briefing for India during requested time:
 
-                End with: "⚡ Time travel initiated!"
+                1. Determine time period (or default to 500 BC if unclear):
+                   - ~1500-500 BC: Vedic period, early Hinduism, Upanishads, Brahmins
+                   - ~563-483 BC: Buddha's lifetime, Buddhism emerging
+                   - ~500 BC-0: Buddhism spreading, Mauryan Empire, Ashoka promotes Buddhism
+                   - ~0-313 AD: Classical period, Hindu revival, Buddhist universities (Nalanda), Mahayana Buddhism
+
+                2. Provide briefing:
+                   - Destination: Varanasi, Bodh Gaya, monasteries, temples, forests
+                   - Time: Approximate date
+                   - Spiritual context: Hinduism (Brahma, Vishnu, Shiva, karma, reincarnation), Buddhism (monks, meditation, sutras), Jainism, yoga, gurus, ascetics
+                   - Who's there: Buddhist monks, Hindu priests, yogis, gurus, pilgrims, seekers
+
+                3. End with: "⚡ Time travel initiated!"
+
+                Use metadata.language.
             metadata_add:
-              current_era: "Egypt & Exodus"
-              current_date: "~1446 BC"
+              current_region: "India"
+              current_era: "the-users-response"
               epochs_visited: "n+1"
             next_section_and_step: "exploration:who_to_meet"
 
-          wilderness_judges:
+          china:
             ai_feedback:
               tokens_for_ai: |
-                User wants wilderness/Joshua/Judges era.
+                User requested China: "the-users-response"
 
-                Brief briefing:
-                - Destination: Canaan / Israel
-                - Time: ~1400-1050 BC
-                - Context: Conquest of Canaan. Judges leading. Tabernacle at Shiloh. NO Temple yet. Cycle of sin and deliverance.
-                - Who's there: Joshua, Caleb, Deborah, Gideon, Samson, Ruth, etc.
+                YOUR JOB: Generate briefing for China during requested time:
 
-                End with: "⚡ Time travel initiated!"
+                1. Determine time period (or default to 500 BC if unclear):
+                   - ~551-479 BC: Confucius lifetime, ethical philosophy
+                   - ~500-221 BC: Warring States, Laozi, Taoism, Hundred Schools of Thought
+                   - ~221 BC-220 AD: Qin/Han dynasties, Confucianism official, Taoism popular
+                   - ~220-313 AD: Buddhism arriving from India, Three Kingdoms
+
+                2. Provide briefing:
+                   - Destination: Courts, temples, mountains (Taoist retreats), cities
+                   - Time: Approximate date
+                   - Spiritual context: Confucianism (virtue, filial piety, social harmony), Taoism (Tao, wu wei, immortality, nature), ancestor worship, divination (I Ching)
+                   - Who's there: Confucian scholars, Taoist hermits, court philosophers, emperors, sages
+
+                3. End with: "⚡ Time travel initiated!"
+
+                Use metadata.language.
             metadata_add:
-              current_era: "Judges Era"
-              current_date: "~1400-1050 BC"
+              current_region: "China"
+              current_era: "the-users-response"
               epochs_visited: "n+1"
             next_section_and_step: "exploration:who_to_meet"
 
-          kingdom:
+          persia:
             ai_feedback:
               tokens_for_ai: |
-                User wants kingdom era (Saul/David/Solomon/kings).
+                User requested Persia: "the-users-response"
 
-                Brief briefing:
-                - Destination: Jerusalem / Israel
-                - Time: ~1000-586 BC
-                - Context: Determine from their request if it's David's time (NO Temple yet, just Tabernacle/Ark) or Solomon's time (FIRST TEMPLE!) or divided kingdom.
-                - Who's there: Depends on specific period—Saul, David, Solomon, kings, prophets
-                - CRITICAL: Temple only exists from Solomon onward (~970 BC)
+                YOUR JOB: Generate briefing for Persia during requested time:
 
-                End with: "⚡ Time travel initiated!"
+                1. Determine time period (or default to 500 BC if unclear):
+                   - ~1500-600 BC: Early Iranian religion, Zoroaster (~628-551 BC)
+                   - ~550-330 BC: Achaemenid Empire, Zoroastrianism official, magi, fire temples
+                   - ~330-224 AD: Parthian period, continued Zoroastrianism, Jewish communities
+                   - ~224-313 AD: Sasanian rise, Zoroastrian revival
+
+                2. Provide briefing:
+                   - Destination: Persepolis, fire temples, magi schools
+                   - Time: Approximate date
+                   - Spiritual context: Zoroastrianism (Ahura Mazda vs Angra Mainyu, fire worship, dualism, magi priests), Jewish exile communities (if 586-538 BC)
+                   - Who's there: Magi (Zoroastrian priests), kings, fire keepers, exiled Jews (if applicable)
+
+                3. End with: "⚡ Time travel initiated!"
+
+                Use metadata.language.
             metadata_add:
-              current_era: "Kingdom Period"
-              current_date: "~1000-586 BC"
+              current_region: "Persia"
+              current_era: "the-users-response"
               epochs_visited: "n+1"
             next_section_and_step: "exploration:who_to_meet"
 
-          exile_prophets:
+          other_world:
             ai_feedback:
               tokens_for_ai: |
-                User wants exile/prophets era.
+                User requested other location: "the-users-response"
 
-                Brief briefing:
-                - Destination: Babylon / ruins of Jerusalem
-                - Time: ~586-538 BC
-                - Context: Temple destroyed (586 BC). Jews exiled to Babylon. Daniel, Ezekiel there. Prophets speaking God's word.
-                - Who's there: Daniel, Ezekiel, Jeremiah (Jerusalem), exiled Jews
+                YOUR JOB: Generate briefing for their requested location during biblical timeline:
 
-                End with: "⚡ Time travel initiated!"
+                Examples:
+                - Arabia: Trade routes, early monotheism, tribal religions
+                - Egypt (non-biblical context): Pharaohs, Egyptian gods (Ra, Osiris, Isis), temples, pyramids
+                - Ethiopia/Nubia: Ancient kingdoms, Egyptian influence, local religions
+                - Britain/Gaul: Celtic druids, tribal spirituality
+                - North Africa: Carthage, Phoenician gods, Punic culture
+
+                1. Determine location and time from their request
+                2. Provide briefing similar to other regions
+                3. End with: "⚡ Time travel initiated!"
+
+                Use metadata.language.
             metadata_add:
-              current_era: "Exile & Prophets"
-              current_date: "~586-538 BC"
-              epochs_visited: "n+1"
-            next_section_and_step: "exploration:who_to_meet"
-
-          jesus:
-            ai_feedback:
-              tokens_for_ai: |
-                User wants Jesus' ministry.
-
-                Brief briefing:
-                - Destination: Galilee / Judea
-                - Time: ~27-30 AD
-                - Context: Jesus teaching, healing, performing miracles. SECOND Temple (Herod's) stands in Jerusalem. Roman occupation.
-                - Who's there: Jesus, disciples, Mary Magdalene, crowds, Pharisees, etc.
-
-                End with: "⚡ Time travel initiated!"
-            metadata_add:
-              current_era: "Jesus' Ministry"
-              current_date: "~27-30 AD"
-              epochs_visited: "n+1"
-            next_section_and_step: "exploration:who_to_meet"
-
-          crucifixion_resurrection:
-            ai_feedback:
-              tokens_for_ai: |
-                User wants crucifixion/resurrection.
-
-                Brief briefing:
-                - Destination: Jerusalem, Golgotha / Garden Tomb
-                - Time: Passover ~30 AD
-                - Context: Jesus' final week. Crucifixion on Friday. Resurrection on Sunday. SECOND Temple still stands.
-                - Who's there: Jesus, disciples, Mary Magdalene, Roman soldiers, crowd
-
-                End with: "⚡ Time travel initiated!"
-            metadata_add:
-              current_era: "Crucifixion & Resurrection"
-              current_date: "~30 AD (Passover)"
-              epochs_visited: "n+1"
-            next_section_and_step: "exploration:who_to_meet"
-
-          early_church:
-            ai_feedback:
-              tokens_for_ai: |
-                User wants early church/Pentecost.
-
-                Brief briefing:
-                - Destination: Jerusalem
-                - Time: ~33-60 AD
-                - Context: Pentecost. Holy Spirit poured out. Church born. Apostles preaching. SECOND Temple still stands (until 70 AD).
-                - Who's there: Peter, John, apostles, new believers, Jewish authorities
-
-                End with: "⚡ Time travel initiated!"
-            metadata_add:
-              current_era: "Early Church"
-              current_date: "~33-60 AD"
-              epochs_visited: "n+1"
-            next_section_and_step: "exploration:who_to_meet"
-
-          paul:
-            ai_feedback:
-              tokens_for_ai: |
-                User wants Paul's missionary journeys.
-
-                Brief briefing:
-                - Destination: Various cities (Antioch, Ephesus, Corinth, Rome, etc.)
-                - Time: ~46-67 AD
-                - Context: Paul planting churches, writing letters. Temple exists until 70 AD. Persecution beginning.
-                - Who's there: Paul, Barnabas, Timothy, Silas, church members
-
-                End with: "⚡ Time travel initiated!"
-            metadata_add:
-              current_era: "Paul's Missions"
-              current_date: "~46-67 AD"
-              epochs_visited: "n+1"
-            next_section_and_step: "exploration:who_to_meet"
-
-          persecution:
-            ai_feedback:
-              tokens_for_ai: |
-                User wants persecution era.
-
-                Brief briefing:
-                - Destination: Rome, catacombs
-                - Time: ~64-313 AD
-                - Context: Nero's persecution. Temple destroyed 70 AD. Christians meeting in secret. Martyrs facing lions. Faith underground.
-                - Who's there: Paul (imprisoned), Peter, martyrs, persecuted believers, church leaders
-
-                End with: "⚡ Time travel initiated!"
-            metadata_add:
-              current_era: "Persecution"
-              current_date: "~64-313 AD"
+              current_region: "Other World"
+              current_era: "the-users-response"
               epochs_visited: "n+1"
             next_section_and_step: "exploration:who_to_meet"
 
@@ -320,8 +333,8 @@ sections:
 
           unclear:
             content_blocks:
-              - "I'm not sure what time period you're requesting. Can you be more specific?"
-              - "Examples: 'Moses', '30 AD', 'Garden of Eden', 'Exodus', 'Jesus', 'David', etc."
+              - "I'm not sure where/when you want to go. Can you be more specific?"
+              - "Examples: '30 AD Greece', 'Moses', '500 BC India', 'Socrates', 'Jesus', 'Rome during Paul's time'"
             counts_as_attempt: false
             next_section_and_step: "time_machine:destination_input"
 
@@ -333,58 +346,120 @@ sections:
     steps:
       - step_id: "who_to_meet"
         title: "Who to Meet"
-        question: "Who would you like to meet in this time period? (Or 'LEAVE' to go somewhere else, 'NEW TIME' for different era)"
+        question: "Who would you like to meet here? (Or type 'EXPLORE' to look around, 'LEAVE' to travel elsewhere)"
         tokens_for_ai: |
-          User is choosing who to meet in their current era (metadata.current_era).
+          User choosing who to meet in metadata.current_region (metadata.current_era).
 
-          This is COMPLETELY OPEN-ENDED. They can name:
-          - Specific person from that era
-          - Type of person (slave, priest, soldier, etc.)
-          - Multiple people
+          This is COMPLETELY OPEN-ENDED and GEOGRAPHY-AWARE. They can request:
+
+          BIBLICAL LANDS:
+          - Biblical figures: Moses, Jesus, David, prophets, apostles, Adam, Eve
+          - Types: slave, priest, shepherd, fisherman, Pharisee, Roman soldier
+
+          GREECE:
+          - Philosophers: Socrates, Plato, Aristotle, Stoics, Epicureans
+          - Religious: Mystery cult priest, oracle at Delphi, priestess
+          - Types: philosopher, citizen, slave, athlete
+
+          ROME:
+          - Philosophers: Seneca, Marcus Aurelius, Cicero
+          - Religious: Vestal virgin, augur, priest of Jupiter, magi
+          - Types: senator, gladiator, soldier, merchant, Christian (if applicable)
+
+          INDIA:
+          - Spiritual: Buddhist monk, Hindu guru, yogi, Brahmin priest
+          - Historical: Ashoka (if ~250 BC), teachers, ascetics
+
+          CHINA:
+          - Philosophers: Confucius, Laozi, Mencius, Zhuangzi
+          - Spiritual: Taoist hermit, Confucian scholar, court sage
+
+          PERSIA:
+          - Religious: Zoroastrian magi, fire temple priest
+          - Historical: Kings (Cyrus, Darius, Xerxes), exiled Jews (if applicable)
 
           Categorize as:
-          - 'meet_someone' if they name a specific person or type
-          - 'leave' if LEAVE, go back, return
-          - 'new_time' if they want different era
-          - 'explore' if they want to look around first
-        buckets: [meet_someone, leave, new_time, explore]
+          - 'meet_someone' if they name specific person or type
+          - 'explore' if EXPLORE, look around, see the place
+          - 'leave' if LEAVE, go elsewhere, new place
+          - 'new_time' if they want different time period
+        buckets: [meet_someone, explore, leave, new_time]
         transitions:
           meet_someone:
             ai_feedback:
               tokens_for_ai: |
-                User wants to meet someone in metadata.current_era (metadata.current_date).
+                User wants to meet: "the-users-response"
 
-                Their request: the-users-response
+                Location: metadata.current_region
+                Era: metadata.current_era
+                Language: metadata.language
 
-                Your job:
-                1. Determine if that person/type exists in this era
-                2. If yes: Describe meeting them (brief - 2-3 sentences)
-                3. If no: Politely explain they aren't in this era
+                YOUR JOB:
+                1. Determine if this person/type exists in this region during this time
+                2. Consider geography: Greek philosophers in Greece, Buddhist monks in India, magi in Persia, biblical figures in biblical lands
+                3. If person exists: Describe meeting them (2-3 sentences) - appearance, setting, first impression
+                4. If person doesn't exist yet/there: Politely explain when/where they can be found, offer alternative
+                5. Be culturally and spiritually respectful of all traditions
+
+                ACCURACY REQUIREMENTS:
+                - Biblical lands: Maintain Temple status accuracy
+                - Greece: Verify philosopher lifespans (Socrates 470-399 BC, Plato 428-348 BC, etc.)
+                - India: Don't place Buddha after his death (483 BC), but his followers exist afterward
+                - China: Confucius 551-479 BC, Laozi ~6th century BC
+                - Rome: Different figures for Republic vs Empire periods
 
                 Use metadata.language for response.
-
-                Be historically accurate about locations (Temple status, cities, etc.).
             metadata_add:
               current_npc: "the-users-response"
               people_met: "n+1"
             next_section_and_step: "exploration:conversation"
 
-          leave:
-            next_section_and_step: "time_machine:destination_input"
-
-          new_time:
-            next_section_and_step: "time_machine:destination_input"
-
           explore:
             ai_feedback:
               tokens_for_ai: |
-                User wants to explore/look around in metadata.current_era (metadata.current_date).
+                User wants to explore/look around.
 
-                Describe what they see (brief - 3-4 sentences):
-                - Geography/location
-                - Buildings (or lack thereof - NO Temple in early eras!)
-                - Activity happening
-                - People present
+                Location: metadata.current_region
+                Era: metadata.current_era
+
+                Describe what they see (3-5 sentences):
+
+                BIBLICAL LANDS:
+                - Geography (desert, hills, Sea of Galilee, etc.)
+                - Temple status (CRITICAL: none before Solomon, First Temple 970-586 BC, Second Temple 516 BC-70 AD, none after 70 AD)
+                - Buildings (tents, stone houses, synagogues, etc.)
+                - Activity (worship, trading, daily life)
+                - People present (specific to era)
+
+                GREECE:
+                - Geography (Acropolis, agora, mountains, Mediterranean)
+                - Buildings (temples to Zeus/Athena/Apollo, Academy, Lyceum, Stoa)
+                - Activity (philosophy debates, Olympics, mystery rites, theater)
+                - People (philosophers, citizens, slaves, priestesses)
+
+                ROME:
+                - Geography (Seven Hills, Tiber River, Forum, Colosseum if applicable)
+                - Buildings (temples, Senate, aqueducts, baths, catacombs if Christian era)
+                - Activity (gladiator fights, politics, emperor worship, philosophy)
+                - People (senators, soldiers, philosophers, Christians if applicable)
+
+                INDIA:
+                - Geography (Ganges River, Himalayas, forests, monasteries)
+                - Buildings (temples, stupas, ashrams, meditation caves)
+                - Activity (meditation, puja, pilgrimage, teaching)
+                - People (monks, gurus, pilgrims, yogis)
+
+                CHINA:
+                - Geography (Yellow River, mountains, imperial palace, temples)
+                - Buildings (Confucian temples, Taoist retreats, palace)
+                - Activity (rituals, philosophy debates, calligraphy, ancestor worship)
+                - People (scholars, emperors, hermits, officials)
+
+                PERSIA:
+                - Geography (Persepolis, fire temples, mountains, palaces)
+                - Buildings (fire temples, royal palaces, magi schools)
+                - Activity (fire worship, royal courts, Zoroastrian rites)
+                - People (magi, kings, fire keepers, possibly exiled Jews)
 
                 End by asking who they'd like to meet.
 
@@ -392,39 +467,90 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "exploration:who_to_meet"
 
+          leave:
+            next_section_and_step: "time_machine:destination_input"
+
+          new_time:
+            next_section_and_step: "time_machine:destination_input"
+
       - step_id: "conversation"
         title: "Conversation"
         question: "What would you like to say or ask?"
         tokens_for_ai: |
-          User conversing with metadata.current_npc in metadata.current_era (metadata.current_date).
+          User conversing with metadata.current_npc in metadata.current_region (metadata.current_era).
 
           Categorize as:
-          - 'theological' for deep questions about God, faith, theology
-          - 'historical' for questions about events, history, context
-          - 'personal' for questions about the NPC's life and experience
-          - 'continue' for statements or comments
+          - 'spiritual' for questions about faith, God(s), enlightenment, meaning, afterlife, spiritual practices
+          - 'philosophical' for questions about ethics, wisdom, virtue, the good life, truth, knowledge
+          - 'historical' for questions about events, politics, wars, daily life, context
+          - 'personal' for questions about the NPC's life, experiences, journey
+          - 'continue' for statements, comments, or general conversation
           - 'done' if goodbye, done talking, want to leave
           - 'someone_else' if they want to meet someone else
           - 'new_time' if they want to go to different era
-          - 'language_change' for language change
-        buckets: [theological, historical, personal, continue, done, someone_else, new_time, language_change]
+          - 'language_change' for language change requests
+        buckets: [spiritual, philosophical, historical, personal, continue, done, someone_else, new_time, language_change]
         transitions:
-          theological:
+          spiritual:
+            ai_feedback:
+              tokens_for_ai: |
+                Respond IN CHARACTER as metadata.current_npc in metadata.current_region.
+
+                Context:
+                - Region: metadata.current_region
+                - Era: metadata.current_era
+                - Language: metadata.language
+
+                Answer their spiritual/religious question authentically based on their tradition:
+
+                BIBLICAL LANDS:
+                - Reference YHWH, biblical scripture, prophecy, covenant, Messiah
+                - Temple status awareness (none/First/Second/destroyed)
+                - Show Jewish/Christian faith perspective
+
+                GREECE:
+                - Reference Greek gods (Zeus, Athena, Apollo), mystery religions, philosophical theology
+                - Discuss fate, divine will, oracle prophecies, the Forms (if Platonist)
+                - Show reverence for gods or rational skepticism (if philosopher)
+
+                ROME:
+                - Reference Roman gods (Jupiter, Mars, Vesta), emperor as divine, Stoic theology
+                - Discuss virtue, logos, providence, duty to gods and state
+                - Show civic piety or philosophical spirituality
+
+                INDIA:
+                - Reference Brahma/Vishnu/Shiva (Hindu) or Buddha/dharma (Buddhist)
+                - Discuss karma, reincarnation, moksha/nirvana, meditation, yoga
+                - Show devotion or detachment as appropriate
+
+                CHINA:
+                - Reference Tian (Heaven), Tao, ancestors, cosmic harmony
+                - Discuss virtue (ren), filial piety, wu wei, yin-yang, harmony
+                - Show Confucian order or Taoist spontaneity
+
+                PERSIA:
+                - Reference Ahura Mazda vs Angra Mainyu (Zoroastrianism)
+                - Discuss fire worship, dualism, truth vs lies, final judgment
+                - Show devotion to truth and purity
+
+                Keep response conversational (not preachy or essay-length).
+                Be respectful of all traditions.
+            next_section_and_step: "exploration:conversation"
+
+          philosophical:
             ai_feedback:
               tokens_for_ai: |
                 Respond IN CHARACTER as metadata.current_npc.
 
-                Context:
-                - Era: metadata.current_era
-                - Date: metadata.current_date
-                - Language: metadata.language
+                Answer their philosophical question based on their tradition:
+                - Greek: Socratic method, Platonic Forms, Aristotelian logic, Stoic virtue, Epicurean pleasure
+                - Chinese: Confucian virtue, Taoist naturalness, moral cultivation
+                - Roman: Stoic duty, Ciceronian rhetoric, practical wisdom
+                - Indian: Dharma, right action, spiritual wisdom
+                - Biblical: Wisdom literature, moral law, divine will
 
-                Answer their theological question with biblical accuracy.
-                Reference scripture if relevant.
-                Show the NPC's faith and perspective.
-                Be historically accurate about locations (Temple, buildings, etc.).
-
-                Keep response conversational (not essay-length).
+                Keep conversational.
+                Use metadata.language.
             next_section_and_step: "exploration:conversation"
 
           historical:
@@ -432,9 +558,11 @@ sections:
               tokens_for_ai: |
                 Respond IN CHARACTER as metadata.current_npc.
 
-                Answer their historical question accurately.
-                Provide context about events, locations, daily life.
-                Be accurate about buildings, Temple status, geography.
+                Answer their historical question accurately:
+                - Events happening in their time
+                - Political context (empires, rulers, wars)
+                - Daily life details
+                - Buildings and geography (Temple status in biblical lands!)
 
                 Use metadata.language.
             next_section_and_step: "exploration:conversation"
@@ -444,8 +572,9 @@ sections:
               tokens_for_ai: |
                 Respond IN CHARACTER as metadata.current_npc.
 
-                Share personal experience, feelings, testimony.
+                Share personal experience, feelings, life story.
                 Be authentic to the time period and person's situation.
+                Show their humanity and spiritual journey.
 
                 Use metadata.language.
             next_section_and_step: "exploration:conversation"
@@ -457,6 +586,7 @@ sections:
 
                 Respond naturally to their statement.
                 Continue the conversation.
+                Show personality and engagement.
 
                 Use metadata.language.
             next_section_and_step: "exploration:conversation"
@@ -465,6 +595,7 @@ sections:
             ai_feedback:
               tokens_for_ai: |
                 The NPC bids them farewell (brief - 1-2 sentences).
+                Appropriate to their culture (Greek formality, Chinese respect, biblical blessing, etc.)
 
                 Use metadata.language.
             next_section_and_step: "exploration:who_to_meet"
