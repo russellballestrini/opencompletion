@@ -38,22 +38,22 @@ jobs:
       run: |
         pytest tests/unit/ -v --tb=short --cov=. --cov-report=term-missing
       env:
-        SQLALCHEMY_DATABASE_URI: sqlite:///:memory:
-        TESTING: 1
+        SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
+        TESTING: "1"
 
     - name: Run functional tests
       run: |
         pytest tests/functional/ -v --tb=short
       env:
-        SQLALCHEMY_DATABASE_URI: sqlite:///:memory:
-        TESTING: 1
+        SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
+        TESTING: "1"
 
     - name: Run integration tests
       run: |
         pytest tests/integration/ -v --tb=short
       env:
-        SQLALCHEMY_DATABASE_URI: sqlite:///:memory:
-        TESTING: 1
+        SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
+        TESTING: "1"
 
     - name: Validate activity YAML files
       run: |
