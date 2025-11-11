@@ -33,12 +33,7 @@
         <div>
             <label for="voice-select">Voice</label>
             <select id="voice-select">
-                <option value="onyx">Onyx</option>
-                <option value="alloy">Alloy</option>
-                <option value="echo">Echo</option>
-                <option value="fable">Fable</option>
-                <option value="nova">Nova</option>
-                <option value="shimmer">Shimmer</option>
+                <!-- Voices will be populated from API -->
             </select>
         </div>
         <div>
@@ -161,7 +156,7 @@ function syncInputsAndQueryString() {
     // Get current values
     const currentUsername = usernameInputDesktop?.value || username || "guest";
     const currentModel = modelSelectDesktop.value;
-    const currentVoice = voiceSelectDesktop.value || 'tts-1:onyx';
+    const currentVoice = voiceSelectDesktop.value;
 
     // Update global username variable
     username = currentUsername;
@@ -261,11 +256,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         });
 
-        // Set initial value from URL or default to first option
+        // Set initial value from URL, localStorage, or first available option
         const urlParams = new URLSearchParams(window.location.search);
-        const initialVoice = urlParams.get("voice") || localStorage.getItem('selectedVoice') || voiceSelectDesktop.options[0]?.value || "tts-1:onyx";
-        voiceSelectDesktop.value = initialVoice;
-        if (voiceSelectMobile) voiceSelectMobile.value = initialVoice;
+        const initialVoice = urlParams.get("voice") || localStorage.getItem('selectedVoice') || voiceSelectDesktop.options[0]?.value;
+        if (initialVoice) {
+            voiceSelectDesktop.value = initialVoice;
+            if (voiceSelectMobile) voiceSelectMobile.value = initialVoice;
+        }
     }
 
     // Memoization with localStorage (1-minute cache)
@@ -322,9 +319,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
             })
             .catch(error => {
                 console.error("Error fetching voices:", error);
-                // Fallback to default voice if fetch fails
-                voiceSelectDesktop.innerHTML = '<option value="tts-1:onyx">tts-1 - onyx</option>';
-                if (voiceSelectMobile) voiceSelectMobile.innerHTML = '<option value="tts-1:onyx">tts-1 - onyx</option>';
+                // Leave dropdown empty if API fails
+                voiceSelectDesktop.innerHTML = '';
+                if (voiceSelectMobile) voiceSelectMobile.innerHTML = '';
             });
     }
 
@@ -339,7 +336,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     // Set initial model, voice, and username from URL, localStorage, or defaults
     const initialModel = urlParams.get("model") || storedModel || "None";
-    const initialVoice = urlParams.get("voice") || storedVoice || "tts-1:onyx";
+    const initialVoice = urlParams.get("voice") || storedVoice || null;
     const initialUsername = username; // Already set to URL param or "guest"
 
     modelSelectDesktop.value = initialModel;
