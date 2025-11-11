@@ -1496,26 +1496,18 @@ async function executeCodeBlock(code, blockElement, playButton) {
                 const errorMsg = job.result?.error || 'Execution failed';
                 const partialOutput = job.result?.partial_output;
 
-                // Debug: log the full job structure to see what's available
-                console.log('Timeout/Cancel - Full job object:', JSON.stringify(job, null, 2));
-                console.log('Artifact locations:');
-                console.log('  job.artifact:', job.artifact);
-                console.log('  job.result.artifact:', job.result?.artifact);
-
                 // Try to fetch artifact separately if not in the main response
+                // Note: Currently the executor service doesn't support this endpoint (returns 404)
+                // but keeping this code for future compatibility
                 let artifact = job.artifact || job.result?.artifact;
                 if (!artifact && job.job_id) {
-                    console.log('Artifact not in job response, trying /jobs/{job_id}/artifact...');
                     try {
                         const artifactResponse = await fetch(`${CODE_EXEC_URL}/jobs/${job.job_id}/artifact`);
                         if (artifactResponse.ok) {
                             artifact = await artifactResponse.json();
-                            console.log('Successfully fetched artifact from separate endpoint:', artifact);
-                        } else {
-                            console.log('Artifact endpoint returned:', artifactResponse.status);
                         }
                     } catch (e) {
-                        console.log('Artifact endpoint not available or failed:', e.message);
+                        // Artifact endpoint not available - this is expected for now
                     }
                 }
 
@@ -1527,7 +1519,6 @@ async function executeCodeBlock(code, blockElement, playButton) {
                         stderr: job.result.stderr || '',
                         artifact: artifact  // Use artifact from any source
                     };
-                    console.log('Final artifact being passed:', resultForDisplay.artifact);
                     displayExecutionResults(resultForDisplay, resultsContainer, language);
 
                     // Prepend error message to the results
