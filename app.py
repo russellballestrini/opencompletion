@@ -336,10 +336,10 @@ def generate_artifact_name():
     """Generate a meaningful filename for an artifact using AI.
 
     Returns a 1-3 word filename with dashes based on what the code does.
-    Respects ENABLE_AI_ARTIFACT_NAMING environment variable (enabled by default).
+    Respects ENABLE_CODE_GEN_FILENAMES environment variable (enabled by default).
     """
     # Check if feature is enabled (default: true)
-    enabled = os.environ.get("ENABLE_AI_ARTIFACT_NAMING", "true").lower() == "true"
+    enabled = os.environ.get("ENABLE_CODE_GEN_FILENAMES", "true").lower() == "true"
     if not enabled:
         return jsonify({"filename": "compiled_binary"})
 
