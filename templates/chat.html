@@ -1368,8 +1368,11 @@ function addCopyButtonToCodeBlock(block, wasTruncated = false) {
     buttonContainer.appendChild(copyButton);
     buttonContainer.appendChild(playButton);
 
-    // Insert the button container after the code block
-    block.parentNode.insertBefore(buttonContainer, block.nextSibling);
+    // Insert the button container after the <pre> element (not inside it)
+    // block is <code>, block.parentNode is <pre>
+    // We want to insert after <pre>, so we use <pre>.parentNode and <pre>.nextSibling
+    const preElement = block.parentNode;
+    preElement.parentNode.insertBefore(buttonContainer, preElement.nextSibling);
 }
 
 // Function to execute code block content
