@@ -1,20 +1,11 @@
 Open Completion
 ========================================
 
-* `opencompletion.com <https://opencompletion.com>`_
+* repo: `opencompletion.com <https://opencompletion.com>`_
 
-* `demo.opencompletion.com running vllm/hermes-llama-3 model <https://demo.opencompletion.com>`_
+* demo: `demo.opencompletion.com <https://demo.opencompletion.com>`_
 
-originally named: flask-socketio-llm-completions
-
-This project is a chatroom application that allows users to join different chat rooms, send messages, and interact with multiple language models in real-time. The backend is built with Flask and Flask-SocketIO for real-time web communication, while the frontend uses HTML, CSS, and JavaScript to provide an interactive user interface.
-
-To view a short video of the chat in action click this screenshot:
-
-.. image:: flask-socketio-llm-completions-2.png
-    :alt: youtube video link image
-    :target: https://www.youtube.com/watch?v=pd3shNtSojY
-    :align: center
+Chatroom applicationallows users to join rooms, send messages, & interact with multiple language models in real-time. Backend written with Flask & Flask-SocketIO for real-time web socket streaming. Frontend uses minimal HTML, CSS, & JavaScript to provide an interactive user interface.
 
 Features
 --------
@@ -38,7 +29,7 @@ Requirements
 - Flask-Migrate
 - eventlet or gevent
 - boto3 (for interacting with AWS Bedrock currently Claude, and S3 access)
-- openai (for interacting with OpenAI's language models)
+- OpenAI client (for interacting with vLLM & Ollama inference servers)
 
 Installation
 ------------
@@ -82,7 +73,8 @@ Other env vars::
 Here are some free endpoint for research only!::
 
     export MODEL_ENDPOINT_1=https://hermes.ai.unturf.com/v1
-    export MODEL_ENDPOINT_2=https://hermes2.ai.unturf.com/v1
+    export MODEL_ENDPOINT_2=https://qwen.ai.unturf.com/v1
+    export MODEL_ENDPOINT_3=https://gpt-oss.ai.unturf.com/v1
 
 To start the application with socket.io run::
 
@@ -111,23 +103,12 @@ The system will process your message and provide a response from the selected la
 Commands
 --------
 
-The application supports special commands for interacting with the chatroom:
+The chatrooms support some special commands:
 
-- ``/s3 load <file_path>``: Loads a file from S3 and displays its content in the chatroom.
-- ``/s3 save <file_path>``: Saves the most recent code block from the chatroom to S3.
-- ``/s3 ls <file_s3_path_pattern>``: Lists files from S3 that match the given pattern. Use ``*`` to list all files.
 - ``/title new``: Generates a new title which reflects conversation content for the current chatroom using gpt-4.
 - ``/cancel``: Cancel the most recent chat completion from streaming into the chatroom.
-- ``/python``: Executes the most recent Python code block sent in the chatroom and returns the output or any errors.
 - ``/help``: Displays the list of commands and models to choose from.
 
-The ``/s3 ls`` command can be used to list files in the connected S3 bucket. You can specify a pattern to filter the files listed. For example:
-
-- ``/s3 ls *`` will list all files in the bucket.
-- ``/s3 ls *.py`` will list all Python files.
-- ``/s3 ls README.*`` will list files starting with "README." and any extension.
-
-The command will return the file name, size in bytes, and the last modified timestamp for each file that matches the pattern.
 
 Structure
 ---------
@@ -179,7 +160,7 @@ The server expects to load the YAML file out of the S3 bucket you specify in you
 Ollama versus vLLM
 -----------------------------
 
-I prefer the ``vllm`` inference server but lot of people like to use ``ollama`` so here is an example::
+We prefer operating an ``vllm`` inference server but some models are packaged exclusively for ``ollama`` so here is an example::
 
  ollama run hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0
 
@@ -195,15 +176,12 @@ Contributing
 
 Contributions to this project are welcome. Please follow the standard fork and pull request workflow.
 
+
 License
 -------
 
 This project is public domain. It is free for use and distribution without any restrictions.
 
 
-Community Growth
-------------------
-
 .. figure:: https://api.star-history.com/svg?repos=russellballestrini/opencompletion&type=Date
    :alt: Star History Chart
-
