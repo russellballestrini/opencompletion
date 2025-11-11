@@ -1496,18 +1496,49 @@ async function executeCodeBlock(code, blockElement, playButton) {
                 const errorMsg = job.result?.error || 'Execution failed';
                 const partialOutput = job.result?.partial_output;
 
-                // Try to fetch artifact separately if not in the main response
-                // Note: Currently the executor service doesn't support this endpoint (returns 404)
-                // but keeping this code for future compatibility
+                // Try to fetch artifact separately - try multiple possible endpoint patterns
                 let artifact = job.artifact || job.result?.artifact;
                 if (!artifact && job.job_id) {
-                    try {
-                        const artifactResponse = await fetch(`${CODE_EXEC_URL}/jobs/${job.job_id}/artifact`);
-                        if (artifactResponse.ok) {
-                            artifact = await artifactResponse.json();
+                    console.log('Artifact not in response, trying alternate endpoints for job:', job.job_id);
+                    const endpoints = [
+                        `${CODE_EXEC_URL}/artifacts/${job.job_id}`,
+                        `${CODE_EXEC_URL}/jobs/${job.job_id}/artifact`,
+                        `${CODE_EXEC_URL}/jobs/${job.job_id}/download`,
+                        `${CODE_EXEC_URL}/jobs/${job.job_id}/binary`,
+                        `${CODE_EXEC_URL}/download/${job.job_id}`,
+                        `${CODE_EXEC_URL}/binary/${job.job_id}`
+                    ];
+
+                    for (const endpoint of endpoints) {
+                        try {
+                            console.log('  Trying:', endpoint);
+                            const artifactResponse = await fetch(endpoint);
+                            console.log('  Status:', artifactResponse.status);
+                            if (artifactResponse.ok) {
+                                const contentType = artifactResponse.headers.get('content-type');
+                                if (contentType && contentType.includes('application/json')) {
+                                    artifact = await artifactResponse.json();
+                                } else {
+                                    // Might be binary data directly - convert to base64
+                                    const blob = await artifactResponse.blob();
+                                    const arrayBuffer = await blob.arrayBuffer();
+                                    const bytes = new Uint8Array(arrayBuffer);
+                                    let binaryString = '';
+                                    for (let i = 0; i < bytes.length; i++) {
+                                        binaryString += String.fromCharCode(bytes[i]);
+                                    }
+                                    artifact = {
+                                        type: 'base64',
+                                        data: btoa(binaryString),
+                                        filename: `compiled_${job.job_id}`
+                                    };
+                                }
+                                console.log('  SUCCESS! Found artifact');
+                                break;
+                            }
+                        } catch (e) {
+                            console.log('  Error:', e.message);
                         }
-                    } catch (e) {
-                        // Artifact endpoint not available - this is expected for now
                     }
                 }
 
