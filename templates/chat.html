@@ -541,10 +541,21 @@ socket.on('update_room_list', function(updatedRoom) {
 // Helper function to enable and wire download button
 function enableDownloadButton(messageId, playButton, audioUrl, voice) {
     const messageWrapper = playButton.closest('.message-wrapper');
-    if (!messageWrapper) return;
+    console.log('enableDownloadButton called:', {messageId, hasWrapper: !!messageWrapper, audioUrl, voice});
+    if (!messageWrapper) {
+        console.error('No message wrapper found for download button');
+        return;
+    }
 
     const downloadButton = messageWrapper.querySelector('.tts-download-button');
-    if (downloadButton && downloadButton.dataset.messageId === messageId) {
+    console.log('Download button found:', {
+        hasButton: !!downloadButton,
+        buttonMessageId: downloadButton?.dataset.messageId,
+        messageId: messageId,
+        match: downloadButton?.dataset.messageId == messageId
+    });
+
+    if (downloadButton && downloadButton.dataset.messageId == messageId) {
         downloadButton.style.display = "inline-block";
         downloadButton.onclick = () => {
             const link = document.createElement('a');
@@ -552,6 +563,7 @@ function enableDownloadButton(messageId, playButton, audioUrl, voice) {
             link.download = `tts-${messageId}-${voice}.mp3`;
             link.click();
         };
+        console.log('Download button enabled and visible');
     }
 }
 
