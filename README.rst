@@ -10,6 +10,8 @@ Chatroom applicationallows users to join rooms, send messages, & interact with m
 Features
 --------
 
+**Core Features:**
+
 - Real-time messaging between users in a chatroom.
 - Ability to join different chatrooms with unique URLs.
 - Integration with language models for generating room titles and processing messages.
@@ -18,6 +20,24 @@ Features
 - Commands to load and save code blocks to AWS S3.
 - Database storage for messages and chatrooms using SQLAlchemy.
 - Migration support with Flask-Migrate.
+
+**Authentication & Privacy (New!):**
+
+- Email OTP (One-Time Password) authentication system
+- User registration with unique display names
+- Session-based authentication with Flask sessions
+- Private rooms (single-user, owner-only access)
+- Public rooms (multi-user, visible to all)
+- Room ownership and access control
+
+**Room Management (New!):**
+
+- Fork any public room to create a copy (public or private)
+- Archive rooms to hide them without deletion
+- Delete rooms permanently (owner-only)
+- Public/Private room tabs in sidebar
+- Room statistics on homepage (active rooms, users, etc.)
+- Owner badges and management buttons
 
 Requirements
 ------------
@@ -64,30 +84,47 @@ Set up environment variables for your AWS, OpenAI, MistralAI, together.ai, grok,
 
 * make a copy of ``vars.sh.sample`` and fill in your API keys!
 
-Other env vars::
-
-    export AWS_ACCESS_KEY_ID="your_access_key"
-    export AWS_SECRET_ACCESS_KEY="your_secret_key"
-    export S3_BUCKET_NAME="your_s3_bucket_name"
-
-Here are some free endpoint for research only!::
+Model endpoint env vars::
 
     export MODEL_ENDPOINT_1=https://hermes.ai.unturf.com/v1
     export MODEL_ENDPOINT_2=https://qwen.ai.unturf.com/v1
     export MODEL_ENDPOINT_3=https://gpt-oss.ai.unturf.com/v1
 
+AWS S3 env vars (optional)::
+
+    export AWS_ACCESS_KEY_ID="your_access_key"
+    export AWS_SECRET_ACCESS_KEY="your_secret_key"
+    export S3_BUCKET_NAME="your_s3_bucket_name"
+
+**Email Authentication (Optional)**
+
+To enable email OTP authentication, configure SMTP settings::
+
+    export SMTP_HOST=smtp.gmail.com
+    export SMTP_PORT=587
+    export SMTP_USER=your@email.com
+    export SMTP_PASSWORD=your_app_password
+    export SMTP_FROM_EMAIL=noreply@opencompletion.com
+    export SMTP_FROM_NAME="OpenCompletion"
+
+If SMTP is not configured, OTP codes will be printed to the console for development/testing.
+
+**Starting the Application**
+
 To start the application with socket.io run::
 
+    source vars.sh
     python app.py
 
 Optionally flags ``python app.py --local-activities --profile <aws-profile-name>``::
 
-    usage: app.py [-h] [--profile PROFILE] [--local-activities]
-    
+    usage: app.py [-h] [--profile PROFILE] [--local-activities] [--port PORT]
+
     options:
       -h, --help          show this help message and exit
       --profile PROFILE   AWS profile name
       --local-activities  Use local activity files instead of S3
+      --port PORT         Port number to run the server on (default: 5001)
 
 
 The application will be available at ``http://127.0.0.1:5001`` by default.
@@ -108,6 +145,45 @@ The chatrooms support some special commands:
 - ``/title new``: Generates a new title which reflects conversation content for the current chatroom using gpt-4.
 - ``/cancel``: Cancel the most recent chat completion from streaming into the chatroom.
 - ``/help``: Displays the list of commands and models to choose from.
+
+
+Authentication & Room Management
+---------------------------------
+
+**User Authentication**
+
+OpenCompletion now supports optional email-based authentication with OTP (One-Time Password):
+
+1. Click "Sign In / Sign Up" on the homepage or in the private rooms tab
+2. Enter your email address
+3. Check your email for a 6-digit verification code
+4. Enter the code to authenticate
+5. (New users only) Choose a unique display name
+
+Once authenticated, you can:
+
+- Create and access private rooms (single-user only)
+- Own and manage public rooms
+- Fork any public room to your private collection
+- Archive or delete your owned rooms
+
+**Room Types**
+
+- **Public Rooms**: Visible to all users, support multiple participants, anyone can join
+- **Private Rooms**: Only visible to the owner, single-user only, require authentication to create
+
+**Room Operations**
+
+- **Fork**: Copy any public room to create a new public or private room (with full message history)
+- **Archive**: Hide a room from the sidebar without deleting it (owner-only)
+- **Delete**: Permanently delete a room and all its messages (owner-only, cannot be undone)
+
+**Privacy & Access Control**
+
+- Unauthenticated users can participate in public rooms
+- Private rooms require authentication and are only accessible by the owner
+- Room owners are indicated with a crown badge 👑
+- All sensitive operations (archive, delete) require ownership verification
 
 
 Structure
@@ -154,6 +230,14 @@ The server expects to load the YAML file out of the S3 bucket you specify in you
 
     .. image:: flask-socketio-llm-completions-battleship.png
         :align: center
+
+6. **Authentication & Private Rooms**:
+
+    The new authentication system allows users to create private, single-user rooms and manage their own room collections.
+
+    .. image:: flask-socketio-llm-completions.png
+        :align: center
+        :alt: Authentication and Room Management UI
 
 
 
