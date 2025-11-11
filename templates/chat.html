@@ -545,7 +545,7 @@ function enableDownloadButton(messageId, playButton, audioUrl, voice) {
 
     const downloadButton = messageWrapper.querySelector('.tts-download-button');
     if (downloadButton && downloadButton.dataset.messageId === messageId) {
-        downloadButton.style.display = "";
+        downloadButton.style.display = "inline-block";
         downloadButton.onclick = () => {
             const link = document.createElement('a');
             link.href = audioUrl;
@@ -950,6 +950,14 @@ socket.on("previous_messages", (data) => {
     playButton.textContent = "Play";
     playButton.onclick = () => speakText(data.content, playButton, data.id);
     buttonContainer.appendChild(playButton);
+
+    // Create the download button for TTS audio (hidden initially)
+    const downloadButton = document.createElement("button");
+    downloadButton.textContent = "Download";
+    downloadButton.className = "tts-download-button";
+    downloadButton.style.display = "none";
+    downloadButton.dataset.messageId = data.id;
+    buttonContainer.appendChild(downloadButton);
 
     messageWrapper.appendChild(buttonContainer);
     messageWrapper.appendChild(newMessage);
