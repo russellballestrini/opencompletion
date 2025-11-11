@@ -870,10 +870,10 @@ socket.on("chat_message", (data) => {
 
     // Apply syntax highlighting to code blocks within the message
     newMessage.querySelectorAll("pre code").forEach((block) => {
-        addCopyButtonToCodeBlock(block);
-        truncateCodeBlock(block);
+        const wasTruncated = truncateCodeBlock(block);
         hljs.highlightElement(block);
         addLineNumbers(block);
+        addCopyButtonToCodeBlock(block, wasTruncated);
     });
 
     // Scroll to the bottom of the chat container to show the new message.
@@ -967,10 +967,10 @@ socket.on("previous_messages", (data) => {
 
     // Apply syntax highlighting to code blocks within the message
     newMessage.querySelectorAll("pre code").forEach((block) => {
-        addCopyButtonToCodeBlock(block);
-        truncateCodeBlock(block);
+        const wasTruncated = truncateCodeBlock(block);
         hljs.highlightElement(block);
         addLineNumbers(block);
+        addCopyButtonToCodeBlock(block, wasTruncated);
     });
 
     // Scroll to the bottom of the chat container
@@ -1060,9 +1060,10 @@ socket.on("message_chunk", (data) => {
 
     // Apply syntax highlighting to code blocks within the content
     targetMessageElement.querySelectorAll("pre code").forEach((block) => {
-        addCopyButtonToCodeBlock(block);
+        const wasTruncated = truncateCodeBlock(block);
         hljs.highlightElement(block);
         addLineNumbers(block);
+        addCopyButtonToCodeBlock(block, wasTruncated);
     });
 
     // Scroll to the bottom of the chat container, but skip it if the user has scrolled up.
@@ -1172,10 +1173,10 @@ socket.on("message_updated", (data) => {
 
         // Apply syntax highlighting and other functionalities to code blocks within the message
         messageContentContainer.querySelectorAll("pre code").forEach((block) => {
-            addCopyButtonToCodeBlock(block);
-            truncateCodeBlock(block);
+            const wasTruncated = truncateCodeBlock(block);
             hljs.highlightElement(block);
             addLineNumbers(block);
+            addCopyButtonToCodeBlock(block, wasTruncated);
         });
     }
 });
@@ -1282,42 +1283,34 @@ function truncateCodeBlock(block, maxLines = 100) {
         const truncatedText = lines.slice(0, maxLines).join('\n') + '\n...';
         block.textContent = truncatedText;
 
-        // Create a container for bottom buttons
-        const bottomButtonContainer = document.createElement('div');
-        bottomButtonContainer.classList.add('code-block-bottom-buttons');
-        bottomButtonContainer.style.display = 'flex';
-        bottomButtonContainer.style.gap = '8px';
-        bottomButtonContainer.style.marginTop = '8px';
+        // Store truncated text for Show More/Show Less toggle
+        block.dataset.truncatedText = truncatedText;
 
-        // Create the expand button
+        return true; // Indicate that the block was truncated
+    }
+    return false; // Indicate that the block was not truncated
+}
+
+
+// Modify the addCopyButtonToCodeBlock function to use the full content
+function addCopyButtonToCodeBlock(block, wasTruncated = false) {
+    // Check if the full content is stored in a data attribute, otherwise use textContent
+    const contentToCopy = block.dataset.fullContent || block.textContent;
+
+    // Create a container for the buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.classList.add('code-block-button-container');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.gap = '8px';
+    buttonContainer.style.marginTop = '8px';
+
+    // If truncated, add a "Show More" button
+    if (wasTruncated) {
         const expandButton = document.createElement('button');
         expandButton.textContent = 'Show More';
         expandButton.classList.add('show-more-button');
 
-        // Create bottom copy button
-        const bottomCopyButton = document.createElement('button');
-        bottomCopyButton.textContent = 'Copy';
-        bottomCopyButton.classList.add('copy-button');
-        bottomCopyButton.onclick = function() {
-            const contentToCopy = block.dataset.fullContent || block.textContent;
-            navigator.clipboard.writeText(contentToCopy).then(() => {
-                bottomCopyButton.textContent = 'Copied!';
-                setTimeout(() => {
-                    bottomCopyButton.textContent = 'Copy';
-                }, 2000);
-            }).catch(err => {
-                console.error('Error copying text: ', err);
-            });
-        };
-
-        // Create bottom run button
-        const bottomPlayButton = document.createElement('button');
-        bottomPlayButton.textContent = '▶ Run';
-        bottomPlayButton.classList.add('play-button');
-        bottomPlayButton.onclick = function() {
-            const contentToRun = block.dataset.fullContent || block.textContent;
-            executeCodeBlock(contentToRun, block, bottomPlayButton);
-        };
+        const truncatedText = block.dataset.truncatedText;
 
         expandButton.onclick = function() {
             // Restore the full content from the data attribute
@@ -1343,33 +1336,13 @@ function truncateCodeBlock(block, maxLines = 100) {
         // Keep a reference to the original expand function
         const originalExpandFunction = expandButton.onclick;
 
-        // Add all buttons to container
-        bottomButtonContainer.appendChild(expandButton);
-        bottomButtonContainer.appendChild(bottomCopyButton);
-        bottomButtonContainer.appendChild(bottomPlayButton);
-
-        // Insert the button container after the code block
-        block.parentNode.insertBefore(bottomButtonContainer, block.nextSibling);
+        buttonContainer.appendChild(expandButton);
     }
-}
-
-
-// Modify the addCopyButtonToCodeBlock function to use the full content
-function addCopyButtonToCodeBlock(block) {
-    // Check if the full content is stored in a data attribute, otherwise use textContent
-    const contentToCopy = block.dataset.fullContent || block.textContent;
-
-    // Create a container for the buttons
-    const buttonContainer = document.createElement('div');
-    buttonContainer.classList.add('code-block-button-container');
-    buttonContainer.style.display = 'flex';
-    buttonContainer.style.gap = '8px';
-    buttonContainer.style.marginBottom = '8px';
 
     // Create a button to copy the code block's content
     const copyButton = document.createElement('button');
     copyButton.textContent = 'Copy';
-    copyButton.classList.add('copy-button'); // Add a class for styling if needed
+    copyButton.classList.add('copy-button');
     copyButton.onclick = function() {
         // Copy the content to the clipboard
         navigator.clipboard.writeText(contentToCopy).then(() => {
@@ -1395,8 +1368,8 @@ function addCopyButtonToCodeBlock(block) {
     buttonContainer.appendChild(copyButton);
     buttonContainer.appendChild(playButton);
 
-    // Insert the button container before the code block
-    block.parentNode.insertBefore(buttonContainer, block);
+    // Insert the button container after the code block
+    block.parentNode.insertBefore(buttonContainer, block.nextSibling);
 }
 
 // Function to execute code block content
