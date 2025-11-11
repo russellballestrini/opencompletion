@@ -33,12 +33,7 @@
         <div>
             <label for="voice-select">Voice</label>
             <select id="voice-select">
-                <option value="onyx">Onyx</option>
-                <option value="alloy">Alloy</option>
-                <option value="echo">Echo</option>
-                <option value="fable">Fable</option>
-                <option value="nova">Nova</option>
-                <option value="shimmer">Shimmer</option>
+                <!-- Voices will be populated from API -->
             </select>
         </div>
         <div>
@@ -161,7 +156,7 @@ function syncInputsAndQueryString() {
     // Get current values
     const currentUsername = usernameInputDesktop?.value || username || "guest";
     const currentModel = modelSelectDesktop.value;
-    const currentVoice = voiceSelectDesktop.value || 'tts-1:onyx';
+    const currentVoice = voiceSelectDesktop.value;
 
     // Update global username variable
     username = currentUsername;
@@ -261,11 +256,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         });
 
-        // Set initial value from URL or default to first option
+        // Set initial value from URL, localStorage, or first available option
         const urlParams = new URLSearchParams(window.location.search);
-        const initialVoice = urlParams.get("voice") || localStorage.getItem('selectedVoice') || voiceSelectDesktop.options[0]?.value || "tts-1:onyx";
-        voiceSelectDesktop.value = initialVoice;
-        if (voiceSelectMobile) voiceSelectMobile.value = initialVoice;
+        const initialVoice = urlParams.get("voice") || localStorage.getItem('selectedVoice') || voiceSelectDesktop.options[0]?.value;
+        if (initialVoice) {
+            voiceSelectDesktop.value = initialVoice;
+            if (voiceSelectMobile) voiceSelectMobile.value = initialVoice;
+        }
     }
 
     // Memoization with localStorage (1-minute cache)
@@ -322,9 +319,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
             })
             .catch(error => {
                 console.error("Error fetching voices:", error);
-                // Fallback to default voice if fetch fails
-                voiceSelectDesktop.innerHTML = '<option value="tts-1:onyx">tts-1 - onyx</option>';
-                if (voiceSelectMobile) voiceSelectMobile.innerHTML = '<option value="tts-1:onyx">tts-1 - onyx</option>';
+                // Leave dropdown empty if API fails
+                voiceSelectDesktop.innerHTML = '';
+                if (voiceSelectMobile) voiceSelectMobile.innerHTML = '';
             });
     }
 
@@ -339,7 +336,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     // Set initial model, voice, and username from URL, localStorage, or defaults
     const initialModel = urlParams.get("model") || storedModel || "None";
-    const initialVoice = urlParams.get("voice") || storedVoice || "tts-1:onyx";
+    const initialVoice = urlParams.get("voice") || storedVoice || null;
     const initialUsername = username; // Already set to URL param or "guest"
 
     modelSelectDesktop.value = initialModel;
@@ -541,6 +538,24 @@ socket.on('update_room_list', function(updatedRoom) {
     }
 });
 
+// Helper function to enable and wire download button
+function enableDownloadButton(messageId, playButton, audioUrl, voice) {
+    const messageWrapper = playButton.closest('.message-wrapper');
+    if (!messageWrapper) return;
+
+    const downloadButton = messageWrapper.querySelector('.tts-download-button');
+    // Use == instead of === because dataset values are strings, messageId might be number
+    if (downloadButton && downloadButton.dataset.messageId == messageId) {
+        downloadButton.style.display = "inline-block";
+        downloadButton.onclick = () => {
+            const link = document.createElement('a');
+            link.href = audioUrl;
+            link.download = `tts-${messageId}-${voice}.mp3`;
+            link.click();
+        };
+    }
+}
+
 // Function to read text using TTS (for manual button clicks)
 async function speakText(text, playButton, messageId) {
     console.log("speakText called with:", {text: text, messageId, autoPlay: autoPlayTTS});
@@ -557,6 +572,7 @@ async function speakText(text, playButton, messageId) {
         // Check if the audio is already cached
         if (audioCache[cacheKey]) {
             const audio = audioCache[cacheKey];
+            enableDownloadButton(messageId, playButton, audio.src, voice);
             toggleAudioPlayback(audio, playButton);
             return;
         }
@@ -589,6 +605,9 @@ async function speakText(text, playButton, messageId) {
 
         // Cache the audio only after it is successfully created
         audioCache[cacheKey] = audio;
+
+        // Enable and show download button
+        enableDownloadButton(messageId, playButton, audioUrl, voice);
 
         // Enable button and change text to "Pause"
         playButton.disabled = false;
@@ -627,7 +646,9 @@ async function speakTextQueued(text, playButton, messageId) {
 
         // Check if audio is cached
         if (audioCache[cacheKey]) {
-            playAudio(audioCache[cacheKey]);
+            const audio = audioCache[cacheKey];
+            enableDownloadButton(messageId, playButton, audio.src, voice);
+            playAudio(audio);
             return;
         }
 
@@ -655,6 +676,10 @@ async function speakTextQueued(text, playButton, messageId) {
             const audio = new Audio(audioUrl);
             audio.playbackRate = 0.9;
             audioCache[cacheKey] = audio;
+
+            // Enable and show download button
+            enableDownloadButton(messageId, playButton, audioUrl, voice);
+
             playAudio(audio);
         })
         .catch(reject);
@@ -828,6 +853,14 @@ socket.on("chat_message", (data) => {
         playButton.onclick = () => speakText(data.content, playButton, data.id);
         buttonContainer.appendChild(playButton);
 
+        // Create the download button for TTS audio (hidden initially)
+        const downloadButton = document.createElement("button");
+        downloadButton.textContent = "Download";
+        downloadButton.className = "tts-download-button";
+        downloadButton.style.display = "none";
+        downloadButton.dataset.messageId = data.id;
+        buttonContainer.appendChild(downloadButton);
+
         messageWrapper.appendChild(buttonContainer);
     }
 
@@ -918,6 +951,14 @@ socket.on("previous_messages", (data) => {
     playButton.textContent = "Play";
     playButton.onclick = () => speakText(data.content, playButton, data.id);
     buttonContainer.appendChild(playButton);
+
+    // Create the download button for TTS audio (hidden initially)
+    const downloadButton = document.createElement("button");
+    downloadButton.textContent = "Download";
+    downloadButton.className = "tts-download-button";
+    downloadButton.style.display = "none";
+    downloadButton.dataset.messageId = data.id;
+    buttonContainer.appendChild(downloadButton);
 
     messageWrapper.appendChild(buttonContainer);
     messageWrapper.appendChild(newMessage);
@@ -1064,6 +1105,14 @@ socket.on("message_chunk", (data) => {
             speakText(cleanText, playButton, data.id);
         };
         buttonContainer.appendChild(playButton);
+
+        // Create the download button for TTS audio (hidden initially)
+        const downloadButton = document.createElement("button");
+        downloadButton.textContent = "Download";
+        downloadButton.className = "tts-download-button";
+        downloadButton.style.display = "none";
+        downloadButton.dataset.messageId = data.id;
+        buttonContainer.appendChild(downloadButton);
 
         // Insert the button container at the beginning of the message wrapper (before header and content)
         messageWrapper.insertBefore(buttonContainer, messageWrapper.firstChild);
