@@ -243,3 +243,40 @@ test-info:
 	@echo "🎯 Key Test Commands:"
 	@echo "   make test           - Run all tests"
 	@echo "   make validate-yaml  - Validate all YAML files"
+# ============================================================================
+# CODE EXECUTOR API TESTING
+# ============================================================================
+
+# Test artifact retrieval - compile C code, get base64 binary, decode and test execution
+# URL can be overridden: make test-artifact URL=https://code.ai.unturf.com
+.PHONY: test-artifact
+test-artifact:
+	$(eval URL ?= http://127.0.0.1:8080)
+	@echo "=========================================="
+	@echo "Testing Binary Artifact Retrieval"
+	@echo "=========================================="
+	@echo "API: $(URL)"
+	@echo ""
+	@echo "Step 1: Compiling C code and retrieving base64 binary..."
+	@curl -s -X POST $(URL)/execute \
+		-H "Content-Type: application/json" \
+		-d '{"language": "c", "code": "#include <stdio.h>\nint main() { printf(\"Hello from artifact!\\n\"); return 0; }", "return_artifact": true}' \
+		| jq -r '.stdout.artifact.data' > /tmp/artifact.b64
+	@echo "✓ Base64 artifact saved to /tmp/artifact.b64"
+	@echo "  Size: $$(wc -c < /tmp/artifact.b64) bytes (base64)"
+	@echo ""
+	@echo "Step 2: Decoding base64 to binary..."
+	@base64 -d /tmp/artifact.b64 > /tmp/artifact_binary
+	@chmod +x /tmp/artifact_binary
+	@echo "✓ Binary decoded to /tmp/artifact_binary"
+	@echo "  Size: $$(wc -c < /tmp/artifact_binary) bytes (ELF binary)"
+	@echo ""
+	@echo "Step 3: Verifying ELF binary..."
+	@file /tmp/artifact_binary
+	@echo ""
+	@echo "Step 4: Executing binary..."
+	@/tmp/artifact_binary
+	@echo ""
+	@echo "✓ Artifact test complete!"
+	@echo ""
+	@echo "Cleanup: rm /tmp/artifact.b64 /tmp/artifact_binary"

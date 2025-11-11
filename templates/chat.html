@@ -1492,16 +1492,50 @@ async function executeCodeBlock(code, blockElement, playButton) {
                     break;
                 }
 
-                // timeout or cancelled
+                // timeout or cancelled - display results and artifact if available
                 const errorMsg = job.result?.error || 'Execution failed';
                 const partialOutput = job.result?.partial_output;
 
-                let outputHtml = `<div style="color: var(--text-error); font-weight: bold;">${escapeHtml(errorMsg)}</div>`;
-                if (partialOutput) {
-                    outputHtml += '<div style="color: var(--text-muted); margin-top: 8px;">Partial output before timeout:</div>';
-                    outputHtml += `<div style="color: var(--text-primary); margin-left: 10px;">${escapeHtml(partialOutput)}</div>`;
+                // CONFIRMED via testing (make test-artifact): Executor service does NOT
+                // include artifact field in GET /jobs/{id} response for cancelled jobs
+                // (exit_code 137 = SIGKILL), even when return_artifact=true was requested.
+                // Artifacts only included for fully completed jobs (exit_code 0).
+                //
+                // The code below checks for artifact anyway in case this gets fixed in the
+                // future, but currently it will always be undefined for cancelled/timeout.
+                const artifact = job.artifact || job.result?.artifact;
+
+                // Build result object that displayExecutionResults can understand
+                // For timeout/cancelled, partial_output contains the output before timeout
+                if (job.result) {
+                    const resultForDisplay = {
+                        stdout: partialOutput || job.result.stdout || '',
+                        stderr: job.result.stderr || '',
+                        artifact: artifact
+                    };
+                    displayExecutionResults(resultForDisplay, resultsContainer, language);
+
+                    // Prepend error message to the results
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.color = 'var(--text-error)';
+                    errorDiv.style.fontWeight = 'bold';
+                    errorDiv.style.marginBottom = '8px';
+                    errorDiv.textContent = errorMsg;
+                    resultsContainer.insertBefore(errorDiv, resultsContainer.firstChild);
+
+                    // Add note if there was partial output
+                    if (partialOutput) {
+                        const partialNote = document.createElement('div');
+                        partialNote.style.color = 'var(--text-muted)';
+                        partialNote.style.fontSize = '12px';
+                        partialNote.style.marginBottom = '8px';
+                        partialNote.textContent = '(Output before timeout/cancellation)';
+                        resultsContainer.insertBefore(partialNote, resultsContainer.children[1]);
+                    }
+                } else {
+                    // No result object at all, just show error
+                    resultsContainer.innerHTML = `<div style="color: var(--text-error); font-weight: bold;">${escapeHtml(errorMsg)}</div>`;
                 }
-                resultsContainer.innerHTML = outputHtml;
                 break;
             }
 
