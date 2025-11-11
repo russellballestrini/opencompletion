@@ -1282,6 +1282,12 @@ function truncateCodeBlock(block, maxLines = 100) {
         const truncatedText = lines.slice(0, maxLines).join('\n') + '\n...';
         block.textContent = truncatedText;
 
+        // Remove any existing button container from addCopyButtonToCodeBlock to avoid duplication
+        const existingButtonContainer = block.parentNode.querySelector('.code-block-button-container');
+        if (existingButtonContainer) {
+            existingButtonContainer.remove();
+        }
+
         // Create a container for bottom buttons
         const bottomButtonContainer = document.createElement('div');
         bottomButtonContainer.classList.add('code-block-bottom-buttons');
@@ -1395,8 +1401,8 @@ function addCopyButtonToCodeBlock(block) {
     buttonContainer.appendChild(copyButton);
     buttonContainer.appendChild(playButton);
 
-    // Insert the button container before the code block
-    block.parentNode.insertBefore(buttonContainer, block);
+    // Insert the button container after the code block
+    block.parentNode.insertBefore(buttonContainer, block.nextSibling);
 }
 
 // Function to execute code block content
