@@ -1492,55 +1492,16 @@ async function executeCodeBlock(code, blockElement, playButton) {
                     break;
                 }
 
-                // timeout or cancelled - still try to display results and binary if available
+                // timeout or cancelled - display results and artifact if available
                 const errorMsg = job.result?.error || 'Execution failed';
                 const partialOutput = job.result?.partial_output;
 
-                // Try to fetch artifact separately - try multiple possible endpoint patterns
-                let artifact = job.artifact || job.result?.artifact;
-                if (!artifact && job.job_id) {
-                    console.log('Artifact not in response, trying alternate endpoints for job:', job.job_id);
-                    const endpoints = [
-                        `${CODE_EXEC_URL}/artifacts/${job.job_id}`,
-                        `${CODE_EXEC_URL}/jobs/${job.job_id}/artifact`,
-                        `${CODE_EXEC_URL}/jobs/${job.job_id}/download`,
-                        `${CODE_EXEC_URL}/jobs/${job.job_id}/binary`,
-                        `${CODE_EXEC_URL}/download/${job.job_id}`,
-                        `${CODE_EXEC_URL}/binary/${job.job_id}`
-                    ];
-
-                    for (const endpoint of endpoints) {
-                        try {
-                            console.log('  Trying:', endpoint);
-                            const artifactResponse = await fetch(endpoint);
-                            console.log('  Status:', artifactResponse.status);
-                            if (artifactResponse.ok) {
-                                const contentType = artifactResponse.headers.get('content-type');
-                                if (contentType && contentType.includes('application/json')) {
-                                    artifact = await artifactResponse.json();
-                                } else {
-                                    // Might be binary data directly - convert to base64
-                                    const blob = await artifactResponse.blob();
-                                    const arrayBuffer = await blob.arrayBuffer();
-                                    const bytes = new Uint8Array(arrayBuffer);
-                                    let binaryString = '';
-                                    for (let i = 0; i < bytes.length; i++) {
-                                        binaryString += String.fromCharCode(bytes[i]);
-                                    }
-                                    artifact = {
-                                        type: 'base64',
-                                        data: btoa(binaryString),
-                                        filename: `compiled_${job.job_id}`
-                                    };
-                                }
-                                console.log('  SUCCESS! Found artifact');
-                                break;
-                            }
-                        } catch (e) {
-                            console.log('  Error:', e.message);
-                        }
-                    }
-                }
+                // Get artifact from response (if executor service includes it)
+                // Note: Currently the executor service does NOT include artifact
+                // in the GET /jobs/{id} response for cancelled/timeout jobs,
+                // even though it does for completed jobs. This is a limitation
+                // of the executor service that needs to be fixed there.
+                const artifact = job.artifact || job.result?.artifact;
 
                 // Build result object that displayExecutionResults can understand
                 // For timeout/cancelled, partial_output contains the output before timeout
@@ -1548,7 +1509,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
                     const resultForDisplay = {
                         stdout: partialOutput || job.result.stdout || '',
                         stderr: job.result.stderr || '',
-                        artifact: artifact  // Use artifact from any source
+                        artifact: artifact
                     };
                     displayExecutionResults(resultForDisplay, resultsContainer, language);
 
