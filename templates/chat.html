@@ -541,6 +541,23 @@ socket.on('update_room_list', function(updatedRoom) {
     }
 });
 
+// Helper function to enable and wire download button
+function enableDownloadButton(messageId, playButton, audioUrl, voice) {
+    const messageWrapper = playButton.closest('.message-wrapper');
+    if (!messageWrapper) return;
+
+    const downloadButton = messageWrapper.querySelector('.tts-download-button');
+    if (downloadButton && downloadButton.dataset.messageId === messageId) {
+        downloadButton.style.display = "";
+        downloadButton.onclick = () => {
+            const link = document.createElement('a');
+            link.href = audioUrl;
+            link.download = `tts-${messageId}-${voice}.mp3`;
+            link.click();
+        };
+    }
+}
+
 // Function to read text using TTS (for manual button clicks)
 async function speakText(text, playButton, messageId) {
     console.log("speakText called with:", {text: text, messageId, autoPlay: autoPlayTTS});
@@ -557,24 +574,7 @@ async function speakText(text, playButton, messageId) {
         // Check if the audio is already cached
         if (audioCache[cacheKey]) {
             const audio = audioCache[cacheKey];
-
-            // Enable and show download button if audio is cached
-            const messageWrapper = playButton.closest('.message-wrapper');
-            if (messageWrapper) {
-                const downloadButton = messageWrapper.querySelector('.tts-download-button');
-                if (downloadButton && downloadButton.dataset.messageId === messageId) {
-                    downloadButton.style.display = "";
-                    if (!downloadButton.onclick) {
-                        downloadButton.onclick = () => {
-                            const link = document.createElement('a');
-                            link.href = audio.src;
-                            link.download = `tts-${messageId}-${voice}.mp3`;
-                            link.click();
-                        };
-                    }
-                }
-            }
-
+            enableDownloadButton(messageId, playButton, audio.src, voice);
             toggleAudioPlayback(audio, playButton);
             return;
         }
@@ -609,19 +609,7 @@ async function speakText(text, playButton, messageId) {
         audioCache[cacheKey] = audio;
 
         // Enable and show download button
-        const messageWrapper = playButton.closest('.message-wrapper');
-        if (messageWrapper) {
-            const downloadButton = messageWrapper.querySelector('.tts-download-button');
-            if (downloadButton && downloadButton.dataset.messageId === messageId) {
-                downloadButton.style.display = "";
-                downloadButton.onclick = () => {
-                    const link = document.createElement('a');
-                    link.href = audioUrl;
-                    link.download = `tts-${messageId}-${voice}.mp3`;
-                    link.click();
-                };
-            }
-        }
+        enableDownloadButton(messageId, playButton, audioUrl, voice);
 
         // Enable button and change text to "Pause"
         playButton.disabled = false;
@@ -661,24 +649,7 @@ async function speakTextQueued(text, playButton, messageId) {
         // Check if audio is cached
         if (audioCache[cacheKey]) {
             const audio = audioCache[cacheKey];
-
-            // Enable and show download button if audio is cached
-            const messageWrapper = playButton.closest('.message-wrapper');
-            if (messageWrapper) {
-                const downloadButton = messageWrapper.querySelector('.tts-download-button');
-                if (downloadButton && downloadButton.dataset.messageId === messageId) {
-                    downloadButton.style.display = "";
-                    if (!downloadButton.onclick) {
-                        downloadButton.onclick = () => {
-                            const link = document.createElement('a');
-                            link.href = audio.src;
-                            link.download = `tts-${messageId}-${voice}.mp3`;
-                            link.click();
-                        };
-                    }
-                }
-            }
-
+            enableDownloadButton(messageId, playButton, audio.src, voice);
             playAudio(audio);
             return;
         }
@@ -709,19 +680,7 @@ async function speakTextQueued(text, playButton, messageId) {
             audioCache[cacheKey] = audio;
 
             // Enable and show download button
-            const messageWrapper = playButton.closest('.message-wrapper');
-            if (messageWrapper) {
-                const downloadButton = messageWrapper.querySelector('.tts-download-button');
-                if (downloadButton && downloadButton.dataset.messageId === messageId) {
-                    downloadButton.style.display = "";
-                    downloadButton.onclick = () => {
-                        const link = document.createElement('a');
-                        link.href = audioUrl;
-                        link.download = `tts-${messageId}-${voice}.mp3`;
-                        link.click();
-                    };
-                }
-            }
+            enableDownloadButton(messageId, playButton, audioUrl, voice);
 
             playAudio(audio);
         })
