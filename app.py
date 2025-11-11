@@ -331,6 +331,83 @@ def get_activities():
     return jsonify({"activities": activities})
 
 
+@app.route("/api/generate-artifact-name", methods=["POST"])
+def generate_artifact_name():
+    """Generate a meaningful filename for an artifact using AI.
+
+    Returns a 1-3 word filename with dashes based on what the code does.
+    Respects ENABLE_CODE_GEN_FILENAMES environment variable (enabled by default).
+    """
+    # Check if feature is enabled (default: true)
+    enabled = os.environ.get("ENABLE_CODE_GEN_FILENAMES", "true").lower() == "true"
+    if not enabled:
+        return jsonify({"filename": "compiled_binary"})
+
+    try:
+        data = request.get_json()
+        code = data.get("code", "")
+        language = data.get("language", "")
+
+        if not code:
+            return jsonify({"filename": "compiled_binary"})
+
+        # Use MODEL_1 (Hermes) to generate filename
+        client, model = get_openai_client_and_model("MODEL_1")
+
+        system_prompt = """You are a filename generator. Given code, generate a SHORT, descriptive filename that represents what the code does.
+
+Rules:
+- Output ONLY the filename, nothing else
+- Use 1-3 words maximum
+- Use lowercase with dashes between words (e.g., "fizzbuzz" or "hello-world" or "prime-checker")
+- NO file extension
+- NO explanations or commentary
+- Be specific about what the code does
+
+Examples:
+- Code that prints "Hello World" → "hello-world"
+- Code that checks for prime numbers → "prime-checker"
+- Code that plays FizzBuzz → "fizzbuzz"
+- Code that sorts an array → "array-sort"
+- Code that calculates factorial → "factorial"
+"""
+
+        user_prompt = f"Language: {language}\n\nCode:\n{code}\n\nGenerate filename:"
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.3,
+            max_tokens=20
+        )
+
+        filename = response.choices[0].message.content.strip()
+
+        # Clean up the filename (remove quotes, extensions, whitespace)
+        filename = filename.strip('"\'')
+        filename = filename.split('.')[0]  # Remove any extension
+        filename = filename.replace(' ', '-')
+        filename = filename.lower()
+
+        # Validate filename (alphanumeric and dashes only)
+        import re
+        if not re.match(r'^[a-z0-9-]+$', filename):
+            filename = "compiled_binary"
+
+        # Ensure it's not too long (max 50 chars)
+        if len(filename) > 50:
+            filename = filename[:50]
+
+        return jsonify({"filename": filename})
+
+    except Exception as e:
+        print(f"Error generating artifact name: {e}")
+        return jsonify({"filename": "compiled_binary"})
+
+
 @app.route("/chat/<room_name>")
 def chat(room_name):
     # Query all rooms so that newest is first.

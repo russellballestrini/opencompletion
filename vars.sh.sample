@@ -35,3 +35,7 @@ export MODEL_API_KEY_8="gone"
 # Anthropic Platform
 export MODEL_ENDPOINT_9="https://api.anthropic.com/v1"
 export MODEL_API_KEY_9="gone"
+
+# Enable code-generated filenames (enabled by default: "true", disabled: "false")
+# When enabled, uses Hermes AI to generate meaningful 1-3 word filenames for downloaded binaries
+export ENABLE_CODE_GEN_FILENAMES="true"

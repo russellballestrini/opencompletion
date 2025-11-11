@@ -1495,7 +1495,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
 
                 if (job.status === 'completed') {
                     const result = job.result;
-                    displayExecutionResults(result, resultsContainer, language);
+                    displayExecutionResults(result, resultsContainer, language, code);
                     break;
                 }
 
@@ -1520,7 +1520,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
                         stderr: job.result.stderr || '',
                         artifact: artifact
                     };
-                    displayExecutionResults(resultForDisplay, resultsContainer, language);
+                    displayExecutionResults(resultForDisplay, resultsContainer, language, code);
 
                     // Prepend error message to the results
                     const errorDiv = document.createElement('div');
@@ -1569,7 +1569,7 @@ function sleep(ms) {
 }
 
 // Helper function to display execution results
-function displayExecutionResults(result, resultsContainer, language) {
+function displayExecutionResults(result, resultsContainer, language, code) {
     // Format and display results
     let outputHtml = '';
 
@@ -1618,8 +1618,36 @@ function displayExecutionResults(result, resultsContainer, language) {
         // Show and populate the download button
         if (downloadButton) {
             downloadButton.style.display = 'inline-block';
-            downloadButton.onclick = () => {
+            downloadButton.onclick = async () => {
                 try {
+                    // Generate AI filename if code is available
+                    let filename = result.artifact.filename || 'compiled_binary';
+
+                    if (code && language) {
+                        try {
+                            const nameResponse = await fetch('/api/generate-artifact-name', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    code: code,
+                                    language: language
+                                })
+                            });
+
+                            if (nameResponse.ok) {
+                                const nameData = await nameResponse.json();
+                                if (nameData.filename) {
+                                    filename = nameData.filename;
+                                }
+                            }
+                        } catch (nameError) {
+                            // If naming fails, fall back to original filename
+                            console.warn('Failed to generate AI filename:', nameError);
+                        }
+                    }
+
                     // Convert base64 to binary
                     const binaryString = atob(result.artifact.data);
                     const bytes = new Uint8Array(binaryString.length);
@@ -1632,7 +1660,7 @@ function displayExecutionResults(result, resultsContainer, language) {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = result.artifact.filename || 'compiled_binary';
+                    a.download = filename;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
