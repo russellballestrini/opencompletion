@@ -1496,14 +1496,22 @@ async function executeCodeBlock(code, blockElement, playButton) {
                 const errorMsg = job.result?.error || 'Execution failed';
                 const partialOutput = job.result?.partial_output;
 
+                // Debug: log the full job structure to see what's available
+                console.log('Timeout/Cancel - Full job object:', JSON.stringify(job, null, 2));
+                console.log('Artifact locations:');
+                console.log('  job.artifact:', job.artifact);
+                console.log('  job.result.artifact:', job.result?.artifact);
+
                 // Build result object that displayExecutionResults can understand
                 // For timeout/cancelled, partial_output contains the output before timeout
+                // Check multiple possible locations for artifact
                 if (job.result) {
                     const resultForDisplay = {
                         stdout: partialOutput || job.result.stdout || '',
                         stderr: job.result.stderr || '',
-                        artifact: job.result.artifact
+                        artifact: job.artifact || job.result.artifact  // Try job.artifact first
                     };
+                    console.log('Final artifact being passed:', resultForDisplay.artifact);
                     displayExecutionResults(resultForDisplay, resultsContainer, language);
 
                     // Prepend error message to the results
