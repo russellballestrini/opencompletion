@@ -1496,25 +1496,14 @@ async function executeCodeBlock(code, blockElement, playButton) {
                 const errorMsg = job.result?.error || 'Execution failed';
                 const partialOutput = job.result?.partial_output;
 
-                // Get artifact from response - executor service should include it
-                // even for cancelled/timeout jobs after recent patch
-                console.log('Cancelled/Timeout job response:', JSON.stringify(job, null, 2));
-                console.log('Checking artifact locations:');
-                console.log('  job.artifact:', job.artifact ? 'FOUND' : 'undefined');
-                console.log('  job.result.artifact:', job.result?.artifact ? 'FOUND' : 'undefined');
-
+                // CONFIRMED via testing (make test-artifact): Executor service does NOT
+                // include artifact field in GET /jobs/{id} response for cancelled jobs
+                // (exit_code 137 = SIGKILL), even when return_artifact=true was requested.
+                // Artifacts only included for fully completed jobs (exit_code 0).
+                //
+                // The code below checks for artifact anyway in case this gets fixed in the
+                // future, but currently it will always be undefined for cancelled/timeout.
                 const artifact = job.artifact || job.result?.artifact;
-
-                if (artifact) {
-                    console.log('Artifact details:', {
-                        type: artifact.type,
-                        filename: artifact.filename,
-                        has_data: !!artifact.data,
-                        data_length: artifact.data?.length
-                    });
-                } else {
-                    console.log('NO ARTIFACT FOUND - executor may not have been patched yet');
-                }
 
                 // Build result object that displayExecutionResults can understand
                 // For timeout/cancelled, partial_output contains the output before timeout
