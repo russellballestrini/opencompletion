@@ -1424,7 +1424,8 @@ async function executeCodeBlock(code, blockElement, playButton) {
             },
             body: JSON.stringify({
                 language: language,
-                code: code
+                code: code,
+                return_artifact: true  // Request compiled binary for compiled languages
             })
         });
 
@@ -1561,6 +1562,57 @@ function displayExecutionResults(result, resultsContainer, language) {
     }
 
     resultsContainer.innerHTML = outputHtml;
+
+    // Check for compiled binary artifact
+    if (result.artifact && result.artifact.type === 'base64' && result.artifact.data) {
+        // Create download binary button
+        const downloadButton = document.createElement('button');
+        downloadButton.textContent = '⬇ Download Binary';
+        downloadButton.style.marginTop = '10px';
+        downloadButton.style.padding = '6px 12px';
+        downloadButton.style.backgroundColor = 'var(--button-primary)';
+        downloadButton.style.color = 'white';
+        downloadButton.style.border = 'none';
+        downloadButton.style.borderRadius = '4px';
+        downloadButton.style.cursor = 'pointer';
+        downloadButton.style.fontFamily = 'inherit';
+        downloadButton.style.fontSize = '14px';
+
+        downloadButton.onclick = () => {
+            try {
+                // Convert base64 to binary
+                const binaryString = atob(result.artifact.data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // Create blob and download
+                const blob = new Blob([bytes], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = result.artifact.filename || 'compiled_binary';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error downloading binary:', error);
+                alert('Failed to download binary: ' + error.message);
+            }
+        };
+
+        resultsContainer.appendChild(downloadButton);
+    } else if (result.artifact && result.artifact.type === 'error') {
+        // Show artifact error if present
+        const artifactError = document.createElement('div');
+        artifactError.style.color = 'var(--text-warning)';
+        artifactError.style.marginTop = '8px';
+        artifactError.style.fontSize = '12px';
+        artifactError.textContent = `Artifact error: ${result.artifact.error}`;
+        resultsContainer.appendChild(artifactError);
+    }
 }
 
 // Helper function to escape HTML
