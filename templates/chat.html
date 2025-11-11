@@ -176,11 +176,9 @@ function syncInputsAndQueryString() {
     localStorage.setItem('selectedModel', currentModel);
     localStorage.setItem('selectedVoice', currentVoice);
 
-    // Update URL
+    // Update URL (only username, not model/voice)
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.set("username", sanitizedUsername);
-    newUrl.searchParams.set("model", currentModel);
-    newUrl.searchParams.set("voice", currentVoice);
     window.history.replaceState({}, '', newUrl);
 
     // Update room links with new parameters
@@ -217,10 +215,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
             option.textContent = modelId;
             modelSelectDesktop.appendChild(option);
         });
-        // Set initial value from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const initialModel = urlParams.get("model") || "None";
-        modelSelectDesktop.value = initialModel;
+        // Set initial value from localStorage only (not URL)
+        const storedModel = localStorage.getItem('selectedModel') || "None";
+        modelSelectDesktop.value = storedModel;
     }
 
     // Function to populate the voice dropdown
@@ -256,9 +253,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         });
 
-        // Set initial value from URL, localStorage, or first available option
-        const urlParams = new URLSearchParams(window.location.search);
-        const initialVoice = urlParams.get("voice") || localStorage.getItem('selectedVoice') || voiceSelectDesktop.options[0]?.value;
+        // Set initial value from localStorage or first available option (not URL)
+        const initialVoice = localStorage.getItem('selectedVoice') || voiceSelectDesktop.options[0]?.value;
         if (initialVoice) {
             voiceSelectDesktop.value = initialVoice;
             if (voiceSelectMobile) voiceSelectMobile.value = initialVoice;
@@ -330,13 +326,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
         userHasScrolledUp = distanceFromBottom > 5;
     });
 
-    // Load model and voice from localStorage if not in URL
-    const storedModel = localStorage.getItem('selectedModel');
+    // Load model and voice from localStorage only (not URL)
+    const storedModel = localStorage.getItem('selectedModel') || "None";
     const storedVoice = localStorage.getItem('selectedVoice');
 
-    // Set initial model, voice, and username from URL, localStorage, or defaults
-    const initialModel = urlParams.get("model") || storedModel || "None";
-    const initialVoice = urlParams.get("voice") || storedVoice || null;
+    // Set initial model, voice, and username from localStorage or defaults
+    const initialModel = storedModel;
+    const initialVoice = storedVoice;
     const initialUsername = username; // Already set to URL param or "guest"
 
     modelSelectDesktop.value = initialModel;

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatroom</title>
+    <title>OpenCompletion - AI-Powered Chat Rooms</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
@@ -15,50 +15,183 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
         }
-        #chat-container {
+        #main-container {
             background-color: #ffffff;
-            border-radius: 5px;
-            padding: 15px;
+            border-radius: 10px;
+            padding: 30px;
             width: 100%;
-            max-width: 600px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        #chat {
-            height: 300px;
-            overflow-y: scroll;
-            border: 1px solid #e1e1e1;
-            border-radius: 5px;
-            padding: 10px;
+        h1 {
+            color: #333;
             margin-bottom: 10px;
+            text-align: center;
         }
-        #message {
-            width: 98%;
-            border: 1px solid #e1e1e1;
+        .tagline {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        #join-section {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        #join-section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        #join-room-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        input[type="text"] {
+            width: 100%;
+            border: 2px solid #e1e1e1;
             border-radius: 5px;
-            padding: 5px;
+            padding: 12px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 12px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .auth-status {
+            text-align: center;
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .auth-status.logged-in {
+            background: #d4edda;
+        }
+        .browse-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .browse-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .browse-link a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <div id="chat-container">
-        <h2>Join a Chat Room</h2>
-        <form id="join-room-form">
-            <input id="username" type="text" placeholder="Enter your username">
-            <input id="room" type="text" placeholder="Enter room name">
-            <button type="submit">Join</button>
-        </form>
+    <div id="main-container">
+        <h1>🚀 OpenCompletion</h1>
+        <p class="tagline">AI-Powered Collaborative Chat Rooms</p>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total_public_rooms }}</div>
+                <div class="stat-label">Public Rooms</div>
+            </div>
+            {% if user %}
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total_private_rooms }}</div>
+                <div class="stat-label">Private Rooms</div>
+            </div>
+            {% endif %}
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.active_public_rooms }}</div>
+                <div class="stat-label">Active Rooms</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.active_users }}</div>
+                <div class="stat-label">Active Users</div>
+            </div>
+        </div>
+
+        <!-- Auth status -->
+        {% if user %}
+        <div class="auth-status logged-in">
+            ✅ Signed in as <strong>{{ user.display_name }}</strong> ({{ user.email }})
+        </div>
+        {% else %}
+        <div class="auth-status">
+            👋 Welcome! <a href="#" onclick="showAuthModal(); return false;">Sign in</a> to create private rooms
+        </div>
+        {% endif %}
+
+        <!-- Join room form -->
+        <div id="join-section">
+            <h2>Join or Create a Room</h2>
+            <form id="join-room-form">
+                <input id="username" type="text" placeholder="Enter your username" value="{{ username if username else 'guest' }}">
+                <input id="room" type="text" placeholder="Enter room name">
+                <button type="submit">Join Room</button>
+            </form>
+        </div>
+
+        <div class="browse-link">
+            <a href="/chat/general{% if user %}?username={{ user.display_name }}{% endif %}">Or browse existing rooms →</a>
+        </div>
     </div>
 
     <script>
         document.getElementById('join-room-form').addEventListener('submit', function(e) {
             e.preventDefault();
-            const username = document.getElementById('username').value;
+            const username = document.getElementById('username').value || 'guest';
             const room = slugify(document.getElementById('room').value);
+            if (!room) {
+                alert('Please enter a room name');
+                return;
+            }
             window.location.href = `/chat/${room}?username=${encodeURIComponent(username)}`;
         });
+
+        // Auth modal placeholder (will be loaded from base.html when integrated)
+        function showAuthModal() {
+            window.location.href = '/chat/general';
+        }
     </script>
 </body>
 </html>

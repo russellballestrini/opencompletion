@@ -31,7 +31,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import InvalidRequestError
 
-from models import db, Room, UserSession, Message, ActivityState
+from models import db, Room, UserSession, Message, ActivityState, User, OTPToken
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -57,6 +57,7 @@ cancellation_requests = {}
 
 from openai import OpenAI
 import activity
+import auth
 
 
 # Build a list of endpoints dynamically.
@@ -299,7 +300,37 @@ def favicon():
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    # Get statistics for homepage
+    total_public_rooms = Room.query.filter_by(is_private=False, is_archived=False).count()
+    total_private_rooms = 0
+    user = auth.get_current_user()
+    if user:
+        total_private_rooms = Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id).count()
+
+    # Active rooms (with messages in last 24 hours)
+    from datetime import datetime, timedelta
+    twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+    active_public_rooms = db.session.query(Room).join(Message).filter(
+        Room.is_private == False,
+        Room.is_archived == False,
+        Message.room_id == Room.id
+    ).filter(
+        Message.id >= db.session.query(db.func.max(Message.id)).filter(
+            Message.room_id == Room.id
+        ).scalar_subquery()
+    ).distinct().count()
+
+    # Total active users (from UserSession)
+    active_users = UserSession.query.distinct(UserSession.username).count()
+
+    stats = {
+        'total_public_rooms': total_public_rooms,
+        'total_private_rooms': total_private_rooms,
+        'active_public_rooms': active_public_rooms,
+        'active_users': active_users,
+    }
+
+    return render_template("index.html", stats=stats, user=user)
 
 
 @app.route("/models", methods=["GET"])
@@ -307,6 +338,137 @@ def get_models():
     # Optionally refresh or reinitialize the model map here.
     # For now we simply return the keys.
     return jsonify({"models": list(MODEL_CLIENT_MAP.keys())})
+
+
+# Authentication endpoints
+@app.route("/auth/send-otp", methods=["POST"])
+def send_otp():
+    """Send OTP to user's email"""
+    data = request.get_json()
+    email = data.get('email', '').strip().lower()
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+
+    # Basic email validation
+    if '@' not in email or '.' not in email.split('@')[1]:
+        return jsonify({'error': 'Invalid email address'}), 400
+
+    # Create OTP token
+    otp_token = auth.create_otp_token(email)
+
+    # Send OTP via email
+    if auth.send_otp_email(email, otp_token.otp_code):
+        return jsonify({
+            'success': True,
+            'message': 'OTP sent to your email',
+            'email': email
+        })
+    else:
+        return jsonify({'error': 'Failed to send OTP email'}), 500
+
+
+@app.route("/auth/verify-otp", methods=["POST"])
+def verify_otp():
+    """Verify OTP code and check if user exists"""
+    data = request.get_json()
+    email = data.get('email', '').strip().lower()
+    otp_code = data.get('otp_code', '').strip()
+
+    if not email or not otp_code:
+        return jsonify({'error': 'Email and OTP code are required'}), 400
+
+    # Verify OTP
+    otp_token = auth.verify_otp(email, otp_code)
+    if not otp_token:
+        return jsonify({'error': 'Invalid or expired OTP code'}), 400
+
+    # Check if user exists
+    user = auth.get_or_create_user(email)
+
+    if user:
+        # Existing user - log them in
+        auth.login_user(user)
+        return jsonify({
+            'success': True,
+            'needs_display_name': False,
+            'user': {
+                'email': user.email,
+                'display_name': user.display_name
+            }
+        })
+    else:
+        # New user - needs to claim display name
+        # Store email in session temporarily
+        session['pending_email'] = email
+        return jsonify({
+            'success': True,
+            'needs_display_name': True,
+            'email': email
+        })
+
+
+@app.route("/auth/claim-name", methods=["POST"])
+def claim_name():
+    """Claim display name for new user (after OTP verification)"""
+    data = request.get_json()
+    display_name = data.get('display_name', '').strip()
+    email = session.get('pending_email')
+
+    if not email:
+        return jsonify({'error': 'No pending email verification'}), 400
+
+    if not display_name:
+        return jsonify({'error': 'Display name is required'}), 400
+
+    # Validate display name (alphanumeric, underscores, hyphens only, 3-50 chars)
+    import re
+    if not re.match(r'^[a-zA-Z0-9_-]{3,50}$', display_name):
+        return jsonify({
+            'error': 'Display name must be 3-50 characters (letters, numbers, underscores, hyphens only)'
+        }), 400
+
+    # Create user
+    user, error = auth.create_user(email, display_name)
+    if error:
+        return jsonify({'error': error}), 400
+
+    # Log in user
+    auth.login_user(user)
+
+    # Clear pending email
+    session.pop('pending_email', None)
+
+    return jsonify({
+        'success': True,
+        'user': {
+            'email': user.email,
+            'display_name': user.display_name
+        }
+    })
+
+
+@app.route("/auth/status", methods=["GET"])
+def auth_status():
+    """Get current authentication status"""
+    user = auth.get_current_user()
+    if user:
+        return jsonify({
+            'authenticated': True,
+            'user': {
+                'email': user.email,
+                'display_name': user.display_name
+            }
+        })
+    else:
+        return jsonify({'authenticated': False})
+
+
+@app.route("/auth/logout", methods=["POST"])
+def logout():
+    """Log out current user"""
+    auth.logout_user()
+    return jsonify({'success': True})
 
 
 @app.route("/api/activities", methods=["GET"])
@@ -329,6 +491,145 @@ def get_activities():
         pass
 
     return jsonify({"activities": activities})
+
+
+@app.route("/api/rooms", methods=["GET"])
+def get_rooms_api():
+    """Get list of rooms (public or user's private rooms)"""
+    user = auth.get_current_user()
+
+    # Get public rooms
+    public_rooms = Room.query.filter_by(is_private=False, is_archived=False).order_by(Room.id.desc()).all()
+
+    # Get private rooms if authenticated
+    private_rooms = []
+    if user:
+        private_rooms = Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id).order_by(Room.id.desc()).all()
+
+    return jsonify({
+        'public_rooms': [{
+            'id': r.id,
+            'name': r.name,
+            'title': r.title,
+            'active_users_count': len(r.get_active_users())
+        } for r in public_rooms],
+        'private_rooms': [{
+            'id': r.id,
+            'name': r.name,
+            'title': r.title,
+            'active_users_count': len(r.get_active_users())
+        } for r in private_rooms]
+    })
+
+
+@app.route("/api/rooms/<int:room_id>/fork", methods=["POST"])
+def fork_room(room_id):
+    """Fork a room (authenticated users can fork to private or public)"""
+    user = auth.get_current_user()
+    data = request.get_json() or {}
+    make_private = data.get('private', False)
+
+    # Get source room
+    source_room = Room.query.get(room_id)
+    if not source_room:
+        return jsonify({'error': 'Room not found'}), 404
+
+    # Can only fork public rooms
+    if source_room.is_private:
+        return jsonify({'error': 'Cannot fork private rooms'}), 403
+
+    # Private rooms require authentication
+    if make_private and not user:
+        return jsonify({'error': 'Authentication required to create private rooms'}), 401
+
+    # Generate new room name
+    base_name = f"{source_room.name}_fork"
+    new_name = base_name
+    counter = 1
+    while Room.query.filter_by(name=new_name).first():
+        new_name = f"{base_name}_{counter}"
+        counter += 1
+
+    # Create forked room
+    new_room = Room()
+    new_room.name = new_name
+    new_room.title = f"Fork of {source_room.title or source_room.name}"
+    new_room.is_private = make_private
+    new_room.owner_id = user.id if user else None
+    new_room.forked_from_id = source_room.id
+
+    db.session.add(new_room)
+    db.session.commit()
+
+    # Copy messages from source room
+    source_messages = Message.query.filter_by(room_id=source_room.id).all()
+    for msg in source_messages:
+        new_msg = Message(
+            username=msg.username,
+            content=msg.content,
+            room_id=new_room.id
+        )
+        db.session.add(new_msg)
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'room': {
+            'id': new_room.id,
+            'name': new_room.name,
+            'title': new_room.title,
+            'is_private': new_room.is_private
+        }
+    })
+
+
+@app.route("/api/rooms/<int:room_id>/archive", methods=["POST"])
+@auth.require_auth
+def archive_room(room_id):
+    """Archive a room (owner only)"""
+    user = auth.get_current_user()
+    room = Room.query.get(room_id)
+
+    if not room:
+        return jsonify({'error': 'Room not found'}), 404
+
+    if room.owner_id != user.id:
+        return jsonify({'error': 'Only room owner can archive rooms'}), 403
+
+    room.is_archived = True
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
+@app.route("/api/rooms/<int:room_id>/delete", methods=["DELETE"])
+@auth.require_auth
+def delete_room(room_id):
+    """Delete a room (owner only)"""
+    user = auth.get_current_user()
+    room = Room.query.get(room_id)
+
+    if not room:
+        return jsonify({'error': 'Room not found'}), 404
+
+    if room.owner_id != user.id:
+        return jsonify({'error': 'Only room owner can delete rooms'}), 403
+
+    # Delete all messages in the room
+    Message.query.filter_by(room_id=room.id).delete()
+
+    # Delete activity state if any
+    ActivityState.query.filter_by(room_id=room.id).delete()
+
+    # Delete user sessions
+    UserSession.query.filter_by(room_id=room.id).delete()
+
+    # Delete the room
+    db.session.delete(room)
+    db.session.commit()
+
+    return jsonify({'success': True})
 
 
 @app.route("/api/generate-artifact-name", methods=["POST"])
@@ -410,15 +711,34 @@ Examples:
 
 @app.route("/chat/<room_name>")
 def chat(room_name):
-    # Query all rooms so that newest is first.
-    rooms = Room.query.order_by(Room.id.desc()).all()
+    user = auth.get_current_user()
+
+    # Get or create the room
+    room = Room.query.filter_by(name=room_name).first()
+
+    # If room doesn't exist yet, it will be created in get_room() when user joins
+    # But check if they're trying to access a private room they don't own
+    if room and room.is_private:
+        if not user or room.owner_id != user.id:
+            return "Access denied: This is a private room", 403
+
+    # Query public rooms and user's private rooms for sidebar
+    public_rooms = Room.query.filter_by(is_private=False, is_archived=False).order_by(Room.id.desc()).all()
+    private_rooms = []
+    if user:
+        private_rooms = Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id).order_by(Room.id.desc()).all()
 
     # Get username from query parameters
     username = request.args.get("username", "guest")
 
-    # Pass username and rooms into the template
+    # Pass username, rooms, and user into the template
     return render_template(
-        "chat.html", room_name=room_name, rooms=rooms, username=username
+        "chat.html",
+        room_name=room_name,
+        public_rooms=public_rooms,
+        private_rooms=private_rooms,
+        username=username,
+        user=user
     )
 
 

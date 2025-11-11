@@ -141,31 +141,128 @@
           <button id="create-room-btn" onclick="createNewRoom()">Create Room</button>
       </div>
       
-      <!-- Public rooms header -->
-      <div id="public-rooms-header">
-          <h4>Public Rooms</h4>
+      <!-- Room tabs -->
+      <div id="room-tabs">
+          <button class="room-tab" id="private-rooms-tab" onclick="switchRoomTab('private')">
+              🔐 My Private Rooms
+          </button>
+          <button class="room-tab active" id="public-rooms-tab" onclick="switchRoomTab('public')">
+              🌍 Public Rooms
+          </button>
       </div>
-      
-      <ul id="rooms-list-ul">
-          <!-- Loop through rooms and create list items for each room -->
-          {% for room in rooms %}
-          <a href="{{ url_for('chat', room_name=room.name) }}?{{ request.query_string.decode('utf-8')|safe }}">
-          <li data-room-id="{{ room.id }}">
-              <!-- Display the room title if available, otherwise the room name -->
-              <b>{{ room.name }}</b>
-              {% if room.title %}
-              <br />{{ room.title }}
+
+      <!-- Private rooms section -->
+      <div id="private-rooms-section" class="room-section" style="display: none;">
+          <div id="private-rooms-content">
+              {% if user %}
+                  {% if private_rooms %}
+                      <ul class="rooms-list">
+                          {% for room in private_rooms %}
+                          <a href="{{ url_for('chat', room_name=room.name) }}{% if username %}?username={{ username }}{% endif %}">
+                          <li data-room-id="{{ room.id }}" class="private-room">
+                              <b>{{ room.name }}</b>
+                              {% if room.title %}
+                              <br />{{ room.title }}
+                              {% endif %}
+                              {% if room.get_active_users()|length %}
+                              <br /> {{ room.get_active_users()|length }} users
+                              {% endif %}
+                              <div class="room-actions">
+                                  <button class="room-action-btn" onclick="event.preventDefault(); archiveRoom({{ room.id }})">📦 Archive</button>
+                                  <button class="room-action-btn delete-btn" onclick="event.preventDefault(); deleteRoom({{ room.id }})">🗑️ Delete</button>
+                              </div>
+                          </li>
+                          </a>
+                          {% endfor %}
+                      </ul>
+                  {% else %}
+                      <p class="empty-state">No private rooms yet. Create one to get started!</p>
+                  {% endif %}
+              {% else %}
+                  <div class="auth-prompt">
+                      <p>🔒 Private rooms are only visible to you</p>
+                      <p>Sign in to create and access private rooms</p>
+                      <button class="auth-btn" onclick="showAuthModal()">Sign In / Sign Up</button>
+                  </div>
               {% endif %}
-              {% if room.get_active_users()|length %}
-              <br /> {{ room.get_active_users()|length }} users
-              {% endif %}
-          </li>
-          </a>
-          {% endfor %}
-      </ul>
+          </div>
+      </div>
+
+      <!-- Public rooms section -->
+      <div id="public-rooms-section" class="room-section">
+          <ul id="rooms-list-ul" class="rooms-list">
+              <!-- Loop through public rooms and create list items for each room -->
+              {% for room in public_rooms %}
+              <a href="{{ url_for('chat', room_name=room.name) }}{% if username %}?username={{ username }}{% endif %}">
+              <li data-room-id="{{ room.id }}" class="public-room">
+                  <!-- Display the room title if available, otherwise the room name -->
+                  <b>{{ room.name }}</b>
+                  {% if room.title %}
+                  <br />{{ room.title }}
+                  {% endif %}
+                  {% if room.get_active_users()|length %}
+                  <br /> {{ room.get_active_users()|length }} users
+                  {% endif %}
+                  {% if user and room.owner_id == user.id %}
+                  <span class="owner-badge">👑 Owner</span>
+                  <div class="room-actions">
+                      <button class="room-action-btn" onclick="event.preventDefault(); archiveRoom({{ room.id }})">📦 Archive</button>
+                      <button class="room-action-btn delete-btn" onclick="event.preventDefault(); deleteRoom({{ room.id }})">🗑️ Delete</button>
+                  </div>
+                  {% endif %}
+                  <div class="room-actions">
+                      <button class="room-action-btn" onclick="event.preventDefault(); forkRoom({{ room.id }})">🍴 Fork</button>
+                  </div>
+              </li>
+              </a>
+              {% endfor %}
+          </ul>
+      </div>
   </div>
 
   {% block content %}{% endblock %}
+</div>
+
+<!-- Authentication Modal -->
+<div id="auth-modal" class="modal" style="display: none;">
+    <div class="modal-content-auth">
+        <button class="close-btn" onclick="closeAuthModal()">×</button>
+
+        <!-- Step 1: Enter email -->
+        <div id="auth-step-email" class="auth-step">
+            <h2>Sign In / Sign Up</h2>
+            <p>Enter your email to receive a verification code</p>
+            <input type="email" id="auth-email" placeholder="your@email.com" />
+            <button onclick="sendOTP()">Send Code</button>
+            <div id="auth-email-error" class="error-message"></div>
+        </div>
+
+        <!-- Step 2: Enter OTP -->
+        <div id="auth-step-otp" class="auth-step" style="display: none;">
+            <h2>Enter Verification Code</h2>
+            <p>We sent a 6-digit code to <span id="auth-email-display"></span></p>
+            <input type="text" id="auth-otp" placeholder="123456" maxlength="6" />
+            <button onclick="verifyOTP()">Verify</button>
+            <button class="secondary-btn" onclick="backToEmailStep()">Back</button>
+            <div id="auth-otp-error" class="error-message"></div>
+        </div>
+
+        <!-- Step 3: Claim display name (new users only) -->
+        <div id="auth-step-name" class="auth-step" style="display: none;">
+            <h2>Choose Display Name</h2>
+            <p>Pick a unique display name (3-50 characters)</p>
+            <input type="text" id="auth-display-name" placeholder="username" maxlength="50" />
+            <button onclick="claimName()">Complete Sign Up</button>
+            <div id="auth-name-error" class="error-message"></div>
+        </div>
+
+        <!-- Success -->
+        <div id="auth-step-success" class="auth-step" style="display: none;">
+            <h2>✅ Success!</h2>
+            <p>Welcome, <span id="auth-success-name"></span>!</p>
+            <button onclick="closeAuthModalAndReload()">Continue</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -224,24 +321,26 @@
         closeButton.style.display = "none";
     }
     
-    // Function to update all room links with current URL parameters
+    // Function to update all room links with current URL parameters (username only)
     function updateRoomLinksWithCurrentParams() {
-        const currentParams = new URLSearchParams(window.location.search).toString();
-        
+        const urlParams = new URLSearchParams(window.location.search);
+        const username = urlParams.get('username');
+        const usernameParam = username ? `?username=${encodeURIComponent(username)}` : '';
+
         // Update desktop room links
         const roomLinks = document.querySelectorAll('#rooms-list-ul a[href*="/chat/"]');
         roomLinks.forEach(link => {
             const url = new URL(link.href, window.location.origin);
             const roomPath = url.pathname; // e.g., "/chat/room-name"
-            link.href = roomPath + (currentParams ? '?' + currentParams : '');
+            link.href = roomPath + usernameParam;
         });
-        
+
         // Update mobile room links (if they exist)
         const mobileRoomLinks = document.querySelectorAll('#rooms-list-modal-content a[href*="/chat/"]');
         mobileRoomLinks.forEach(link => {
             const url = new URL(link.href, window.location.origin);
             const roomPath = url.pathname; // e.g., "/chat/room-name"
-            link.href = roomPath + (currentParams ? '?' + currentParams : '');
+            link.href = roomPath + usernameParam;
         });
     }
     
@@ -262,28 +361,13 @@
             return;
         }
         
-        // Get current URL parameters to maintain username, model, voice, etc.
+        // Get current username from URL to maintain it
         const urlParams = new URLSearchParams(window.location.search);
-        
-        // Also check localStorage for model and voice if not in URL
-        if (!urlParams.has('model')) {
-            const storedModel = localStorage.getItem('selectedModel');
-            if (storedModel && storedModel !== 'None') {
-                urlParams.set('model', storedModel);
-            }
-        }
-        
-        if (!urlParams.has('voice')) {
-            const storedVoice = localStorage.getItem('selectedVoice');
-            if (storedVoice) {
-                urlParams.set('voice', storedVoice);
-            }
-        }
-        
-        const currentParams = urlParams.toString();
-        
-        // Navigate to the new room using the slugified name
-        window.location.href = `/chat/${slugifiedRoomName}${currentParams ? '?' + currentParams : ''}`;
+        const username = urlParams.get('username');
+        const usernameParam = username ? `?username=${encodeURIComponent(username)}` : '';
+
+        // Navigate to the new room using the slugified name (username only, model/voice in localStorage)
+        window.location.href = `/chat/${slugifiedRoomName}${usernameParam}`;
     }
     
     // Add event listener for Enter key in the new room textarea
@@ -402,6 +486,222 @@
                 .catch(error => console.error("Error fetching models:", error));
         }
     });
+
+    // Room tab switching
+    function switchRoomTab(tab) {
+        const publicTab = document.getElementById('public-rooms-tab');
+        const privateTab = document.getElementById('private-rooms-tab');
+        const publicSection = document.getElementById('public-rooms-section');
+        const privateSection = document.getElementById('private-rooms-section');
+
+        if (tab === 'public') {
+            publicTab.classList.add('active');
+            privateTab.classList.remove('active');
+            publicSection.style.display = 'block';
+            privateSection.style.display = 'none';
+        } else {
+            privateTab.classList.add('active');
+            publicTab.classList.remove('active');
+            privateSection.style.display = 'block';
+            publicSection.style.display = 'none';
+        }
+    }
+
+    // Authentication modal functions
+    let pendingEmail = '';
+
+    function showAuthModal() {
+        document.getElementById('auth-modal').style.display = 'flex';
+        showAuthStep('email');
+    }
+
+    function closeAuthModal() {
+        document.getElementById('auth-modal').style.display = 'none';
+        clearAuthErrors();
+    }
+
+    function closeAuthModalAndReload() {
+        closeAuthModal();
+        window.location.reload();
+    }
+
+    function showAuthStep(step) {
+        document.querySelectorAll('.auth-step').forEach(el => el.style.display = 'none');
+        document.getElementById('auth-step-' + step).style.display = 'block';
+        clearAuthErrors();
+    }
+
+    function clearAuthErrors() {
+        document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+    }
+
+    function backToEmailStep() {
+        showAuthStep('email');
+    }
+
+    async function sendOTP() {
+        const email = document.getElementById('auth-email').value.trim();
+        const errorEl = document.getElementById('auth-email-error');
+
+        if (!email) {
+            errorEl.textContent = 'Please enter your email';
+            return;
+        }
+
+        try {
+            const response = await fetch('/auth/send-otp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email})
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                pendingEmail = email;
+                document.getElementById('auth-email-display').textContent = email;
+                showAuthStep('otp');
+            } else {
+                errorEl.textContent = data.error || 'Failed to send code';
+            }
+        } catch (error) {
+            errorEl.textContent = 'Network error. Please try again.';
+        }
+    }
+
+    async function verifyOTP() {
+        const otpCode = document.getElementById('auth-otp').value.trim();
+        const errorEl = document.getElementById('auth-otp-error');
+
+        if (!otpCode) {
+            errorEl.textContent = 'Please enter the code';
+            return;
+        }
+
+        try {
+            const response = await fetch('/auth/verify-otp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email: pendingEmail, otp_code: otpCode})
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                if (data.needs_display_name) {
+                    showAuthStep('name');
+                } else {
+                    document.getElementById('auth-success-name').textContent = data.user.display_name;
+                    showAuthStep('success');
+                }
+            } else {
+                errorEl.textContent = data.error || 'Invalid code';
+            }
+        } catch (error) {
+            errorEl.textContent = 'Network error. Please try again.';
+        }
+    }
+
+    async function claimName() {
+        const displayName = document.getElementById('auth-display-name').value.trim();
+        const errorEl = document.getElementById('auth-name-error');
+
+        if (!displayName) {
+            errorEl.textContent = 'Please enter a display name';
+            return;
+        }
+
+        try {
+            const response = await fetch('/auth/claim-name', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({display_name: displayName})
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                document.getElementById('auth-success-name').textContent = data.user.display_name;
+                showAuthStep('success');
+            } else {
+                errorEl.textContent = data.error || 'Failed to claim name';
+            }
+        } catch (error) {
+            errorEl.textContent = 'Network error. Please try again.';
+        }
+    }
+
+    // Room management functions
+    async function forkRoom(roomId) {
+        const makePrivate = confirm('Fork as private room? (Cancel for public)');
+
+        try {
+            const response = await fetch(`/api/rooms/${roomId}/fork`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({private: makePrivate})
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(`Room forked successfully! Redirecting to ${data.room.name}...`);
+                window.location.href = `/chat/${data.room.name}`;
+            } else {
+                alert(data.error || 'Failed to fork room');
+            }
+        } catch (error) {
+            alert('Network error. Please try again.');
+        }
+    }
+
+    async function archiveRoom(roomId) {
+        if (!confirm('Archive this room? It will be hidden but not deleted.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/rooms/${roomId}/archive`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Room archived successfully!');
+                window.location.reload();
+            } else {
+                alert(data.error || 'Failed to archive room');
+            }
+        } catch (error) {
+            alert('Network error. Please try again.');
+        }
+    }
+
+    async function deleteRoom(roomId) {
+        if (!confirm('Delete this room permanently? This cannot be undone!')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/rooms/${roomId}/delete`, {
+                method: 'DELETE',
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Room deleted successfully!');
+                window.location.href = '/';
+            } else {
+                alert(data.error || 'Failed to delete room');
+            }
+        } catch (error) {
+            alert('Network error. Please try again.');
+        }
+    }
 </script>
 </body>
 </html>
