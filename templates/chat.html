@@ -1492,16 +1492,24 @@ async function executeCodeBlock(code, blockElement, playButton) {
                     break;
                 }
 
-                // timeout or cancelled
+                // timeout or cancelled - still try to display results and binary if available
                 const errorMsg = job.result?.error || 'Execution failed';
-                const partialOutput = job.result?.partial_output;
 
-                let outputHtml = `<div style="color: var(--text-error); font-weight: bold;">${escapeHtml(errorMsg)}</div>`;
-                if (partialOutput) {
-                    outputHtml += '<div style="color: var(--text-muted); margin-top: 8px;">Partial output before timeout:</div>';
-                    outputHtml += `<div style="color: var(--text-primary); margin-left: 10px;">${escapeHtml(partialOutput)}</div>`;
+                // First display any results and check for binary artifacts
+                if (job.result) {
+                    displayExecutionResults(job.result, resultsContainer, language);
+
+                    // Prepend error message to the results
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.color = 'var(--text-error)';
+                    errorDiv.style.fontWeight = 'bold';
+                    errorDiv.style.marginBottom = '8px';
+                    errorDiv.textContent = errorMsg;
+                    resultsContainer.insertBefore(errorDiv, resultsContainer.firstChild);
+                } else {
+                    // No result object at all, just show error
+                    resultsContainer.innerHTML = `<div style="color: var(--text-error); font-weight: bold;">${escapeHtml(errorMsg)}</div>`;
                 }
-                resultsContainer.innerHTML = outputHtml;
                 break;
             }
 
