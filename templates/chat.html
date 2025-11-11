@@ -1494,10 +1494,17 @@ async function executeCodeBlock(code, blockElement, playButton) {
 
                 // timeout or cancelled - still try to display results and binary if available
                 const errorMsg = job.result?.error || 'Execution failed';
+                const partialOutput = job.result?.partial_output;
 
-                // First display any results and check for binary artifacts
+                // Build result object that displayExecutionResults can understand
+                // For timeout/cancelled, partial_output contains the output before timeout
                 if (job.result) {
-                    displayExecutionResults(job.result, resultsContainer, language);
+                    const resultForDisplay = {
+                        stdout: partialOutput || job.result.stdout || '',
+                        stderr: job.result.stderr || '',
+                        artifact: job.result.artifact
+                    };
+                    displayExecutionResults(resultForDisplay, resultsContainer, language);
 
                     // Prepend error message to the results
                     const errorDiv = document.createElement('div');
@@ -1506,6 +1513,16 @@ async function executeCodeBlock(code, blockElement, playButton) {
                     errorDiv.style.marginBottom = '8px';
                     errorDiv.textContent = errorMsg;
                     resultsContainer.insertBefore(errorDiv, resultsContainer.firstChild);
+
+                    // Add note if there was partial output
+                    if (partialOutput) {
+                        const partialNote = document.createElement('div');
+                        partialNote.style.color = 'var(--text-muted)';
+                        partialNote.style.fontSize = '12px';
+                        partialNote.style.marginBottom = '8px';
+                        partialNote.textContent = '(Output before timeout/cancellation)';
+                        resultsContainer.insertBefore(partialNote, resultsContainer.children[1]);
+                    }
                 } else {
                     // No result object at all, just show error
                     resultsContainer.innerHTML = `<div style="color: var(--text-error); font-weight: bold;">${escapeHtml(errorMsg)}</div>`;
