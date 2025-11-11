@@ -40,6 +40,8 @@ app.config["SQLALCHEMY_DATABASE_URI"] = (
     f"sqlite:///{os.path.join(app.instance_path, 'chat.db')}"
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# Enable template auto-reload to prevent stale templates during development
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 db.init_app(app)
 
