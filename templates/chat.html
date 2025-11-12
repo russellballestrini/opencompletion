@@ -473,24 +473,36 @@ socket.on('update_room_list', function(updatedRoom) {
 
     if (roomListItem) {
         // Room exists - update it
-        // Preserve user count and owner badge if they exist
-        const userCountMatch = roomListItem.innerHTML.match(/<br\s*\/>\s*(\d+)\s*users/);
+        // Extract user count from existing content (safer than regex on innerHTML)
+        const userCountText = roomListItem.textContent.match(/(\d+)\s*users/);
+        const userCount = userCountText ? userCountText[1] : null;
         const ownerBadge = roomListItem.querySelector('.owner-badge');
 
-        // Update the room list item's content with the new title
-        let newHTML = `<b>${updatedRoom.name}</b>`;
+        // Clear and rebuild content safely using DOM methods
+        roomListItem.innerHTML = '';
+
+        // Add room name
+        const nameElement = document.createElement('b');
+        nameElement.textContent = updatedRoom.name;
+        roomListItem.appendChild(nameElement);
+
+        // Add room title if present
         if (updatedRoom.title) {
-            newHTML += `<br />${updatedRoom.title}`;
-        }
-        if (userCountMatch) {
-            newHTML += `<br /> ${userCountMatch[1]} users`;
+            roomListItem.appendChild(document.createElement('br'));
+            const titleText = document.createTextNode(updatedRoom.title);
+            roomListItem.appendChild(titleText);
         }
 
-        roomListItem.innerHTML = newHTML;
+        // Add user count if it existed
+        if (userCount) {
+            roomListItem.appendChild(document.createElement('br'));
+            const userText = document.createTextNode(` ${userCount} users`);
+            roomListItem.appendChild(userText);
+        }
 
         // Re-add owner badge if it existed
         if (ownerBadge) {
-            roomListItem.innerHTML += '<span class="owner-badge">👑 Owner</span>';
+            roomListItem.appendChild(ownerBadge);
         }
     } else if (updatedRoom.is_new) {
         // New room - add it to the appropriate list
@@ -499,9 +511,9 @@ socket.on('update_room_list', function(updatedRoom) {
             : document.querySelector('#public-rooms-section .rooms-list');
 
         if (targetList) {
-            // Create new room list item
+            // Create new room list item using safe DOM methods
             const newLink = document.createElement('a');
-            newLink.href = `/chat/${updatedRoom.name}`;
+            newLink.href = `/chat/${encodeURIComponent(updatedRoom.name)}`;
 
             const newLi = document.createElement('li');
             newLi.setAttribute('data-room-id', updatedRoom.id);
@@ -509,13 +521,23 @@ socket.on('update_room_list', function(updatedRoom) {
                 newLi.classList.add('private-room');
             }
 
-            let roomHTML = `<b>${updatedRoom.name}</b>`;
-            if (updatedRoom.title) {
-                roomHTML += `<br />${updatedRoom.title}`;
-            }
-            roomHTML += '<br /> 0 users';  // New room has 0 users initially
+            // Add room name safely
+            const nameElement = document.createElement('b');
+            nameElement.textContent = updatedRoom.name;
+            newLi.appendChild(nameElement);
 
-            newLi.innerHTML = roomHTML;
+            // Add room title if present
+            if (updatedRoom.title) {
+                newLi.appendChild(document.createElement('br'));
+                const titleText = document.createTextNode(updatedRoom.title);
+                newLi.appendChild(titleText);
+            }
+
+            // Add user count
+            newLi.appendChild(document.createElement('br'));
+            const userText = document.createTextNode(' 0 users');
+            newLi.appendChild(userText);
+
             newLink.appendChild(newLi);
             targetList.appendChild(newLink);
         }

@@ -5,25 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browse Rooms - OpenCompletion</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        :root {
-            --bg-page: #f7f7f7;
-            --bg-card: white;
-            --text-primary: #333;
-            --text-secondary: #666;
-            --text-muted: #999;
-            --border-color: #e1e1e1;
-        }
-
-        [data-theme="dark"] {
-            --bg-page: #1a1a1a;
-            --bg-card: #2d2d2d;
-            --text-primary: #e0e0e0;
-            --text-secondary: #b0b0b0;
-            --text-muted: #888;
-            --border-color: #404040;
-        }
-
         body {
             font-family: Arial, sans-serif;
             background-color: var(--bg-page);

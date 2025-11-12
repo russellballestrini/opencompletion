@@ -5,31 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenCompletion - AI-Powered Chat Rooms</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <style>
-        :root {
-            --bg-page: #f7f7f7;
-            --bg-card: #ffffff;
-            --bg-section: #f9f9f9;
-            --bg-status: #e7f3ff;
-            --bg-status-logged: #d4edda;
-            --text-primary: #333;
-            --text-secondary: #666;
-            --border-color: #e1e1e1;
-        }
-
-        [data-theme="dark"] {
-            --bg-page: #1a1a1a;
-            --bg-card: #2d2d2d;
-            --bg-section: #252525;
-            --bg-status: #1e3a5f;
-            --bg-status-logged: #1e4d2b;
-            --text-primary: #e0e0e0;
-            --text-secondary: #b0b0b0;
-            --border-color: #404040;
-        }
-
         body {
             font-family: Arial, sans-serif;
             background-color: var(--bg-page);
