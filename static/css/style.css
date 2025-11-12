@@ -595,6 +595,16 @@ html, body {
     color: var(--text-secondary);
 }
 
+#user-lists li a, #user-lists-mobile li a {
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+#user-lists li a:hover, #user-lists-mobile li a:hover {
+    color: var(--button-primary);
+    text-decoration: underline;
+}
+
 /* ========================================
    CODE BLOCKS
    ======================================== */
