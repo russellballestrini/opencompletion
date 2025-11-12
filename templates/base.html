@@ -71,11 +71,6 @@
                     <option value="shimmer">Shimmer</option>
                 </select>
             </div>
-            <div id="theme-toggle-mobile">
-                <button id="theme-toggle-btn-mobile" onclick="toggleTheme()">
-                    🌙 Dark Mode
-                </button>
-            </div>
             <div id="auto-play-tts-mobile">
                 <button id="auto-play-tts-btn-mobile" onclick="toggleAutoPlayTTS()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
                     Auto-Play TTS: OFF
@@ -336,16 +331,7 @@
     }
 
     function updateThemeButtonText(theme) {
-        const themeBtn = document.getElementById('theme-toggle-btn');
-        const themeBtnMobile = document.getElementById('theme-toggle-btn-mobile');
-
-        if (theme === 'dark') {
-            if (themeBtn) themeBtn.textContent = '☀️ Light Mode';
-            if (themeBtnMobile) themeBtnMobile.textContent = '☀️ Light Mode';
-        } else {
-            if (themeBtn) themeBtn.textContent = '🌙 Dark Mode';
-            if (themeBtnMobile) themeBtnMobile.textContent = '🌙 Dark Mode';
-        }
+        // Theme toggle moved to profile page
     }
 
     // Apply saved theme on page load
