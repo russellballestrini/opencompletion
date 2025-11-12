@@ -24,6 +24,7 @@ from flask import (
     Response,
     redirect,
     url_for,
+    session,
 )
 
 from flask_socketio import SocketIO, emit, join_room, leave_room
