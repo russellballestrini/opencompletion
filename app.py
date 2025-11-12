@@ -308,17 +308,10 @@ def index():
     if user:
         total_private_rooms = Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id).count()
 
-    # Active rooms (with messages in last 24 hours)
-    from datetime import datetime, timedelta
-    twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
-    active_public_rooms = db.session.query(Room).join(Message).filter(
+    # Active rooms - rooms with at least one message
+    active_public_rooms = db.session.query(Room.id).join(Message).filter(
         Room.is_private == False,
-        Room.is_archived == False,
-        Message.room_id == Room.id
-    ).filter(
-        Message.id >= db.session.query(db.func.max(Message.id)).filter(
-            Message.room_id == Room.id
-        ).scalar_subquery()
+        Room.is_archived == False
     ).distinct().count()
 
     # Total active users (from UserSession)
