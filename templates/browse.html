@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Rooms - OpenCompletion</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            max-width: 1400px;
+            margin: 0 auto 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h1 {
+            color: #333;
+            margin: 0;
+        }
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .room-tabs {
+            max-width: 1400px;
+            margin: 0 auto 20px;
+            display: flex;
+            gap: 10px;
+            border-bottom: 2px solid #e1e1e1;
+        }
+        .room-tab {
+            background: none;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .room-tab:hover {
+            color: #667eea;
+        }
+        .room-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: bold;
+        }
+        .rooms-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .room-section {
+            display: none;
+        }
+        .room-section.active {
+            display: block;
+        }
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .room-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .room-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+        .room-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        .room-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 0 0 5px 0;
+        }
+        .room-badge {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #e7f3ff;
+            color: #0066cc;
+            white-space: nowrap;
+        }
+        .room-badge.private {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .room-title {
+            color: #666;
+            font-size: 14px;
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+        .room-meta {
+            display: flex;
+            gap: 15px;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #999;
+        }
+        .room-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .auth-prompt {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .auth-prompt button {
+            margin-top: 10px;
+        }
+        @media (max-width: 768px) {
+            .rooms-grid {
+                grid-template-columns: 1fr;
+            }
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .header-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Browse Rooms</h1>
+        <div class="header-actions">
+            <a href="/" class="btn">🏠 Home</a>
+            {% if user %}
+            <a href="/profile" class="btn btn-secondary">👤 {{ user.display_name }}</a>
+            {% else %}
+            <a href="/auth" class="btn btn-secondary">🔐 Sign In</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="room-tabs">
+        <button class="room-tab active" onclick="switchTab('public')">
+            🌍 Public Rooms
+        </button>
+        <button class="room-tab" onclick="switchTab('private')">
+            🔐 Private Rooms
+        </button>
+    </div>
+
+    <div class="rooms-container">
+        <!-- Public Rooms -->
+        <div id="public-section" class="room-section active">
+            {% if public_rooms %}
+            <div class="rooms-grid">
+                {% for room in public_rooms %}
+                <a href="{{ url_for('chat', room_name=room.name) }}" class="room-card">
+                    <div class="room-card-header">
+                        <h3 class="room-name">{{ room.name }}</h3>
+                        <span class="room-badge">Public</span>
+                    </div>
+                    {% if room.title %}
+                    <p class="room-title">{{ room.title }}</p>
+                    {% endif %}
+                    <div class="room-meta">
+                        <span class="room-meta-item">
+                            👥 {{ room.get_active_users()|length }} active
+                        </span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <h3>No public rooms yet</h3>
+                <p>Be the first to create one!</p>
+                <a href="/" class="btn">Create a Room</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Private Rooms -->
+        <div id="private-section" class="room-section">
+            {% if user %}
+                {% if private_rooms %}
+                <div class="rooms-grid">
+                    {% for room in private_rooms %}
+                    <a href="{{ url_for('chat', room_name=room.name) }}" class="room-card">
+                        <div class="room-card-header">
+                            <h3 class="room-name">{{ room.name }}</h3>
+                            <span class="room-badge private">Private</span>
+                        </div>
+                        {% if room.title %}
+                        <p class="room-title">{{ room.title }}</p>
+                        {% endif %}
+                        <div class="room-meta">
+                            <span class="room-meta-item">
+                                👥 {{ room.get_active_users()|length }} active
+                            </span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <h3>No private rooms yet</h3>
+                    <p>Create your first private room!</p>
+                    <a href="/" class="btn">Create a Room</a>
+                </div>
+                {% endif %}
+            {% else %}
+            <div class="auth-prompt">
+                <h3>🔒 Private rooms are only visible to you</h3>
+                <p>Sign in to create and access your private rooms</p>
+                <a href="/auth" class="btn">Sign In / Sign Up</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.room-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update sections
+            document.querySelectorAll('.room-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(tab + '-section').classList.add('active');
+        }
+    </script>
+</body>
+</html>

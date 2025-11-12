@@ -43,7 +43,6 @@
   <div id="search-form" style="width: 90%;">
       <form action="/search" method="get">
           <input type="text" id="search-keywords" name="keywords" placeholder="Search for keywords..." value="{{ keywords }}">
-          <input type="hidden" id="username" name="username" value="{{ username }}">
       </form>
   </div>
 
@@ -55,10 +54,6 @@
     <div id="room-list-modal-content">
         <button id="close-modal-button" onclick="closeModal()">×</button>
         <div id="utility-belt-mobile" class="utility-belt">
-            <div id="username-chooser-mobile">
-                <label for="username-input-mobile">Username:</label>
-                <input type="text" id="username-input-mobile" placeholder="guest" maxlength="50">
-            </div>
             <div id="model-chooser-mobile">
                 <label for="model-select-mobile">Choose Model:</label>
                 <select id="model-select-mobile">
@@ -128,37 +123,31 @@
 <!-- Chatroom list -->
 <div class="main-container">
   <div id="rooms-list">
-      <!-- opencompletion.com button -->
-      <div id="site-header">
-          <button id="opencompletion-btn" onclick="window.open('https://opencompletion.com', '_blank')">
-              opencompletion.com
-          </button>
-      </div>
-      
-      <!-- New room creation section -->
-      <div id="new-room-section">
-          <textarea id="new-room-name" placeholder="Enter room name..." rows="2" maxlength="100"></textarea>
-          <button id="create-room-btn" onclick="createNewRoom()">Create Room</button>
-      </div>
-      
-      <!-- Room tabs -->
-      <div id="room-tabs">
-          <button class="room-tab" id="private-rooms-tab" onclick="switchRoomTab('private')">
-              🔐 My Private Rooms
-          </button>
-          <button class="room-tab active" id="public-rooms-tab" onclick="switchRoomTab('public')">
-              🌍 Public Rooms
-          </button>
+      <!-- Create Room button with grid layout -->
+      <div id="create-room-section" style="display: grid; gap: 10px; margin-bottom: 15px;">
+          <a href="/">
+              <button id="create-room-btn">Create Room</button>
+          </a>
       </div>
 
-      <!-- Private rooms section -->
-      <div id="private-rooms-section" class="room-section" style="display: none;">
+      <!-- Room tabs with dynamic active state based on current room -->
+      <div id="room-tabs">
+          <div class="room-tab {% if not current_room or not current_room.is_private %}active{% endif %}" id="public-rooms-tab" onclick="switchRoomTab('public')">
+              🌍 Public
+          </div>
+          <div class="room-tab {% if current_room and current_room.is_private %}active{% endif %}" id="private-rooms-tab" onclick="switchRoomTab('private')">
+              🔐 Private
+          </div>
+      </div>
+
+      <!-- Private rooms section (show if viewing a private room) -->
+      <div id="private-rooms-section" class="room-section" style="display: {% if current_room and current_room.is_private %}block{% else %}none{% endif %};">
           <div id="private-rooms-content">
               {% if user %}
                   {% if private_rooms %}
                       <ul class="rooms-list">
                           {% for room in private_rooms %}
-                          <a href="{{ url_for('chat', room_name=room.name) }}{% if username %}?username={{ username }}{% endif %}">
+                          <a href="{{ url_for('chat', room_name=room.name) }}">
                           <li data-room-id="{{ room.id }}" class="private-room">
                               <b>{{ room.name }}</b>
                               {% if room.title %}
@@ -167,10 +156,6 @@
                               {% if room.get_active_users()|length %}
                               <br /> {{ room.get_active_users()|length }} users
                               {% endif %}
-                              <div class="room-actions">
-                                  <button class="room-action-btn" onclick="event.preventDefault(); archiveRoom({{ room.id }})">📦 Archive</button>
-                                  <button class="room-action-btn delete-btn" onclick="event.preventDefault(); deleteRoom({{ room.id }})">🗑️ Delete</button>
-                              </div>
                           </li>
                           </a>
                           {% endfor %}
@@ -188,12 +173,12 @@
           </div>
       </div>
 
-      <!-- Public rooms section -->
-      <div id="public-rooms-section" class="room-section">
+      <!-- Public rooms section (show if viewing a public room or no room) -->
+      <div id="public-rooms-section" class="room-section" style="display: {% if not current_room or not current_room.is_private %}block{% else %}none{% endif %};">
           <ul id="rooms-list-ul" class="rooms-list">
               <!-- Loop through public rooms and create list items for each room -->
               {% for room in public_rooms %}
-              <a href="{{ url_for('chat', room_name=room.name) }}{% if username %}?username={{ username }}{% endif %}">
+              <a href="{{ url_for('chat', room_name=room.name) }}">
               <li data-room-id="{{ room.id }}" class="public-room">
                   <!-- Display the room title if available, otherwise the room name -->
                   <b>{{ room.name }}</b>
@@ -205,14 +190,7 @@
                   {% endif %}
                   {% if user and room.owner_id == user.id %}
                   <span class="owner-badge">👑 Owner</span>
-                  <div class="room-actions">
-                      <button class="room-action-btn" onclick="event.preventDefault(); archiveRoom({{ room.id }})">📦 Archive</button>
-                      <button class="room-action-btn delete-btn" onclick="event.preventDefault(); deleteRoom({{ room.id }})">🗑️ Delete</button>
-                  </div>
                   {% endif %}
-                  <div class="room-actions">
-                      <button class="room-action-btn" onclick="event.preventDefault(); forkRoom({{ room.id }})">🍴 Fork</button>
-                  </div>
               </li>
               </a>
               {% endfor %}
@@ -269,14 +247,13 @@
     // Function to perform the search
     function performSearch() {
         const keywords = document.getElementById("search-keywords").value;
-        const username = document.getElementById("username").value;
         if (!keywords) {
             alert("Please enter keywords to search.");
             return;
         }
 
         // Navigate to the search results page with the keywords as a query parameter
-        window.location.href = `/search?keywords=${encodeURIComponent(keywords)}&username=${username}`;
+        window.location.href = `/search?keywords=${encodeURIComponent(keywords)}`;
     }
 
     // Add event listener for keyword search the "Enter" key
@@ -292,20 +269,16 @@
         const modal = document.getElementById("room-list-modal");
         const modalContent = document.getElementById("room-list-modal-content");
         const closeButton = document.getElementById("close-modal-button");
-        
-        // Clone the site header, new room section, public rooms header, and rooms list
-        const siteHeader = document.getElementById("site-header").cloneNode(true);
-        const newRoomSection = document.getElementById("new-room-section").cloneNode(true);
-        const publicRoomsHeader = document.getElementById("public-rooms-header").cloneNode(true);
+
+        // Clone the create room section and rooms list
+        const createRoomSection = document.getElementById("create-room-section").cloneNode(true);
         const roomsList = document.getElementById("rooms-list-ul").cloneNode(true);
-        
+
         // Clear previous content and add all sections
         document.getElementById("rooms-list-modal-content").innerHTML = '';
-        document.getElementById("rooms-list-modal-content").appendChild(siteHeader);
-        document.getElementById("rooms-list-modal-content").appendChild(newRoomSection);
-        document.getElementById("rooms-list-modal-content").appendChild(publicRoomsHeader);
+        document.getElementById("rooms-list-modal-content").appendChild(createRoomSection);
         document.getElementById("rooms-list-modal-content").appendChild(roomsList);
-        
+
         modal.style.display = "flex";
         modalContent.style.display = "block";
         closeButton.style.display = "block";
@@ -321,67 +294,11 @@
         closeButton.style.display = "none";
     }
     
-    // Function to update all room links with current URL parameters (username only)
+    // Function to update all room links (no query parameters needed)
     function updateRoomLinksWithCurrentParams() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const username = urlParams.get('username');
-        const usernameParam = username ? `?username=${encodeURIComponent(username)}` : '';
-
-        // Update desktop room links
-        const roomLinks = document.querySelectorAll('#rooms-list-ul a[href*="/chat/"]');
-        roomLinks.forEach(link => {
-            const url = new URL(link.href, window.location.origin);
-            const roomPath = url.pathname; // e.g., "/chat/room-name"
-            link.href = roomPath + usernameParam;
-        });
-
-        // Update mobile room links (if they exist)
-        const mobileRoomLinks = document.querySelectorAll('#rooms-list-modal-content a[href*="/chat/"]');
-        mobileRoomLinks.forEach(link => {
-            const url = new URL(link.href, window.location.origin);
-            const roomPath = url.pathname; // e.g., "/chat/room-name"
-            link.href = roomPath + usernameParam;
-        });
+        // No longer needed - links don't use username in query string
+        // Keeping function for compatibility
     }
-    
-    // Function to create a new room
-    function createNewRoom() {
-        const roomName = document.getElementById("new-room-name").value.trim();
-        
-        if (!roomName) {
-            alert("Please enter a room name.");
-            return;
-        }
-        
-        // Slugify the room name to make it URL-friendly
-        const slugifiedRoomName = slugify(roomName);
-        
-        if (!slugifiedRoomName) {
-            alert("Please enter a valid room name with at least some letters or numbers.");
-            return;
-        }
-        
-        // Get current username from URL to maintain it
-        const urlParams = new URLSearchParams(window.location.search);
-        const username = urlParams.get('username');
-        const usernameParam = username ? `?username=${encodeURIComponent(username)}` : '';
-
-        // Navigate to the new room using the slugified name (username only, model/voice in localStorage)
-        window.location.href = `/chat/${slugifiedRoomName}${usernameParam}`;
-    }
-    
-    // Add event listener for Enter key in the new room textarea
-    document.addEventListener('DOMContentLoaded', function() {
-        const newRoomTextarea = document.getElementById("new-room-name");
-        if (newRoomTextarea) {
-            newRoomTextarea.addEventListener("keydown", function(event) {
-                if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    createNewRoom();
-                }
-            });
-        }
-    });
 
     // Add event listener to the hamburger button
     document.getElementById("hamburger-button").addEventListener("click", openModal);
@@ -645,7 +562,6 @@
             const data = await response.json();
 
             if (response.ok) {
-                alert(`Room forked successfully! Redirecting to ${data.room.name}...`);
                 window.location.href = `/chat/${data.room.name}`;
             } else {
                 alert(data.error || 'Failed to fork room');
@@ -693,7 +609,6 @@
             const data = await response.json();
 
             if (response.ok) {
-                alert('Room deleted successfully!');
                 window.location.href = '/';
             } else {
                 alert(data.error || 'Failed to delete room');

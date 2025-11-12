@@ -179,7 +179,7 @@ p {
 /* Styling for the main container that holds the rooms list and chat */
 .main-container {
     display: grid;
-    grid-template-columns: 15% 70% 15%;
+    grid-template-columns: 15% 60% 25%;
     width: 100%;
     height: 90vh;
 }
@@ -620,4 +620,38 @@ a:hover {
 
 [data-theme="dark"] * {
     scrollbar-color: #4a4a4a var(--bg-secondary);
+}
+
+/* Room tabs styling */
+#room-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    margin-bottom: 15px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.room-tab {
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: none;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.room-tab:hover {
+    background-color: var(--highlight-bg);
+    color: var(--text-primary);
+}
+
+.room-tab.active {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-bottom-color: var(--button-primary);
+    font-weight: bold;
 }

@@ -86,6 +86,23 @@
             outline: none;
             border-color: #667eea;
         }
+        .room-type-selector {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            padding: 10px 0;
+        }
+        .room-type-selector label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .room-type-selector input[type="radio"] {
+            width: auto;
+            cursor: pointer;
+        }
         button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -154,6 +171,9 @@
         {% if user %}
         <div class="auth-status logged-in">
             ✅ Signed in as <strong>{{ user.display_name }}</strong> ({{ user.email }})
+            <div style="margin-top: 10px;">
+                <a href="/profile" style="color: #667eea; text-decoration: none; font-weight: bold;">⚙️ Profile Settings</a>
+            </div>
         </div>
         {% else %}
         <div class="auth-status">
@@ -165,27 +185,77 @@
         <div id="join-section">
             <h2>Join or Create a Room</h2>
             <form id="join-room-form">
-                <input id="username" type="text" placeholder="Enter your username" value="{{ username if username else 'guest' }}">
-                <input id="room" type="text" placeholder="Enter room name">
-                <button type="submit">Join Room</button>
+                <input id="room" type="text" placeholder="Enter room name" required>
+                <div class="room-type-selector">
+                    <label>
+                        <input type="radio" name="room-type" value="public" checked>
+                        🌍 Public Room
+                    </label>
+                    <label>
+                        <input type="radio" name="room-type" value="private">
+                        🔐 Private Room
+                    </label>
+                </div>
+                <button type="submit">Create/Join Room</button>
             </form>
         </div>
 
         <div class="browse-link">
-            <a href="/chat/general{% if user %}?username={{ user.display_name }}{% endif %}">Or browse existing rooms →</a>
+            <a href="/browse">Or browse existing rooms →</a>
         </div>
     </div>
 
     <script>
-        document.getElementById('join-room-form').addEventListener('submit', function(e) {
+        document.getElementById('join-room-form').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const username = document.getElementById('username').value || 'guest';
-            const room = slugify(document.getElementById('room').value);
-            if (!room) {
+            const roomInput = document.getElementById('room').value.trim();
+            const roomType = document.querySelector('input[name="room-type"]:checked').value;
+
+            if (!roomInput) {
                 alert('Please enter a room name');
                 return;
             }
-            window.location.href = `/chat/${room}?username=${encodeURIComponent(username)}`;
+
+            const room = slugify(roomInput);
+
+            if (!room) {
+                alert('Please enter a valid room name with at least some letters or numbers');
+                return;
+            }
+
+            // If private room, check authentication
+            if (roomType === 'private') {
+                {% if not user %}
+                alert('You must be signed in to create private rooms. Please sign in first.');
+                window.location.href = '/auth';
+                return;
+                {% endif %}
+
+                // Create private room via API
+                try {
+                    const response = await fetch('/api/rooms/create', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            name: room,
+                            is_private: true
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        window.location.href = `/chat/${data.room.name}`;
+                    } else {
+                        alert(data.error || 'Failed to create private room');
+                    }
+                } catch (error) {
+                    alert('Network error. Please try again.');
+                }
+            } else {
+                // Public room - just navigate
+                window.location.href = `/chat/${room}`;
+            }
         });
     </script>
 </body>

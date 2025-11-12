@@ -57,6 +57,7 @@ class Room(db.Model):
     is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.Integer, default=lambda: int(datetime.utcnow().timestamp()), nullable=False)
     forked_from_id = db.Column(db.Integer, db.ForeignKey('room.id'), nullable=True)
 
     def add_user(self, username):

@@ -333,6 +333,34 @@ def auth_page():
     return render_template("auth.html")
 
 
+@app.route("/browse")
+def browse_rooms():
+    """Browse all rooms (public and user's private rooms)"""
+    user = auth.get_current_user()
+
+    # Get public rooms ordered by last updated
+    public_rooms = Room.query.filter_by(
+        is_private=False,
+        is_archived=False
+    ).order_by(Room.updated_at.desc()).all()
+
+    # Get user's private rooms if authenticated
+    private_rooms = []
+    if user:
+        private_rooms = Room.query.filter_by(
+            is_private=True,
+            is_archived=False,
+            owner_id=user.id
+        ).order_by(Room.updated_at.desc()).all()
+
+    return render_template(
+        "browse.html",
+        public_rooms=public_rooms,
+        private_rooms=private_rooms,
+        user=user
+    )
+
+
 @app.route("/models", methods=["GET"])
 def get_models():
     # Optionally refresh or reinitialize the model map here.
@@ -471,6 +499,69 @@ def logout():
     return jsonify({'success': True})
 
 
+@app.route("/profile")
+@auth.require_auth
+def profile_page():
+    """Profile settings page"""
+    user = auth.get_current_user()
+    return render_template("profile.html", user=user)
+
+
+@app.route("/api/check-username", methods=["GET"])
+def check_username():
+    """Check if username is available"""
+    username = request.args.get('username', '').strip()
+
+    if not username:
+        return jsonify({'available': False, 'error': 'Username is required'}), 400
+
+    # Validate format
+    import re
+    if not re.match(r'^[a-zA-Z0-9_-]{3,50}$', username):
+        return jsonify({'available': False, 'error': 'Invalid format'}), 400
+
+    # Check if username exists
+    existing_user = User.query.filter_by(display_name=username).first()
+
+    return jsonify({'available': existing_user is None})
+
+
+@app.route("/api/update-username", methods=["POST"])
+@auth.require_auth
+def update_username():
+    """Update user's display name"""
+    user = auth.get_current_user()
+    data = request.get_json()
+    new_username = data.get('new_username', '').strip()
+
+    if not new_username:
+        return jsonify({'error': 'Username is required'}), 400
+
+    # Validate format
+    import re
+    if not re.match(r'^[a-zA-Z0-9_-]{3,50}$', new_username):
+        return jsonify({
+            'error': 'Username must be 3-50 characters (letters, numbers, underscores, hyphens only)'
+        }), 400
+
+    # Check if username is already taken
+    existing_user = User.query.filter_by(display_name=new_username).first()
+    if existing_user and existing_user.id != user.id:
+        return jsonify({'error': 'Username is already taken'}), 400
+
+    # Update username
+    user.display_name = new_username
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'user': {
+            'email': user.email,
+            'display_name': user.display_name
+        }
+    })
+
+
 @app.route("/api/activities", methods=["GET"])
 def get_activities():
     """Return the list of available activities."""
@@ -522,6 +613,45 @@ def get_rooms_api():
     })
 
 
+@app.route("/api/rooms/create", methods=["POST"])
+def create_room_api():
+    """Create a new room"""
+    user = auth.get_current_user()
+    data = request.get_json() or {}
+    room_name = data.get('name', '').strip()
+    is_private = data.get('is_private', False)
+
+    if not room_name:
+        return jsonify({'error': 'Room name is required'}), 400
+
+    # Private rooms require authentication
+    if is_private and not user:
+        return jsonify({'error': 'Authentication required to create private rooms'}), 401
+
+    # Check if room already exists
+    existing_room = Room.query.filter_by(name=room_name).first()
+    if existing_room:
+        return jsonify({'error': 'Room name already exists'}), 400
+
+    # Create room
+    new_room = Room()
+    new_room.name = room_name
+    new_room.is_private = is_private
+    new_room.owner_id = user.id if user else None
+
+    db.session.add(new_room)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'room': {
+            'id': new_room.id,
+            'name': new_room.name,
+            'is_private': new_room.is_private
+        }
+    })
+
+
 @app.route("/api/rooms/<int:room_id>/fork", methods=["POST"])
 def fork_room(room_id):
     """Fork a room (authenticated users can fork to private or public)"""
@@ -534,9 +664,10 @@ def fork_room(room_id):
     if not source_room:
         return jsonify({'error': 'Room not found'}), 404
 
-    # Can only fork public rooms
+    # Private rooms can only be forked by their owner
     if source_room.is_private:
-        return jsonify({'error': 'Cannot fork private rooms'}), 403
+        if not user or source_room.owner_id != user.id:
+            return jsonify({'error': 'Cannot fork private rooms you do not own'}), 403
 
     # Private rooms require authentication
     if make_private and not user:
@@ -728,13 +859,14 @@ def chat(room_name):
     if user:
         private_rooms = Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id).order_by(Room.id.desc()).all()
 
-    # Get username from query parameters
-    username = request.args.get("username", "guest")
+    # Use authenticated user's display name, or None (will prompt on client side)
+    username = user.display_name if user else None
 
-    # Pass username, rooms, and user into the template
+    # Pass username, rooms, room (current room), and user into the template
     return render_template(
         "chat.html",
         room_name=room_name,
+        current_room=room,
         public_rooms=public_rooms,
         private_rooms=private_rooms,
         username=username,
@@ -1057,6 +1189,12 @@ def handle_message(data):
         room_id=room.id,
     )
     db.session.add(new_message)
+
+    # Update room's updated_at timestamp (Unix epoch)
+    from datetime import datetime
+    room.updated_at = int(datetime.utcnow().timestamp())
+    db.session.add(room)
+
     db.session.commit()
 
     emit(
