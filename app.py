@@ -1258,8 +1258,10 @@ def handle_message(data):
             gevent.spawn(save_code_block_to_s3, room_name, s3_key_path, username)
         if command.startswith("/title new"):
             gevent.spawn(generate_new_title, room_name, username)
+            return
         if command.startswith("/cancel"):
             gevent.spawn(cancel_generation, room_name)
+            return
 
     activity_state = ActivityState.query.filter_by(room_id=room.id).first()
     if activity_state:
