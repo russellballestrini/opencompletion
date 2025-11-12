@@ -472,8 +472,25 @@ socket.on('update_room_list', function(updatedRoom) {
     const roomListItem = document.querySelector(`#rooms-list li[data-room-id="${updatedRoom.id}"]`);
 
     if (roomListItem) {
+        // Preserve user count and owner badge if they exist
+        const userCountMatch = roomListItem.innerHTML.match(/<br\s*\/>\s*(\d+)\s*users/);
+        const ownerBadge = roomListItem.querySelector('.owner-badge');
+
         // Update the room list item's content with the new title
-        roomListItem.innerHTML = `<b>${updatedRoom.name}</b> ${updatedRoom.title ? '<br />' + updatedRoom.title : ''}`;
+        let newHTML = `<b>${updatedRoom.name}</b>`;
+        if (updatedRoom.title) {
+            newHTML += `<br />${updatedRoom.title}`;
+        }
+        if (userCountMatch) {
+            newHTML += `<br /> ${userCountMatch[1]} users`;
+        }
+
+        roomListItem.innerHTML = newHTML;
+
+        // Re-add owner badge if it existed
+        if (ownerBadge) {
+            roomListItem.innerHTML += '<span class="owner-badge">👑 Owner</span>';
+        }
     }
 });
 
