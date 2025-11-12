@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,9 +8,32 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <style>
+        :root {
+            --bg-page: #f7f7f7;
+            --bg-card: #ffffff;
+            --bg-section: #f9f9f9;
+            --bg-status: #e7f3ff;
+            --bg-status-logged: #d4edda;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --border-color: #e1e1e1;
+        }
+
+        [data-theme="dark"] {
+            --bg-page: #1a1a1a;
+            --bg-card: #2d2d2d;
+            --bg-section: #252525;
+            --bg-status: #1e3a5f;
+            --bg-status-logged: #1e4d2b;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --border-color: #404040;
+        }
+
         body {
             font-family: Arial, sans-serif;
-            background-color: #f7f7f7;
+            background-color: var(--bg-page);
+            color: var(--text-primary);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -18,24 +41,28 @@
             min-height: 100vh;
             margin: 0;
             padding: 20px;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         #main-container {
-            background-color: #ffffff;
+            background-color: var(--bg-card);
             border-radius: 10px;
             padding: 30px;
             width: 100%;
             max-width: 800px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
         }
         h1 {
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 10px;
             text-align: center;
+            transition: color 0.3s ease;
         }
         .tagline {
             text-align: center;
-            color: #666;
+            color: var(--text-secondary);
             margin-bottom: 30px;
+            transition: color 0.3s ease;
         }
         .stats-grid {
             display: grid;
@@ -60,14 +87,16 @@
             opacity: 0.9;
         }
         #join-section {
-            background-color: #f9f9f9;
+            background-color: var(--bg-section);
             border-radius: 8px;
             padding: 25px;
             margin-bottom: 20px;
+            transition: background-color 0.3s ease;
         }
         #join-section h2 {
             margin-top: 0;
-            color: #333;
+            color: var(--text-primary);
+            transition: color 0.3s ease;
         }
         #join-room-form {
             display: flex;
@@ -76,11 +105,14 @@
         }
         input[type="text"] {
             width: 100%;
-            border: 2px solid #e1e1e1;
+            border: 2px solid var(--border-color);
             border-radius: 5px;
             padding: 12px;
             font-size: 16px;
             box-sizing: border-box;
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
         }
         input[type="text"]:focus {
             outline: none;
@@ -119,12 +151,13 @@
         .auth-status {
             text-align: center;
             padding: 15px;
-            background: #e7f3ff;
+            background: var(--bg-status);
             border-radius: 8px;
             margin-bottom: 20px;
+            transition: background-color 0.3s ease;
         }
         .auth-status.logged-in {
-            background: #d4edda;
+            background: var(--bg-status-logged);
         }
         .browse-link {
             text-align: center;
@@ -206,6 +239,10 @@
     </div>
 
     <script>
+        // Theme persistence
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
         document.getElementById('join-room-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const roomInput = document.getElementById('room').value.trim();

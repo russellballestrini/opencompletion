@@ -1,16 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browse Rooms - OpenCompletion</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <style>
+        :root {
+            --bg-page: #f7f7f7;
+            --bg-card: white;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --text-muted: #999;
+            --border-color: #e1e1e1;
+        }
+
+        [data-theme="dark"] {
+            --bg-page: #1a1a1a;
+            --bg-card: #2d2d2d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --text-muted: #888;
+            --border-color: #404040;
+        }
+
         body {
             font-family: Arial, sans-serif;
-            background-color: #f7f7f7;
+            background-color: var(--bg-page);
+            color: var(--text-primary);
             margin: 0;
             padding: 20px;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         .header {
             max-width: 1400px;
@@ -22,8 +42,9 @@
             gap: 15px;
         }
         .header h1 {
-            color: #333;
+            color: var(--text-primary);
             margin: 0;
+            transition: color 0.3s ease;
         }
         .header-actions {
             display: flex;
@@ -61,7 +82,7 @@
             padding: 12px 24px;
             font-size: 16px;
             cursor: pointer;
-            color: #666;
+            color: var(--text-secondary);
             border-bottom: 3px solid transparent;
             transition: all 0.3s;
         }
@@ -90,11 +111,11 @@
             margin-bottom: 40px;
         }
         .room-card {
-            background: white;
+            background: var(--bg-card);
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease;
             cursor: pointer;
             text-decoration: none;
             color: inherit;
@@ -129,17 +150,19 @@
             color: #856404;
         }
         .room-title {
-            color: #666;
+            color: var(--text-secondary);
             font-size: 14px;
             margin: 8px 0;
             line-height: 1.4;
+            transition: color 0.3s ease;
         }
         .room-meta {
             display: flex;
             gap: 15px;
             margin-top: 12px;
             font-size: 14px;
-            color: #999;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
         }
         .room-meta-item {
             display: flex;
@@ -149,11 +172,13 @@
         .empty-state {
             text-align: center;
             padding: 60px 20px;
-            color: #999;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
         }
         .empty-state h3 {
-            color: #666;
+            color: var(--text-secondary);
             margin-bottom: 10px;
+            transition: color 0.3s ease;
         }
         .auth-prompt {
             background: #fff3cd;
@@ -273,6 +298,10 @@
     </div>
 
     <script>
+        // Theme persistence
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
         function switchTab(tab) {
             // Update tab buttons
             document.querySelectorAll('.room-tab').forEach(btn => {
