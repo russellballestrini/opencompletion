@@ -35,10 +35,9 @@
         .header {
             max-width: 1400px;
             margin: 0 auto 30px;
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto;
             align-items: center;
-            flex-wrap: wrap;
             gap: 15px;
         }
         .header h1 {
@@ -47,9 +46,9 @@
             transition: color 0.3s ease;
         }
         .header-actions {
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
             gap: 10px;
-            flex-wrap: wrap;
         }
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -106,8 +105,8 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
         .room-card-header {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto;
             align-items: start;
             margin-bottom: 10px;
         }
@@ -166,11 +165,10 @@
                 grid-template-columns: 1fr;
             }
             .header {
-                flex-direction: column;
-                align-items: stretch;
+                grid-template-columns: 1fr;
             }
             .header-actions {
-                flex-direction: column;
+                grid-auto-flow: row;
             }
         }
     </style>

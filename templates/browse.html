@@ -35,10 +35,9 @@
         .header {
             max-width: 1400px;
             margin: 0 auto 30px;
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto;
             align-items: center;
-            flex-wrap: wrap;
             gap: 15px;
         }
         .header h1 {
@@ -47,9 +46,9 @@
             transition: color 0.3s ease;
         }
         .header-actions {
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
             gap: 10px;
-            flex-wrap: wrap;
         }
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -72,7 +71,9 @@
         .room-tabs {
             max-width: 1400px;
             margin: 0 auto 20px;
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
+            grid-auto-columns: max-content;
             gap: 10px;
             border-bottom: 2px solid #e1e1e1;
         }
@@ -126,8 +127,8 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
         .room-card-header {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto;
             align-items: start;
             margin-bottom: 10px;
         }
@@ -157,7 +158,9 @@
             transition: color 0.3s ease;
         }
         .room-meta {
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
+            grid-auto-columns: max-content;
             gap: 15px;
             margin-top: 12px;
             font-size: 14px;
@@ -165,7 +168,8 @@
             transition: color 0.3s ease;
         }
         .room-meta-item {
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
             align-items: center;
             gap: 5px;
         }
@@ -196,11 +200,10 @@
                 grid-template-columns: 1fr;
             }
             .header {
-                flex-direction: column;
-                align-items: stretch;
+                grid-template-columns: 1fr;
             }
             .header-actions {
-                flex-direction: column;
+                grid-auto-flow: row;
             }
         }
     </style>

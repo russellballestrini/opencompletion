@@ -34,10 +34,8 @@
             font-family: Arial, sans-serif;
             background-color: var(--bg-page);
             color: var(--text-primary);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            display: grid;
+            place-items: center;
             min-height: 100vh;
             margin: 0;
             padding: 20px;
@@ -99,8 +97,7 @@
             transition: color 0.3s ease;
         }
         #join-room-form {
-            display: flex;
-            flex-direction: column;
+            display: grid;
             gap: 10px;
         }
         input[type="text"] {
@@ -119,13 +116,16 @@
             border-color: #667eea;
         }
         .room-type-selector {
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
+            grid-auto-columns: max-content;
             gap: 20px;
             align-items: center;
             padding: 10px 0;
         }
         .room-type-selector label {
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
             align-items: center;
             gap: 5px;
             cursor: pointer;

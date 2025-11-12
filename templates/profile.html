@@ -48,10 +48,9 @@
         .header {
             max-width: 1400px;
             margin: 0 auto 30px;
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto;
             align-items: center;
-            flex-wrap: wrap;
             gap: 15px;
         }
 
@@ -62,9 +61,9 @@
         }
 
         .header-actions {
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
             gap: 10px;
-            flex-wrap: wrap;
         }
 
         .btn {
@@ -223,11 +222,10 @@
 
         @media (max-width: 768px) {
             .header {
-                flex-direction: column;
-                align-items: stretch;
+                grid-template-columns: 1fr;
             }
             .header-actions {
-                flex-direction: column;
+                grid-auto-flow: row;
             }
         }
 
