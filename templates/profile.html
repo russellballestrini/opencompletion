@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Settings - OpenCompletion</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f7;
+            --bg-tertiary: #e1e1e1;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-color: #e1e1e1;
+            --button-primary: #667eea;
+            --button-hover: #764ba2;
+            --input-bg: #ffffff;
+            --input-border: #e1e1e1;
+            --success-color: #28a745;
+            --error-color: #dc3545;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3d3d3d;
+            --text-primary: #e1e1e1;
+            --text-secondary: #a0a0a0;
+            --border-color: #3d3d3d;
+            --button-primary: #667eea;
+            --button-hover: #764ba2;
+            --input-bg: #2d2d2d;
+            --input-border: #3d3d3d;
+            --success-color: #28a745;
+            --error-color: #dc3545;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        #main-container {
+            background-color: var(--bg-primary);
+            border-radius: 10px;
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+        }
+
+        .section {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .section h2 {
+            margin-top: 0;
+            color: var(--text-primary);
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            border: 2px solid var(--input-border);
+            border-radius: 5px;
+            padding: 12px;
+            font-size: 16px;
+            box-sizing: border-box;
+            background-color: var(--input-bg);
+            color: var(--text-primary);
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--button-primary);
+        }
+
+        .availability-indicator {
+            font-size: 14px;
+            margin-top: 5px;
+            min-height: 20px;
+        }
+
+        .available {
+            color: var(--success-color);
+        }
+
+        .unavailable {
+            color: var(--error-color);
+        }
+
+        .current-value {
+            background-color: var(--bg-tertiary);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .current-value strong {
+            color: var(--text-primary);
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--button-primary) 0%, var(--button-hover) 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .theme-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .theme-option {
+            padding: 15px;
+            border: 2px solid var(--input-border);
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            background-color: var(--input-bg);
+        }
+
+        .theme-option:hover {
+            border-color: var(--button-primary);
+        }
+
+        .theme-option.active {
+            border-color: var(--button-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        .theme-option .icon {
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back-link a {
+            color: var(--button-primary);
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+
+        .message {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .message.success {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .message.error {
+            background-color: var(--error-color);
+            color: white;
+        }
+
+        .message.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="main-container">
+        <h1>Profile Settings</h1>
+        <p class="subtitle">Manage your account preferences</p>
+
+        <!-- Username Section -->
+        <div class="section">
+            <h2>Change Username</h2>
+            <div class="current-value">
+                Current username: <strong>{{ user.display_name }}</strong>
+            </div>
+            <div id="username-message" class="message"></div>
+            <form id="username-form">
+                <div class="form-group">
+                    <label for="new-username">New Username</label>
+                    <input
+                        type="text"
+                        id="new-username"
+                        placeholder="Enter new username"
+                        pattern="[a-zA-Z0-9_-]{3,50}"
+                        title="3-50 characters (letters, numbers, underscores, hyphens only)"
+                        required
+                    >
+                    <div id="availability-indicator" class="availability-indicator"></div>
+                </div>
+                <button type="submit" id="update-username-btn" disabled>Update Username</button>
+            </form>
+        </div>
+
+        <!-- Theme Section -->
+        <div class="section">
+            <h2>Appearance</h2>
+            <div class="theme-selector">
+                <div class="theme-option" data-theme="light" onclick="setTheme('light')">
+                    <div class="icon">☀️</div>
+                    <div>Light Mode</div>
+                </div>
+                <div class="theme-option" data-theme="dark" onclick="setTheme('dark')">
+                    <div class="icon">🌙</div>
+                    <div>Dark Mode</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="back-link">
+            <a href="/">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        let checkTimeout;
+        const currentUsername = "{{ user.display_name }}";
+
+        // Theme Management
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+
+            // Update active state
+            document.querySelectorAll('.theme-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            document.querySelector(`.theme-option[data-theme="${theme}"]`).classList.add('active');
+        }
+
+        // Load saved theme on page load
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+
+        // Username availability check
+        document.getElementById('new-username').addEventListener('input', function(e) {
+            const username = e.target.value.trim();
+            const indicator = document.getElementById('availability-indicator');
+            const submitBtn = document.getElementById('update-username-btn');
+
+            // Clear previous timeout
+            clearTimeout(checkTimeout);
+
+            // Reset if empty or same as current
+            if (!username || username === currentUsername) {
+                indicator.textContent = '';
+                submitBtn.disabled = true;
+                return;
+            }
+
+            // Validate format
+            const isValid = /^[a-zA-Z0-9_-]{3,50}$/.test(username);
+            if (!isValid) {
+                indicator.textContent = 'Invalid format (3-50 chars: letters, numbers, _, -)';
+                indicator.className = 'availability-indicator unavailable';
+                submitBtn.disabled = true;
+                return;
+            }
+
+            // Check availability after 500ms delay
+            indicator.textContent = 'Checking availability...';
+            indicator.className = 'availability-indicator';
+
+            checkTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/api/check-username?username=${encodeURIComponent(username)}`);
+                    const data = await response.json();
+
+                    if (data.available) {
+                        indicator.textContent = '✓ Username is available';
+                        indicator.className = 'availability-indicator available';
+                        submitBtn.disabled = false;
+                    } else {
+                        indicator.textContent = '✗ Username is already taken';
+                        indicator.className = 'availability-indicator unavailable';
+                        submitBtn.disabled = true;
+                    }
+                } catch (error) {
+                    indicator.textContent = 'Error checking availability';
+                    indicator.className = 'availability-indicator unavailable';
+                    submitBtn.disabled = true;
+                }
+            }, 500);
+        });
+
+        // Username update form
+        document.getElementById('username-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const newUsername = document.getElementById('new-username').value.trim();
+            const messageDiv = document.getElementById('username-message');
+            const submitBtn = document.getElementById('update-username-btn');
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Updating...';
+
+            try {
+                const response = await fetch('/api/update-username', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ new_username: newUsername })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    messageDiv.textContent = 'Username updated successfully! Redirecting...';
+                    messageDiv.className = 'message success show';
+
+                    // Redirect after 2 seconds
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    messageDiv.textContent = data.error || 'Failed to update username';
+                    messageDiv.className = 'message error show';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Update Username';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'Network error. Please try again.';
+                messageDiv.className = 'message error show';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Update Username';
+            }
+        });
+    </script>
+</body>
+</html>

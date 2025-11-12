@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime, timedelta
 
 import tiktoken
 
@@ -7,12 +8,57 @@ import json
 db = SQLAlchemy()
 
 
+class User(db.Model):
+    """User model for authentication and ownership"""
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    display_name = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_login = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    owned_rooms = db.relationship('Room', backref='owner', lazy='dynamic', foreign_keys='Room.owner_id')
+
+    def __repr__(self):
+        return f'<User {self.display_name} ({self.email})>'
+
+
+class OTPToken(db.Model):
+    """One-Time Password tokens for email authentication"""
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), nullable=False, index=True)
+    otp_code = db.Column(db.String(6), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False, nullable=False)
+
+    def __init__(self, email, otp_code, expiration_minutes=10):
+        self.email = email
+        self.otp_code = otp_code
+        self.created_at = datetime.utcnow()
+        self.expires_at = self.created_at + timedelta(minutes=expiration_minutes)
+        self.used = False
+
+    def is_valid(self):
+        """Check if the OTP is still valid (not used and not expired)"""
+        return not self.used and datetime.utcnow() < self.expires_at
+
+    def __repr__(self):
+        return f'<OTPToken {self.email} expires_at={self.expires_at}>'
+
+
 class Room(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False, unique=True)
     title = db.Column(db.String(128), nullable=True)
     active_users = db.Column(db.Text, default="")  # Store as a comma-separated string
     inactive_users = db.Column(db.Text, default="")  # Store as a comma-separated string
+    is_private = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.Integer, default=lambda: int(datetime.utcnow().timestamp()), nullable=False)
+    forked_from_id = db.Column(db.Integer, db.ForeignKey('room.id'), nullable=True)
 
     def add_user(self, username):
         active_users = set(self.active_users.split(",")) if self.active_users else set()

@@ -20,6 +20,8 @@ Features
 - Commands to load and save code blocks to AWS S3.
 - Database storage for messages and chatrooms using SQLAlchemy.
 - Migration support with Flask-Migrate.
+- Email OTP authentication with private room support
+- Room forking, archiving, and owner management
 
 Requirements
 ------------
@@ -78,18 +80,26 @@ Here are some free endpoint for research only!::
     export MODEL_ENDPOINT_2=https://qwen.ai.unturf.com/v1
     export MODEL_ENDPOINT_3=https://gpt-oss.ai.unturf.com/v1
 
+Optional SMTP for email OTP authentication::
+
+    export SMTP_HOST=smtp.gmail.com
+    export SMTP_PORT=587
+    export SMTP_USER=your@email.com
+    export SMTP_PASSWORD=your_app_password
+
 To start the application with socket.io run::
 
     python app.py
 
 Optionally flags ``python app.py --local-activities --profile <aws-profile-name>``::
 
-    usage: app.py [-h] [--profile PROFILE] [--local-activities]
-    
+    usage: app.py [-h] [--profile PROFILE] [--local-activities] [--port PORT]
+
     options:
       -h, --help          show this help message and exit
       --profile PROFILE   AWS profile name
       --local-activities  Use local activity files instead of S3
+      --port PORT         Port number (default: 5001)
 
 
 The application will be available at ``http://127.0.0.1:5001`` by default.
