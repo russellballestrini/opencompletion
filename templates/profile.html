@@ -40,42 +40,71 @@
             font-family: Arial, sans-serif;
             background-color: var(--bg-secondary);
             color: var(--text-primary);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
             margin: 0;
             padding: 20px;
             transition: background-color 0.3s, color 0.3s;
         }
 
-        #main-container {
-            background-color: var(--bg-primary);
-            border-radius: 10px;
-            padding: 30px;
-            width: 100%;
-            max-width: 600px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        .header {
+            max-width: 1400px;
+            margin: 0 auto 30px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 15px;
         }
 
-        h1 {
+        .header h1 {
             color: var(--text-primary);
-            margin-bottom: 10px;
-            text-align: center;
+            margin: 0;
+            transition: color 0.3s;
+        }
+
+        .header-actions {
+            display: grid;
+            grid-auto-flow: column;
+            gap: 10px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--button-primary) 0%, var(--button-hover) 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .content-container {
+            max-width: 800px;
+            margin: 0 auto;
         }
 
         .subtitle {
             text-align: center;
             color: var(--text-secondary);
             margin-bottom: 30px;
+            transition: color 0.3s;
         }
 
         .section {
-            background-color: var(--bg-secondary);
+            background-color: var(--bg-primary);
             border-radius: 8px;
             padding: 25px;
             margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .section h2 {
@@ -117,6 +146,11 @@
             font-size: 14px;
             margin-top: 5px;
             min-height: 20px;
+            display: none;
+        }
+
+        .availability-indicator.show {
+            display: block;
         }
 
         .available {
@@ -191,19 +225,13 @@
             margin-bottom: 5px;
         }
 
-        .back-link {
-            text-align: center;
-            margin-top: 20px;
-        }
-
-        .back-link a {
-            color: var(--button-primary);
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        .back-link a:hover {
-            text-decoration: underline;
+        @media (max-width: 768px) {
+            .header {
+                grid-template-columns: 1fr;
+            }
+            .header-actions {
+                grid-auto-flow: row;
+            }
         }
 
         .message {
@@ -229,8 +257,15 @@
     </style>
 </head>
 <body>
-    <div id="main-container">
-        <h1>Profile Settings</h1>
+    <div class="header">
+        <h1>⚙️ Profile Settings</h1>
+        <div class="header-actions">
+            <a href="/" class="btn">🏠 Home</a>
+            <a href="/browse" class="btn btn-secondary">📋 Browse Rooms</a>
+        </div>
+    </div>
+
+    <div class="content-container">
         <p class="subtitle">Manage your account preferences</p>
 
         <!-- Username Section -->
@@ -271,10 +306,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="back-link">
-            <a href="/">← Back to Home</a>
-        </div>
     </div>
 
     <script>
@@ -306,9 +337,21 @@
             // Clear previous timeout
             clearTimeout(checkTimeout);
 
-            // Reset if empty or same as current
-            if (!username || username === currentUsername) {
+            // Hide indicator and disable button if same as current username
+            if (username === currentUsername) {
                 indicator.textContent = '';
+                indicator.classList.remove('show');
+                submitBtn.disabled = true;
+                return;
+            }
+
+            // Show indicator when username changes
+            indicator.classList.add('show');
+
+            // Reset if empty
+            if (!username) {
+                indicator.textContent = '';
+                indicator.classList.remove('show');
                 submitBtn.disabled = true;
                 return;
             }
@@ -317,14 +360,14 @@
             const isValid = /^[a-zA-Z0-9_-]{3,50}$/.test(username);
             if (!isValid) {
                 indicator.textContent = 'Invalid format (3-50 chars: letters, numbers, _, -)';
-                indicator.className = 'availability-indicator unavailable';
+                indicator.className = 'availability-indicator unavailable show';
                 submitBtn.disabled = true;
                 return;
             }
 
             // Check availability after 500ms delay
             indicator.textContent = 'Checking availability...';
-            indicator.className = 'availability-indicator';
+            indicator.className = 'availability-indicator show';
 
             checkTimeout = setTimeout(async () => {
                 try {
@@ -333,16 +376,16 @@
 
                     if (data.available) {
                         indicator.textContent = '✓ Username is available';
-                        indicator.className = 'availability-indicator available';
+                        indicator.className = 'availability-indicator available show';
                         submitBtn.disabled = false;
                     } else {
                         indicator.textContent = '✗ Username is already taken';
-                        indicator.className = 'availability-indicator unavailable';
+                        indicator.className = 'availability-indicator unavailable show';
                         submitBtn.disabled = true;
                     }
                 } catch (error) {
                     indicator.textContent = 'Error checking availability';
-                    indicator.className = 'availability-indicator unavailable';
+                    indicator.className = 'availability-indicator unavailable show';
                     submitBtn.disabled = true;
                 }
             }, 500);

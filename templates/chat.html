@@ -5,8 +5,16 @@
 {% block content %}
 
     <div id="chat-container">
+        <!-- Search form -->
+        <div id="search-form">
+            <form action="/search" method="get">
+                <input type="text" id="search-keywords" name="keywords" placeholder="Search for keywords..." value="{{ keywords }}">
+            </form>
+        </div>
+
         <!-- Chat area where messages will be displayed -->
         <div id="chat"></div>
+
         <!-- Form for sending messages -->
         <form id="message-form">
             <textarea id="message" placeholder="Type your message..."></textarea>
@@ -44,11 +52,6 @@
             <select id="voice-select">
                 <!-- Voices will be populated from API -->
             </select>
-        </div>
-        <div>
-            <button id="theme-toggle-btn" onclick="toggleTheme()">
-                🌙 Dark Mode
-            </button>
         </div>
         <div>
             <button id="auto-play-tts-btn" onclick="toggleAutoPlayTTS()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
@@ -463,14 +466,81 @@ socket.on("update_room_title", (data) => {
     document.title = data.title; // Update the window's title
 });
 
-// Socket event to update the room title in the sidebar.
+// Socket event to update the room title in the sidebar or add new rooms.
 socket.on('update_room_list', function(updatedRoom) {
     // Find the room list item by its data-room-id attribute
     const roomListItem = document.querySelector(`#rooms-list li[data-room-id="${updatedRoom.id}"]`);
 
     if (roomListItem) {
-        // Update the room list item's content with the new title
-        roomListItem.innerHTML = `<b>${updatedRoom.name}</b> ${updatedRoom.title ? '<br />' + updatedRoom.title : ''}`;
+        // Room exists - update it
+        // Extract user count from existing content (safer than regex on innerHTML)
+        const userCountText = roomListItem.textContent.match(/(\d+)\s*users/);
+        const userCount = userCountText ? userCountText[1] : null;
+        const ownerBadge = roomListItem.querySelector('.owner-badge');
+
+        // Clear and rebuild content safely using DOM methods
+        roomListItem.innerHTML = '';
+
+        // Add room name
+        const nameElement = document.createElement('b');
+        nameElement.textContent = updatedRoom.name;
+        roomListItem.appendChild(nameElement);
+
+        // Add room title if present
+        if (updatedRoom.title) {
+            roomListItem.appendChild(document.createElement('br'));
+            const titleText = document.createTextNode(updatedRoom.title);
+            roomListItem.appendChild(titleText);
+        }
+
+        // Add user count if it existed
+        if (userCount) {
+            roomListItem.appendChild(document.createElement('br'));
+            const userText = document.createTextNode(` ${userCount} users`);
+            roomListItem.appendChild(userText);
+        }
+
+        // Re-add owner badge if it existed
+        if (ownerBadge) {
+            roomListItem.appendChild(ownerBadge);
+        }
+    } else if (updatedRoom.is_new) {
+        // New room - add it to the appropriate list
+        const targetList = updatedRoom.is_private
+            ? document.querySelector('#private-rooms-section .rooms-list')
+            : document.querySelector('#public-rooms-section .rooms-list');
+
+        if (targetList) {
+            // Create new room list item using safe DOM methods
+            const newLink = document.createElement('a');
+            newLink.href = `/chat/${encodeURIComponent(updatedRoom.name)}`;
+
+            const newLi = document.createElement('li');
+            newLi.setAttribute('data-room-id', updatedRoom.id);
+            if (updatedRoom.is_private) {
+                newLi.classList.add('private-room');
+            }
+
+            // Add room name safely
+            const nameElement = document.createElement('b');
+            nameElement.textContent = updatedRoom.name;
+            newLi.appendChild(nameElement);
+
+            // Add room title if present
+            if (updatedRoom.title) {
+                newLi.appendChild(document.createElement('br'));
+                const titleText = document.createTextNode(updatedRoom.title);
+                newLi.appendChild(titleText);
+            }
+
+            // Add user count
+            newLi.appendChild(document.createElement('br'));
+            const userText = document.createTextNode(' 0 users');
+            newLi.appendChild(userText);
+
+            newLink.appendChild(newLi);
+            targetList.appendChild(newLink);
+        }
     }
 });
 
@@ -744,7 +814,7 @@ socket.on("chat_message", (data) => {
     newMessage.className = "message-content";
 
     // Check if the username is present and prepend it to the message content
-    const messageContent = data.username ? `**${data.username}:**\n\n${data.content}` : data.content;
+    const messageContent = data.username ? `**[${data.username}](/profile/${data.username}):**\n\n${data.content}` : data.content;
 
     // Check if the message starts with a base64 image tag
     if (data.content.startsWith('<img src="data:image/jpeg;base64')) {

@@ -642,6 +642,16 @@ def create_room_api():
     db.session.add(new_room)
     db.session.commit()
 
+    # Broadcast new room to all users so it appears in sidebar
+    new_room_data = {
+        'id': new_room.id,
+        'name': new_room.name,
+        'title': new_room.title,
+        'is_private': new_room.is_private,
+        'is_new': True  # Flag to indicate this is a new room, not an update
+    }
+    socketio.emit("update_room_list", new_room_data, room=None)
+
     return jsonify({
         'success': True,
         'room': {
@@ -1055,6 +1065,14 @@ def on_join(data):
     username = data["username"]
     room = get_room(room_name)
 
+    # Set owner for newly created rooms (if room has no owner and user is authenticated)
+    if room.owner_id is None:
+        user = auth.get_current_user()
+        if user:
+            room.owner_id = user.id
+            db.session.add(room)
+            db.session.commit()
+
     # Add the user to the active users list
     room.add_user(username)
 
@@ -1240,8 +1258,10 @@ def handle_message(data):
             gevent.spawn(save_code_block_to_s3, room_name, s3_key_path, username)
         if command.startswith("/title new"):
             gevent.spawn(generate_new_title, room_name, username)
+            return
         if command.startswith("/cancel"):
             gevent.spawn(cancel_generation, room_name)
+            return
 
     activity_state = ActivityState.query.filter_by(room_id=room.id).first()
     if activity_state:

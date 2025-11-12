@@ -1,37 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browse Rooms - OpenCompletion</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f7f7f7;
+            background-color: var(--bg-page);
+            color: var(--text-primary);
             margin: 0;
             padding: 20px;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         .header {
             max-width: 1400px;
             margin: 0 auto 30px;
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto;
             align-items: center;
-            flex-wrap: wrap;
             gap: 15px;
         }
         .header h1 {
-            color: #333;
+            color: var(--text-primary);
             margin: 0;
+            transition: color 0.3s ease;
         }
         .header-actions {
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
             gap: 10px;
-            flex-wrap: wrap;
         }
         .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
             color: white;
             border: none;
             border-radius: 5px;
@@ -51,7 +54,9 @@
         .room-tabs {
             max-width: 1400px;
             margin: 0 auto 20px;
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
+            grid-auto-columns: max-content;
             gap: 10px;
             border-bottom: 2px solid #e1e1e1;
         }
@@ -61,16 +66,16 @@
             padding: 12px 24px;
             font-size: 16px;
             cursor: pointer;
-            color: #666;
+            color: var(--text-secondary);
             border-bottom: 3px solid transparent;
             transition: all 0.3s;
         }
         .room-tab:hover {
-            color: #667eea;
+            color: var(--button-primary);
         }
         .room-tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
+            color: var(--button-primary);
+            border-bottom-color: var(--button-primary);
             font-weight: bold;
         }
         .rooms-container {
@@ -90,11 +95,11 @@
             margin-bottom: 40px;
         }
         .room-card {
-            background: white;
+            background: var(--bg-card);
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease;
             cursor: pointer;
             text-decoration: none;
             color: inherit;
@@ -105,55 +110,50 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
         .room-card-header {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto;
             align-items: start;
             margin-bottom: 10px;
         }
         .room-name {
             font-size: 20px;
             font-weight: bold;
-            color: #667eea;
+            color: var(--button-primary);
             margin: 0 0 5px 0;
         }
-        .room-badge {
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background: #e7f3ff;
-            color: #0066cc;
-            white-space: nowrap;
-        }
-        .room-badge.private {
-            background: #fff3cd;
-            color: #856404;
-        }
         .room-title {
-            color: #666;
+            color: var(--text-secondary);
             font-size: 14px;
             margin: 8px 0;
             line-height: 1.4;
+            transition: color 0.3s ease;
         }
         .room-meta {
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
+            grid-auto-columns: max-content;
             gap: 15px;
             margin-top: 12px;
             font-size: 14px;
-            color: #999;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
         }
         .room-meta-item {
-            display: flex;
+            display: grid;
+            grid-auto-flow: column;
             align-items: center;
             gap: 5px;
         }
         .empty-state {
             text-align: center;
             padding: 60px 20px;
-            color: #999;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
         }
         .empty-state h3 {
-            color: #666;
+            color: var(--text-secondary);
             margin-bottom: 10px;
+            transition: color 0.3s ease;
         }
         .auth-prompt {
             background: #fff3cd;
@@ -171,11 +171,10 @@
                 grid-template-columns: 1fr;
             }
             .header {
-                flex-direction: column;
-                align-items: stretch;
+                grid-template-columns: 1fr;
             }
             .header-actions {
-                flex-direction: column;
+                grid-auto-flow: row;
             }
         }
     </style>
@@ -211,7 +210,7 @@
                 <a href="{{ url_for('chat', room_name=room.name) }}" class="room-card">
                     <div class="room-card-header">
                         <h3 class="room-name">{{ room.name }}</h3>
-                        <span class="room-badge">Public</span>
+                        <span class="badge badge-public">Public</span>
                     </div>
                     {% if room.title %}
                     <p class="room-title">{{ room.title }}</p>
@@ -242,7 +241,7 @@
                     <a href="{{ url_for('chat', room_name=room.name) }}" class="room-card">
                         <div class="room-card-header">
                             <h3 class="room-name">{{ room.name }}</h3>
-                            <span class="room-badge private">Private</span>
+                            <span class="badge badge-private">Private</span>
                         </div>
                         {% if room.title %}
                         <p class="room-title">{{ room.title }}</p>
@@ -273,6 +272,10 @@
     </div>
 
     <script>
+        // Theme persistence
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
         function switchTab(tab) {
             // Update tab buttons
             document.querySelectorAll('.room-tab').forEach(btn => {

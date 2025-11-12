@@ -39,13 +39,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-  <!-- Search form -->
-  <div id="search-form" style="width: 90%;">
-      <form action="/search" method="get">
-          <input type="text" id="search-keywords" name="keywords" placeholder="Search for keywords..." value="{{ keywords }}">
-      </form>
-  </div>
-
   <!-- Hamburger button for mobile -->
   <button id="hamburger-button">☰</button>
 
@@ -70,11 +63,6 @@
                     <option value="nova">Nova</option>
                     <option value="shimmer">Shimmer</option>
                 </select>
-            </div>
-            <div id="theme-toggle-mobile">
-                <button id="theme-toggle-btn-mobile" onclick="toggleTheme()">
-                    🌙 Dark Mode
-                </button>
             </div>
             <div id="auto-play-tts-mobile">
                 <button id="auto-play-tts-btn-mobile" onclick="toggleAutoPlayTTS()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
@@ -336,16 +324,7 @@
     }
 
     function updateThemeButtonText(theme) {
-        const themeBtn = document.getElementById('theme-toggle-btn');
-        const themeBtnMobile = document.getElementById('theme-toggle-btn-mobile');
-
-        if (theme === 'dark') {
-            if (themeBtn) themeBtn.textContent = '☀️ Light Mode';
-            if (themeBtnMobile) themeBtnMobile.textContent = '☀️ Light Mode';
-        } else {
-            if (themeBtn) themeBtn.textContent = '🌙 Dark Mode';
-            if (themeBtnMobile) themeBtnMobile.textContent = '🌙 Dark Mode';
-        }
+        // Theme toggle moved to profile page
     }
 
     // Apply saved theme on page load
@@ -600,6 +579,10 @@
             return;
         }
 
+        // Determine if current room is private by checking if we're in private section
+        const currentRoomElement = document.querySelector(`[data-room-id="${roomId}"]`);
+        const isPrivate = currentRoomElement ? currentRoomElement.classList.contains('private-room') : false;
+
         try {
             const response = await fetch(`/api/rooms/${roomId}/delete`, {
                 method: 'DELETE',
@@ -609,7 +592,32 @@
             const data = await response.json();
 
             if (response.ok) {
-                window.location.href = '/';
+                // Navigate to the top room of the appropriate list (public or private)
+                const roomList = isPrivate
+                    ? document.querySelectorAll('#private-rooms-section .rooms-list li')
+                    : document.querySelectorAll('#public-rooms-section .rooms-list li');
+
+                // Find first room that isn't the deleted one
+                let targetRoom = null;
+                for (let room of roomList) {
+                    if (room.getAttribute('data-room-id') != roomId) {
+                        targetRoom = room;
+                        break;
+                    }
+                }
+
+                if (targetRoom) {
+                    // Navigate to the first available room in the list
+                    const link = targetRoom.closest('a');
+                    if (link) {
+                        window.location.href = link.href;
+                    } else {
+                        window.location.href = '/';
+                    }
+                } else {
+                    // No other rooms available, go to home
+                    window.location.href = '/';
+                }
             } else {
                 alert(data.error || 'Failed to delete room');
             }
