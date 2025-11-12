@@ -157,7 +157,7 @@
         </div>
         {% else %}
         <div class="auth-status">
-            👋 Welcome! <a href="#" onclick="showAuthModal(); return false;">Sign in</a> to create private rooms
+            👋 Welcome! <a href="/auth">Sign in</a> to create private rooms
         </div>
         {% endif %}
 
@@ -187,11 +187,6 @@
             }
             window.location.href = `/chat/${room}?username=${encodeURIComponent(username)}`;
         });
-
-        // Auth modal placeholder (will be loaded from base.html when integrated)
-        function showAuthModal() {
-            window.location.href = '/chat/general';
-        }
     </script>
 </body>
 </html>

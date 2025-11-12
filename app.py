@@ -327,6 +327,12 @@ def index():
     return render_template("index.html", stats=stats, user=user)
 
 
+@app.route("/auth")
+def auth_page():
+    """Authentication page"""
+    return render_template("auth.html")
+
+
 @app.route("/models", methods=["GET"])
 def get_models():
     # Optionally refresh or reinitialize the model map here.
