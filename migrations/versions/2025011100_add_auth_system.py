@@ -18,19 +18,18 @@ depends_on = None
 
 
 def upgrade():
-
     # Add new columns to Room table
-    with op.batch_alter_table("room", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("is_private", sa.Boolean(), nullable=False, server_default="0"))
-        batch_op.add_column(sa.Column("is_archived", sa.Boolean(), nullable=False, server_default="0"))
-        batch_op.add_column(sa.Column("owner_id", sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.current_timestamp()))
-        batch_op.add_column(sa.Column("forked_from_id", sa.Integer(), nullable=True))
-        batch_op.create_index(batch_op.f("ix_room_is_private"), ["is_private"], unique=False)
-        batch_op.create_index(batch_op.f("ix_room_is_archived"), ["is_archived"], unique=False)
-        batch_op.create_index(batch_op.f("ix_room_owner_id"), ["owner_id"], unique=False)
-        batch_op.create_foreign_key("fk_room_owner_id", "user", ["owner_id"], ["id"])
-        batch_op.create_foreign_key("fk_room_forked_from_id", "room", ["forked_from_id"], ["id"])
+    # Note: User and OTPToken tables are created by db.create_all() in make init-db
+    op.add_column('room', sa.Column('is_private', sa.Boolean(), nullable=False, server_default='0'))
+    op.add_column('room', sa.Column('is_archived', sa.Boolean(), nullable=False, server_default='0'))
+    op.add_column('room', sa.Column('owner_id', sa.Integer(), nullable=True))
+    op.add_column('room', sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')))
+    op.add_column('room', sa.Column('forked_from_id', sa.Integer(), nullable=True))
+
+    # Create indexes
+    op.create_index(op.f('ix_room_is_private'), 'room', ['is_private'], unique=False)
+    op.create_index(op.f('ix_room_is_archived'), 'room', ['is_archived'], unique=False)
+    op.create_index(op.f('ix_room_owner_id'), 'room', ['owner_id'], unique=False)
 
 
 def downgrade():
