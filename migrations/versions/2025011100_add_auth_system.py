@@ -1,7 +1,7 @@
 """Add authentication system with User, OTPToken models and Room ownership fields
 
 Revision ID: 2025011100
-Revises: 1ac5a8e0f577
+Revises: 5d93cdf18549
 Create Date: 2025-01-11 00:00:00.000000
 
 """
@@ -12,7 +12,7 @@ from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
 revision = "2025011100"
-down_revision = "1ac5a8e0f577"
+down_revision = "5d93cdf18549"
 branch_labels = None
 depends_on = None
 
