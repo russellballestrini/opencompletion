@@ -466,12 +466,13 @@ socket.on("update_room_title", (data) => {
     document.title = data.title; // Update the window's title
 });
 
-// Socket event to update the room title in the sidebar.
+// Socket event to update the room title in the sidebar or add new rooms.
 socket.on('update_room_list', function(updatedRoom) {
     // Find the room list item by its data-room-id attribute
     const roomListItem = document.querySelector(`#rooms-list li[data-room-id="${updatedRoom.id}"]`);
 
     if (roomListItem) {
+        // Room exists - update it
         // Preserve user count and owner badge if they exist
         const userCountMatch = roomListItem.innerHTML.match(/<br\s*\/>\s*(\d+)\s*users/);
         const ownerBadge = roomListItem.querySelector('.owner-badge');
@@ -490,6 +491,33 @@ socket.on('update_room_list', function(updatedRoom) {
         // Re-add owner badge if it existed
         if (ownerBadge) {
             roomListItem.innerHTML += '<span class="owner-badge">👑 Owner</span>';
+        }
+    } else if (updatedRoom.is_new) {
+        // New room - add it to the appropriate list
+        const targetList = updatedRoom.is_private
+            ? document.querySelector('#private-rooms-section .rooms-list')
+            : document.querySelector('#public-rooms-section .rooms-list');
+
+        if (targetList) {
+            // Create new room list item
+            const newLink = document.createElement('a');
+            newLink.href = `/chat/${updatedRoom.name}`;
+
+            const newLi = document.createElement('li');
+            newLi.setAttribute('data-room-id', updatedRoom.id);
+            if (updatedRoom.is_private) {
+                newLi.classList.add('private-room');
+            }
+
+            let roomHTML = `<b>${updatedRoom.name}</b>`;
+            if (updatedRoom.title) {
+                roomHTML += `<br />${updatedRoom.title}`;
+            }
+            roomHTML += '<br /> 0 users';  // New room has 0 users initially
+
+            newLi.innerHTML = roomHTML;
+            newLink.appendChild(newLi);
+            targetList.appendChild(newLink);
         }
     }
 });

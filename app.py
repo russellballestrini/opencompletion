@@ -642,6 +642,16 @@ def create_room_api():
     db.session.add(new_room)
     db.session.commit()
 
+    # Broadcast new room to all users so it appears in sidebar
+    new_room_data = {
+        'id': new_room.id,
+        'name': new_room.name,
+        'title': new_room.title,
+        'is_private': new_room.is_private,
+        'is_new': True  # Flag to indicate this is a new room, not an update
+    }
+    socketio.emit("update_room_list", new_room_data, room=None)
+
     return jsonify({
         'success': True,
         'room': {
