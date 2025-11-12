@@ -383,48 +383,28 @@ function updateUserLists(activeUsers, inactiveUsers) {
     // Populate the list with active users (desktop)
     activeUsers.forEach(username => {
         const userItem = document.createElement("li");
-        const userLink = document.createElement("a");
-        userLink.href = `/profile/${username}`;
-        userLink.textContent = username;
-        userLink.style.textDecoration = 'none';
-        userLink.style.color = 'inherit';
-        userItem.appendChild(userLink);
+        userItem.textContent = username;
         activeUserListElement.appendChild(userItem);
     });
 
     // Populate the list with inactive users (desktop)
     inactiveUsers.forEach(username => {
         const userItem = document.createElement("li");
-        const userLink = document.createElement("a");
-        userLink.href = `/profile/${username}`;
-        userLink.textContent = username;
-        userLink.style.textDecoration = 'none';
-        userLink.style.color = 'inherit';
-        userItem.appendChild(userLink);
+        userItem.textContent = username;
         inactiveUserListElement.appendChild(userItem);
     });
 
     // Populate the list with active users (mobile)
     activeUsers.forEach(username => {
         const userItemMobile = document.createElement("li");
-        const userLinkMobile = document.createElement("a");
-        userLinkMobile.href = `/profile/${username}`;
-        userLinkMobile.textContent = username;
-        userLinkMobile.style.textDecoration = 'none';
-        userLinkMobile.style.color = 'inherit';
-        userItemMobile.appendChild(userLinkMobile);
+        userItemMobile.textContent = username;
         activeUserListElementMobile.appendChild(userItemMobile);
     });
 
     // Populate the list with inactive users (mobile)
     inactiveUsers.forEach(username => {
         const userItemMobile = document.createElement("li");
-        const userLinkMobile = document.createElement("a");
-        userLinkMobile.href = `/profile/${username}`;
-        userLinkMobile.textContent = username;
-        userLinkMobile.style.textDecoration = 'none';
-        userLinkMobile.style.color = 'inherit';
-        userItemMobile.appendChild(userLinkMobile);
+        userItemMobile.textContent = username;
         inactiveUserListElementMobile.appendChild(userItemMobile);
     });
 }
