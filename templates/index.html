@@ -1,211 +1,90 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenCompletion - AI-Powered Chat Rooms</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f7f7f7;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
-        #main-container {
-            background-color: #ffffff;
-            border-radius: 10px;
-            padding: 30px;
-            width: 100%;
-            max-width: 800px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-        .tagline {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .stat-number {
-            font-size: 32px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .stat-label {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        #join-section {
-            background-color: #f9f9f9;
-            border-radius: 8px;
-            padding: 25px;
-            margin-bottom: 20px;
-        }
-        #join-section h2 {
-            margin-top: 0;
-            color: #333;
-        }
-        #join-room-form {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        input[type="text"] {
-            width: 100%;
-            border: 2px solid #e1e1e1;
-            border-radius: 5px;
-            padding: 12px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .room-type-selector {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-            padding: 10px 0;
-        }
-        .room-type-selector label {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .room-type-selector input[type="radio"] {
-            width: auto;
-            cursor: pointer;
-        }
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 12px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        button:hover {
-            transform: translateY(-2px);
-        }
-        .auth-status {
-            text-align: center;
-            padding: 15px;
-            background: #e7f3ff;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .auth-status.logged-in {
-            background: #d4edda;
-        }
-        .browse-link {
-            text-align: center;
-            margin-top: 20px;
-        }
-        .browse-link a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .browse-link a:hover {
-            text-decoration: underline;
-        }
-    </style>
 </head>
 <body>
-    <div id="main-container">
-        <h1>🚀 OpenCompletion</h1>
-        <p class="tagline">Machine Learning Powered Collaboration</p>
-
-        <!-- Statistics -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-number">{{ stats.total_public_rooms }}</div>
-                <div class="stat-label">Public Rooms</div>
+    <div class="page-container">
+        <div class="centered-card">
+            <div class="page-header">
+                <h1 class="page-title">OpenCompletion</h1>
+                <p class="page-subtitle">Machine Learning Powered Collaboration</p>
             </div>
+
+            <!-- Statistics -->
+            <div class="stats-grid mb-6">
+                <div class="stat-card">
+                    <div class="stat-value">{{ stats.total_public_rooms }}</div>
+                    <div class="stat-label">Public Rooms</div>
+                </div>
+                {% if user %}
+                <div class="stat-card">
+                    <div class="stat-value">{{ stats.total_private_rooms }}</div>
+                    <div class="stat-label">Private Rooms</div>
+                </div>
+                {% endif %}
+                <div class="stat-card">
+                    <div class="stat-value">{{ stats.active_public_rooms }}</div>
+                    <div class="stat-label">Active Rooms</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ stats.active_users }}</div>
+                    <div class="stat-label">Active Users</div>
+                </div>
+            </div>
+
+            <!-- Auth status -->
             {% if user %}
-            <div class="stat-card">
-                <div class="stat-number">{{ stats.total_private_rooms }}</div>
-                <div class="stat-label">Private Rooms</div>
+            <div class="alert alert-success">
+                <strong>Signed in as {{ user.display_name }}</strong> ({{ user.email }})
+                <div class="mt-2">
+                    <a href="/profile">Profile Settings</a>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                Welcome! <a href="/auth">Sign in</a> to create private rooms
             </div>
             {% endif %}
-            <div class="stat-card">
-                <div class="stat-number">{{ stats.active_public_rooms }}</div>
-                <div class="stat-label">Active Rooms</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{{ stats.active_users }}</div>
-                <div class="stat-label">Active Users</div>
-            </div>
-        </div>
 
-        <!-- Auth status -->
-        {% if user %}
-        <div class="auth-status logged-in">
-            ✅ Signed in as <strong>{{ user.display_name }}</strong> ({{ user.email }})
-            <div style="margin-top: 10px;">
-                <a href="/profile" style="color: #667eea; text-decoration: none; font-weight: bold;">⚙️ Profile Settings</a>
+            <!-- Join room form -->
+            <div class="card">
+                <h2>Join or Create a Room</h2>
+                <form id="join-room-form">
+                    <div class="form-group">
+                        <input id="room" type="text" class="form-input" placeholder="Enter room name" required>
+                    </div>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="room-type" value="public" checked>
+                            Public Room
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="room-type" value="private">
+                            Private Room
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-gradient w-100">Create/Join Room</button>
+                </form>
             </div>
-        </div>
-        {% else %}
-        <div class="auth-status">
-            👋 Welcome! <a href="/auth">Sign in</a> to create private rooms
-        </div>
-        {% endif %}
 
-        <!-- Join room form -->
-        <div id="join-section">
-            <h2>Join or Create a Room</h2>
-            <form id="join-room-form">
-                <input id="room" type="text" placeholder="Enter room name" required>
-                <div class="room-type-selector">
-                    <label>
-                        <input type="radio" name="room-type" value="public" checked>
-                        🌍 Public Room
-                    </label>
-                    <label>
-                        <input type="radio" name="room-type" value="private">
-                        🔐 Private Room
-                    </label>
-                </div>
-                <button type="submit">Create/Join Room</button>
-            </form>
-        </div>
-
-        <div class="browse-link">
-            <a href="/browse">Or browse existing rooms →</a>
+            <div class="text-center mt-4">
+                <a href="/browse">Or browse existing rooms →</a>
+            </div>
         </div>
     </div>
 
     <script>
+        // Theme persistence
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
         document.getElementById('join-room-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const roomInput = document.getElementById('room').value.trim();
@@ -260,4 +139,3 @@
     </script>
 </body>
 </html>
-

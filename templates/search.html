@@ -3,38 +3,28 @@
 {% block title %}Search Results{% endblock %}
 
 {% block content %}
-<style>
-    /* Add styles for the search results */
-    #search-results {
-        margin: 20px;
-        width: 100%;
-    }
-    .search-result {
-        border: 1px solid #e1e1e1;
-        border-radius: 5px;
-        padding: 10px;
-        margin-bottom: 10px;
-        width: 100%;
-    }
-</style>
-
-<div id="search-results">
+<div id="search-results" style="padding: var(--space-4); width: 100%;">
     {% if error %}
-        <div class="search-result">{{ error }}</div>
+        <div class="alert alert-error">{{ error }}</div>
     {% elif results %}
-        {% for result in results %}
-            <div class="search-result">
-                <a href="/chat/{{ result.room_name }}?username={{ username }}">
-                    <b>{{ result.room_name }}</b><br/>
-                    {{ result.room_title or "No title" }}</br>
-                    <b>Score:</b> {{ result.score }}
-                </a>
-            </div>
-            <br/>
-        {% endfor %}
+        <h2 style="margin-bottom: var(--space-4);">Search Results</h2>
+        <div class="room-grid">
+            {% for result in results %}
+            <a href="/chat/{{ result.room_name }}?username={{ username }}" class="room-card">
+                <div class="room-card-header">
+                    <span class="room-card-name">{{ result.room_name }}</span>
+                    <span class="badge badge-public">Score: {{ "%.2f"|format(result.score) }}</span>
+                </div>
+                <div class="room-card-title">{{ result.room_title or "Untitled Room" }}</div>
+            </a>
+            {% endfor %}
+        </div>
     {% else %}
-        <div class="search-result">No results found.</div>
+        <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <div class="empty-state-title">No results found</div>
+            <div class="empty-state-description">Try searching for different keywords</div>
+        </div>
     {% endif %}
 </div>
 {% endblock %}
-
