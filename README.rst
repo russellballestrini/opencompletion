@@ -15,6 +15,8 @@ Features
 - Integration with language models for generating room titles and processing messages.
 - Syntax highlighting for code blocks within messages.
 - Markdown rendering for messages.
+- **Code execution**: Run code blocks directly in the browser with support for 38+ programming languages.
+- **Text-to-speech**: Convert AI responses to speech with multiple voice options.
 - Commands to load and save code blocks to AWS S3.
 - Database storage for messages and chatrooms using SQLAlchemy.
 - Migration support with Flask-Migrate.
@@ -108,6 +110,11 @@ The chatrooms support some special commands:
 - ``/title new``: Generates a new title which reflects conversation content for the current chatroom using gpt-4.
 - ``/cancel``: Cancel the most recent chat completion from streaming into the chatroom.
 - ``/help``: Displays the list of commands and models to choose from.
+
+Code Execution
+--------------
+
+Code blocks can be executed directly in the browser using the "▶ Run" button. Supports 30+ programming languages with automatic language detection. Code runs in isolated, self-terminating sandbox containers. Compiled binaries can be downloaded directly from the interface.
 
 
 Structure
