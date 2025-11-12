@@ -1,73 +1,166 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign In - OpenCompletion</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .auth-container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo h1 {
+            color: #667eea;
+            margin: 0;
+            font-size: 32px;
+        }
+        .logo p {
+            color: #666;
+            margin: 5px 0 0 0;
+            font-size: 14px;
+        }
+        .auth-step {
+            display: none;
+        }
+        .auth-step.active {
+            display: block;
+        }
+        .auth-step h2 {
+            margin-top: 0;
+            color: #333;
+            text-align: center;
+        }
+        .auth-step p {
+            color: #666;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .auth-step input {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 15px;
+            border: 2px solid #e1e1e1;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .auth-step input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .auth-step button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 14px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 10px;
+        }
+        .auth-step button:hover {
+            transform: translateY(-2px);
+        }
+        .auth-step button.secondary-btn {
+            background: #6c757d;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: -10px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .back-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+        .success-icon {
+            text-align: center;
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
-<body style="background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);">
-    <div class="page-container">
-        <div class="centered-card">
-            <div class="auth-logo">
-                <h1>OpenCompletion</h1>
-                <p style="color: var(--text-secondary);">Machine Learning Powered Collaboration</p>
-            </div>
+<body>
+    <div class="auth-container">
+        <div class="logo">
+            <h1>🚀 OpenCompletion</h1>
+            <p>Machine Learning Powered Collaboration</p>
+        </div>
 
-            <!-- Step 1: Enter email -->
-            <div id="auth-step-email" class="auth-step active">
-                <h2>Sign In / Sign Up</h2>
-                <p style="color: var(--text-secondary); text-align: center;">Enter your email to receive a verification code</p>
-                <div class="form-group">
-                    <input type="email" id="auth-email" class="form-input" placeholder="your@email.com" />
-                </div>
-                <button class="btn btn-gradient w-100" onclick="sendOTP()">Send Code</button>
-                <div id="auth-email-error" class="alert alert-error" style="display: none; margin-top: var(--space-3);"></div>
-            </div>
+        <!-- Step 1: Enter email -->
+        <div id="auth-step-email" class="auth-step active">
+            <h2>Sign In / Sign Up</h2>
+            <p>Enter your email to receive a verification code</p>
+            <input type="email" id="auth-email" placeholder="your@email.com" />
+            <button onclick="sendOTP()">Send Code</button>
+            <div id="auth-email-error" class="error-message"></div>
+        </div>
 
-            <!-- Step 2: Enter OTP -->
-            <div id="auth-step-otp" class="auth-step">
-                <h2>Enter Verification Code</h2>
-                <p style="color: var(--text-secondary); text-align: center;">We sent a 6-digit code to <strong><span id="auth-email-display"></span></strong></p>
-                <div class="form-group">
-                    <input type="text" id="auth-otp" class="form-input" placeholder="123456" maxlength="6" />
-                </div>
-                <button class="btn btn-gradient w-100 mb-2" onclick="verifyOTP()">Verify</button>
-                <button class="btn btn-secondary w-100" onclick="backToEmailStep()">Back</button>
-                <div id="auth-otp-error" class="alert alert-error" style="display: none; margin-top: var(--space-3);"></div>
-            </div>
+        <!-- Step 2: Enter OTP -->
+        <div id="auth-step-otp" class="auth-step">
+            <h2>Enter Verification Code</h2>
+            <p>We sent a 6-digit code to <strong><span id="auth-email-display"></span></strong></p>
+            <input type="text" id="auth-otp" placeholder="123456" maxlength="6" />
+            <button onclick="verifyOTP()">Verify</button>
+            <button class="secondary-btn" onclick="backToEmailStep()">Back</button>
+            <div id="auth-otp-error" class="error-message"></div>
+        </div>
 
-            <!-- Step 3: Claim display name (new users only) -->
-            <div id="auth-step-name" class="auth-step">
-                <h2>Choose Display Name</h2>
-                <p style="color: var(--text-secondary); text-align: center;">Pick a unique display name (3-50 characters)</p>
-                <div class="form-group">
-                    <input type="text" id="auth-display-name" class="form-input" placeholder="username" maxlength="50" />
-                </div>
-                <button class="btn btn-gradient w-100" onclick="claimName()">Complete Sign Up</button>
-                <div id="auth-name-error" class="alert alert-error" style="display: none; margin-top: var(--space-3);"></div>
-            </div>
+        <!-- Step 3: Claim display name (new users only) -->
+        <div id="auth-step-name" class="auth-step">
+            <h2>Choose Display Name</h2>
+            <p>Pick a unique display name (3-50 characters)</p>
+            <input type="text" id="auth-display-name" placeholder="username" maxlength="50" />
+            <button onclick="claimName()">Complete Sign Up</button>
+            <div id="auth-name-error" class="error-message"></div>
+        </div>
 
-            <!-- Success -->
-            <div id="auth-step-success" class="auth-step">
-                <div style="text-align: center; font-size: 64px; margin-bottom: var(--space-4);">✅</div>
-                <h2>Success!</h2>
-                <p style="color: var(--text-secondary); text-align: center;">Welcome, <strong><span id="auth-success-name"></span></strong>!</p>
-                <button class="btn btn-gradient w-100" onclick="redirectToChatRooms()">Go to Chat Rooms</button>
-            </div>
+        <!-- Success -->
+        <div id="auth-step-success" class="auth-step">
+            <div class="success-icon">✅</div>
+            <h2>Success!</h2>
+            <p>Welcome, <strong><span id="auth-success-name"></span></strong>!</p>
+            <button onclick="redirectToChatRooms()">Go to Chat Rooms</button>
+        </div>
 
-            <div class="text-center mt-4">
-                <a href="/">← Back to Home</a>
-            </div>
+        <div class="back-link">
+            <a href="/">← Back to Home</a>
         </div>
     </div>
 
     <script>
-        // Theme persistence
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-
         let pendingEmail = '';
 
         function showAuthStep(step) {
@@ -77,13 +170,7 @@
         }
 
         function clearAuthErrors() {
-            document.querySelectorAll('.alert').forEach(el => el.style.display = 'none');
-        }
-
-        function showError(elementId, message) {
-            const el = document.getElementById(elementId);
-            el.textContent = message;
-            el.style.display = 'block';
+            document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
         }
 
         function backToEmailStep() {
@@ -96,9 +183,10 @@
 
         async function sendOTP() {
             const email = document.getElementById('auth-email').value.trim();
+            const errorEl = document.getElementById('auth-email-error');
 
             if (!email) {
-                showError('auth-email-error', 'Please enter your email');
+                errorEl.textContent = 'Please enter your email';
                 return;
             }
 
@@ -116,18 +204,19 @@
                     document.getElementById('auth-email-display').textContent = email;
                     showAuthStep('otp');
                 } else {
-                    showError('auth-email-error', data.error || 'Failed to send code');
+                    errorEl.textContent = data.error || 'Failed to send code';
                 }
             } catch (error) {
-                showError('auth-email-error', 'Network error. Please try again.');
+                errorEl.textContent = 'Network error. Please try again.';
             }
         }
 
         async function verifyOTP() {
             const otpCode = document.getElementById('auth-otp').value.trim();
+            const errorEl = document.getElementById('auth-otp-error');
 
             if (!otpCode) {
-                showError('auth-otp-error', 'Please enter the code');
+                errorEl.textContent = 'Please enter the code';
                 return;
             }
 
@@ -148,18 +237,19 @@
                         showAuthStep('success');
                     }
                 } else {
-                    showError('auth-otp-error', data.error || 'Invalid code');
+                    errorEl.textContent = data.error || 'Invalid code';
                 }
             } catch (error) {
-                showError('auth-otp-error', 'Network error. Please try again.');
+                errorEl.textContent = 'Network error. Please try again.';
             }
         }
 
         async function claimName() {
             const displayName = document.getElementById('auth-display-name').value.trim();
+            const errorEl = document.getElementById('auth-name-error');
 
             if (!displayName) {
-                showError('auth-name-error', 'Please enter a display name');
+                errorEl.textContent = 'Please enter a display name';
                 return;
             }
 
@@ -176,10 +266,10 @@
                     document.getElementById('auth-success-name').textContent = data.user.display_name;
                     showAuthStep('success');
                 } else {
-                    showError('auth-name-error', data.error || 'Failed to claim name');
+                    errorEl.textContent = data.error || 'Failed to claim name';
                 }
             } catch (error) {
-                showError('auth-name-error', 'Network error. Please try again.');
+                errorEl.textContent = 'Network error. Please try again.';
             }
         }
 
