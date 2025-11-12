@@ -5,8 +5,16 @@
 {% block content %}
 
     <div id="chat-container">
+        <!-- Search form -->
+        <div id="search-form">
+            <form action="/search" method="get">
+                <input type="text" id="search-keywords" name="keywords" placeholder="Search for keywords..." value="{{ keywords }}">
+            </form>
+        </div>
+
         <!-- Chat area where messages will be displayed -->
         <div id="chat"></div>
+
         <!-- Form for sending messages -->
         <form id="message-form">
             <textarea id="message" placeholder="Type your message..."></textarea>
