@@ -146,6 +146,11 @@
             font-size: 14px;
             margin-top: 5px;
             min-height: 20px;
+            display: none;
+        }
+
+        .availability-indicator.show {
+            display: block;
         }
 
         .available {
@@ -335,18 +340,18 @@
             // Hide indicator and disable button if same as current username
             if (username === currentUsername) {
                 indicator.textContent = '';
-                indicator.style.display = 'none';
+                indicator.classList.remove('show');
                 submitBtn.disabled = true;
                 return;
             }
 
             // Show indicator when username changes
-            indicator.style.display = 'block';
+            indicator.classList.add('show');
 
             // Reset if empty
             if (!username) {
                 indicator.textContent = '';
-                indicator.style.display = 'none';
+                indicator.classList.remove('show');
                 submitBtn.disabled = true;
                 return;
             }
@@ -355,14 +360,14 @@
             const isValid = /^[a-zA-Z0-9_-]{3,50}$/.test(username);
             if (!isValid) {
                 indicator.textContent = 'Invalid format (3-50 chars: letters, numbers, _, -)';
-                indicator.className = 'availability-indicator unavailable';
+                indicator.className = 'availability-indicator unavailable show';
                 submitBtn.disabled = true;
                 return;
             }
 
             // Check availability after 500ms delay
             indicator.textContent = 'Checking availability...';
-            indicator.className = 'availability-indicator';
+            indicator.className = 'availability-indicator show';
 
             checkTimeout = setTimeout(async () => {
                 try {
@@ -371,16 +376,16 @@
 
                     if (data.available) {
                         indicator.textContent = '✓ Username is available';
-                        indicator.className = 'availability-indicator available';
+                        indicator.className = 'availability-indicator available show';
                         submitBtn.disabled = false;
                     } else {
                         indicator.textContent = '✗ Username is already taken';
-                        indicator.className = 'availability-indicator unavailable';
+                        indicator.className = 'availability-indicator unavailable show';
                         submitBtn.disabled = true;
                     }
                 } catch (error) {
                     indicator.textContent = 'Error checking availability';
-                    indicator.className = 'availability-indicator unavailable';
+                    indicator.className = 'availability-indicator unavailable show';
                     submitBtn.disabled = true;
                 }
             }, 500);

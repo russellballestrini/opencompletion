@@ -34,7 +34,7 @@
             gap: 10px;
         }
         .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
             color: white;
             border: none;
             border-radius: 5px;
@@ -71,11 +71,11 @@
             transition: all 0.3s;
         }
         .room-tab:hover {
-            color: #667eea;
+            color: var(--button-primary);
         }
         .room-tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
+            color: var(--button-primary);
+            border-bottom-color: var(--button-primary);
             font-weight: bold;
         }
         .rooms-container {
@@ -118,20 +118,8 @@
         .room-name {
             font-size: 20px;
             font-weight: bold;
-            color: #667eea;
+            color: var(--button-primary);
             margin: 0 0 5px 0;
-        }
-        .room-badge {
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background: #e7f3ff;
-            color: #0066cc;
-            white-space: nowrap;
-        }
-        .room-badge.private {
-            background: #fff3cd;
-            color: #856404;
         }
         .room-title {
             color: var(--text-secondary);
@@ -222,7 +210,7 @@
                 <a href="{{ url_for('chat', room_name=room.name) }}" class="room-card">
                     <div class="room-card-header">
                         <h3 class="room-name">{{ room.name }}</h3>
-                        <span class="room-badge">Public</span>
+                        <span class="badge badge-public">Public</span>
                     </div>
                     {% if room.title %}
                     <p class="room-title">{{ room.title }}</p>
@@ -253,7 +241,7 @@
                     <a href="{{ url_for('chat', room_name=room.name) }}" class="room-card">
                         <div class="room-card-header">
                             <h3 class="room-name">{{ room.name }}</h3>
-                            <span class="room-badge private">Private</span>
+                            <span class="badge badge-private">Private</span>
                         </div>
                         {% if room.title %}
                         <p class="room-title">{{ room.title }}</p>

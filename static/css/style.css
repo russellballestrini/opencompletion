@@ -135,11 +135,21 @@
    ======================================== */
 
 html, body {
+    /* Typography */
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+
+    /* Layout & Colors */
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 h1 { font-size: 32px; font-weight: 600; line-height: 1.2; margin: 0 0 var(--space-4) 0; }
@@ -155,16 +165,6 @@ p {
 /* ========================================
    BASE LAYOUT
    ======================================== */
-
-html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    overflow: hidden;
-    transition: background-color 0.2s ease, color 0.2s ease;
-}
 
 /* Main container for chat interface (3-column grid) */
 .main-container {
