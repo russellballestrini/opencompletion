@@ -91,9 +91,21 @@
             // Clear previous timeout
             clearTimeout(checkTimeout);
 
-            // Reset if empty or same as current
-            if (!username || username === currentUsername) {
+            // Hide indicator and disable button if same as current username
+            if (username === currentUsername) {
                 indicator.textContent = '';
+                indicator.style.display = 'none';
+                submitBtn.disabled = true;
+                return;
+            }
+
+            // Show indicator when username changes
+            indicator.style.display = 'block';
+
+            // Reset if empty
+            if (!username) {
+                indicator.textContent = '';
+                indicator.style.display = 'none';
                 submitBtn.disabled = true;
                 return;
             }

@@ -600,6 +600,10 @@
             return;
         }
 
+        // Determine if current room is private by checking if we're in private section
+        const currentRoomElement = document.querySelector(`[data-room-id="${roomId}"]`);
+        const isPrivate = currentRoomElement ? currentRoomElement.classList.contains('private-room') : false;
+
         try {
             const response = await fetch(`/api/rooms/${roomId}/delete`, {
                 method: 'DELETE',
@@ -609,7 +613,32 @@
             const data = await response.json();
 
             if (response.ok) {
-                window.location.href = '/';
+                // Navigate to the top room of the appropriate list (public or private)
+                const roomList = isPrivate
+                    ? document.querySelectorAll('#private-rooms-section .rooms-list li')
+                    : document.querySelectorAll('#public-rooms-section .rooms-list li');
+
+                // Find first room that isn't the deleted one
+                let targetRoom = null;
+                for (let room of roomList) {
+                    if (room.getAttribute('data-room-id') != roomId) {
+                        targetRoom = room;
+                        break;
+                    }
+                }
+
+                if (targetRoom) {
+                    // Navigate to the first available room in the list
+                    const link = targetRoom.closest('a');
+                    if (link) {
+                        window.location.href = link.href;
+                    } else {
+                        window.location.href = '/';
+                    }
+                } else {
+                    // No other rooms available, go to home
+                    window.location.href = '/';
+                }
             } else {
                 alert(data.error || 'Failed to delete room');
             }

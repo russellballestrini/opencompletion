@@ -1055,6 +1055,14 @@ def on_join(data):
     username = data["username"]
     room = get_room(room_name)
 
+    # Set owner for newly created rooms (if room has no owner and user is authenticated)
+    if room.owner_id is None:
+        user = auth.get_current_user()
+        if user:
+            room.owner_id = user.id
+            db.session.add(room)
+            db.session.commit()
+
     # Add the user to the active users list
     room.add_user(username)
 
