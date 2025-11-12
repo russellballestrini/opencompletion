@@ -343,6 +343,7 @@ html, body {
     padding: var(--space-4);
     box-sizing: border-box;
     transition: background-color 0.2s ease;
+    overflow-x: hidden;
 }
 
 /* Search bar at top of chat */
@@ -371,6 +372,7 @@ html, body {
 /* Chat messages area */
 #chat {
     overflow-y: auto;
+    overflow-x: hidden;
     padding: var(--space-3);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
@@ -386,6 +388,7 @@ html, body {
     align-items: start;
     gap: var(--space-2);
     margin-bottom: var(--space-6);
+    min-width: 0;
 }
 
 .button-container {
@@ -396,6 +399,10 @@ html, body {
 .message-body {
     width: 100%;
     display: grid;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    min-width: 0;
 }
 
 .message-header {
@@ -409,6 +416,10 @@ html, body {
     width: 100%;
     font-size: 14px;
     line-height: 1.6;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    min-width: 0;
 }
 
 /* Message input area */
@@ -637,7 +648,9 @@ html, body {
 pre {
     margin: 0 0 var(--space-3) 0;
     border-radius: var(--radius-md);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
 }
 
 code {
