@@ -1550,23 +1550,17 @@ async function executeCodeBlock(code, blockElement, playButton) {
                 }
 
                 if (job.status === 'completed') {
-                    // Debug: Log the full job response to see all fields
-                    console.log('[DEBUG] Full job response:', JSON.stringify(job, null, 2));
-
                     // Unsandbox returns stdout/stderr/exit_code at top level of job response
                     displayExecutionResults(job, resultsContainer, language, code);
 
                     // Check if execution failed and attempt auto-fix
                     const exitCode = job.exit_code;
                     const stderr = job.stderr || '';
-                    const shouldAutoFix = exitCode !== 0 && stderr.trim() !== '';
+                    const stdout = job.stdout || '';
 
-                    console.log('[DEBUG] Code execution completed:', {
-                        exitCode,
-                        hasStderr: !!stderr,
-                        shouldAutoFix,
-                        stderr: stderr.substring(0, 100)
-                    });
+                    // Error messages can be in either stderr OR stdout (Python puts tracebacks in stdout)
+                    const errorOutput = stderr.trim() || stdout.trim();
+                    const shouldAutoFix = exitCode !== 0 && errorOutput !== '';
 
                     // Track attempts per code block (store in resultsContainer dataset)
                     if (!resultsContainer.dataset.fixAttempts) {
@@ -1574,12 +1568,6 @@ async function executeCodeBlock(code, blockElement, playButton) {
                     }
 
                     const currentAttempts = parseInt(resultsContainer.dataset.fixAttempts);
-
-                    console.log('[DEBUG] Auto-fix decision:', {
-                        shouldAutoFix,
-                        currentAttempts,
-                        willAttemptFix: shouldAutoFix && currentAttempts < 3
-                    });
 
                     if (shouldAutoFix && currentAttempts < 3) {
                         // Show auto-fix message
@@ -1603,7 +1591,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
                                 body: JSON.stringify({
                                     code: code,
                                     language: language,
-                                    stderr: stderr,
+                                    stderr: errorOutput,  // Send combined error output (stderr or stdout)
                                     exit_code: exitCode,
                                     attempt: currentAttempts + 1
                                 })
