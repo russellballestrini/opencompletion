@@ -1550,6 +1550,9 @@ async function executeCodeBlock(code, blockElement, playButton) {
                 }
 
                 if (job.status === 'completed') {
+                    // Debug: Log the full job response to see all fields
+                    console.log('[DEBUG] Full job response:', JSON.stringify(job, null, 2));
+
                     // Unsandbox returns stdout/stderr/exit_code at top level of job response
                     displayExecutionResults(job, resultsContainer, language, code);
 
