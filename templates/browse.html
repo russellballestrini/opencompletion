@@ -1,10 +1,17 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browse Rooms - OpenCompletion</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <script>
+        // Set theme immediately to prevent flash
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         body {
@@ -276,10 +283,6 @@
     </div>
 
     <script>
-        // Theme persistence
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-
         function switchTab(tab, element) {
             // Update tab buttons
             document.querySelectorAll('.room-tab').forEach(btn => {

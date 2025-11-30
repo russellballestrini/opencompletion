@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile Settings - OpenCompletion</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <script>
+        // Set theme immediately to prevent flash
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
     <style>
         :root {
             --bg-primary: #ffffff;
@@ -262,6 +269,7 @@
         <div class="header-actions">
             <a href="/" class="btn">🏠 Home</a>
             <a href="/browse" class="btn btn-secondary">📋 Browse Rooms</a>
+            <button class="btn btn-secondary" onclick="logout()">🚪 Log Out</button>
         </div>
     </div>
 
@@ -432,6 +440,28 @@
                 submitBtn.textContent = 'Update Username';
             }
         });
+
+        // Logout function
+        async function logout() {
+            if (!confirm('Are you sure you want to log out?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/auth/logout', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    alert('Failed to log out. Please try again.');
+                }
+            } catch (error) {
+                alert('Network error. Please try again.');
+            }
+        }
     </script>
 </body>
 </html>
