@@ -3,6 +3,7 @@
 import os
 import random
 import smtplib
+import socket
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
@@ -28,14 +29,40 @@ def send_otp_email(email, otp_code):
     - SMTP_PORT: SMTP server port (e.g., 587)
     - SMTP_USER: SMTP username/email
     - SMTP_PASSWORD: SMTP password or app-specific password
-    - SMTP_FROM_EMAIL: Email address to send from
+    - SMTP_FROM_EMAIL: Email address to send from (auto-detected if not set)
     - SMTP_FROM_NAME: Display name for sender
     """
     smtp_host = os.environ.get('SMTP_HOST')
     smtp_port = int(os.environ.get('SMTP_PORT', '587')) if smtp_host else 587
     smtp_user = os.environ.get('SMTP_USER')
     smtp_password = os.environ.get('SMTP_PASSWORD')
-    from_email = os.environ.get('SMTP_FROM_EMAIL', smtp_user or 'noreply@opencompletion.local')
+
+    # Auto-detect sender email domain from request or hostname
+    def get_default_from_email():
+        # Try to get domain from Flask request context
+        try:
+            host = request.host
+            # Skip localhost/127.0.0.1
+            if host and not host.startswith('localhost') and not host.startswith('127.0.0.1'):
+                # Remove port if present
+                domain = host.split(':')[0]
+                return f'noreply@{domain}'
+        except RuntimeError:
+            # No request context available
+            pass
+
+        # Fall back to system hostname
+        try:
+            hostname = socket.getfqdn()
+            if hostname and hostname != 'localhost':
+                return f'noreply@{hostname}'
+        except Exception:
+            pass
+
+        # Final fallback
+        return smtp_user or 'noreply@opencompletion.local'
+
+    from_email = os.environ.get('SMTP_FROM_EMAIL', get_default_from_email())
     from_name = os.environ.get('SMTP_FROM_NAME', 'OpenCompletion')
 
     # Create message
