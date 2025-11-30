@@ -932,7 +932,44 @@ socket.on("chat_message", (data) => {
     // Scroll to the bottom of the chat container to show the new message.
     if (data.id) {
         document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
-        
+
+        // Check if this message should auto-execute (from auto-fix)
+        if (window.pendingAutoExec) {
+            const autoExecData = window.pendingAutoExec;
+            window.pendingAutoExec = null; // Clear it so we don't re-execute
+
+            // Find the code block that was just added
+            const codeBlocks = newMessage.querySelectorAll("pre code");
+            if (codeBlocks.length > 0) {
+                // Get the first code block (should be the fixed code)
+                const codeBlock = codeBlocks[0];
+
+                // Find the Run button for this code block
+                setTimeout(() => {
+                    // The Run button is in a sibling container after the <pre> element
+                    const preElement = codeBlock.parentNode;
+                    const buttonContainer = preElement.nextSibling;
+                    const runButton = buttonContainer?.querySelector('.play-button');
+
+                    if (runButton) {
+                        console.log(`Auto-executing fixed code (attempt ${autoExecData.attempt}/3)...`);
+
+                        // Find or create results container and set attempt count
+                        let resultsContainer = preElement.querySelector('.code-execution-results');
+                        if (!resultsContainer) {
+                            resultsContainer = document.createElement('div');
+                            resultsContainer.classList.add('code-execution-results');
+                            preElement.insertBefore(resultsContainer, preElement.nextSibling);
+                        }
+                        resultsContainer.dataset.fixAttempts = autoExecData.attempt.toString();
+
+                        // Trigger execution
+                        runButton.click();
+                    }
+                }, 100); // Delay to ensure buttons are fully rendered
+            }
+        }
+
         // Auto-play TTS if enabled and message has content - AFTER buttons are created
         if (autoPlayTTS && data.content && data.content.trim() !== "") {
             setTimeout(() => {
@@ -1602,14 +1639,27 @@ async function executeCodeBlock(code, blockElement, playButton) {
 
                                 if (fixData.success && fixData.fixed_code) {
                                     // Update status
-                                    autoFixDiv.textContent = `Code fixed! Re-executing (attempt ${currentAttempts + 1}/3)...`;
+                                    autoFixDiv.textContent = `Code fixed! Posting and re-executing (attempt ${currentAttempts + 1}/3)...`;
 
-                                    // Small delay before re-execution to prevent stack overflow
-                                    await sleep(200);
+                                    // Store fixed code and attempt count for auto-execution after message is posted
+                                    const autoExecData = {
+                                        code: fixData.fixed_code,
+                                        language: language,
+                                        attempt: currentAttempts + 1
+                                    };
 
-                                    // Re-execute with the fixed code (no need to post to chat, execution will show results)
-                                    await executeCodeBlock(fixData.fixed_code, blockElement, playButton);
-                                    return; // Exit this execution, the recursive call will handle the rest
+                                    // Store in global variable so chat_message handler can access it
+                                    window.pendingAutoExec = autoExecData;
+
+                                    // Post the fixed code as a new message in the chat
+                                    socket.emit("chat_message", {
+                                        "username": username,
+                                        "message": `**Auto-fixed code (attempt ${currentAttempts + 1}/3):**\n\n\`\`\`${language}\n${fixData.fixed_code}\n\`\`\``,
+                                        "model": "None",
+                                        "room_name": room_name
+                                    });
+
+                                    return; // Exit - the message handler will trigger execution
                                 } else {
                                     autoFixDiv.textContent = `Auto-fix failed: ${fixData.error || 'Unknown error'}`;
                                     autoFixDiv.style.color = 'var(--text-error)';
