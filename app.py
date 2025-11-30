@@ -850,6 +850,88 @@ Examples:
         return jsonify({"filename": "compiled_binary"})
 
 
+@app.route("/api/fix-code", methods=["POST"])
+def fix_code():
+    """Auto-fix code errors by asking AI to fix issues based on stderr output.
+
+    Accepts code, language, stderr, and attempt number.
+    Returns fixed code block or error message.
+    """
+    try:
+        data = request.get_json()
+        code = data.get("code", "")
+        language = data.get("language", "")
+        stderr = data.get("stderr", "")
+        exit_code = data.get("exit_code", 1)
+        attempt = data.get("attempt", 1)
+
+        if not code or not language:
+            return jsonify({"error": "Code and language are required"}), 400
+
+        # Use MODEL_1 (Hermes) to fix the code
+        client, model = get_openai_client_and_model("MODEL_1")
+
+        system_prompt = f"""You are an expert {language} programmer and debugger. Your task is to fix code that has errors.
+
+CRITICAL RULES:
+- Output ONLY the fixed code, nothing else
+- NO explanations, NO comments about what you changed
+- NO markdown code fences (```), just the raw code
+- Preserve the original code structure and logic as much as possible
+- Fix ONLY the errors reported in stderr
+- If the error mentions missing imports/includes, add them at the top
+- If the error is a syntax error, fix the syntax
+- Keep the same variable names and overall approach
+
+The code should be immediately executable without any modifications."""
+
+        user_prompt = f"""The following {language} code has errors:
+
+```{language}
+{code}
+```
+
+Error output (exit code {exit_code}):
+```
+{stderr}
+```
+
+Fix the code (output ONLY the corrected code, no explanations):"""
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.2,  # Low temperature for consistent fixes
+            max_tokens=2000
+        )
+
+        fixed_code = response.choices[0].message.content.strip()
+
+        # Clean up any markdown code fences that might have slipped through
+        if fixed_code.startswith("```"):
+            lines = fixed_code.split("\n")
+            # Remove first line if it's a fence
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            # Remove last line if it's a fence
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            fixed_code = "\n".join(lines)
+
+        return jsonify({
+            "success": True,
+            "fixed_code": fixed_code,
+            "attempt": attempt
+        })
+
+    except Exception as e:
+        print(f"Error fixing code: {e}")
+        return jsonify({"error": f"Failed to fix code: {str(e)}"}), 500
+
+
 @app.route("/chat/<room_name>")
 def chat(room_name):
     user = auth.get_current_user()

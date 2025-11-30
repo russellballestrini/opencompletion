@@ -1552,6 +1552,93 @@ async function executeCodeBlock(code, blockElement, playButton) {
                 if (job.status === 'completed') {
                     // Unsandbox returns stdout/stderr/exit_code at top level of job response
                     displayExecutionResults(job, resultsContainer, language, code);
+
+                    // Check if execution failed and attempt auto-fix
+                    const exitCode = job.exit_code;
+                    const stderr = job.stderr || '';
+                    const shouldAutoFix = exitCode !== 0 && stderr.trim() !== '';
+
+                    // Track attempts per code block (store in resultsContainer dataset)
+                    if (!resultsContainer.dataset.fixAttempts) {
+                        resultsContainer.dataset.fixAttempts = '0';
+                    }
+
+                    const currentAttempts = parseInt(resultsContainer.dataset.fixAttempts);
+
+                    if (shouldAutoFix && currentAttempts < 3) {
+                        // Show auto-fix message
+                        const autoFixDiv = document.createElement('div');
+                        autoFixDiv.style.color = 'var(--text-info)';
+                        autoFixDiv.style.fontWeight = 'bold';
+                        autoFixDiv.style.marginTop = '12px';
+                        autoFixDiv.textContent = `Attempting to auto-fix errors (attempt ${currentAttempts + 1}/3)...`;
+                        resultsContainer.appendChild(autoFixDiv);
+
+                        // Increment attempt counter
+                        resultsContainer.dataset.fixAttempts = (currentAttempts + 1).toString();
+
+                        // Call backend to fix the code
+                        try {
+                            const fixResponse = await fetch('/api/fix-code', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    code: code,
+                                    language: language,
+                                    stderr: stderr,
+                                    exit_code: exitCode,
+                                    attempt: currentAttempts + 1
+                                })
+                            });
+
+                            if (fixResponse.ok) {
+                                const fixData = await fixResponse.json();
+
+                                if (fixData.success && fixData.fixed_code) {
+                                    // Update status
+                                    autoFixDiv.textContent = `Code fixed! Re-executing (attempt ${currentAttempts + 1}/3)...`;
+
+                                    // Post the fixed code as a new message in the chat
+                                    socket.emit("chat_message", {
+                                        "username": username,
+                                        "message": `**Auto-fixed code (attempt ${currentAttempts + 1}/3):**\n\n\`\`\`${language}\n${fixData.fixed_code}\n\`\`\``,
+                                        "model": "None",
+                                        "room_name": room_name
+                                    });
+
+                                    // Wait a moment for the message to be posted
+                                    await sleep(500);
+
+                                    // Re-execute with the fixed code
+                                    // Create a small delay to prevent stack overflow
+                                    await sleep(200);
+                                    await executeCodeBlock(fixData.fixed_code, blockElement, playButton);
+                                    return; // Exit this execution, the recursive call will handle the rest
+                                } else {
+                                    autoFixDiv.textContent = `Auto-fix failed: ${fixData.error || 'Unknown error'}`;
+                                    autoFixDiv.style.color = 'var(--text-error)';
+                                }
+                            } else {
+                                autoFixDiv.textContent = `Auto-fix request failed (HTTP ${fixResponse.status})`;
+                                autoFixDiv.style.color = 'var(--text-error)';
+                            }
+                        } catch (autoFixError) {
+                            console.error('Error during auto-fix:', autoFixError);
+                            autoFixDiv.textContent = `Auto-fix error: ${autoFixError.message}`;
+                            autoFixDiv.style.color = 'var(--text-error)';
+                        }
+                    } else if (currentAttempts >= 3 && shouldAutoFix) {
+                        // Max attempts reached
+                        const maxAttemptsDiv = document.createElement('div');
+                        maxAttemptsDiv.style.color = 'var(--text-warning)';
+                        maxAttemptsDiv.style.fontWeight = 'bold';
+                        maxAttemptsDiv.style.marginTop = '12px';
+                        maxAttemptsDiv.textContent = 'Maximum auto-fix attempts (3) reached. Code still has errors.';
+                        resultsContainer.appendChild(maxAttemptsDiv);
+                    }
+
                     break;
                 }
 
