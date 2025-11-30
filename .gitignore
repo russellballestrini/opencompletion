@@ -10,3 +10,4 @@ samconfig.toml
 vars.sh
 .coverage
 htmlcov/
+unturf-debugging.md

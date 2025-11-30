@@ -35,12 +35,19 @@
 - Use `vars.sh` to set up environment variables
 - Required: MODEL_ENDPOINT_x and MODEL_API_KEY_x variables for AI models
 - Run with: `source vars.sh && python app.py`
+- **NEVER cat or grep vars.sh** - it contains API keys and secrets
 
 ### Makefile Commands
 - `make venv` - Create virtual environment and install dependencies
 - `make init-db` - Initialize database tables
 - `make test` - Run all tests
 - `make dev-setup` - Install development dependencies
+
+### Network Infrastructure
+
+- OpenCompletion uses Caddy for web server (not nginx)
+- Multi-layer proxy architecture for accessing AI models
+- See `unturf-debugging.md` for network troubleshooting (gitignored)
 
 ## OpenCompletion Architecture
 
