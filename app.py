@@ -2162,4 +2162,5 @@ if __name__ == "__main__":
     app.config["LOCAL_ACTIVITIES"] = args.local_activities
 
     # Run the SocketIO server with the specified port
-    socketio.run(app, host="0.0.0.0", port=args.port, use_reloader=True)
+    # Disable reloader to avoid gevent fork compatibility issues
+    socketio.run(app, host="0.0.0.0", port=args.port, use_reloader=False)
