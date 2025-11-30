@@ -868,8 +868,14 @@ def fix_code():
         if not code or not language:
             return jsonify({"error": "Code and language are required"}), 400
 
-        # Use MODEL_1 (Hermes) to fix the code
-        client, model = get_openai_client_and_model("MODEL_1")
+        # Try MODEL_3 (Qwen Coder) first for better code fixing, fall back to MODEL_1 (Hermes)
+        try:
+            client, model = get_openai_client_and_model("MODEL_3")
+            print(f"[INFO] Using MODEL_3 for code fixing: {model}")
+        except Exception as e:
+            print(f"[WARN] MODEL_3 not available, falling back to MODEL_1: {e}")
+            client, model = get_openai_client_and_model("MODEL_1")
+            print(f"[INFO] Using MODEL_1 for code fixing: {model}")
 
         system_prompt = f"""You are an expert {language} programmer and debugger. Your task is to fix code that has errors.
 
