@@ -957,7 +957,7 @@ socket.on("chat_message", (data) => {
                         // Find or create results container and set attempt count
                         // Results container goes after the button container (which is after the <pre>)
                         let resultsContainer = buttonContainer?.nextSibling;
-                        if (!resultsContainer || !resultsContainer.classList.contains('code-execution-results')) {
+                        if (!resultsContainer || !resultsContainer.classList || !resultsContainer.classList.contains('code-execution-results')) {
                             resultsContainer = document.createElement('div');
                             resultsContainer.classList.add('code-execution-results');
                             resultsContainer.style.marginTop = '10px';
