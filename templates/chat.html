@@ -381,30 +381,70 @@ function updateUserLists(activeUsers, inactiveUsers) {
     inactiveUserListElementMobile.innerHTML = ''; // Clear the current list (mobile)
 
     // Populate the list with active users (desktop)
-    activeUsers.forEach(username => {
+    activeUsers.forEach(user => {
         const userItem = document.createElement("li");
-        userItem.textContent = username;
+        // If it's the logged-in user, make it clickable to profile
+        if (user === username) {
+            const userLink = document.createElement("a");
+            userLink.href = "/profile";
+            userLink.textContent = user;
+            userLink.style.color = "var(--text-primary)";
+            userLink.style.textDecoration = "none";
+            userItem.appendChild(userLink);
+        } else {
+            userItem.textContent = user;
+        }
         activeUserListElement.appendChild(userItem);
     });
 
     // Populate the list with inactive users (desktop)
-    inactiveUsers.forEach(username => {
+    inactiveUsers.forEach(user => {
         const userItem = document.createElement("li");
-        userItem.textContent = username;
+        // If it's the logged-in user, make it clickable to profile
+        if (user === username) {
+            const userLink = document.createElement("a");
+            userLink.href = "/profile";
+            userLink.textContent = user;
+            userLink.style.color = "var(--text-secondary)";
+            userLink.style.textDecoration = "none";
+            userItem.appendChild(userLink);
+        } else {
+            userItem.textContent = user;
+        }
         inactiveUserListElement.appendChild(userItem);
     });
 
     // Populate the list with active users (mobile)
-    activeUsers.forEach(username => {
+    activeUsers.forEach(user => {
         const userItemMobile = document.createElement("li");
-        userItemMobile.textContent = username;
+        // If it's the logged-in user, make it clickable to profile
+        if (user === username) {
+            const userLink = document.createElement("a");
+            userLink.href = "/profile";
+            userLink.textContent = user;
+            userLink.style.color = "var(--text-primary)";
+            userLink.style.textDecoration = "none";
+            userItemMobile.appendChild(userLink);
+        } else {
+            userItemMobile.textContent = user;
+        }
         activeUserListElementMobile.appendChild(userItemMobile);
     });
 
     // Populate the list with inactive users (mobile)
-    inactiveUsers.forEach(username => {
+    inactiveUsers.forEach(user => {
         const userItemMobile = document.createElement("li");
-        userItemMobile.textContent = username;
+        // If it's the logged-in user, make it clickable to profile
+        if (user === username) {
+            const userLink = document.createElement("a");
+            userLink.href = "/profile";
+            userLink.textContent = user;
+            userLink.style.color = "var(--text-secondary)";
+            userLink.style.textDecoration = "none";
+            userItemMobile.appendChild(userLink);
+        } else {
+            userItemMobile.textContent = user;
+        }
         inactiveUserListElementMobile.appendChild(userItemMobile);
     });
 }
@@ -814,7 +854,14 @@ socket.on("chat_message", (data) => {
     newMessage.className = "message-content";
 
     // Check if the username is present and prepend it to the message content
-    const messageContent = data.username ? `**[${data.username}](/profile/${data.username}):**\n\n${data.content}` : data.content;
+    // Link to /profile if it's the logged-in user, otherwise /profile/username
+    let messageContent;
+    if (data.username) {
+        const profileLink = data.username === username ? '/profile' : `/profile/${data.username}`;
+        messageContent = `**[${data.username}](${profileLink}):**\n\n${data.content}`;
+    } else {
+        messageContent = data.content;
+    }
 
     // Check if the message starts with a base64 image tag
     if (data.content.startsWith('<img src="data:image/jpeg;base64')) {
@@ -922,8 +969,11 @@ socket.on("previous_messages", (data) => {
         // Directly assign the message as innerHTML if it's a base64 image
         newMessage.innerHTML = data.content;
     } else {
+        // Link to /profile if it's the logged-in user, otherwise /profile/username
+        const profileLink = data.username === username ? '/profile' : `/profile/${data.username}`;
+        const usernameLink = `**[${data.username}](${profileLink}):**`;
         // Otherwise, sanitize and process the message with marked
-        newMessage.innerHTML = DOMPurify.sanitize(marked.marked(`**${data.username}:**\n\n${data.content}`), dompurify_config);
+        newMessage.innerHTML = DOMPurify.sanitize(marked.marked(`${usernameLink}\n\n${data.content}`), dompurify_config);
     }
 
     newMessage.dataset.rawMarkdown = data.content;
