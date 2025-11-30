@@ -955,11 +955,25 @@ socket.on("chat_message", (data) => {
                         console.log(`Auto-executing fixed code (attempt ${autoExecData.attempt}/3)...`);
 
                         // Find or create results container and set attempt count
-                        let resultsContainer = preElement.querySelector('.code-execution-results');
-                        if (!resultsContainer) {
+                        // Results container goes after the button container (which is after the <pre>)
+                        let resultsContainer = buttonContainer?.nextSibling;
+                        if (!resultsContainer || !resultsContainer.classList.contains('code-execution-results')) {
                             resultsContainer = document.createElement('div');
                             resultsContainer.classList.add('code-execution-results');
-                            preElement.insertBefore(resultsContainer, preElement.nextSibling);
+                            resultsContainer.style.marginTop = '10px';
+                            resultsContainer.style.padding = '10px';
+                            resultsContainer.style.backgroundColor = 'var(--bg-code)';
+                            resultsContainer.style.borderRadius = '5px';
+                            resultsContainer.style.fontFamily = 'monospace';
+                            resultsContainer.style.fontSize = '14px';
+                            resultsContainer.style.whiteSpace = 'pre-wrap';
+                            resultsContainer.style.wordWrap = 'break-word';
+                            // Insert after button container
+                            if (buttonContainer && buttonContainer.nextSibling) {
+                                buttonContainer.parentNode.insertBefore(resultsContainer, buttonContainer.nextSibling);
+                            } else if (buttonContainer) {
+                                buttonContainer.parentNode.appendChild(resultsContainer);
+                            }
                         }
                         resultsContainer.dataset.fixAttempts = autoExecData.attempt.toString();
 
