@@ -73,6 +73,10 @@
         .room-tab:hover {
             color: var(--button-primary);
         }
+        .room-tab:focus {
+            outline: none;
+            background: none;
+        }
         .room-tab.active {
             color: var(--button-primary);
             border-bottom-color: var(--button-primary);
@@ -193,10 +197,10 @@
     </div>
 
     <div class="room-tabs">
-        <button class="room-tab active" onclick="switchTab('public')">
+        <button class="room-tab active" onclick="switchTab('public', this)">
             🌍 Public Rooms
         </button>
-        <button class="room-tab" onclick="switchTab('private')">
+        <button class="room-tab" onclick="switchTab('private', this)">
             🔐 Private Rooms
         </button>
     </div>
@@ -276,12 +280,12 @@
         const savedTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
 
-        function switchTab(tab) {
+        function switchTab(tab, element) {
             // Update tab buttons
             document.querySelectorAll('.room-tab').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            element.classList.add('active');
 
             // Update sections
             document.querySelectorAll('.room-section').forEach(section => {
