@@ -1604,20 +1604,10 @@ async function executeCodeBlock(code, blockElement, playButton) {
                                     // Update status
                                     autoFixDiv.textContent = `Code fixed! Re-executing (attempt ${currentAttempts + 1}/3)...`;
 
-                                    // Post the fixed code as a new message in the chat
-                                    socket.emit("chat_message", {
-                                        "username": username,
-                                        "message": `**Auto-fixed code (attempt ${currentAttempts + 1}/3):**\n\n\`\`\`${language}\n${fixData.fixed_code}\n\`\`\``,
-                                        "model": "None",
-                                        "room_name": room_name
-                                    });
-
-                                    // Wait a moment for the message to be posted
-                                    await sleep(500);
-
-                                    // Re-execute with the fixed code
-                                    // Create a small delay to prevent stack overflow
+                                    // Small delay before re-execution to prevent stack overflow
                                     await sleep(200);
+
+                                    // Re-execute with the fixed code (no need to post to chat, execution will show results)
                                     await executeCodeBlock(fixData.fixed_code, blockElement, playButton);
                                     return; // Exit this execution, the recursive call will handle the rest
                                 } else {
