@@ -98,7 +98,7 @@
 const API_KEY = "dummy-api-key";
 const TTS_API_URL = "https://speech.ai.unturf.com/v1/audio/speech";
 const VOICES_API_URL = "https://speech.ai.unturf.com/v1/voices";
-const CODE_EXEC_URL = "https://code.ai.unturf.com"; // Code execution service URL (served via Caddy)
+const CODE_EXEC_URL = "https://api.unsandbox.com"; // Unsandbox code execution API
 const room_name = "{{ room_name }}";
 
 // Get username from server (authenticated user's display name or None)
@@ -1500,55 +1500,25 @@ async function executeCodeBlock(code, blockElement, playButton) {
                 }
 
                 if (job.status === 'completed') {
-                    const result = job.result;
-                    displayExecutionResults(result, resultsContainer, language, code);
+                    // Unsandbox returns stdout/stderr/exit_code at top level of job response
+                    displayExecutionResults(job, resultsContainer, language, code);
                     break;
                 }
 
-                // timeout or cancelled - display results and artifact if available
-                const errorMsg = job.result?.error || 'Execution failed';
-                const partialOutput = job.result?.partial_output;
+                // timeout, cancelled, or failed
+                const errorMsg = job.error || job.status;
 
-                // CONFIRMED via testing (make test-artifact): Executor service does NOT
-                // include artifact field in GET /jobs/{id} response for cancelled jobs
-                // (exit_code 137 = SIGKILL), even when return_artifact=true was requested.
-                // Artifacts only included for fully completed jobs (exit_code 0).
-                //
-                // The code below checks for artifact anyway in case this gets fixed in the
-                // future, but currently it will always be undefined for cancelled/timeout.
-                const artifact = job.artifact || job.result?.artifact;
+                // Display whatever output we have
+                displayExecutionResults(job, resultsContainer, language, code);
 
-                // Build result object that displayExecutionResults can understand
-                // For timeout/cancelled, partial_output contains the output before timeout
-                if (job.result) {
-                    const resultForDisplay = {
-                        stdout: partialOutput || job.result.stdout || '',
-                        stderr: job.result.stderr || '',
-                        artifact: artifact
-                    };
-                    displayExecutionResults(resultForDisplay, resultsContainer, language, code);
+                // Prepend error message to the results
+                const errorDiv = document.createElement('div');
+                errorDiv.style.color = 'var(--text-error)';
+                errorDiv.style.fontWeight = 'bold';
+                errorDiv.style.marginBottom = '8px';
+                errorDiv.textContent = `Execution ${errorMsg}`;
+                resultsContainer.insertBefore(errorDiv, resultsContainer.firstChild);
 
-                    // Prepend error message to the results
-                    const errorDiv = document.createElement('div');
-                    errorDiv.style.color = 'var(--text-error)';
-                    errorDiv.style.fontWeight = 'bold';
-                    errorDiv.style.marginBottom = '8px';
-                    errorDiv.textContent = errorMsg;
-                    resultsContainer.insertBefore(errorDiv, resultsContainer.firstChild);
-
-                    // Add note if there was partial output
-                    if (partialOutput) {
-                        const partialNote = document.createElement('div');
-                        partialNote.style.color = 'var(--text-muted)';
-                        partialNote.style.fontSize = '12px';
-                        partialNote.style.marginBottom = '8px';
-                        partialNote.textContent = '(Output before timeout/cancellation)';
-                        resultsContainer.insertBefore(partialNote, resultsContainer.children[1]);
-                    }
-                } else {
-                    // No result object at all, just show error
-                    resultsContainer.innerHTML = `<div style="color: var(--text-error); font-weight: bold;">${escapeHtml(errorMsg)}</div>`;
-                }
                 break;
             }
 
@@ -1579,19 +1549,20 @@ function displayExecutionResults(result, resultsContainer, language, code) {
     // Format and display results
     let outputHtml = '';
 
-    // Handle nested response structure - check if stdout is an object with nested data
-    let actualStdout = result.stdout;
-    let actualStderr = result.stderr;
-
-    // If stdout is an object (nested response), extract the actual stdout/stderr
-    if (typeof result.stdout === 'object' && result.stdout !== null) {
-        actualStdout = result.stdout.stdout || '';
-        actualStderr = result.stdout.stderr || '';
-    }
+    // Unsandbox API returns flat structure: {success, stdout, stderr, exit_code}
+    const actualStdout = result.stdout || '';
+    const actualStderr = result.stderr || '';
+    const exitCode = result.exit_code;
 
     // Show language
     if (language) {
         outputHtml += `<div style="color: var(--text-info); margin-bottom: 8px;">Language: ${language}</div>`;
+    }
+
+    // Show exit code
+    if (exitCode !== undefined && exitCode !== null) {
+        const exitColor = exitCode === 0 ? 'var(--text-success)' : 'var(--text-error)';
+        outputHtml += `<div style="color: ${exitColor}; margin-bottom: 8px;">Exit Code: ${exitCode}</div>`;
     }
 
     // Show stdout

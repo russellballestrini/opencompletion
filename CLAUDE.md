@@ -67,14 +67,123 @@
 3. HTML sanitized with DOMPurify
 4. Code blocks enhanced with copy buttons, syntax highlighting, and line numbers
 
-### Code Execution Integration (New)
-- Integration with unfirecracker-code-executor service on cammy.foxhop.net
-- Service supports 38 working languages with auto-detection
-- Endpoints:
-  - `/execute` - Execute code with specified language
-  - `/run` - Auto-detect language and execute
-- Add play button next to copy button for code blocks
-- Display execution results inline below code blocks
+### Code Execution Integration
+
+OpenCompletion integrates with the Unsandbox API (https://api.unsandbox.com) for secure code execution in 40+ programming languages.
+
+#### API Endpoints
+
+**Synchronous Execution** (immediate results):
+```
+POST https://api.unsandbox.com/execute
+```
+- Executes code immediately and returns results
+- Use for quick code snippets and interactive execution
+
+**Asynchronous Execution** (long-running tasks):
+```
+POST https://api.unsandbox.com/execute/async
+```
+- Returns job ID for later retrieval
+- Use for long-running scripts (up to 15 minutes)
+
+**Auto-Detect Language**:
+```
+POST https://api.unsandbox.com/run
+```
+- Automatically detects language from shebang
+- Send raw code as request body
+- Useful when language is unknown or embedded in script
+
+#### Request Format
+
+```json
+{
+  "language": "python",
+  "code": "print('Hello, World!')",
+  "env": {
+    "VAR_NAME": "value"
+  },
+  "network_mode": "zerotrust",
+  "ttl": 60
+}
+```
+
+**Parameters**:
+- `language` (required): Programming language identifier
+- `code` (required): Source code to execute
+- `env` (optional): Environment variables as key-value pairs
+- `network_mode` (optional): "zerotrust" (default) or "semitrusted"
+- `ttl` (optional): Timeout in seconds (1-900, default 60)
+
+#### Response Format
+
+**Success Response**:
+```json
+{
+  "success": true,
+  "stdout": "Hello, World!\n",
+  "stderr": "",
+  "exit_code": 0
+}
+```
+
+**Error Response**:
+```json
+{
+  "success": false,
+  "stdout": "",
+  "stderr": "SyntaxError: invalid syntax\n",
+  "exit_code": 1,
+  "error": "Runtime error occurred"
+}
+```
+
+**Response Fields**:
+- `success` (boolean): True if execution completed without errors
+- `stdout` (string): Standard output from the program
+- `stderr` (string): Standard error output
+- `exit_code` (integer): Program exit status (0 = success, non-zero = error)
+- `error` (string, optional): Detailed error message if execution failed
+- `detected_language` (string, optional): Language detected by auto-detect endpoint
+
+#### Authentication
+
+Use Bearer token authentication:
+```
+Authorization: Bearer unsb-sk-xxxx-xxxx-xxxx-xxxx
+```
+
+API keys start with `unsb-sk-` prefix.
+
+#### Supported Languages
+
+40+ languages including:
+- **Compiled**: C, C++, Rust, Go, Java, C#, Swift
+- **Interpreted**: Python, Ruby, JavaScript, PHP, Perl, Lua
+- **Scripting**: Bash, PowerShell, Fish
+- **Data**: R, Julia, Octave, MATLAB
+- **Functional**: Haskell, Scala, Erlang, Elixir
+- **Esoteric**: Brainfuck, LOLCODE
+- And many more...
+
+#### Frontend Integration
+
+- Add play button (▶) next to copy button on code blocks
+- Execute code when user clicks play button
+- Display execution results inline below code block
+- Show stdout, stderr, and exit_code separately
+- Use syntax highlighting for output
+- Handle timeouts gracefully (60s default)
+- Support language auto-detection for fenced code blocks
+
+#### Security Features
+
+- **Isolated Execution**: Each execution runs in isolated container
+- **Network Control**: Zero-trust or semi-trusted network modes
+- **Timeout Protection**: Automatic termination after TTL expires
+- **Resource Limits**: CPU, memory, and disk quotas enforced
+- **Safe Defaults**: Minimal privileges, read-only filesystem (except /tmp)
 
 ## Activity YAML Schema
 
