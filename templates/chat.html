@@ -954,30 +954,11 @@ socket.on("chat_message", (data) => {
                     if (runButton) {
                         console.log(`Auto-executing fixed code (attempt ${autoExecData.attempt}/3)...`);
 
-                        // Find or create results container and set attempt count
-                        // Results container goes after the button container (which is after the <pre>)
-                        let resultsContainer = buttonContainer?.nextSibling;
-                        if (!resultsContainer || !resultsContainer.classList || !resultsContainer.classList.contains('code-execution-results')) {
-                            resultsContainer = document.createElement('div');
-                            resultsContainer.classList.add('code-execution-results');
-                            resultsContainer.style.marginTop = '10px';
-                            resultsContainer.style.padding = '10px';
-                            resultsContainer.style.backgroundColor = 'var(--bg-code)';
-                            resultsContainer.style.borderRadius = '5px';
-                            resultsContainer.style.fontFamily = 'monospace';
-                            resultsContainer.style.fontSize = '14px';
-                            resultsContainer.style.whiteSpace = 'pre-wrap';
-                            resultsContainer.style.wordWrap = 'break-word';
-                            // Insert after button container
-                            if (buttonContainer && buttonContainer.nextSibling) {
-                                buttonContainer.parentNode.insertBefore(resultsContainer, buttonContainer.nextSibling);
-                            } else if (buttonContainer) {
-                                buttonContainer.parentNode.appendChild(resultsContainer);
-                            }
-                        }
-                        resultsContainer.dataset.fixAttempts = autoExecData.attempt.toString();
+                        // Store the attempt count so executeCodeBlock can pick it up
+                        // We'll use a data attribute on the code block itself
+                        codeBlock.dataset.autoExecAttempt = autoExecData.attempt.toString();
 
-                        // Trigger execution
+                        // Trigger execution - it will create its own results container
                         runButton.click();
                     }
                 }, 100); // Delay to ensure buttons are fully rendered
@@ -1512,6 +1493,12 @@ async function executeCodeBlock(code, blockElement, playButton) {
 
         // Insert after the code block
         blockElement.parentNode.insertBefore(resultsContainer, blockElement.nextSibling);
+    }
+
+    // Check if this is an auto-exec from a fix and set the attempt counter
+    if (blockElement.dataset.autoExecAttempt) {
+        resultsContainer.dataset.fixAttempts = blockElement.dataset.autoExecAttempt;
+        delete blockElement.dataset.autoExecAttempt; // Clean up after use
     }
 
     // Clear previous results
