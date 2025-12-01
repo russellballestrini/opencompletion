@@ -1594,11 +1594,9 @@ async function executeCodeBlock(code, blockElement, playButton) {
                     // Check if execution failed and attempt auto-fix
                     const exitCode = job.exit_code;
                     const stderr = job.stderr || '';
-                    const stdout = job.stdout || '';
 
-                    // Error messages can be in either stderr OR stdout (Python puts tracebacks in stdout)
-                    const errorOutput = stderr.trim() || stdout.trim();
-                    const shouldAutoFix = exitCode !== 0 && errorOutput !== '';
+                    // Only use stderr for error detection (stdout/stderr properly separated now)
+                    const shouldAutoFix = exitCode !== 0 && stderr.trim() !== '';
 
                     // Track attempts per code block (store in resultsContainer dataset)
                     if (!resultsContainer.dataset.fixAttempts) {
@@ -1629,7 +1627,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
                                 body: JSON.stringify({
                                     code: code,
                                     language: language,
-                                    stderr: errorOutput,  // Send combined error output (stderr or stdout)
+                                    stderr: stderr,  // Send only stderr (properly separated now)
                                     exit_code: exitCode,
                                     attempt: currentAttempts + 1
                                 })
