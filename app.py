@@ -1819,8 +1819,9 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
 
     with app.app_context():
         room = get_room(room_name)
+        room_id = room.id  # Save room_id to avoid DetachedInstanceError later
         last_messages = (
-            Message.query.filter_by(room_id=room.id)
+            Message.query.filter_by(room_id=room_id)
             .order_by(Message.id.desc())
             .limit(limit)
             .all()
@@ -1833,14 +1834,14 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
                 continue
 
             role = "assistant" if msg.username in SYSTEM_USERS else "user"
-            content = build_message_content(msg, vision_enabled, room_id=room.id)
+            content = build_message_content(msg, vision_enabled, room_id=room_id)
             chat_history.append({"role": role, "content": content})
 
     buffer = ""  # Content buffer for accumulating the chunks
 
     # save empty message, we need the ID when we chunk the response.
     with app.app_context():
-        new_message = Message(username=model_name, content=buffer, room_id=room.id)
+        new_message = Message(username=model_name, content=buffer, room_id=room_id)
         db.session.add(new_message)
         db.session.commit()
         msg_id = new_message.id
@@ -1884,7 +1885,7 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
             },
             room=room_name,
         )
-        socketio.emit("delete_processing_message", msg_id, room=room.name)
+        socketio.emit("delete_processing_message", msg_id, room=room_name)
         # exit early to avoid clobbering the error message.
         return None
 
