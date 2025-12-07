@@ -21,6 +21,15 @@ from queue import Queue
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
+def is_gevent_patched():
+    """Check if gevent has already monkey-patched the ssl module."""
+    try:
+        import gevent.monkey
+        return gevent.monkey.is_module_patched('ssl') or gevent.monkey.is_module_patched('socket')
+    except ImportError:
+        return False
+
+
 class StreamingProtocolTest(unittest.TestCase):
     """Test streaming message protocol and websocket emissions"""
 
@@ -150,6 +159,9 @@ class StreamingProtocolTest(unittest.TestCase):
 
     def test_bedrock_streaming_protocol(self):
         """Test AWS Bedrock/Claude streaming with new protocol"""
+        # Skip if gevent has already monkey-patched (causes recursion errors with boto3)
+        if is_gevent_patched():
+            self.skipTest("Skipped: gevent monkey patching causes recursion errors with boto3")
 
         # Mock Bedrock streaming response
         mock_events = []
@@ -195,17 +207,27 @@ class StreamingProtocolTest(unittest.TestCase):
                 mock_message = MagicMock()
                 mock_message.id = 456
                 mock_message.content = ""
+                mock_message.is_base64_image.return_value = False
+
+                # Create a proper mock for Message class that handles both constructor and query
+                mock_message_class = MagicMock()
+                mock_message_class.return_value = mock_message
+                # Mock the query chain: Message.query.filter_by().order_by().limit().all()
+                mock_message_class.query.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+                # Import boto3 to patch it directly (works even when already imported)
+                import boto3
 
                 with patch.object(app.db.session, "add"), patch.object(
                     app.db.session, "commit"
                 ), patch.object(app.db.session, "query") as mock_query, patch.object(
                     app, "get_room", return_value=self.mock_room
-                ), patch(
-                    "boto3.client", return_value=mock_client
+                ), patch.object(
+                    boto3, "client", return_value=mock_client
                 ), patch.object(
                     app, "socketio", self.mock_socketio
                 ), patch(
-                    "app.Message", return_value=mock_message
+                    "app.Message", mock_message_class
                 ):
 
                     mock_query.return_value.filter.return_value.one_or_none.return_value = (
@@ -342,6 +364,18 @@ class StreamingProtocolTest(unittest.TestCase):
             ):
                 import app
 
+                # Mock message creation
+                mock_message = MagicMock()
+                mock_message.id = 999
+                mock_message.content = ""
+                mock_message.is_base64_image.return_value = False
+
+                # Create a proper mock for Message class that handles both constructor and query
+                mock_message_class = MagicMock()
+                mock_message_class.return_value = mock_message
+                # Mock the query chain: Message.query.filter_by().order_by().limit().all()
+                mock_message_class.query.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
                 with patch.object(app.db.session, "add"), patch.object(
                     app.db.session, "commit"
                 ), patch.object(app.db.session, "query") as mock_query, patch.object(
@@ -352,14 +386,13 @@ class StreamingProtocolTest(unittest.TestCase):
                     return_value=(mock_client, self.model_name),
                 ), patch.object(
                     app, "socketio", self.mock_socketio
+                ), patch(
+                    "app.Message", mock_message_class
                 ):
 
-                    mock_message = MagicMock()
-                    mock_message.id = 999
                     mock_query.return_value.filter.return_value.one_or_none.return_value = (
-                        None
+                        mock_message
                     )
-                    app.Message.return_value = mock_message
 
                     app.chat_gpt(self.username, self.room_name, self.model_name)
 
