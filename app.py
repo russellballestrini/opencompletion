@@ -104,7 +104,7 @@ def is_vision_model(model_name: str) -> bool:
 
 
 def initialize_model_map():
-    global SYSTEM_USERS, VISION_MODELS
+    global SYSTEM_USERS
     MODEL_CLIENT_MAP.clear()
     VISION_MODELS.clear()
     for ep_config in ENDPOINTS:

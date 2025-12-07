@@ -17,6 +17,15 @@
 - Write tests for new functionality when appropriate
 - Verify changes work as expected
 
+## Linting
+- **ALWAYS run lint before committing**: `make lint` or `flake8 app.py activity.py --select=E9,F63,F7,F82`
+- Fix all lint errors before pushing - GitHub CI will fail on lint errors
+- Key error codes checked:
+  - E9: Runtime errors (syntax errors, IO errors)
+  - F63: Invalid print syntax
+  - F7: Syntax errors in type comments
+  - F82: Undefined names, unused globals (F824)
+
 ## Documentation
 - Update relevant documentation when making significant changes
 - Keep README files current with new features or setup changes
@@ -41,6 +50,7 @@
 - `make venv` - Create virtual environment and install dependencies
 - `make init-db` - Initialize database tables
 - `make test` - Run all tests
+- `make lint` - Run code linting (black, isort, flake8)
 - `make dev-setup` - Install development dependencies
 
 ### Network Infrastructure
