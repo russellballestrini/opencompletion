@@ -369,16 +369,28 @@ document.addEventListener('DOMContentLoaded', (event) => {
         while (modelSelectDesktop.options.length > 1) {
             modelSelectDesktop.remove(1);
         }
-        // Append new model options
+        while (modelSelectMobile.options.length > 1) {
+            modelSelectMobile.remove(1);
+        }
+        // Append new model options to both dropdowns
         models.forEach(modelId => {
             const option = document.createElement('option');
             option.value = modelId;
             option.textContent = modelId;
             modelSelectDesktop.appendChild(option);
+
+            const optionMobile = document.createElement('option');
+            optionMobile.value = modelId;
+            optionMobile.textContent = modelId;
+            modelSelectMobile.appendChild(optionMobile);
         });
-        // Set initial value from localStorage only (not URL)
+        // Restore from localStorage (check if value exists in options)
         const storedModel = localStorage.getItem('selectedModel') || "None";
-        modelSelectDesktop.value = storedModel;
+        const validOptions = Array.from(modelSelectDesktop.options).map(o => o.value);
+        const modelToSelect = validOptions.includes(storedModel) ? storedModel : "None";
+        modelSelectDesktop.value = modelToSelect;
+        modelSelectMobile.value = modelToSelect;
+        console.log(`Model restored from localStorage: ${modelToSelect}`);
     }
 
     // Function to populate the voice dropdown
