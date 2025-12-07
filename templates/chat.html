@@ -133,6 +133,87 @@ let autoPlayTTS = localStorage.getItem('autoPlayTTS') === 'true' || false;
 let ttsQueue = [];
 let isPlayingTTS = false;
 
+// Vision model state for auto alt-text
+let visionAvailable = false;
+let visionModel = null;
+const imageDescriptionCache = new Map();  // Cache descriptions by image src hash
+
+// Check vision availability on load
+async function initVisionCapability() {
+    try {
+        const response = await fetch('/vision');
+        const data = await response.json();
+        visionAvailable = data.available;
+        visionModel = data.default;
+        if (visionAvailable) {
+            console.log(`Vision available: ${visionModel}`);
+            setupImageHoverDescriptions();
+        }
+    } catch (e) {
+        console.warn('Vision check failed:', e);
+    }
+}
+
+// Generate a simple hash for caching
+function hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < Math.min(str.length, 1000); i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return hash.toString();
+}
+
+// Fetch description for an image
+async function getImageDescription(imgSrc) {
+    const cacheKey = hashString(imgSrc);
+    if (imageDescriptionCache.has(cacheKey)) {
+        return imageDescriptionCache.get(cacheKey);
+    }
+
+    try {
+        const response = await fetch('/vision/describe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: imgSrc })
+        });
+        const data = await response.json();
+        if (data.description) {
+            imageDescriptionCache.set(cacheKey, data.description);
+            return data.description;
+        }
+    } catch (e) {
+        console.warn('Failed to get image description:', e);
+    }
+    return null;
+}
+
+// Setup hover handlers for images in chat
+function setupImageHoverDescriptions() {
+    const messagesContainer = document.getElementById('messages');
+    if (!messagesContainer) return;
+
+    // Use event delegation for efficiency
+    messagesContainer.addEventListener('mouseenter', async (e) => {
+        if (!visionAvailable) return;
+        const img = e.target.closest('img[src^="data:image"]');
+        if (!img || img.dataset.visionProcessing || img.title) return;
+
+        // Mark as processing to avoid duplicate requests
+        img.dataset.visionProcessing = 'true';
+        img.style.cursor = 'wait';
+
+        const description = await getImageDescription(img.src);
+        if (description) {
+            img.title = description;
+            img.alt = description;
+        }
+
+        img.style.cursor = '';
+        delete img.dataset.visionProcessing;
+    }, true);
+}
+
 // Function to sanitize the username
 function sanitizeUsername(username) {
     // Split the username on commas and take the first part.
@@ -186,6 +267,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
     
     // Initialize auto-play TTS button state from localStorage
     updateAutoPlayTTSDisplay();
+
+    // Check for vision model availability (enables image hover descriptions)
+    initVisionCapability();
 
     // Function to populate the model dropdown
     function populateModelDropdown(models) {

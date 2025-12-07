@@ -91,9 +91,22 @@ def get_client_for_endpoint(endpoint, api_key):
     return OpenAI(api_key=api_key, base_url=endpoint)
 
 
+VISION_MODELS = []  # Populated at startup with available vision models
+
+
+def is_vision_model(model_name: str) -> bool:
+    """Check if a model supports vision/image input."""
+    if not model_name:
+        return False
+    model_lower = model_name.lower()
+    vision_indicators = ["-vl", "vl:", "vision", "gpt-4o", "gpt-4-turbo"]
+    return any(indicator in model_lower for indicator in vision_indicators)
+
+
 def initialize_model_map():
-    global SYSTEM_USERS
+    global SYSTEM_USERS, VISION_MODELS
     MODEL_CLIENT_MAP.clear()
+    VISION_MODELS.clear()
     for ep_config in ENDPOINTS:
         base_url = ep_config["base_url"]
         api_key = ep_config["api_key"]
@@ -115,6 +128,15 @@ def initialize_model_map():
     SYSTEM_USERS = list(MODEL_CLIENT_MAP.keys())
     print("Loaded models:", list(MODEL_CLIENT_MAP.keys()))
 
+    # Detect and track available vision models
+    for model_id in MODEL_CLIENT_MAP.keys():
+        if is_vision_model(model_id):
+            VISION_MODELS.append(model_id)
+    if VISION_MODELS:
+        print(f"Vision models available: {VISION_MODELS}")
+    else:
+        print("No vision models available")
+
 
 if MODEL_CLIENT_MAP:
     pass
@@ -131,6 +153,44 @@ def get_client_for_model(model_name: str):
     if model_name in MODEL_CLIENT_MAP:
         print(f"Completion Endpoint Processing: {MODEL_CLIENT_MAP[model_name][1]}")
         return MODEL_CLIENT_MAP[model_name][0]
+
+
+def extract_base64_from_img_tag(content: str) -> tuple[str, str] | None:
+    """Extract base64 data and media type from an HTML img tag.
+
+    Returns (media_type, base64_data) or None if not found.
+    """
+    import re
+    # Match data:image/TYPE;base64,DATA patterns in img src
+    pattern = r'<img[^>]*src="data:image/(jpeg|png|gif|webp);base64,([^"]+)"'
+    match = re.search(pattern, content)
+    if match:
+        media_type = f"image/{match.group(1)}"
+        base64_data = match.group(2)
+        return (media_type, base64_data)
+    return None
+
+
+def build_message_content(msg, is_vision: bool) -> dict | str:
+    """Build message content, handling images for vision models.
+
+    For vision models with images, returns multimodal content array.
+    Otherwise returns plain text content.
+    """
+    if not is_vision:
+        return msg.content
+
+    # Check if this message contains a base64 image
+    img_data = extract_base64_from_img_tag(msg.content)
+    if img_data:
+        media_type, base64_data = img_data
+        # Return multimodal content with image
+        return [
+            {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{base64_data}"}}
+        ]
+    else:
+        # Plain text message
+        return msg.content
 
 
 def get_openai_client_and_model(
@@ -366,6 +426,53 @@ def get_models():
     # Optionally refresh or reinitialize the model map here.
     # For now we simply return the keys.
     return jsonify({"models": list(MODEL_CLIENT_MAP.keys())})
+
+
+@app.route("/vision", methods=["GET"])
+def get_vision_status():
+    """Return vision model availability status."""
+    return jsonify({
+        "available": len(VISION_MODELS) > 0,
+        "models": VISION_MODELS,
+        "default": VISION_MODELS[0] if VISION_MODELS else None
+    })
+
+
+@app.route("/vision/describe", methods=["POST"])
+def describe_image():
+    """Generate alt text description for an image using vision model."""
+    if not VISION_MODELS:
+        return jsonify({"error": "No vision models available"}), 503
+
+    data = request.get_json()
+    if not data or "image" not in data:
+        return jsonify({"error": "Missing 'image' field (base64 data URL)"}), 400
+
+    image_url = data["image"]  # Expected format: data:image/jpeg;base64,...
+    prompt = data.get("prompt", "Describe this image in one brief sentence for use as alt text.")
+    model_name = data.get("model", VISION_MODELS[0])
+
+    if model_name not in VISION_MODELS:
+        return jsonify({"error": f"Model {model_name} is not a vision model"}), 400
+
+    try:
+        client = get_client_for_model(model_name)
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": image_url}}
+                ]
+            }],
+            max_tokens=150,
+            temperature=0.3
+        )
+        description = response.choices[0].message.content.strip()
+        return jsonify({"description": description, "model": model_name})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # Authentication endpoints
@@ -1605,6 +1712,11 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
     if "o4-" in model_name:
         temperature = 1
 
+    # Check if this is a vision-capable model
+    vision_enabled = is_vision_model(model_name)
+    if vision_enabled:
+        print(f"Vision model detected: {model_name}")
+
     with app.app_context():
         room = get_room(room_name)
         last_messages = (
@@ -1614,15 +1726,15 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
             .all()
         )
 
-        chat_history = [
-            {
-                "role": "assistant" if msg.username in SYSTEM_USERS else "user",
-                # "content": f"{msg.username}: {msg.content}",
-                "content": msg.content,
-            }
-            for msg in reversed(last_messages)
-            if not msg.is_base64_image()
-        ]
+        chat_history = []
+        for msg in reversed(last_messages):
+            # Skip images for non-vision models
+            if msg.is_base64_image() and not vision_enabled:
+                continue
+
+            role = "assistant" if msg.username in SYSTEM_USERS else "user"
+            content = build_message_content(msg, vision_enabled)
+            chat_history.append({"role": role, "content": content})
 
     buffer = ""  # Content buffer for accumulating the chunks
 
