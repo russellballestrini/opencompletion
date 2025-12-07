@@ -125,10 +125,11 @@ class Message(db.Model):
         return self.token_count
 
     def is_base64_image(self):
-        return (
-            '<img src="data:image/jpeg;base64,' in self.content
-            or '<img alt="Plot Image" src="data:image/png;base64,' in self.content
-        )
+        """Check if message contains a base64-encoded image."""
+        if not self.content:
+            return False
+        # Check for any base64 image (jpeg, png, gif, webp, etc.)
+        return '<img' in self.content and 'data:image/' in self.content and ';base64,' in self.content
 
 
 class ActivityState(db.Model):

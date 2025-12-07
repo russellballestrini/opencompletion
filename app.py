@@ -282,6 +282,7 @@ def save_fetched_image_as_message(external_url: str, data_url: str, room_id: int
     This persists the base64 version so we don't need to fetch again.
     Only saves if no saved version exists for this URL in this room.
     """
+    print(f"[Vision Save] Attempting to save base64 for room {room_id}: {external_url[:60]}...")
     try:
         # Check if already saved for this URL in this room
         # Escape special LIKE characters in URL (%, _, \)
@@ -292,7 +293,7 @@ def save_fetched_image_as_message(external_url: str, data_url: str, room_id: int
         ).first()
 
         if existing:
-            print(f"Already have saved base64 for {external_url} (message {existing.id})")
+            print(f"[Vision Save] Already exists as message {existing.id}")
             return
 
         # Create img tag with base64 data
@@ -304,9 +305,14 @@ def save_fetched_image_as_message(external_url: str, data_url: str, room_id: int
         )
         db.session.add(new_message)
         db.session.commit()
-        print(f"Saved fetched image as message {new_message.id} for {external_url}")
+        print(f"[Vision Save] SUCCESS - Saved as message {new_message.id}")
+
+        # Also cache it in memory
+        _external_image_cache[external_url] = data_url
     except Exception as e:
-        print(f"Failed to save fetched image as message: {e}")
+        print(f"[Vision Save] FAILED: {e}")
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
 
 
@@ -334,23 +340,30 @@ def build_message_content(msg, is_vision: bool, room_id: int = None) -> dict | s
     # Check for external image URL
     external_url = extract_external_image_url(msg.content)
     if external_url:
+        print(f"[Vision] Found external URL in message {msg.id}: {external_url[:80]}...")
+
         # First check if we already have a saved base64 version
         if room_id is not None:
             saved_data_url = find_saved_base64_for_url(external_url, room_id)
             if saved_data_url:
+                print(f"[Vision] Using saved base64 for {external_url[:50]}...")
                 return [
                     {"type": "image_url", "image_url": {"url": saved_data_url}}
                 ]
 
         # Not saved yet - fetch and save
+        print(f"[Vision] Fetching external image: {external_url[:80]}...")
         data_url = fetch_external_image_as_base64(external_url)
         if data_url:
+            print(f"[Vision] Fetched successfully, saving to room {room_id}...")
             # Save the fetched image as a new message for persistence
             if room_id is not None:
                 save_fetched_image_as_message(external_url, data_url, room_id)
             return [
                 {"type": "image_url", "image_url": {"url": data_url}}
             ]
+        else:
+            print(f"[Vision] Failed to fetch external image")
 
     # Plain text message
     return msg.content
