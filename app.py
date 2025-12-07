@@ -192,6 +192,39 @@ _external_image_cache = {}
 CORS_PROXY_URL = "https://cors-proxy.uncloseai.com/api/fetch"
 
 
+def find_saved_base64_for_url(external_url: str, room_id: int) -> str | None:
+    """Look up if we've already saved a base64 version of this URL in this room.
+
+    Returns the data URL if found, None otherwise.
+    """
+    # Check in-memory cache first
+    if external_url in _external_image_cache:
+        return _external_image_cache[external_url]
+
+    # Look for a saved message with this URL in the alt text
+    try:
+        # Search for messages containing "Fetched from {external_url}"
+        saved_msg = Message.query.filter(
+            Message.room_id == room_id,
+            Message.content.like(f'%alt="Fetched from {external_url}"%')
+        ).first()
+
+        if saved_msg:
+            # Extract base64 from the saved message
+            img_data = extract_base64_from_img_tag(saved_msg.content)
+            if img_data:
+                media_type, base64_data = img_data
+                data_url = f"data:{media_type};base64,{base64_data}"
+                # Add to memory cache for faster lookups
+                _external_image_cache[external_url] = data_url
+                print(f"Found saved base64 for {external_url} in message {saved_msg.id}")
+                return data_url
+    except Exception as e:
+        print(f"Error looking up saved base64: {e}")
+
+    return None
+
+
 def fetch_external_image_as_base64(image_url: str) -> str | None:
     """Fetch external image via CORS proxy and convert to base64.
 
@@ -239,8 +272,19 @@ def save_fetched_image_as_message(external_url: str, data_url: str, room_id: int
     """Save a fetched external image as a new message in the database.
 
     This persists the base64 version so we don't need to fetch again.
+    Only saves if no saved version exists for this URL in this room.
     """
     try:
+        # Check if already saved for this URL in this room
+        existing = Message.query.filter(
+            Message.room_id == room_id,
+            Message.content.like(f'%alt="Fetched from {external_url}"%')
+        ).first()
+
+        if existing:
+            print(f"Already have saved base64 for {external_url} (message {existing.id})")
+            return
+
         # Create img tag with base64 data
         img_content = f'<img src="{data_url}" alt="Fetched from {external_url}">'
         new_message = Message(
@@ -280,6 +324,15 @@ def build_message_content(msg, is_vision: bool, room_id: int = None) -> dict | s
     # Check for external image URL
     external_url = extract_external_image_url(msg.content)
     if external_url:
+        # First check if we already have a saved base64 version
+        if room_id is not None:
+            saved_data_url = find_saved_base64_for_url(external_url, room_id)
+            if saved_data_url:
+                return [
+                    {"type": "image_url", "image_url": {"url": saved_data_url}}
+                ]
+
+        # Not saved yet - fetch and save
         data_url = fetch_external_image_as_base64(external_url)
         if data_url:
             # Save the fetched image as a new message for persistence
