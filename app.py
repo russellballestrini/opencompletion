@@ -192,6 +192,12 @@ _external_image_cache = {}
 CORS_PROXY_URL = "https://cors-proxy.uncloseai.com/api/fetch"
 
 
+def escape_like_pattern(s: str) -> str:
+    """Escape special characters for SQL LIKE patterns."""
+    # Escape %, _, and \ which have special meaning in LIKE
+    return s.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+
 def find_saved_base64_for_url(external_url: str, room_id: int) -> str | None:
     """Look up if we've already saved a base64 version of this URL in this room.
 
@@ -203,10 +209,12 @@ def find_saved_base64_for_url(external_url: str, room_id: int) -> str | None:
 
     # Look for a saved message with this URL in the alt text
     try:
+        # Escape special LIKE characters in URL (%, _, \)
+        escaped_url = escape_like_pattern(external_url)
         # Search for messages containing "Fetched from {external_url}"
         saved_msg = Message.query.filter(
             Message.room_id == room_id,
-            Message.content.like(f'%alt="Fetched from {external_url}"%')
+            Message.content.like(f'%alt="Fetched from {escaped_url}"%', escape='\\')
         ).first()
 
         if saved_msg:
@@ -276,9 +284,11 @@ def save_fetched_image_as_message(external_url: str, data_url: str, room_id: int
     """
     try:
         # Check if already saved for this URL in this room
+        # Escape special LIKE characters in URL (%, _, \)
+        escaped_url = escape_like_pattern(external_url)
         existing = Message.query.filter(
             Message.room_id == room_id,
-            Message.content.like(f'%alt="Fetched from {external_url}"%')
+            Message.content.like(f'%alt="Fetched from {escaped_url}"%', escape='\\')
         ).first()
 
         if existing:
@@ -1108,6 +1118,108 @@ Examples:
     except Exception as e:
         print(f"Error generating artifact name: {e}")
         return jsonify({"filename": "compiled_binary"})
+
+
+# Unsandbox API proxy endpoints - keeps API key server-side
+UNSANDBOX_API_URL = "https://api.unsandbox.com"
+
+
+@app.route("/api/code/execute", methods=["POST"])
+def proxy_code_execute():
+    """Proxy code execution requests to Unsandbox API.
+
+    Keeps the UNSANDBOX_API_KEY secure on the server side.
+    """
+    import httpx
+
+    api_key = os.environ.get("UNSANDBOX_API_KEY")
+    if not api_key:
+        return jsonify({"error": "Code execution not configured"}), 503
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Request body required"}), 400
+
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
+                f"{UNSANDBOX_API_URL}/execute/async",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}",
+                },
+                json=data,
+            )
+
+            # Return the response from Unsandbox
+            return jsonify(response.json()), response.status_code
+
+    except httpx.TimeoutException:
+        return jsonify({"error": "Request to code execution service timed out"}), 504
+    except Exception as e:
+        print(f"Error proxying code execution: {e}")
+        return jsonify({"error": "Failed to execute code"}), 500
+
+
+@app.route("/api/code/jobs/<job_id>", methods=["GET"])
+def proxy_job_status(job_id):
+    """Proxy job status requests to Unsandbox API."""
+    import httpx
+
+    api_key = os.environ.get("UNSANDBOX_API_KEY")
+    if not api_key:
+        return jsonify({"error": "Code execution not configured"}), 503
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.get(
+                f"{UNSANDBOX_API_URL}/jobs/{job_id}",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                },
+            )
+
+            return jsonify(response.json()), response.status_code
+
+    except httpx.TimeoutException:
+        return jsonify({"error": "Request to code execution service timed out"}), 504
+    except Exception as e:
+        print(f"Error fetching job status: {e}")
+        return jsonify({"error": "Failed to fetch job status"}), 500
+
+
+@app.route("/api/code/jobs/<job_id>", methods=["DELETE"])
+def proxy_job_cancel(job_id):
+    """Proxy job cancellation requests to Unsandbox API."""
+    import httpx
+
+    api_key = os.environ.get("UNSANDBOX_API_KEY")
+    if not api_key:
+        return jsonify({"error": "Code execution not configured"}), 503
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.delete(
+                f"{UNSANDBOX_API_URL}/jobs/{job_id}",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                },
+            )
+
+            # DELETE may return empty body on success
+            if response.status_code == 204:
+                return "", 204
+
+            try:
+                return jsonify(response.json()), response.status_code
+            except Exception:
+                return "", response.status_code
+
+    except httpx.TimeoutException:
+        return jsonify({"error": "Request to code execution service timed out"}), 504
+    except Exception as e:
+        print(f"Error cancelling job: {e}")
+        return jsonify({"error": "Failed to cancel job"}), 500
 
 
 @app.route("/api/fix-code", methods=["POST"])
