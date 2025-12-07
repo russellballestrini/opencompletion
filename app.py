@@ -125,7 +125,7 @@ def initialize_model_map():
                 MODEL_CLIENT_MAP[model_id] = (client, base_url)
 
     # Populate SYSTEM_USERS with dynamically loaded models.
-    SYSTEM_USERS = list(MODEL_CLIENT_MAP.keys())
+    SYSTEM_USERS = list(MODEL_CLIENT_MAP.keys()) + ["system"]  # Include "system" for fetched images
     print("Loaded models:", list(MODEL_CLIENT_MAP.keys()))
 
     # Detect and track available vision models
@@ -235,11 +235,35 @@ def fetch_external_image_as_base64(image_url: str) -> str | None:
         return None
 
 
-def build_message_content(msg, is_vision: bool) -> dict | str:
+def save_fetched_image_as_message(external_url: str, data_url: str, room_id: int) -> None:
+    """Save a fetched external image as a new message in the database.
+
+    This persists the base64 version so we don't need to fetch again.
+    """
+    try:
+        # Create img tag with base64 data
+        img_content = f'<img src="{data_url}" alt="Fetched from {external_url}">'
+        new_message = Message(
+            username="system",  # Mark as system message
+            content=img_content,
+            room_id=room_id
+        )
+        db.session.add(new_message)
+        db.session.commit()
+        print(f"Saved fetched image as message {new_message.id} for {external_url}")
+    except Exception as e:
+        print(f"Failed to save fetched image as message: {e}")
+        db.session.rollback()
+
+
+def build_message_content(msg, is_vision: bool, room_id: int = None) -> dict | str:
     """Build message content, handling images for vision models.
 
     For vision models with images, returns multimodal content array.
     Otherwise returns plain text content.
+
+    If room_id is provided and an external image is fetched, saves the
+    base64 version as a new message for future use.
     """
     if not is_vision:
         return msg.content
@@ -258,6 +282,9 @@ def build_message_content(msg, is_vision: bool) -> dict | str:
     if external_url:
         data_url = fetch_external_image_as_base64(external_url)
         if data_url:
+            # Save the fetched image as a new message for persistence
+            if room_id is not None:
+                save_fetched_image_as_message(external_url, data_url, room_id)
             return [
                 {"type": "image_url", "image_url": {"url": data_url}}
             ]
@@ -1806,7 +1833,7 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
                 continue
 
             role = "assistant" if msg.username in SYSTEM_USERS else "user"
-            content = build_message_content(msg, vision_enabled)
+            content = build_message_content(msg, vision_enabled, room_id=room.id)
             chat_history.append({"role": role, "content": content})
 
     buffer = ""  # Content buffer for accumulating the chunks
