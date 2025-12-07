@@ -431,6 +431,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         if (initialVoice) {
             voiceSelectDesktop.value = initialVoice;
             if (voiceSelectMobile) voiceSelectMobile.value = initialVoice;
+            console.log(`Voice restored from localStorage: ${initialVoice}`);
         }
     }
 
@@ -499,20 +500,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
         userHasScrolledUp = distanceFromBottom > 5;
     });
 
-    // Load model and voice from localStorage only (not URL)
-    const storedModel = localStorage.getItem('selectedModel') || "None";
-    const storedVoice = localStorage.getItem('selectedVoice');
-
-    // Set initial model and voice from localStorage or defaults
-    const initialModel = storedModel;
-    const initialVoice = storedVoice;
-
-    modelSelectDesktop.value = initialModel;
-    // Voice is set by populateVoiceDropdown after voices are fetched
-    modelSelectMobile.value = initialModel;
-
-    // Initial sync to ensure localStorage is updated with current values
-    syncDropdownsAndQueryString();
+    // NOTE: Model and voice restoration happens in populateModelDropdown() and
+    // populateVoiceDropdown() AFTER the async fetch completes. Don't set values
+    // here or call syncDropdownsAndQueryString() - that would overwrite localStorage
+    // with empty values before the dropdowns are populated.
 
     // Add event listeners for desktop dropdowns
     modelSelectDesktop.addEventListener("change", () => {
