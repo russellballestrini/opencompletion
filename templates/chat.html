@@ -193,25 +193,33 @@ function setupImageHoverDescriptions() {
     const messagesContainer = document.getElementById('messages');
     if (!messagesContainer) return;
 
-    // Use event delegation for efficiency
-    messagesContainer.addEventListener('mouseenter', async (e) => {
+    // Use mouseover (bubbles) for event delegation
+    messagesContainer.addEventListener('mouseover', async (e) => {
         if (!visionAvailable) return;
-        const img = e.target.closest('img[src^="data:image"]');
-        if (!img || img.dataset.visionProcessing || img.title) return;
+
+        // Check if target is an image with base64 data
+        const img = e.target;
+        if (img.tagName !== 'IMG') return;
+        if (!img.src || !img.src.startsWith('data:image')) return;
+        if (img.dataset.visionProcessing || img.dataset.visionDone) return;
 
         // Mark as processing to avoid duplicate requests
         img.dataset.visionProcessing = 'true';
         img.style.cursor = 'wait';
+        img.title = 'Generating description...';
 
         const description = await getImageDescription(img.src);
         if (description) {
             img.title = description;
             img.alt = description;
+        } else {
+            img.title = '';
         }
 
         img.style.cursor = '';
         delete img.dataset.visionProcessing;
-    }, true);
+        img.dataset.visionDone = 'true';
+    });
 }
 
 // Function to sanitize the username
