@@ -137,6 +137,10 @@ let isPlayingTTS = false;
 let visionAvailable = false;
 let visionModel = null;
 const imageDescriptionCache = new Map();  // Cache descriptions by image src hash
+const imageBase64Cache = new Map();  // Cache fetched external images as base64
+
+// CORS proxy for ethical external image fetching (respects robots.txt)
+const CORS_PROXY_URL = 'https://proxy.unturf.com/api/fetch';
 
 // Check vision availability on load
 async function initVisionCapability() {
@@ -164,6 +168,74 @@ function hashString(str) {
     return hash.toString();
 }
 
+// Check if URL is an external image URL
+function isExternalImageUrl(src) {
+    if (!src) return false;
+    if (src.startsWith('data:')) return false;
+    try {
+        const url = new URL(src);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+// Fetch external image via CORS proxy and convert to base64
+async function fetchImageAsBase64(imageUrl) {
+    const cacheKey = hashString(imageUrl);
+    if (imageBase64Cache.has(cacheKey)) {
+        return imageBase64Cache.get(cacheKey);
+    }
+
+    try {
+        // Use CORS proxy for ethical fetching (handles robots.txt server-side)
+        const proxyUrl = `${CORS_PROXY_URL}?uri_target=${encodeURIComponent(imageUrl)}`;
+        const response = await fetch(proxyUrl);
+
+        if (!response.ok) {
+            if (response.status === 403) {
+                console.warn(`Image blocked by robots.txt: ${imageUrl}`);
+                return null;
+            }
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const blob = await response.blob();
+
+        // Verify it's actually an image
+        if (!blob.type.startsWith('image/')) {
+            console.warn(`Not an image: ${imageUrl} (${blob.type})`);
+            return null;
+        }
+
+        // Convert to base64
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64 = reader.result;
+                imageBase64Cache.set(cacheKey, base64);
+                resolve(base64);
+            };
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.warn(`Failed to fetch image: ${imageUrl}`, e);
+        return null;
+    }
+}
+
+// Get base64 image data (handles both base64 and external URLs)
+async function getImageBase64(imgSrc) {
+    if (imgSrc.startsWith('data:image')) {
+        return imgSrc;
+    }
+    if (isExternalImageUrl(imgSrc)) {
+        return await fetchImageAsBase64(imgSrc);
+    }
+    return null;
+}
+
 // Fetch description for an image
 async function getImageDescription(imgSrc) {
     const cacheKey = hashString(imgSrc);
@@ -171,11 +243,17 @@ async function getImageDescription(imgSrc) {
         return imageDescriptionCache.get(cacheKey);
     }
 
+    // Get base64 version of image (fetch if external)
+    const base64Image = await getImageBase64(imgSrc);
+    if (!base64Image) {
+        return null;
+    }
+
     try {
         const response = await fetch('/vision/describe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: imgSrc })
+            body: JSON.stringify({ image: base64Image })
         });
         const data = await response.json();
         if (data.description) {
@@ -197,16 +275,22 @@ function setupImageHoverDescriptions() {
     messagesContainer.addEventListener('mouseover', async (e) => {
         if (!visionAvailable) return;
 
-        // Check if target is an image with base64 data
+        // Check if target is an image
         const img = e.target;
         if (img.tagName !== 'IMG') return;
-        if (!img.src || !img.src.startsWith('data:image')) return;
+        if (!img.src) return;
+
+        // Handle both base64 and external URLs
+        const isBase64 = img.src.startsWith('data:image');
+        const isExternal = isExternalImageUrl(img.src);
+        if (!isBase64 && !isExternal) return;
+
         if (img.dataset.visionProcessing || img.dataset.visionDone) return;
 
         // Mark as processing to avoid duplicate requests
         img.dataset.visionProcessing = 'true';
         img.style.cursor = 'wait';
-        img.title = 'Generating description...';
+        img.title = isExternal ? 'Fetching image...' : 'Generating description...';
 
         const description = await getImageDescription(img.src);
         if (description) {
