@@ -1881,35 +1881,38 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
         )
 
         chat_history = []
-        max_images = 2  # Limit images to prevent slow/hanging requests
 
-        # First pass: identify image messages to include (most recent N)
-        # last_messages is newest-first, so iterate in that order to find recent images
-        image_msg_ids_to_include = set()
+        # Find the most recent image message ID (only this one gets base64)
+        most_recent_image_id = None
         if vision_enabled:
             for msg in last_messages:  # newest first
                 is_image_msg = msg.is_base64_image() or extract_external_image_url(msg.content)
                 if is_image_msg:
-                    if len(image_msg_ids_to_include) < max_images:
-                        image_msg_ids_to_include.add(msg.id)
-                    # Continue to count all images for logging
-            if len(image_msg_ids_to_include) > 0:
-                print(f"Vision: including {len(image_msg_ids_to_include)} most recent images")
+                    most_recent_image_id = msg.id
+                    print(f"Vision: will include base64 for most recent image (msg {msg.id})")
+                    break
 
-        # Second pass: build chat history (oldest first)
+        # Build chat history (oldest first) - include all text, only most recent image
         for msg in reversed(last_messages):
-            # Skip images for non-vision models
-            if msg.is_base64_image() and not vision_enabled:
-                continue
-
-            # For vision models, skip old images not in our include set
             is_image_msg = msg.is_base64_image() or extract_external_image_url(msg.content)
-            if vision_enabled and is_image_msg and msg.id not in image_msg_ids_to_include:
+
+            # Skip ALL images for non-vision models
+            if is_image_msg and not vision_enabled:
                 continue
 
             role = "assistant" if msg.username in SYSTEM_USERS else "user"
-            content = build_message_content(msg, vision_enabled, room_id=room_id)
-            chat_history.append({"role": role, "content": content})
+
+            # For vision: only include base64 for the most recent image
+            # Older images are skipped entirely (they're just base64, no useful text)
+            if vision_enabled and is_image_msg:
+                if msg.id == most_recent_image_id:
+                    content = build_message_content(msg, vision_enabled, room_id=room_id)
+                    chat_history.append({"role": role, "content": content})
+                # Skip older image messages - they have no text context
+                continue
+
+            # Regular text message - always include
+            chat_history.append({"role": role, "content": msg.content})
 
     buffer = ""  # Content buffer for accumulating the chunks
 
