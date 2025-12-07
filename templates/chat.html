@@ -98,7 +98,7 @@
 const API_KEY = "dummy-api-key";
 const TTS_API_URL = "https://speech.ai.unturf.com/v1/audio/speech";
 const VOICES_API_URL = "https://speech.ai.unturf.com/v1/voices";
-const CODE_EXEC_URL = "https://api.unsandbox.com"; // Unsandbox code execution API
+// Code execution API (proxied through backend to keep API key secure)
 const room_name = "{{ room_name }}";
 
 // Get username from server (authenticated user's display name or None)
@@ -1699,8 +1699,8 @@ async function executeCodeBlock(code, blockElement, playButton) {
             language = 'python';
         }
 
-        // Use /execute/async endpoint with polling
-        const asyncResponse = await fetch(`${CODE_EXEC_URL}/execute/async`, {
+        // Use backend proxy for code execution (keeps API key secure)
+        const asyncResponse = await fetch('/api/code/execute', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1739,7 +1739,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
             cancelButton.style.cursor = 'pointer';
             cancelButton.onclick = async () => {
                 try {
-                    await fetch(`${CODE_EXEC_URL}/jobs/${job_id}`, { method: 'DELETE' });
+                    await fetch(`/api/code/jobs/${job_id}`, { method: 'DELETE' });
                     cancelButton.disabled = true;
                     cancelButton.textContent = 'Cancelling...';
                 } catch (error) {
@@ -1753,7 +1753,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
             await sleep(delays[Math.min(pollCount, delays.length - 1)]);
             pollCount++;
 
-            const jobResponse = await fetch(`${CODE_EXEC_URL}/jobs/${job_id}`);
+            const jobResponse = await fetch(`/api/code/jobs/${job_id}`);
             if (!jobResponse.ok) {
                 throw new Error(`Failed to fetch job status: ${jobResponse.status}`);
             }
