@@ -171,6 +171,70 @@ def extract_base64_from_img_tag(content: str) -> tuple[str, str] | None:
     return None
 
 
+def extract_external_image_url(content: str) -> str | None:
+    """Extract external image URL from an HTML img tag.
+
+    Returns the URL or None if not found.
+    """
+    import re
+    # Match external URLs in img src (http/https)
+    pattern = r'<img[^>]*src="(https?://[^"]+)"'
+    match = re.search(pattern, content)
+    if match:
+        return match.group(1)
+    return None
+
+
+# Cache for fetched external images (URL -> base64 data URL)
+_external_image_cache = {}
+
+# CORS proxy for ethical fetching (respects robots.txt)
+CORS_PROXY_URL = "https://cors-proxy.uncloseai.com/api/fetch"
+
+
+def fetch_external_image_as_base64(image_url: str) -> str | None:
+    """Fetch external image via CORS proxy and convert to base64.
+
+    Returns data URL (data:image/...;base64,...) or None on failure.
+    """
+    import base64
+    import httpx
+
+    # Check cache first
+    if image_url in _external_image_cache:
+        return _external_image_cache[image_url]
+
+    try:
+        proxy_url = f"{CORS_PROXY_URL}?uri_target={image_url}"
+        with httpx.Client(timeout=15.0) as client:
+            response = client.get(proxy_url)
+
+            if response.status_code == 403:
+                print(f"Image blocked by robots.txt: {image_url}")
+                return None
+
+            response.raise_for_status()
+
+            # Check content type
+            content_type = response.headers.get("content-type", "")
+            if not content_type.startswith("image/"):
+                print(f"Not an image: {image_url} ({content_type})")
+                return None
+
+            # Convert to base64
+            b64_data = base64.b64encode(response.content).decode("utf-8")
+            media_type = content_type.split(";")[0]  # Remove charset if present
+            data_url = f"data:{media_type};base64,{b64_data}"
+
+            # Cache it
+            _external_image_cache[image_url] = data_url
+            return data_url
+
+    except Exception as e:
+        print(f"Failed to fetch external image {image_url}: {e}")
+        return None
+
+
 def build_message_content(msg, is_vision: bool) -> dict | str:
     """Build message content, handling images for vision models.
 
@@ -188,9 +252,18 @@ def build_message_content(msg, is_vision: bool) -> dict | str:
         return [
             {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{base64_data}"}}
         ]
-    else:
-        # Plain text message
-        return msg.content
+
+    # Check for external image URL
+    external_url = extract_external_image_url(msg.content)
+    if external_url:
+        data_url = fetch_external_image_as_base64(external_url)
+        if data_url:
+            return [
+                {"type": "image_url", "image_url": {"url": data_url}}
+            ]
+
+    # Plain text message
+    return msg.content
 
 
 def get_openai_client_and_model(
