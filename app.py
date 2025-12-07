@@ -1743,14 +1743,14 @@ def chat_claude(
                             "model_name": model_name,
                             "is_first_chunk": True,
                         },
-                        room=room.name,
+                        room=room_name,
                     )
                     first_chunk = False
                 else:
                     socketio.emit(
                         "message_chunk",
                         {"id": msg_id, "content": content},
-                        room=room.name,
+                        room=room_name,
                     )
                 socketio.sleep(0)  # Force immediate handling
 
@@ -1774,7 +1774,7 @@ def chat_claude(
             },
             room=room_name,
         )
-        socketio.emit("delete_processing_message", msg_id, room=room.name)
+        socketio.emit("delete_processing_message", msg_id, room=room_name)
         # exit early to avoid clobbering the error message.
         return None
 
@@ -1792,10 +1792,10 @@ def chat_claude(
     socketio.emit(
         "message_chunk",
         {"id": msg_id, "content": "", "is_complete": True},
-        room=room.name,
+        room=room_name,
     )
 
-    socketio.emit("delete_processing_message", msg_id, room=room.name)
+    socketio.emit("delete_processing_message", msg_id, room=room_name)
 
 
 def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
@@ -1910,14 +1910,14 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
                         "model_name": model_name,
                         "is_first_chunk": True,
                     },
-                    room=room.name,
+                    room=room_name,
                 )
                 first_chunk = False
             else:
                 socketio.emit(
                     "message_chunk",
                     {"id": msg_id, "content": content},
-                    room=room.name,
+                    room=room_name,
                 )
             socketio.sleep(0)  # Force immediate handling
 
@@ -1935,10 +1935,10 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
     socketio.emit(
         "message_chunk",
         {"id": msg_id, "content": "", "is_complete": True},
-        room=room.name,
+        room=room_name,
     )
 
-    socketio.emit("delete_processing_message", msg_id, room=room.name)
+    socketio.emit("delete_processing_message", msg_id, room=room_name)
 
 
 def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.gguf"):
@@ -2002,7 +2002,7 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
             },
             room=room_name,
         )
-        socketio.emit("delete_processing_message", msg_id, room=room.name)
+        socketio.emit("delete_processing_message", msg_id, room=room_name)
         # exit early to avoid clobbering the error message.
         return None
 
@@ -2027,14 +2027,14 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
                         "model_name": model_name,
                         "is_first_chunk": True,
                     },
-                    room=room.name,
+                    room=room_name,
                 )
                 first_chunk = False
             else:
                 socketio.emit(
                     "message_chunk",
                     {"id": msg_id, "content": content},
-                    room=room.name,
+                    room=room_name,
                 )
             socketio.sleep(0)  # Force immediate handling
 
@@ -2052,10 +2052,10 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
     socketio.emit(
         "message_chunk",
         {"id": msg_id, "content": "", "is_complete": True},
-        room=room.name,
+        room=room_name,
     )
 
-    socketio.emit("delete_processing_message", msg_id, room=room.name)
+    socketio.emit("delete_processing_message", msg_id, room=room_name)
 
 
 def gpt_generate_room_title(messages):
