@@ -4,6 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenCompletion - AI-Powered Chat Rooms</title>
+
+    <!-- Meta description for SEO -->
+    <meta name="description" content="OpenCompletion - Machine learning powered collaboration. Create public or private AI chat rooms, collaborate with AI models, and share conversations.">
+
+    <!-- Open Graph meta tags for social sharing (Facebook, Discord, LinkedIn, etc.) -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="OpenCompletion - AI-Powered Chat Rooms">
+    <meta property="og:description" content="Machine learning powered collaboration. Create public or private AI chat rooms, collaborate with AI models, and share conversations.">
+    <meta property="og:site_name" content="OpenCompletion">
+    <meta property="og:image" content="{{ url_for('static', filename='images/og-default.png', _external=True) }}">
+    <meta property="og:image:alt" content="OpenCompletion - AI-Powered Chat Rooms">
+
+    <!-- Twitter Card meta tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="OpenCompletion - AI-Powered Chat Rooms">
+    <meta name="twitter:description" content="Machine learning powered collaboration. Create public or private AI chat rooms, collaborate with AI models, and share conversations.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='images/og-default.png', _external=True) }}">
+
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>

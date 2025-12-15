@@ -369,6 +369,115 @@ def build_message_content(msg, is_vision: bool, room_id: int = None) -> dict | s
     return msg.content
 
 
+def extract_first_image_for_og(room_id: int) -> str | None:
+    """Extract the first image URL from messages for Open Graph meta tags.
+
+    Checks messages in the room for:
+    1. Base64 images (returns as data URL - may be large)
+    2. External image URLs in markdown format ![alt](url)
+    3. External image URLs in img tags
+
+    Returns image URL/data URL or None if no image found.
+    """
+    import re
+
+    messages = Message.query.filter_by(room_id=room_id).order_by(Message.id.asc()).limit(50).all()
+
+    for msg in messages:
+        if not msg.content:
+            continue
+
+        # Check for base64 image
+        if msg.is_base64_image():
+            img_data = extract_base64_from_img_tag(msg.content)
+            if img_data:
+                media_type, base64_data = img_data
+                return f"data:{media_type};base64,{base64_data}"
+
+        # Check for markdown image ![alt](url)
+        md_img_match = re.search(r'!\[[^\]]*\]\(([^)]+)\)', msg.content)
+        if md_img_match:
+            url = md_img_match.group(1)
+            if url.startswith(('http://', 'https://')):
+                return url
+
+        # Check for img tag with src
+        img_src_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', msg.content)
+        if img_src_match:
+            url = img_src_match.group(1)
+            if url.startswith(('http://', 'https://')):
+                return url
+
+    return None
+
+
+def generate_og_description(room, max_chars: int = 500) -> str:
+    """Generate a description for Open Graph meta tags.
+
+    Uses room title if available, then extracts text from first few messages.
+    Strips markdown/code/images and limits to max_chars.
+    """
+    import re
+
+    parts = []
+
+    # Start with room title if available
+    if room and room.title:
+        parts.append(room.title)
+
+    # Get first few messages for description
+    if room:
+        messages = Message.query.filter_by(room_id=room.id).order_by(Message.id.asc()).limit(10).all()
+
+        for msg in messages:
+            if not msg.content:
+                continue
+
+            # Skip base64 images
+            if msg.is_base64_image():
+                continue
+
+            text = msg.content
+
+            # Remove code blocks
+            text = re.sub(r'```[\s\S]*?```', '', text)
+            text = re.sub(r'`[^`]+`', '', text)
+
+            # Remove markdown images
+            text = re.sub(r'!\[[^\]]*\]\([^)]+\)', '', text)
+
+            # Remove HTML tags
+            text = re.sub(r'<[^>]+>', '', text)
+
+            # Remove markdown links but keep text
+            text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+
+            # Remove markdown headers
+            text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+
+            # Remove bold/italic markers
+            text = re.sub(r'\*{1,2}([^*]+)\*{1,2}', r'\1', text)
+            text = re.sub(r'_{1,2}([^_]+)_{1,2}', r'\1', text)
+
+            # Clean up whitespace
+            text = re.sub(r'\s+', ' ', text).strip()
+
+            if text:
+                parts.append(text)
+
+            # Stop if we have enough content
+            if len(' '.join(parts)) > max_chars:
+                break
+
+    description = ' '.join(parts)
+
+    # Truncate to max_chars
+    if len(description) > max_chars:
+        description = description[:max_chars - 3].rsplit(' ', 1)[0] + '...'
+
+    return description if description else "AI-powered chat room on OpenCompletion"
+
+
 def get_openai_client_and_model(
     model_name="adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic",
 ):
@@ -1345,6 +1454,18 @@ def chat(room_name):
     # Use authenticated user's display name, or None (will prompt on client side)
     username = user.display_name if user else None
 
+    # Generate Open Graph metadata for social sharing
+    og_image = None
+    og_description = "AI-powered chat room on OpenCompletion"
+    og_title = f"{room_name} - OpenCompletion"
+
+    if room:
+        # Try to get first image from messages
+        og_image = extract_first_image_for_og(room.id)
+        og_description = generate_og_description(room)
+        if room.title:
+            og_title = f"{room.title} - OpenCompletion"
+
     # Pass username, rooms, room (current room), and user into the template
     return render_template(
         "chat.html",
@@ -1353,7 +1474,10 @@ def chat(room_name):
         public_rooms=public_rooms,
         private_rooms=private_rooms,
         username=username,
-        user=user
+        user=user,
+        og_title=og_title,
+        og_description=og_description,
+        og_image=og_image
     )
 
 

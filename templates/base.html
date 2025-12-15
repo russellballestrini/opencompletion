@@ -4,6 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Chatroom{% endblock %}</title>
+
+    <!-- Meta description for SEO -->
+    <meta name="description" content="{{ og_description|default('OpenCompletion - AI-powered collaborative chat rooms for machine learning') }}">
+
+    <!-- Open Graph meta tags for social sharing (Facebook, Discord, LinkedIn, etc.) -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ og_title|default('OpenCompletion - AI-Powered Chat Rooms') }}">
+    <meta property="og:description" content="{{ og_description|default('OpenCompletion - AI-powered collaborative chat rooms for machine learning') }}">
+    <meta property="og:site_name" content="OpenCompletion">
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image }}">
+    <meta property="og:image:alt" content="Preview image for {{ og_title|default('OpenCompletion') }}">
+    {% else %}
+    <meta property="og:image" content="{{ url_for('static', filename='images/og-default.png', _external=True) }}">
+    <meta property="og:image:alt" content="OpenCompletion logo">
+    {% endif %}
+
+    <!-- Twitter Card meta tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ og_title|default('OpenCompletion - AI-Powered Chat Rooms') }}">
+    <meta name="twitter:description" content="{{ og_description|default('OpenCompletion - AI-powered collaborative chat rooms for machine learning') }}">
+    {% if og_image %}
+    <meta name="twitter:image" content="{{ og_image }}">
+    {% else %}
+    <meta name="twitter:image" content="{{ url_for('static', filename='images/og-default.png', _external=True) }}">
+    {% endif %}
+
     <script>
         // Set theme immediately to prevent flash
         (function() {
