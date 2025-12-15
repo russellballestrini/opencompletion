@@ -1101,11 +1101,11 @@ socket.on("chat_message", (data) => {
     document.getElementById("chat").appendChild(messageWrapper);
 
     // Apply syntax highlighting to code blocks within the message
+    // Don't truncate new messages - only truncate on page load (previous_messages)
     newMessage.querySelectorAll("pre code").forEach((block) => {
-        const wasTruncated = truncateCodeBlock(block);
         hljs.highlightElement(block);
         addLineNumbers(block);
-        addCopyButtonToCodeBlock(block, wasTruncated);
+        addCopyButtonToCodeBlock(block, false);
     });
 
     // Scroll to the bottom of the chat container to show the new message.
@@ -1326,11 +1326,11 @@ socket.on("message_chunk", (data) => {
     targetMessageElement.dataset.rawMarkdown = messageBuffers[data.id];
 
     // Apply syntax highlighting to code blocks within the content
+    // Don't truncate streaming messages - only truncate on page load (previous_messages)
     targetMessageElement.querySelectorAll("pre code").forEach((block) => {
-        const wasTruncated = truncateCodeBlock(block);
         hljs.highlightElement(block);
         addLineNumbers(block);
-        addCopyButtonToCodeBlock(block, wasTruncated);
+        addCopyButtonToCodeBlock(block, false);
     });
 
     // Scroll to the bottom of the chat container, but skip it if the user has scrolled up.
@@ -1439,11 +1439,11 @@ socket.on("message_updated", (data) => {
         messageContentContainer.dataset.rawMarkdown = data.content;
 
         // Apply syntax highlighting and other functionalities to code blocks within the message
+        // Don't truncate edited messages - only truncate on page load (previous_messages)
         messageContentContainer.querySelectorAll("pre code").forEach((block) => {
-            const wasTruncated = truncateCodeBlock(block);
             hljs.highlightElement(block);
             addLineNumbers(block);
-            addCopyButtonToCodeBlock(block, wasTruncated);
+            addCopyButtonToCodeBlock(block, false);
         });
     }
 });
