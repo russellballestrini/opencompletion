@@ -166,12 +166,21 @@ POST https://api.unsandbox.com/run
 
 #### Authentication
 
-Use Bearer token authentication:
+Uses HMAC-SHA256 authentication with public/secret key pairs:
+
+**Environment Variables:**
+- `UNSANDBOX_PUBLIC_KEY` - Public key (unsb-pk-xxxx) used as Bearer token to identify account
+- `UNSANDBOX_SECRET_KEY` - Secret key (unsb-sk-xxxx) used for HMAC signing, never transmitted
+
+**Request Headers:**
 ```
-Authorization: Bearer unsb-sk-xxxx-xxxx-xxxx-xxxx
+Authorization: Bearer <public_key>
+X-Timestamp: <unix_seconds>
+X-Signature: HMAC-SHA256(secret_key, timestamp:method:path:body)
 ```
 
-API keys start with `unsb-sk-` prefix.
+The secret key is never transmitted - server verifies HMAC using its stored copy.
+Timestamp must be within ±5 minutes of server time (replay attack prevention).
 
 #### Supported Languages
 

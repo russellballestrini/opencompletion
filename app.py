@@ -1242,35 +1242,76 @@ Examples:
         return jsonify({"filename": "compiled_binary"})
 
 
-# Unsandbox API proxy endpoints - keeps API key server-side
+# Unsandbox API proxy endpoints - keeps API keys server-side
 UNSANDBOX_API_URL = "https://api.unsandbox.com"
+
+
+def get_unsandbox_auth_headers(method, path, body=None):
+    """Generate HMAC authentication headers for Unsandbox API.
+
+    Authentication scheme:
+      Authorization: Bearer <public_key>          - identifies account
+      X-Timestamp: <unix_seconds>                 - replay prevention
+      X-Signature: HMAC-SHA256(secret_key, ts:method:path:body) - proves secret
+
+    The secret key is NEVER transmitted. Server verifies HMAC with stored secret.
+    """
+    import hmac
+    import hashlib
+    import time
+
+    public_key = os.environ.get("UNSANDBOX_PUBLIC_KEY")
+    secret_key = os.environ.get("UNSANDBOX_SECRET_KEY")
+
+    if not public_key or not secret_key:
+        return None
+
+    timestamp = int(time.time())
+    body_str = body if body else ""
+
+    # Build message: "timestamp:method:path:body"
+    message = f"{timestamp}:{method}:{path}:{body_str}"
+
+    # Compute HMAC-SHA256
+    signature = hmac.new(
+        secret_key.encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    return {
+        "Authorization": f"Bearer {public_key}",
+        "X-Timestamp": str(timestamp),
+        "X-Signature": signature,
+    }
 
 
 @app.route("/api/code/execute", methods=["POST"])
 def proxy_code_execute():
     """Proxy code execution requests to Unsandbox API.
 
-    Keeps the UNSANDBOX_API_KEY secure on the server side.
+    Keeps UNSANDBOX_PUBLIC_KEY and UNSANDBOX_SECRET_KEY secure on the server side.
+    Uses HMAC-SHA256 authentication.
     """
     import httpx
-
-    api_key = os.environ.get("UNSANDBOX_API_KEY")
-    if not api_key:
-        return jsonify({"error": "Code execution not configured"}), 503
 
     try:
         data = request.get_json()
         if not data:
             return jsonify({"error": "Request body required"}), 400
 
+        body_json = json.dumps(data, separators=(",", ":"))
+        auth_headers = get_unsandbox_auth_headers("POST", "/execute/async", body_json)
+        if not auth_headers:
+            return jsonify({"error": "Code execution not configured"}), 503
+
+        headers = {"Content-Type": "application/json", **auth_headers}
+
         with httpx.Client(timeout=30.0) as client:
             response = client.post(
                 f"{UNSANDBOX_API_URL}/execute/async",
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {api_key}",
-                },
-                json=data,
+                headers=headers,
+                content=body_json,
             )
 
             # Return the response from Unsandbox
@@ -1288,17 +1329,16 @@ def proxy_job_status(job_id):
     """Proxy job status requests to Unsandbox API."""
     import httpx
 
-    api_key = os.environ.get("UNSANDBOX_API_KEY")
-    if not api_key:
+    path = f"/jobs/{job_id}"
+    auth_headers = get_unsandbox_auth_headers("GET", path, None)
+    if not auth_headers:
         return jsonify({"error": "Code execution not configured"}), 503
 
     try:
         with httpx.Client(timeout=30.0) as client:
             response = client.get(
-                f"{UNSANDBOX_API_URL}/jobs/{job_id}",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                },
+                f"{UNSANDBOX_API_URL}{path}",
+                headers=auth_headers,
             )
 
             return jsonify(response.json()), response.status_code
@@ -1315,17 +1355,16 @@ def proxy_job_cancel(job_id):
     """Proxy job cancellation requests to Unsandbox API."""
     import httpx
 
-    api_key = os.environ.get("UNSANDBOX_API_KEY")
-    if not api_key:
+    path = f"/jobs/{job_id}"
+    auth_headers = get_unsandbox_auth_headers("DELETE", path, None)
+    if not auth_headers:
         return jsonify({"error": "Code execution not configured"}), 503
 
     try:
         with httpx.Client(timeout=30.0) as client:
             response = client.delete(
-                f"{UNSANDBOX_API_URL}/jobs/{job_id}",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                },
+                f"{UNSANDBOX_API_URL}{path}",
+                headers=auth_headers,
             )
 
             # DELETE may return empty body on success
