@@ -10,6 +10,8 @@ variables:
   TESTING: "1"
   MODEL_ENDPOINT_0: "https://hermes.ai.unturf.com/v1"
   MODEL_API_KEY_0: "dummy"
+  GIT_STRATEGY: fetch  # Reuse existing clone instead of fresh clone each time
+  GIT_CLEAN_FLAGS: -ffdx  # Clean untracked files including venvs
 
 # Template for Python setup (shell executor)
 .python_setup:
