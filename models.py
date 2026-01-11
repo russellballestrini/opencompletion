@@ -125,7 +125,7 @@ class Message(db.Model):
         if self.token_count is None:
             if self.is_base64_image():
                 self.token_count = 0
-            elif not TIKTOKEN_AVAILABLE or os.environ.get("TESTING"):
+            elif not TIKTOKEN_AVAILABLE:
                 # Fallback: estimate ~4 chars per token when tiktoken unavailable
                 self.token_count = len(self.content) // 4 + 1
             else:

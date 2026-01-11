@@ -36,8 +36,9 @@ class MockTiktoken:
 
 
 # Insert mock tiktoken into sys.modules BEFORE any imports
+# Use the class itself (not an instance) so patching works correctly
 if 'tiktoken' not in sys.modules:
-    sys.modules['tiktoken'] = MockTiktoken()
+    sys.modules['tiktoken'] = MockTiktoken
 
 
 def pytest_configure(config):
@@ -46,12 +47,12 @@ def pytest_configure(config):
     Ensures tiktoken is mocked before any test imports happen.
     """
     if 'tiktoken' not in sys.modules:
-        sys.modules['tiktoken'] = MockTiktoken()
+        sys.modules['tiktoken'] = MockTiktoken
     else:
         # If tiktoken was already imported, patch its functions
-        import tiktoken
-        tiktoken.encoding_for_model = MockTiktoken.encoding_for_model
-        tiktoken.get_encoding = MockTiktoken.get_encoding
+        tiktoken_mod = sys.modules['tiktoken']
+        tiktoken_mod.encoding_for_model = MockTiktoken.encoding_for_model
+        tiktoken_mod.get_encoding = MockTiktoken.get_encoding
 
 
 # =============================================================================
