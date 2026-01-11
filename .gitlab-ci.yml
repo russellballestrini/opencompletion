@@ -1,0 +1,87 @@
+# GitLab CI/CD Pipeline for OpenCompletion
+# Mirrors GitHub Actions workflow for consistency across platforms
+
+stages:
+  - test
+  - lint
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
+  TESTING: "1"
+  MODEL_ENDPOINT_0: "https://hermes.ai.unturf.com/v1"
+  MODEL_API_KEY_0: "dummy"
+
+# Cache pip dependencies between jobs
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+# Template for Python setup
+.python_setup:
+  image: python:3.13-slim
+  tags:
+    - build
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install -r requirements-test.txt
+
+# Unit Tests
+unit_tests:
+  extends: .python_setup
+  stage: test
+  script:
+    - pytest tests/unit/ -v --tb=short --cov=. --cov-report=term-missing
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+    expire_in: 1 week
+
+# Functional Tests
+functional_tests:
+  extends: .python_setup
+  stage: test
+  script:
+    - pytest tests/functional/ -v --tb=short
+
+# Integration Tests
+integration_tests:
+  extends: .python_setup
+  stage: test
+  script:
+    - pytest tests/integration/ -v --tb=short
+
+# Validate Activity YAML Files
+validate_yaml:
+  extends: .python_setup
+  stage: test
+  script:
+    - python activity_yaml_validator.py research/SPEC.yaml
+    - python activity_yaml_validator.py research/activity*.yaml
+
+# Lint - Syntax Errors (blocking)
+lint_syntax:
+  image: python:3.13-slim
+  stage: lint
+  tags:
+    - build
+  before_script:
+    - pip install flake8
+  script:
+    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+# Lint - Style Warnings (non-blocking)
+lint_style:
+  image: python:3.13-slim
+  stage: lint
+  tags:
+    - build
+  before_script:
+    - pip install black flake8
+  script:
+    - black --check --diff . || true
+    - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+  allow_failure: true
