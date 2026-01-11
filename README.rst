@@ -45,11 +45,11 @@ To set up the project, follow these steps:
     git clone https://github.com/russellballestrini/opencompletion.git
     cd opencompletion
 
-   **Git Remotes**: This repo is configured to push to both GitHub and Unturf simultaneously.
+   **Git Remotes**: This repo is configured to push to both GitHub and unturf simultaneously.
    The ``origin`` remote has two push URLs:
 
    - GitHub: ``git@github.com:russellballestrini/opencompletion.git``
-   - Unturf: ``ssh://git@git.unturf.com:2222/engineering/unturf/opencompletion.com.git``
+   - unturf: ``ssh://git@git.unturf.com:2222/engineering/unturf/opencompletion.com.git``
 
 2. Create a virtual environment and activate it::
 

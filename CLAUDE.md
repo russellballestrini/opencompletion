@@ -4,7 +4,7 @@
 
 This repository has multiple push targets configured on the `origin` remote:
 - **GitHub**: `git@github.com:russellballestrini/opencompletion.git` (fetch & push)
-- **Unturf**: `ssh://git@git.unturf.com:2222/engineering/unturf/opencompletion.com.git` (push only)
+- **unturf**: `ssh://git@git.unturf.com:2222/engineering/unturf/opencompletion.com.git` (push only)
 
 When you `git push origin main`, changes are pushed to both remotes simultaneously.
 
