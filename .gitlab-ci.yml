@@ -66,7 +66,7 @@ lint_syntax:
     - pip install flake8
   script:
     - source venv/bin/activate
-    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=venv
 
 # Lint - Style Warnings (non-blocking)
 lint_style:
@@ -79,6 +79,6 @@ lint_style:
     - pip install black flake8
   script:
     - source venv/bin/activate
-    - black --check --diff . || true
-    - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - black --check --diff --exclude=venv . || true
+    - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=venv
   allow_failure: true
