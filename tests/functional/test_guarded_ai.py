@@ -427,7 +427,10 @@ class TestGuardedAIClientAndErrorHandling(unittest.TestCase):
 
     def test_initialize_model_map_with_env_vars(self):
         """Test model map initialization with environment variables"""
+        # Clear any existing MODEL_ENDPOINT_* from CI environment
         test_env = {
+            "MODEL_ENDPOINT_0": "",  # Clear CI's MODEL_ENDPOINT_0
+            "MODEL_API_KEY_0": "",
             "MODEL_ENDPOINT_1": "https://api.test1.com",
             "MODEL_API_KEY_1": "test-key-1",
             "MODEL_ENDPOINT_2": "https://api.test2.com",
