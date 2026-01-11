@@ -5,7 +5,59 @@ pytest configuration and fixtures for OpenCompletion testing
 Sets up common test environment variables and fixtures used across all tests.
 """
 
+import sys
 import os
+
+# =============================================================================
+# CRITICAL: Mock tiktoken BEFORE any other imports
+# tiktoken tries to download encoding files over HTTPS which conflicts
+# with gevent's monkey-patching of SSL, causing RecursionError
+# =============================================================================
+
+
+class MockTiktokenEncoding:
+    """Mock tiktoken encoding that doesn't make network requests"""
+    def encode(self, text):
+        # Simple approximation: ~4 chars per token
+        return list(range(len(text) // 4 + 1))
+
+
+class MockTiktoken:
+    """Mock tiktoken module"""
+    _encoding = MockTiktokenEncoding()
+
+    @staticmethod
+    def encoding_for_model(model_name):
+        return MockTiktoken._encoding
+
+    @staticmethod
+    def get_encoding(encoding_name):
+        return MockTiktoken._encoding
+
+
+# Insert mock tiktoken into sys.modules BEFORE any imports
+if 'tiktoken' not in sys.modules:
+    sys.modules['tiktoken'] = MockTiktoken()
+
+
+def pytest_configure(config):
+    """
+    Called early in pytest startup, before test collection.
+    Ensures tiktoken is mocked before any test imports happen.
+    """
+    if 'tiktoken' not in sys.modules:
+        sys.modules['tiktoken'] = MockTiktoken()
+    else:
+        # If tiktoken was already imported, patch its functions
+        import tiktoken
+        tiktoken.encoding_for_model = MockTiktoken.encoding_for_model
+        tiktoken.get_encoding = MockTiktoken.get_encoding
+
+
+# =============================================================================
+# Now safe to do other imports
+# =============================================================================
+
 import pytest
 import tempfile
 from unittest.mock import patch, MagicMock
