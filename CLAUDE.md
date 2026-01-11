@@ -1,5 +1,18 @@
 # Claude Instructions
 
+## Git Remotes
+
+This repository has multiple push targets configured on the `origin` remote:
+- **GitHub**: `git@github.com:russellballestrini/opencompletion.git` (fetch & push)
+- **Unturf**: `ssh://git@git.unturf.com:2222/engineering/unturf/opencompletion.com.git` (push only)
+
+When you `git push origin main`, changes are pushed to both remotes simultaneously.
+
+To verify remote configuration:
+```bash
+git remote -v
+```
+
 ## Commit Messages
 - NEVER add Claude attributions like "🤖 Generated with Claude Code" to commit messages
 - NEVER add "Co-Authored-By: Claude <noreply@anthropic.com>" to commit messages
