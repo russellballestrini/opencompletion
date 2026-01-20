@@ -232,9 +232,10 @@ lang = un.detect_language("script.py")  # Returns "python"
 OpenCompletion supports artifacts generated during code execution (compiled binaries, images, videos, etc.).
 
 **How Artifacts Work**:
-- Pass `artifacts: true` in execution requests to enable artifact collection
-- Artifacts are returned as **base64-encoded data** directly in the job response payload
+- Pass `return_artifact: true` (boolean) in execution requests to enable artifact collection
+- Response includes `artifacts` array with base64-encoded data
 - No separate download endpoint needed - artifacts are embedded in the response
+- Note: Parameter is singular `return_artifact` but response field is plural `artifacts`
 
 **Artifact Response Format**:
 ```json
@@ -246,14 +247,20 @@ OpenCompletion supports artifacts generated during code execution (compiled bina
   "exit_code": 0,
   "artifacts": [
     {
-      "name": "output.png",
-      "type": "image/png",
-      "data": "base64string...",
+      "filename": "output.png",
+      "mime_type": "image/png",
+      "content_base64": "iVBORw0KGgoAAAANS...",
       "size": 12345
     }
   ]
 }
 ```
+
+**Artifact Fields**:
+- `filename`: Original filename
+- `mime_type`: MIME type (e.g., "image/png", "application/octet-stream")
+- `content_base64`: Base64-encoded file content
+- `size`: File size in bytes
 
 **Artifact Types**:
 - **Binaries**: Compiled executables (C, C++, Rust, Go, etc.)
@@ -262,22 +269,22 @@ OpenCompletion supports artifacts generated during code execution (compiled bina
 - **Text/Data**: JSON, CSV, TXT output files
 
 **Frontend Features**:
-- Download button decodes base64 and triggers browser download
-- View button decodes base64 and displays inline:
-  - **Images**: Rendered as data URLs
+- Download button decodes `content_base64` and triggers browser download
+- View button decodes `content_base64` and displays inline:
+  - **Images**: Rendered as data URLs (`data:image/png;base64,...`)
   - **Videos**: Rendered as blob URLs with controls
   - **Text**: Decoded and displayed in formatted `<pre>` blocks
 - View button disabled for binary executables
-- File size and type information displayed
+- File size and MIME type information displayed
 
 #### Frontend Integration
 
 - Add play button (▶) next to copy button on code blocks
-- Execute code when user clicks play button with `artifacts: true` parameter
+- Execute code when user clicks play button with `return_artifact: true` parameter
 - Display execution results inline below code block
 - Show stdout, stderr, and exit_code separately
-- Display artifacts section with download/view buttons
-- Decode base64 artifacts for inline viewing and downloads
+- Display artifact section with download/view buttons
+- Decode `content_base64` field for inline viewing and downloads
 - Images displayed as data URLs, videos as blob URLs
 - Use syntax highlighting for output
 - Handle timeouts gracefully (60s default)

@@ -1708,7 +1708,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
             body: JSON.stringify({
                 language: language,
                 code: code,
-                artifacts: true  // Request artifacts (binaries, images, videos, etc)
+                return_artifact: true  // Request artifacts (binaries, images, videos, etc)
             })
         });
 
@@ -1946,10 +1946,6 @@ function displayExecutionResults(result, resultsContainer, language, code) {
 
     // Handle artifacts (binaries, images, videos, etc.)
     if (artifacts && artifacts.length > 0) {
-        // Debug: log artifact structure
-        console.log('Artifacts received:', artifacts);
-        console.log('First artifact:', artifacts[0]);
-
         const artifactsDiv = document.createElement('div');
         artifactsDiv.style.marginTop = '12px';
         artifactsDiv.style.borderTop = '1px solid var(--border-color)';
@@ -1963,9 +1959,6 @@ function displayExecutionResults(result, resultsContainer, language, code) {
         artifactsDiv.appendChild(artifactsTitle);
 
         artifacts.forEach((artifact, index) => {
-            // Debug: log each artifact
-            console.log(`Artifact ${index}:`, artifact);
-            console.log(`Artifact ${index} keys:`, Object.keys(artifact));
             const artifactItem = document.createElement('div');
             artifactItem.style.marginBottom = '8px';
             artifactItem.style.padding = '8px';
@@ -1976,17 +1969,18 @@ function displayExecutionResults(result, resultsContainer, language, code) {
             const artifactName = document.createElement('div');
             artifactName.style.fontWeight = 'bold';
             artifactName.style.marginBottom = '4px';
-            artifactName.textContent = artifact.name || artifact.filename || `Artifact ${index + 1}`;
+            artifactName.textContent = artifact.filename || artifact.name || `Artifact ${index + 1}`;
             artifactItem.appendChild(artifactName);
 
             // Artifact type/size info
-            if (artifact.type || artifact.size) {
+            const mimeType = artifact.mime_type || artifact.type || '';
+            if (mimeType || artifact.size) {
                 const artifactInfo = document.createElement('div');
                 artifactInfo.style.fontSize = '12px';
                 artifactInfo.style.color = 'var(--text-muted)';
                 artifactInfo.style.marginBottom = '8px';
                 let infoText = '';
-                if (artifact.type) infoText += `Type: ${artifact.type}`;
+                if (mimeType) infoText += `Type: ${mimeType}`;
                 if (artifact.size) infoText += ` | Size: ${formatFileSize(artifact.size)}`;
                 artifactInfo.textContent = infoText;
                 artifactItem.appendChild(artifactInfo);
@@ -1998,7 +1992,6 @@ function displayExecutionResults(result, resultsContainer, language, code) {
             buttonsDiv.style.gap = '8px';
 
             // Determine if artifact is viewable (images, videos, text)
-            const mimeType = artifact.mime_type || artifact.type || '';
             const isImage = mimeType.startsWith('image/');
             const isVideo = mimeType.startsWith('video/');
             const isBinary = mimeType.includes('octet-stream') || mimeType.includes('executable');
@@ -2126,12 +2119,8 @@ function formatFileSize(bytes) {
 // Helper function to download artifact
 async function downloadArtifact(artifact) {
     try {
-        console.log('Download artifact called with:', artifact);
-        console.log('Artifact keys:', Object.keys(artifact));
-
-        // Artifacts come as base64 in the response
-        const base64Data = artifact.data || artifact.content;
-        console.log('Base64 data found:', base64Data ? `yes (${base64Data.length} chars)` : 'no');
+        // Artifacts come as base64 in the response (field: content_base64)
+        const base64Data = artifact.content_base64 || artifact.data || artifact.content;
 
         if (!base64Data) {
             console.error('No base64 data in artifact:', artifact);
@@ -2154,7 +2143,7 @@ async function downloadArtifact(artifact) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = artifact.name || artifact.filename || 'download';
+        a.download = artifact.filename || artifact.name || 'download';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -2168,9 +2157,10 @@ async function downloadArtifact(artifact) {
 // Helper function to view artifact inline
 async function viewArtifact(artifact, artifactItem, isImage, isVideo) {
     try {
-        // Artifacts come as base64 in the response
-        const base64Data = artifact.data || artifact.content;
+        // Artifacts come as base64 in the response (field: content_base64)
+        const base64Data = artifact.content_base64 || artifact.data || artifact.content;
         if (!base64Data) {
+            console.error('No base64 data in artifact:', artifact);
             alert('Artifact data not available');
             return;
         }

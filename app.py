@@ -1276,7 +1276,7 @@ def proxy_code_execute():
         request_body = {
             "language": language,
             "code": code,
-            "return_artifacts": True,
+            "return_artifact": True,
         }
 
         # Use SDK's internal _make_request for full parameter support
