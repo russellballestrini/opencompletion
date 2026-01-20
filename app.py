@@ -1246,9 +1246,6 @@ Examples:
 
 
 # Unsandbox API proxy endpoints - keeps API keys server-side
-# Uses official Python SDK (un.py) for authentication and API calls
-
-
 @app.route("/api/code/execute", methods=["POST"])
 def proxy_code_execute():
     """Proxy code execution requests to Unsandbox API.
@@ -1278,18 +1275,9 @@ def proxy_code_execute():
         # Build request body with all supported parameters
         request_body = {
             "language": language,
-            "code": code
+            "code": code,
+            "return_artifacts": True,
         }
-
-        # Add optional parameters if provided
-        if data.get("env"):
-            request_body["env"] = data.get("env")
-        if data.get("network_mode"):
-            request_body["network_mode"] = data.get("network_mode")
-        if data.get("ttl"):
-            request_body["ttl"] = data.get("ttl")
-        if data.get("artifacts"):
-            request_body["artifacts"] = data.get("artifacts")
 
         # Use SDK's internal _make_request for full parameter support
         result = un._make_request(
