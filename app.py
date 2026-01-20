@@ -15,6 +15,9 @@ import random
 
 import boto3
 import together
+
+# Unsandbox SDK for code execution
+import un
 from flask import (
     Flask,
     render_template,
@@ -1243,47 +1246,7 @@ Examples:
 
 
 # Unsandbox API proxy endpoints - keeps API keys server-side
-UNSANDBOX_API_URL = "https://api.unsandbox.com"
-
-
-def get_unsandbox_auth_headers(method, path, body=None):
-    """Generate HMAC authentication headers for Unsandbox API.
-
-    Authentication scheme:
-      Authorization: Bearer <public_key>          - identifies account
-      X-Timestamp: <unix_seconds>                 - replay prevention
-      X-Signature: HMAC-SHA256(secret_key, ts:method:path:body) - proves secret
-
-    The secret key is NEVER transmitted. Server verifies HMAC with stored secret.
-    """
-    import hmac
-    import hashlib
-    import time
-
-    public_key = os.environ.get("UNSANDBOX_PUBLIC_KEY")
-    secret_key = os.environ.get("UNSANDBOX_SECRET_KEY")
-
-    if not public_key or not secret_key:
-        return None
-
-    timestamp = int(time.time())
-    body_str = body if body else ""
-
-    # Build message: "timestamp:method:path:body"
-    message = f"{timestamp}:{method}:{path}:{body_str}"
-
-    # Compute HMAC-SHA256
-    signature = hmac.new(
-        secret_key.encode("utf-8"),
-        message.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-
-    return {
-        "Authorization": f"Bearer {public_key}",
-        "X-Timestamp": str(timestamp),
-        "X-Signature": signature,
-    }
+# Uses official Python SDK (un.py) for authentication and API calls
 
 
 @app.route("/api/code/execute", methods=["POST"])
@@ -1291,34 +1254,43 @@ def proxy_code_execute():
     """Proxy code execution requests to Unsandbox API.
 
     Keeps UNSANDBOX_PUBLIC_KEY and UNSANDBOX_SECRET_KEY secure on the server side.
-    Uses HMAC-SHA256 authentication.
+    Uses official Unsandbox Python SDK for authentication and execution.
     """
-    import httpx
-
     try:
         data = request.get_json()
         if not data:
             return jsonify({"error": "Request body required"}), 400
 
-        body_json = json.dumps(data, separators=(",", ":"))
-        auth_headers = get_unsandbox_auth_headers("POST", "/execute/async", body_json)
-        if not auth_headers:
+        # Check if credentials are configured
+        if not os.environ.get("UNSANDBOX_PUBLIC_KEY") or not os.environ.get("UNSANDBOX_SECRET_KEY"):
             return jsonify({"error": "Code execution not configured"}), 503
 
-        headers = {"Content-Type": "application/json", **auth_headers}
+        # Extract parameters from request
+        language = data.get("language")
+        code = data.get("code")
+        env = data.get("env")
+        network_mode = data.get("network_mode", "zerotrust")
+        ttl = data.get("ttl", 60)
 
-        with httpx.Client(timeout=30.0) as client:
-            response = client.post(
-                f"{UNSANDBOX_API_URL}/execute/async",
-                headers=headers,
-                content=body_json,
-            )
+        if not language or not code:
+            return jsonify({"error": "Language and code are required"}), 400
 
-            # Return the response from Unsandbox
-            return jsonify(response.json()), response.status_code
+        # Use SDK's execute_async method
+        result = un.execute_async(
+            language=language,
+            code=code,
+            env=env,
+            network_mode=network_mode,
+            ttl=ttl
+        )
 
-    except httpx.TimeoutException:
-        return jsonify({"error": "Request to code execution service timed out"}), 504
+        # SDK returns the job_id directly as a string, or a dict with error
+        if isinstance(result, str):
+            return jsonify({"job_id": result}), 200
+        else:
+            # Result is already a dict (possibly with error)
+            return jsonify(result), 200
+
     except Exception as e:
         print(f"Error proxying code execution: {e}")
         return jsonify({"error": "Failed to execute code"}), 500
@@ -1326,25 +1298,18 @@ def proxy_code_execute():
 
 @app.route("/api/code/jobs/<job_id>", methods=["GET"])
 def proxy_job_status(job_id):
-    """Proxy job status requests to Unsandbox API."""
-    import httpx
-
-    path = f"/jobs/{job_id}"
-    auth_headers = get_unsandbox_auth_headers("GET", path, None)
-    if not auth_headers:
-        return jsonify({"error": "Code execution not configured"}), 503
-
+    """Proxy job status requests to Unsandbox API using SDK."""
     try:
-        with httpx.Client(timeout=30.0) as client:
-            response = client.get(
-                f"{UNSANDBOX_API_URL}{path}",
-                headers=auth_headers,
-            )
+        # Check if credentials are configured
+        if not os.environ.get("UNSANDBOX_PUBLIC_KEY") or not os.environ.get("UNSANDBOX_SECRET_KEY"):
+            return jsonify({"error": "Code execution not configured"}), 503
 
-            return jsonify(response.json()), response.status_code
+        # Use SDK's get_job method
+        result = un.get_job(job_id)
 
-    except httpx.TimeoutException:
-        return jsonify({"error": "Request to code execution service timed out"}), 504
+        # SDK returns job status dict
+        return jsonify(result), 200
+
     except Exception as e:
         print(f"Error fetching job status: {e}")
         return jsonify({"error": "Failed to fetch job status"}), 500
@@ -1352,32 +1317,18 @@ def proxy_job_status(job_id):
 
 @app.route("/api/code/jobs/<job_id>", methods=["DELETE"])
 def proxy_job_cancel(job_id):
-    """Proxy job cancellation requests to Unsandbox API."""
-    import httpx
-
-    path = f"/jobs/{job_id}"
-    auth_headers = get_unsandbox_auth_headers("DELETE", path, None)
-    if not auth_headers:
-        return jsonify({"error": "Code execution not configured"}), 503
-
+    """Proxy job cancellation requests to Unsandbox API using SDK."""
     try:
-        with httpx.Client(timeout=30.0) as client:
-            response = client.delete(
-                f"{UNSANDBOX_API_URL}{path}",
-                headers=auth_headers,
-            )
+        # Check if credentials are configured
+        if not os.environ.get("UNSANDBOX_PUBLIC_KEY") or not os.environ.get("UNSANDBOX_SECRET_KEY"):
+            return jsonify({"error": "Code execution not configured"}), 503
 
-            # DELETE may return empty body on success
-            if response.status_code == 204:
-                return "", 204
+        # Use SDK's cancel_job method
+        result = un.cancel_job(job_id)
 
-            try:
-                return jsonify(response.json()), response.status_code
-            except Exception:
-                return "", response.status_code
+        # SDK returns success status
+        return jsonify(result), 200
 
-    except httpx.TimeoutException:
-        return jsonify({"error": "Request to code execution service timed out"}), 504
     except Exception as e:
         print(f"Error cancelling job: {e}")
         return jsonify({"error": "Failed to cancel job"}), 500

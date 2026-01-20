@@ -99,112 +99,133 @@ git remote -v
 
 ### Code Execution Integration
 
-OpenCompletion integrates with the Unsandbox API (https://api.unsandbox.com) for secure code execution in 40+ programming languages.
+OpenCompletion integrates with the Unsandbox API (https://unsandbox.com) for secure code execution in 42+ programming languages using the official Python SDK.
 
-#### API Endpoints
+#### SDK Setup
 
-**Synchronous Execution** (immediate results):
-```
-POST https://api.unsandbox.com/execute
-```
-- Executes code immediately and returns results
-- Use for quick code snippets and interactive execution
+OpenCompletion uses the official Unsandbox Python SDK (`un.py`) which provides a clean interface to the Unsandbox API.
 
-**Asynchronous Execution** (long-running tasks):
-```
-POST https://api.unsandbox.com/execute/async
-```
-- Returns job ID for later retrieval
-- Use for long-running scripts (up to 15 minutes)
+**SDK Location**: `/home/fox/git/opencompletion/un.py` (single file, no dependencies beyond `requests`)
 
-**Auto-Detect Language**:
-```
-POST https://api.unsandbox.com/run
-```
-- Automatically detects language from shebang
-- Send raw code as request body
-- Useful when language is unknown or embedded in script
+**SDK Documentation**: https://unsandbox.com/cli/python
 
-#### Request Format
+**Installation**:
+```bash
+# SDK is already included in the repository
+# To update to latest version:
+curl -O https://git.unturf.com/engineering/unturf/un-inception/-/raw/main/clients/python/sync/src/un.py
+```
 
+#### Authentication
+
+The SDK uses HMAC-SHA256 authentication automatically via environment variables:
+
+**Environment Variables:**
+- `UNSANDBOX_PUBLIC_KEY` - Public key (unsb-pk-xxxx) used as Bearer token to identify account
+- `UNSANDBOX_SECRET_KEY` - Secret key (unsb-sk-xxxx) used for HMAC signing (never transmitted)
+
+The SDK handles all authentication automatically. No manual HMAC signing required.
+
+#### Core SDK Methods
+
+OpenCompletion uses three primary SDK methods:
+
+**1. Asynchronous Execution** (default for frontend):
+```python
+import un
+
+# Submit code for execution, get job_id immediately
+job_id = un.execute_async(
+    language="python",
+    code="print('Hello, World!')",
+    env={"VAR": "value"},      # Optional
+    network_mode="zerotrust",  # Optional: zerotrust or semitrusted
+    ttl=60                     # Optional: timeout in seconds (1-900)
+)
+```
+
+**2. Job Status Polling**:
+```python
+# Check job status and get results
+result = un.get_job(job_id)
+
+# Result contains:
+# - status: "pending" | "running" | "completed" | "failed"
+# - stdout: program output (when completed)
+# - stderr: error output (when completed)
+# - exit_code: exit status (when completed)
+# - execution_time_ms: execution duration (when completed)
+```
+
+**3. Job Cancellation**:
+```python
+# Cancel running or pending job
+un.cancel_job(job_id)
+```
+
+#### OpenCompletion API Proxy Endpoints
+
+OpenCompletion provides proxy endpoints that keep credentials server-side:
+
+**Execute Code** (POST `/api/code/execute`):
 ```json
 {
   "language": "python",
   "code": "print('Hello, World!')",
-  "env": {
-    "VAR_NAME": "value"
-  },
+  "env": {"VAR": "value"},
   "network_mode": "zerotrust",
   "ttl": 60
 }
 ```
+Returns: `{"job_id": "job-xxx"}`
 
-**Parameters**:
-- `language` (required): Programming language identifier
-- `code` (required): Source code to execute
-- `env` (optional): Environment variables as key-value pairs
-- `network_mode` (optional): "zerotrust" (default) or "semitrusted"
-- `ttl` (optional): Timeout in seconds (1-900, default 60)
+**Get Job Status** (GET `/api/code/jobs/<job_id>`):
+Returns job status and results when completed.
+
+**Cancel Job** (DELETE `/api/code/jobs/<job_id>`):
+Cancels the running or pending job.
 
 #### Response Format
 
-**Success Response**:
+**Job Status Response** (from `un.get_job()`):
 ```json
 {
-  "success": true,
+  "job_id": "job-xxx",
+  "status": "completed",
   "stdout": "Hello, World!\n",
   "stderr": "",
-  "exit_code": 0
-}
-```
-
-**Error Response**:
-```json
-{
-  "success": false,
-  "stdout": "",
-  "stderr": "SyntaxError: invalid syntax\n",
-  "exit_code": 1,
-  "error": "Runtime error occurred"
+  "exit_code": 0,
+  "execution_time_ms": 45
 }
 ```
 
 **Response Fields**:
-- `success` (boolean): True if execution completed without errors
-- `stdout` (string): Standard output from the program
-- `stderr` (string): Standard error output
-- `exit_code` (integer): Program exit status (0 = success, non-zero = error)
-- `error` (string, optional): Detailed error message if execution failed
-- `detected_language` (string, optional): Language detected by auto-detect endpoint
-
-#### Authentication
-
-Uses HMAC-SHA256 authentication with public/secret key pairs:
-
-**Environment Variables:**
-- `UNSANDBOX_PUBLIC_KEY` - Public key (unsb-pk-xxxx) used as Bearer token to identify account
-- `UNSANDBOX_SECRET_KEY` - Secret key (unsb-sk-xxxx) used for HMAC signing, never transmitted
-
-**Request Headers:**
-```
-Authorization: Bearer <public_key>
-X-Timestamp: <unix_seconds>
-X-Signature: HMAC-SHA256(secret_key, timestamp:method:path:body)
-```
-
-The secret key is never transmitted - server verifies HMAC using its stored copy.
-Timestamp must be within ±5 minutes of server time (replay attack prevention).
+- `job_id` (string): Unique job identifier
+- `status` (string): "pending" | "running" | "completed" | "failed"
+- `stdout` (string): Standard output (when completed)
+- `stderr` (string): Standard error output (when completed)
+- `exit_code` (integer): Program exit status (when completed)
+- `execution_time_ms` (integer): Execution duration in milliseconds (when completed)
 
 #### Supported Languages
 
-40+ languages including:
+The SDK supports 42+ languages including:
 - **Compiled**: C, C++, Rust, Go, Java, C#, Swift
 - **Interpreted**: Python, Ruby, JavaScript, PHP, Perl, Lua
 - **Scripting**: Bash, PowerShell, Fish
-- **Data**: R, Julia, Octave, MATLAB
+- **Data**: R, Julia, Octave
 - **Functional**: Haskell, Scala, Erlang, Elixir
 - **Esoteric**: Brainfuck, LOLCODE
 - And many more...
+
+**SDK Methods for Language Support**:
+```python
+# List all supported languages
+languages = un.get_languages()
+
+# Auto-detect language from filename
+lang = un.detect_language("script.py")  # Returns "python"
+```
 
 #### Frontend Integration
 
