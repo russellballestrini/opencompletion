@@ -1946,6 +1946,10 @@ function displayExecutionResults(result, resultsContainer, language, code) {
 
     // Handle artifacts (binaries, images, videos, etc.)
     if (artifacts && artifacts.length > 0) {
+        // Debug: log artifact structure
+        console.log('Artifacts received:', artifacts);
+        console.log('First artifact:', artifacts[0]);
+
         const artifactsDiv = document.createElement('div');
         artifactsDiv.style.marginTop = '12px';
         artifactsDiv.style.borderTop = '1px solid var(--border-color)';
@@ -1959,6 +1963,9 @@ function displayExecutionResults(result, resultsContainer, language, code) {
         artifactsDiv.appendChild(artifactsTitle);
 
         artifacts.forEach((artifact, index) => {
+            // Debug: log each artifact
+            console.log(`Artifact ${index}:`, artifact);
+            console.log(`Artifact ${index} keys:`, Object.keys(artifact));
             const artifactItem = document.createElement('div');
             artifactItem.style.marginBottom = '8px';
             artifactItem.style.padding = '8px';
@@ -2119,9 +2126,15 @@ function formatFileSize(bytes) {
 // Helper function to download artifact
 async function downloadArtifact(artifact) {
     try {
+        console.log('Download artifact called with:', artifact);
+        console.log('Artifact keys:', Object.keys(artifact));
+
         // Artifacts come as base64 in the response
         const base64Data = artifact.data || artifact.content;
+        console.log('Base64 data found:', base64Data ? `yes (${base64Data.length} chars)` : 'no');
+
         if (!base64Data) {
+            console.error('No base64 data in artifact:', artifact);
             alert('Artifact data not available');
             return;
         }
