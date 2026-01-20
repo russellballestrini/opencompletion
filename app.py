@@ -1255,6 +1255,7 @@ def proxy_code_execute():
 
     Keeps UNSANDBOX_PUBLIC_KEY and UNSANDBOX_SECRET_KEY secure on the server side.
     Uses official Unsandbox Python SDK for authentication and execution.
+    Supports artifacts parameter for compiled binaries, images, etc.
     """
     try:
         data = request.get_json()
@@ -1262,34 +1263,45 @@ def proxy_code_execute():
             return jsonify({"error": "Request body required"}), 400
 
         # Check if credentials are configured
-        if not os.environ.get("UNSANDBOX_PUBLIC_KEY") or not os.environ.get("UNSANDBOX_SECRET_KEY"):
+        public_key = os.environ.get("UNSANDBOX_PUBLIC_KEY")
+        secret_key = os.environ.get("UNSANDBOX_SECRET_KEY")
+        if not public_key or not secret_key:
             return jsonify({"error": "Code execution not configured"}), 503
 
         # Extract parameters from request
         language = data.get("language")
         code = data.get("code")
-        env = data.get("env")
-        network_mode = data.get("network_mode", "zerotrust")
-        ttl = data.get("ttl", 60)
 
         if not language or not code:
             return jsonify({"error": "Language and code are required"}), 400
 
-        # Use SDK's execute_async method
-        result = un.execute_async(
-            language=language,
-            code=code,
-            env=env,
-            network_mode=network_mode,
-            ttl=ttl
+        # Build request body with all supported parameters
+        request_body = {
+            "language": language,
+            "code": code
+        }
+
+        # Add optional parameters if provided
+        if data.get("env"):
+            request_body["env"] = data.get("env")
+        if data.get("network_mode"):
+            request_body["network_mode"] = data.get("network_mode")
+        if data.get("ttl"):
+            request_body["ttl"] = data.get("ttl")
+        if data.get("artifacts"):
+            request_body["artifacts"] = data.get("artifacts")
+
+        # Use SDK's internal _make_request for full parameter support
+        result = un._make_request(
+            "POST",
+            "/execute",
+            public_key,
+            secret_key,
+            request_body
         )
 
-        # SDK returns the job_id directly as a string, or a dict with error
-        if isinstance(result, str):
-            return jsonify({"job_id": result}), 200
-        else:
-            # Result is already a dict (possibly with error)
-            return jsonify(result), 200
+        # Return job_id from response
+        return jsonify({"job_id": result.get("job_id")}), 200
 
     except Exception as e:
         print(f"Error proxying code execution: {e}")
@@ -1332,6 +1344,72 @@ def proxy_job_cancel(job_id):
     except Exception as e:
         print(f"Error cancelling job: {e}")
         return jsonify({"error": "Failed to cancel job"}), 500
+
+
+@app.route("/api/code/artifacts/<path:artifact_url>", methods=["GET"])
+def proxy_artifact_download(artifact_url):
+    """Proxy artifact download requests from Unsandbox API.
+
+    Artifacts are files generated during code execution (compiled binaries,
+    images, videos, etc.). This endpoint proxies the download with authentication.
+    """
+    import httpx
+
+    try:
+        # Check if credentials are configured
+        public_key = os.environ.get("UNSANDBOX_PUBLIC_KEY")
+        secret_key = os.environ.get("UNSANDBOX_SECRET_KEY")
+        if not public_key or not secret_key:
+            return jsonify({"error": "Code execution not configured"}), 503
+
+        # Decode the artifact URL (it's passed as part of the path)
+        import urllib.parse
+        full_artifact_url = urllib.parse.unquote(artifact_url)
+
+        # If it's a relative path, make it absolute
+        if not full_artifact_url.startswith("http"):
+            full_artifact_url = f"https://api.unsandbox.com{full_artifact_url}"
+
+        # Make authenticated request to download artifact
+        with httpx.Client(timeout=60.0) as client:
+            # Extract path for signing
+            from urllib.parse import urlparse
+            parsed = urlparse(full_artifact_url)
+            path = parsed.path
+
+            # Sign the request
+            import time
+            import hmac
+            import hashlib
+            timestamp = int(time.time())
+            message = f"{timestamp}:GET:{path}:"
+            signature = hmac.new(
+                secret_key.encode(),
+                message.encode(),
+                hashlib.sha256
+            ).hexdigest()
+
+            headers = {
+                "Authorization": f"Bearer {public_key}",
+                "X-Timestamp": str(timestamp),
+                "X-Signature": signature
+            }
+
+            response = client.get(full_artifact_url, headers=headers)
+            response.raise_for_status()
+
+            # Return the artifact with appropriate content type
+            return Response(
+                response.content,
+                mimetype=response.headers.get("Content-Type", "application/octet-stream"),
+                headers={
+                    "Content-Disposition": response.headers.get("Content-Disposition", "attachment")
+                }
+            )
+
+    except Exception as e:
+        print(f"Error downloading artifact: {e}")
+        return jsonify({"error": "Failed to download artifact"}), 500
 
 
 @app.route("/api/fix-code", methods=["POST"])

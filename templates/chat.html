@@ -1708,7 +1708,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
             body: JSON.stringify({
                 language: language,
                 code: code,
-                return_artifact: true  // Request compiled binary for compiled languages
+                artifacts: true  // Request artifacts (binaries, images, videos, etc)
             })
         });
 
@@ -1908,10 +1908,11 @@ function displayExecutionResults(result, resultsContainer, language, code) {
     // Format and display results
     let outputHtml = '';
 
-    // Unsandbox API returns flat structure: {success, stdout, stderr, exit_code}
+    // Unsandbox API returns flat structure: {success, stdout, stderr, exit_code, artifacts}
     const actualStdout = result.stdout || '';
     const actualStderr = result.stderr || '';
     const exitCode = result.exit_code;
+    const artifacts = result.artifacts || [];
 
     // Show language
     if (language) {
@@ -1942,6 +1943,87 @@ function displayExecutionResults(result, resultsContainer, language, code) {
     }
 
     resultsContainer.innerHTML = outputHtml;
+
+    // Handle artifacts (binaries, images, videos, etc.)
+    if (artifacts && artifacts.length > 0) {
+        const artifactsDiv = document.createElement('div');
+        artifactsDiv.style.marginTop = '12px';
+        artifactsDiv.style.borderTop = '1px solid var(--border-color)';
+        artifactsDiv.style.paddingTop = '12px';
+
+        const artifactsTitle = document.createElement('div');
+        artifactsTitle.style.color = 'var(--text-info)';
+        artifactsTitle.style.fontWeight = 'bold';
+        artifactsTitle.style.marginBottom = '8px';
+        artifactsTitle.textContent = `Artifacts (${artifacts.length}):`;
+        artifactsDiv.appendChild(artifactsTitle);
+
+        artifacts.forEach((artifact, index) => {
+            const artifactItem = document.createElement('div');
+            artifactItem.style.marginBottom = '8px';
+            artifactItem.style.padding = '8px';
+            artifactItem.style.backgroundColor = 'var(--bg-secondary)';
+            artifactItem.style.borderRadius = '4px';
+
+            // Artifact name/filename
+            const artifactName = document.createElement('div');
+            artifactName.style.fontWeight = 'bold';
+            artifactName.style.marginBottom = '4px';
+            artifactName.textContent = artifact.name || artifact.filename || `Artifact ${index + 1}`;
+            artifactItem.appendChild(artifactName);
+
+            // Artifact type/size info
+            if (artifact.type || artifact.size) {
+                const artifactInfo = document.createElement('div');
+                artifactInfo.style.fontSize = '12px';
+                artifactInfo.style.color = 'var(--text-muted)';
+                artifactInfo.style.marginBottom = '8px';
+                let infoText = '';
+                if (artifact.type) infoText += `Type: ${artifact.type}`;
+                if (artifact.size) infoText += ` | Size: ${formatFileSize(artifact.size)}`;
+                artifactInfo.textContent = infoText;
+                artifactItem.appendChild(artifactInfo);
+            }
+
+            // Buttons container
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.style.display = 'flex';
+            buttonsDiv.style.gap = '8px';
+
+            // Determine if artifact is viewable (images, videos, text)
+            const mimeType = artifact.mime_type || artifact.type || '';
+            const isImage = mimeType.startsWith('image/');
+            const isVideo = mimeType.startsWith('video/');
+            const isBinary = mimeType.includes('octet-stream') || mimeType.includes('executable');
+
+            // Download button (always available)
+            const downloadBtn = document.createElement('button');
+            downloadBtn.textContent = '⬇ Download';
+            downloadBtn.style.padding = '4px 8px';
+            downloadBtn.style.fontSize = '12px';
+            downloadBtn.onclick = () => downloadArtifact(artifact);
+            buttonsDiv.appendChild(downloadBtn);
+
+            // View button (disabled for binaries)
+            const viewBtn = document.createElement('button');
+            viewBtn.textContent = '👁 View';
+            viewBtn.style.padding = '4px 8px';
+            viewBtn.style.fontSize = '12px';
+            if (isBinary) {
+                viewBtn.disabled = true;
+                viewBtn.style.opacity = '0.5';
+                viewBtn.style.cursor = 'not-allowed';
+            } else {
+                viewBtn.onclick = () => viewArtifact(artifact, artifactItem, isImage, isVideo);
+            }
+            buttonsDiv.appendChild(viewBtn);
+
+            artifactItem.appendChild(buttonsDiv);
+            artifactsDiv.appendChild(artifactItem);
+        });
+
+        resultsContainer.appendChild(artifactsDiv);
+    }
 
     // Find the download binary button (it's in the button container next to the Run button)
     // resultsContainer is inside <pre>, button container is the next sibling of <pre>
@@ -2022,6 +2104,113 @@ function displayExecutionResults(result, resultsContainer, language, code) {
             artifactError.textContent = `Artifact error: ${result.artifact.error}`;
             resultsContainer.appendChild(artifactError);
         }
+    }
+}
+
+// Helper function to format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Helper function to download artifact
+async function downloadArtifact(artifact) {
+    try {
+        const artifactUrl = artifact.url || artifact.download_url;
+        if (!artifactUrl) {
+            alert('Artifact URL not available');
+            return;
+        }
+
+        // Use our backend proxy to download with authentication
+        const encodedUrl = encodeURIComponent(artifactUrl);
+        const proxyUrl = `/api/code/artifacts/${encodedUrl}`;
+
+        // Open in new tab to trigger download
+        window.open(proxyUrl, '_blank');
+    } catch (error) {
+        console.error('Error downloading artifact:', error);
+        alert('Failed to download artifact: ' + error.message);
+    }
+}
+
+// Helper function to view artifact inline
+async function viewArtifact(artifact, artifactItem, isImage, isVideo) {
+    try {
+        const artifactUrl = artifact.url || artifact.download_url;
+        if (!artifactUrl) {
+            alert('Artifact URL not available');
+            return;
+        }
+
+        // Check if already viewing
+        const existingViewer = artifactItem.querySelector('.artifact-viewer');
+        if (existingViewer) {
+            existingViewer.remove();
+            return;
+        }
+
+        // Create viewer container
+        const viewerDiv = document.createElement('div');
+        viewerDiv.classList.add('artifact-viewer');
+        viewerDiv.style.marginTop = '8px';
+        viewerDiv.style.padding = '8px';
+        viewerDiv.style.backgroundColor = 'var(--bg-primary)';
+        viewerDiv.style.borderRadius = '4px';
+        viewerDiv.style.maxWidth = '100%';
+        viewerDiv.style.overflow = 'auto';
+
+        // Use our backend proxy for authenticated access
+        const encodedUrl = encodeURIComponent(artifactUrl);
+        const proxyUrl = `/api/code/artifacts/${encodedUrl}`;
+
+        if (isImage) {
+            const img = document.createElement('img');
+            img.src = proxyUrl;
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            img.style.display = 'block';
+            img.onerror = () => {
+                viewerDiv.textContent = 'Failed to load image';
+                viewerDiv.style.color = 'var(--text-error)';
+            };
+            viewerDiv.appendChild(img);
+        } else if (isVideo) {
+            const video = document.createElement('video');
+            video.src = proxyUrl;
+            video.controls = true;
+            video.style.maxWidth = '100%';
+            video.style.height = 'auto';
+            video.style.display = 'block';
+            video.onerror = () => {
+                viewerDiv.textContent = 'Failed to load video';
+                viewerDiv.style.color = 'var(--text-error)';
+            };
+            viewerDiv.appendChild(video);
+        } else {
+            // For other types, try to fetch and display as text
+            const response = await fetch(proxyUrl);
+            if (response.ok) {
+                const text = await response.text();
+                const pre = document.createElement('pre');
+                pre.style.margin = '0';
+                pre.style.whiteSpace = 'pre-wrap';
+                pre.style.wordWrap = 'break-word';
+                pre.textContent = text;
+                viewerDiv.appendChild(pre);
+            } else {
+                viewerDiv.textContent = 'Failed to load content';
+                viewerDiv.style.color = 'var(--text-error)';
+            }
+        }
+
+        artifactItem.appendChild(viewerDiv);
+    } catch (error) {
+        console.error('Error viewing artifact:', error);
+        alert('Failed to view artifact: ' + error.message);
     }
 }
 
