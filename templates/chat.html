@@ -2119,18 +2119,33 @@ function formatFileSize(bytes) {
 // Helper function to download artifact
 async function downloadArtifact(artifact) {
     try {
-        const artifactUrl = artifact.url || artifact.download_url;
-        if (!artifactUrl) {
-            alert('Artifact URL not available');
+        // Artifacts come as base64 in the response
+        const base64Data = artifact.data || artifact.content;
+        if (!base64Data) {
+            alert('Artifact data not available');
             return;
         }
 
-        // Use our backend proxy to download with authentication
-        const encodedUrl = encodeURIComponent(artifactUrl);
-        const proxyUrl = `/api/code/artifacts/${encodedUrl}`;
+        // Decode base64 to binary
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
 
-        // Open in new tab to trigger download
-        window.open(proxyUrl, '_blank');
+        // Determine mime type
+        const mimeType = artifact.mime_type || artifact.type || 'application/octet-stream';
+
+        // Create blob and download
+        const blob = new Blob([bytes], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = artifact.name || artifact.filename || 'download';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     } catch (error) {
         console.error('Error downloading artifact:', error);
         alert('Failed to download artifact: ' + error.message);
@@ -2140,9 +2155,10 @@ async function downloadArtifact(artifact) {
 // Helper function to view artifact inline
 async function viewArtifact(artifact, artifactItem, isImage, isVideo) {
     try {
-        const artifactUrl = artifact.url || artifact.download_url;
-        if (!artifactUrl) {
-            alert('Artifact URL not available');
+        // Artifacts come as base64 in the response
+        const base64Data = artifact.data || artifact.content;
+        if (!base64Data) {
+            alert('Artifact data not available');
             return;
         }
 
@@ -2163,13 +2179,14 @@ async function viewArtifact(artifact, artifactItem, isImage, isVideo) {
         viewerDiv.style.maxWidth = '100%';
         viewerDiv.style.overflow = 'auto';
 
-        // Use our backend proxy for authenticated access
-        const encodedUrl = encodeURIComponent(artifactUrl);
-        const proxyUrl = `/api/code/artifacts/${encodedUrl}`;
+        // Determine mime type
+        const mimeType = artifact.mime_type || artifact.type || 'application/octet-stream';
 
         if (isImage) {
+            // Create data URL from base64
+            const dataUrl = `data:${mimeType};base64,${base64Data}`;
             const img = document.createElement('img');
-            img.src = proxyUrl;
+            img.src = dataUrl;
             img.style.maxWidth = '100%';
             img.style.height = 'auto';
             img.style.display = 'block';
@@ -2179,8 +2196,17 @@ async function viewArtifact(artifact, artifactItem, isImage, isVideo) {
             };
             viewerDiv.appendChild(img);
         } else if (isVideo) {
+            // Create blob URL from base64
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: mimeType });
+            const blobUrl = URL.createObjectURL(blob);
+
             const video = document.createElement('video');
-            video.src = proxyUrl;
+            video.src = blobUrl;
             video.controls = true;
             video.style.maxWidth = '100%';
             video.style.height = 'auto';
@@ -2188,21 +2214,22 @@ async function viewArtifact(artifact, artifactItem, isImage, isVideo) {
             video.onerror = () => {
                 viewerDiv.textContent = 'Failed to load video';
                 viewerDiv.style.color = 'var(--text-error)';
+                URL.revokeObjectURL(blobUrl);
             };
             viewerDiv.appendChild(video);
         } else {
-            // For other types, try to fetch and display as text
-            const response = await fetch(proxyUrl);
-            if (response.ok) {
-                const text = await response.text();
+            // For text types, decode and display
+            try {
+                const binaryString = atob(base64Data);
+                const text = decodeURIComponent(escape(binaryString));
                 const pre = document.createElement('pre');
                 pre.style.margin = '0';
                 pre.style.whiteSpace = 'pre-wrap';
                 pre.style.wordWrap = 'break-word';
                 pre.textContent = text;
                 viewerDiv.appendChild(pre);
-            } else {
-                viewerDiv.textContent = 'Failed to load content';
+            } catch (decodeError) {
+                viewerDiv.textContent = 'Failed to decode content';
                 viewerDiv.style.color = 'var(--text-error)';
             }
         }

@@ -231,10 +231,29 @@ lang = un.detect_language("script.py")  # Returns "python"
 
 OpenCompletion supports artifacts generated during code execution (compiled binaries, images, videos, etc.).
 
-**Backend Implementation**:
+**How Artifacts Work**:
 - Pass `artifacts: true` in execution requests to enable artifact collection
-- Artifacts proxy endpoint: `/api/code/artifacts/<encoded_url>`
-- Handles authenticated download/viewing of artifacts
+- Artifacts are returned as **base64-encoded data** directly in the job response payload
+- No separate download endpoint needed - artifacts are embedded in the response
+
+**Artifact Response Format**:
+```json
+{
+  "job_id": "job-xxx",
+  "status": "completed",
+  "stdout": "...",
+  "stderr": "...",
+  "exit_code": 0,
+  "artifacts": [
+    {
+      "name": "output.png",
+      "type": "image/png",
+      "data": "base64string...",
+      "size": 12345
+    }
+  ]
+}
+```
 
 **Artifact Types**:
 - **Binaries**: Compiled executables (C, C++, Rust, Go, etc.)
@@ -243,10 +262,13 @@ OpenCompletion supports artifacts generated during code execution (compiled bina
 - **Text/Data**: JSON, CSV, TXT output files
 
 **Frontend Features**:
-- Download button for all artifact types
-- View button for images/videos (disabled for binaries)
-- Inline display of images/videos in chat
-- File size and type information
+- Download button decodes base64 and triggers browser download
+- View button decodes base64 and displays inline:
+  - **Images**: Rendered as data URLs
+  - **Videos**: Rendered as blob URLs with controls
+  - **Text**: Decoded and displayed in formatted `<pre>` blocks
+- View button disabled for binary executables
+- File size and type information displayed
 
 #### Frontend Integration
 
@@ -254,8 +276,9 @@ OpenCompletion supports artifacts generated during code execution (compiled bina
 - Execute code when user clicks play button with `artifacts: true` parameter
 - Display execution results inline below code block
 - Show stdout, stderr, and exit_code separately
-- Display artifacts with download/view buttons
-- Inline viewing of images and videos
+- Display artifacts section with download/view buttons
+- Decode base64 artifacts for inline viewing and downloads
+- Images displayed as data URLs, videos as blob URLs
 - Use syntax highlighting for output
 - Handle timeouts gracefully (60s default)
 - Support language auto-detection for fenced code blocks
