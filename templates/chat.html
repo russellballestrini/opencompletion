@@ -101,6 +101,20 @@ const VOICES_API_URL = "https://speech.ai.unturf.com/v1/voices";
 // Code execution API (proxied through backend to keep API key secure)
 const room_name = "{{ room_name }}";
 
+// TTS Streaming: Detect best audio format for this browser
+// Chrome/Edge: mp3 works, MediaSource supports audio/mpeg
+// Firefox: mp3 often broken on Linux; use webm+opus
+function detectAudioFormat() {
+    const isFirefox = navigator.userAgent.includes('Firefox');
+    if (isFirefox) {
+        console.log("Firefox detected, using webm+opus format for TTS");
+        return { format: 'webm', mime: 'audio/webm', mseMime: 'audio/webm;codecs=opus' };
+    }
+    // Chromium-based browsers: mp3 works, MSE supports audio/mpeg
+    return { format: 'mp3', mime: 'audio/mpeg', mseMime: 'audio/mpeg' };
+}
+const AUDIO_FORMAT = detectAudioFormat();
+
 // Get username from server (authenticated user's display name or None)
 let username = {% if username %}"{{ username }}"{% else %}null{% endif %};
 
@@ -775,13 +789,163 @@ function enableDownloadButton(messageId, playButton, audioUrl, voice) {
         downloadButton.onclick = () => {
             const link = document.createElement('a');
             link.href = audioUrl;
-            link.download = `tts-${messageId}-${voice}.mp3`;
+            link.download = `tts-${messageId}-${voice}.${AUDIO_FORMAT.format}`;
             link.click();
         };
     }
 }
 
-// Function to read text using TTS (for manual button clicks)
+// Streaming TTS function - plays audio as chunks arrive using MediaSource API
+// Returns a promise that resolves with { audio, blob, blobUrl, streamed }
+async function fetchTTSStreaming(cleanText, model, voice) {
+    const mseMime = AUDIO_FORMAT.mseMime;
+    const canStream = mseMime && window.MediaSource && MediaSource.isTypeSupported(mseMime);
+    const requestFormat = AUDIO_FORMAT.format;
+
+    console.log(`TTS streaming: canStream=${canStream}, format=${requestFormat}, mseMime=${mseMime}`);
+
+    const response = await fetch(TTS_API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({
+            model: model,
+            voice: voice,
+            input: cleanText,
+            response_format: requestFormat
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // If MSE isn't available, fall back to full buffered download
+    if (!canStream) {
+        console.warn(`No streaming support for ${requestFormat}, using full buffer`);
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        audio.playbackRate = 0.9;
+        return { audio, blob: audioBlob, blobUrl: audioUrl, streamed: false };
+    }
+
+    // Use MediaSource API for true streaming
+    const mediaSource = new MediaSource();
+    const audioUrl = URL.createObjectURL(mediaSource);
+    const audio = new Audio(audioUrl);
+    audio.playbackRate = 0.9;
+    console.log(`TTS streaming: MediaSource created, readyState=${mediaSource.readyState}`);
+
+    // Collect all chunks for download later
+    const chunks = [];
+
+    // Create a promise that resolves when streaming is complete
+    const streamingComplete = new Promise((resolve, reject) => {
+        mediaSource.addEventListener('sourceopen', async () => {
+            console.log("TTS streaming: sourceopen fired");
+            let sourceBuffer;
+            try {
+                sourceBuffer = mediaSource.addSourceBuffer(mseMime);
+                sourceBuffer.mode = 'sequence';
+            } catch (e) {
+                console.error("Failed to create SourceBuffer:", e);
+                reject(e);
+                return;
+            }
+
+            const reader = response.body.getReader();
+            let totalBytes = 0;
+
+            // Queue for appending buffers (SourceBuffer can only append one at a time)
+            const appendQueue = [];
+            let appending = false;
+
+            function processQueue() {
+                if (appending || appendQueue.length === 0) return;
+                appending = true;
+                const chunk = appendQueue.shift();
+                try {
+                    sourceBuffer.appendBuffer(chunk);
+                } catch (e) {
+                    console.error("appendBuffer error:", e);
+                    appending = false;
+                }
+            }
+
+            sourceBuffer.addEventListener('updateend', () => {
+                appending = false;
+                processQueue();
+            });
+
+            try {
+                while (true) {
+                    const { done: readerDone, value } = await reader.read();
+                    if (readerDone) break;
+
+                    chunks.push(value);
+                    totalBytes += value.byteLength;
+
+                    // Queue the chunk for appending (use slice to avoid shared ArrayBuffer issues)
+                    appendQueue.push(value.slice().buffer);
+                    processQueue();
+
+                    // Auto-play once we have some data (~1KB)
+                    if (totalBytes > 1024 && audio.paused) {
+                        console.log("TTS streaming: starting playback at", totalBytes, "bytes");
+                        audio.play().catch(e => console.warn("Auto-play blocked:", e.message));
+                    }
+                }
+
+                // Wait for all queued appends to finish
+                await new Promise((res) => {
+                    const check = () => {
+                        if (!appending && appendQueue.length === 0) {
+                            res();
+                        } else {
+                            setTimeout(check, 50);
+                        }
+                    };
+                    check();
+                });
+
+                if (mediaSource.readyState === 'open') {
+                    mediaSource.endOfStream();
+                }
+
+                console.log(`TTS streaming complete: ${totalBytes} bytes`);
+
+                // Build blob for download/caching
+                const audioBlob = new Blob(chunks, { type: mseMime });
+                resolve({ blob: audioBlob });
+
+            } catch (error) {
+                console.error("Streaming read error:", error);
+                if (mediaSource.readyState === 'open') {
+                    mediaSource.endOfStream('network');
+                }
+                reject(error);
+            }
+        });
+
+        mediaSource.addEventListener('error', (e) => {
+            console.error("MediaSource error:", e);
+            reject(new Error("MediaSource error"));
+        });
+    });
+
+    // Return immediately with audio element - streaming happens in background
+    return {
+        audio,
+        blobUrl: audioUrl,
+        streamed: true,
+        streamingComplete // Promise that resolves with { blob } when done
+    };
+}
+
+// Function to read text using TTS (for manual button clicks) - now with streaming
 async function speakText(text, playButton, messageId) {
     console.log("speakText called with:", {text: text, messageId, autoPlay: autoPlayTTS});
     const voiceSelectValue = document.getElementById("voice-select").value;
@@ -796,47 +960,42 @@ async function speakText(text, playButton, messageId) {
     try {
         // Check if the audio is already cached
         if (audioCache[cacheKey]) {
-            const audio = audioCache[cacheKey];
-            enableDownloadButton(messageId, playButton, audio.src, voice);
+            const cachedData = audioCache[cacheKey];
+            // Create new audio from cached blob for replay
+            const audioUrl = URL.createObjectURL(cachedData.blob);
+            const audio = new Audio(audioUrl);
+            audio.playbackRate = 0.9;
+            enableDownloadButton(messageId, playButton, audioUrl, voice);
             toggleAudioPlayback(audio, playButton);
             return;
         }
 
-        // Set button to processing state
-        playButton.textContent = "Processing...";
+        // Set button to streaming state
+        playButton.textContent = "Streaming...";
         playButton.disabled = true;
 
-        const response = await fetch(TTS_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${API_KEY}`
-            },
-            body: JSON.stringify({
-                model: model,
-                voice: voice,
-                input: cleanText // Use the cleaned text
-            })
-        });
+        // Use streaming TTS
+        const result = await fetchTTSStreaming(cleanText, model, voice);
+        const audio = result.audio;
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        audio.playbackRate = 0.9;
-
-        // Cache the audio only after it is successfully created
-        audioCache[cacheKey] = audio;
-
-        // Enable and show download button
-        enableDownloadButton(messageId, playButton, audioUrl, voice);
-
-        // Enable button and change text to "Pause"
+        // Enable button immediately and start playback
         playButton.disabled = false;
         toggleAudioPlayback(audio, playButton);
+
+        // Handle streaming completion for caching and download button
+        if (result.streamed && result.streamingComplete) {
+            result.streamingComplete.then(({ blob }) => {
+                // Cache the blob for replay
+                audioCache[cacheKey] = { blob };
+                // Create downloadable URL from blob
+                const downloadUrl = URL.createObjectURL(blob);
+                enableDownloadButton(messageId, playButton, downloadUrl, voice);
+            }).catch(e => console.error("Streaming completion error:", e));
+        } else {
+            // Non-streamed fallback - cache immediately
+            audioCache[cacheKey] = { blob: result.blob };
+            enableDownloadButton(messageId, playButton, result.blobUrl, voice);
+        }
     } catch (error) {
         console.error('Error in TTS:', error);
         playButton.textContent = "Play"; // Reset button text on error
@@ -844,9 +1003,9 @@ async function speakText(text, playButton, messageId) {
     }
 }
 
-// Function to read text using TTS (for queued auto-play)
+// Function to read text using TTS (for queued auto-play) - now with streaming
 async function speakTextQueued(text, playButton, messageId) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         const voiceSelectValue = document.getElementById("voice-select").value;
 
         // Parse model and voice from the dropdown value (format: "model:voice")
@@ -854,60 +1013,69 @@ async function speakTextQueued(text, playButton, messageId) {
         const cacheKey = `${messageId}-${voiceSelectValue}`;
         const cleanText = text.replace(/[^a-zA-Z0-9\s.,!?]/g, '');
 
-        const playAudio = (audio) => {
-            currentQueuedAudio = audio; // Track the currently playing queued audio
+        // Check if audio is cached
+        if (audioCache[cacheKey]) {
+            const cachedData = audioCache[cacheKey];
+            // Create new audio from cached blob for replay
+            const audioUrl = URL.createObjectURL(cachedData.blob);
+            const audio = new Audio(audioUrl);
+            audio.playbackRate = 0.9;
+            enableDownloadButton(messageId, playButton, audioUrl, voice);
+
+            currentQueuedAudio = audio;
             audio.onended = () => {
                 console.log("TTS finished for:", messageId);
-                currentQueuedAudio = null; // Clear when finished
+                currentQueuedAudio = null;
                 resolve();
             };
             audio.onerror = () => {
                 console.error("TTS audio error for:", messageId);
-                currentQueuedAudio = null; // Clear on error
+                currentQueuedAudio = null;
                 reject(new Error("Audio playback failed"));
             };
             audio.play().catch(reject);
-        };
-
-        // Check if audio is cached
-        if (audioCache[cacheKey]) {
-            const audio = audioCache[cacheKey];
-            enableDownloadButton(messageId, playButton, audio.src, voice);
-            playAudio(audio);
             return;
         }
 
-        // Fetch new audio
-        fetch(TTS_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${API_KEY}`
-            },
-            body: JSON.stringify({
-                model: model,
-                voice: voice,
-                input: cleanText
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+            // Use streaming TTS for faster playback start
+            const result = await fetchTTSStreaming(cleanText, model, voice);
+            const audio = result.audio;
+
+            currentQueuedAudio = audio;
+            audio.onended = () => {
+                console.log("TTS finished for:", messageId);
+                currentQueuedAudio = null;
+                resolve();
+            };
+            audio.onerror = () => {
+                console.error("TTS audio error for:", messageId);
+                currentQueuedAudio = null;
+                reject(new Error("Audio playback failed"));
+            };
+
+            // Handle streaming completion for caching
+            if (result.streamed && result.streamingComplete) {
+                result.streamingComplete.then(({ blob }) => {
+                    // Cache the blob for replay
+                    audioCache[cacheKey] = { blob };
+                    // Create downloadable URL from blob
+                    const downloadUrl = URL.createObjectURL(blob);
+                    enableDownloadButton(messageId, playButton, downloadUrl, voice);
+                }).catch(e => console.error("Streaming completion error:", e));
+            } else {
+                // Non-streamed fallback - cache immediately
+                audioCache[cacheKey] = { blob: result.blob };
+                enableDownloadButton(messageId, playButton, result.blobUrl, voice);
             }
-            return response.blob();
-        })
-        .then(audioBlob => {
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-            audio.playbackRate = 0.9;
-            audioCache[cacheKey] = audio;
 
-            // Enable and show download button
-            enableDownloadButton(messageId, playButton, audioUrl, voice);
-
-            playAudio(audio);
-        })
-        .catch(reject);
+            // Audio should auto-play from streaming, but ensure it starts
+            if (audio.paused) {
+                audio.play().catch(reject);
+            }
+        } catch (error) {
+            reject(error);
+        }
     });
 }
 
