@@ -55,7 +55,7 @@ git remote -v
 
 ### Environment Setup
 - Use `vars.sh` to set up environment variables
-- Required: MODEL_ENDPOINT_x and MODEL_API_KEY_x variables for AI models
+- Required: MODEL_ENDPOINT_x and MODEL_API_KEY_x variables for machine learning models
 - Run with: `source vars.sh && python app.py`
 - **NEVER cat or grep vars.sh** - it contains API keys and secrets
 
@@ -69,7 +69,7 @@ git remote -v
 ### Network Infrastructure
 
 - OpenCompletion uses Caddy for web server (not nginx)
-- Multi-layer proxy architecture for accessing AI models
+- Multi-layer proxy architecture for accessing machine learning models
 - See `unturf-debugging.md` for network troubleshooting (gitignored)
 
 ## OpenCompletion Architecture
@@ -337,7 +337,7 @@ Activities can specify separate models for classification and feedback generatio
 ```yaml
 # Activity-level defaults (optional)
 classifier_model: "MODEL_1"  # For categorizing user responses into buckets
-feedback_model: "MODEL_1"    # For generating AI feedback and translations
+feedback_model: "MODEL_1"    # For generating machine learning feedback and translations
 
 # Step-level overrides (optional)
 sections:
@@ -746,8 +746,8 @@ tokens_for_ai: |
   Make it personal!
 ```
 
-#### 4. **AI Personality & Encouragement**
-Make the AI engaging:
+#### 4. **machine learning Personality & Encouragement**
+Make the machine learning engaging:
 ```yaml
 ai_feedback:
   tokens_for_ai: |
@@ -837,12 +837,12 @@ feedback_tokens_for_ai: |
    - What should the user know/be able to do after completion?
    - Design backwards from those outcomes
 
-2. **Write Clear AI Instructions**
+2. **Write Clear machine learning Instructions**
    ```yaml
-   # VAGUE - AI won't know what to do
+   # VAGUE - machine learning won't know what to do
    tokens_for_ai: "Check if they understand."
 
-   # SPECIFIC - AI knows exactly what to do
+   # SPECIFIC - machine learning knows exactly what to do
    tokens_for_ai: |
      Categorize as 'correct' if they mention:
      - Variables store data
@@ -945,7 +945,7 @@ feedback_tokens_for_ai: |
 | **Circular loop without exit** | Users get trapped, max_attempts saves them but feels bad | Always provide an 'exit' bucket or progression path |
 | **Invalid transition target** | References non-existent section:step | Verify all targets exist: `python activity_yaml_validator.py` |
 | **Python syntax errors in scripts** | Crashes at runtime | Test your Python code before adding to YAML |
-| **Vague AI instructions** | AI categorizes incorrectly, wrong buckets | Be specific about what makes each bucket |
+| **Vague machine learning instructions** | machine learning categorizes incorrectly, wrong buckets | Be specific about what makes each bucket |
 | **Boolean values as strings** | `"true"` is a string, not boolean | Use `true/false` not `"true"/"false"` |
 | **Forgetting `counts_as_attempt: false`** | Hints/language changes count as failures | Add `counts_as_attempt: false` to helper transitions |
 | **No activity_completed marker** | Can't track completion | Add `metadata_add: activity_completed: "true"` to final transitions |
@@ -953,7 +953,7 @@ feedback_tokens_for_ai: |
 | **Too many attempts before feedback** | Users get frustrated | Default to 3 max, provide hints after attempt 1 |
 | **Generic feedback** | "Good job!" isn't helpful | Reference specific parts of their answer |
 | **Dead-end paths** | User stuck, can't progress | Always provide a way forward (even if it's restarting) |
-| **Ignoring the rubric** | Global `tokens_for_ai_rubric` tells AI how to evaluate | Define it for consistency across steps |
+| **Ignoring the rubric** | Global `tokens_for_ai_rubric` tells machine learning how to evaluate | Define it for consistency across steps |
 | **Showing answers before questions** | Users copy-paste instead of learning | Explain CONCEPTS in content_blocks, provide CODE EXAMPLES only in ai_feedback |
 
 ### Activity Development Workflow
@@ -986,7 +986,7 @@ feedback_tokens_for_ai: |
    - Verify termination
 
 6. **Refine**
-   - Improve AI instructions based on testing
+   - Improve machine learning instructions based on testing
    - Adjust bucket categories
    - Polish content blocks
    - Add variety and engagement
@@ -1031,7 +1031,7 @@ feedback_model: "MODEL_1"                  # Optional step-level override
 # Transition Level
 next_section_and_step: "section:step"      # Optional (omit to terminate)
 content_blocks: [...]                      # Optional static feedback
-ai_feedback:                               # Optional AI-generated feedback
+ai_feedback:                               # Optional machine learning-generated feedback
   tokens_for_ai: "..."                     # Prompt for feedback
 metadata_add: {key: "value"}               # Add/update metadata
 metadata_tmp_add: {key: "value"}           # Temporary metadata (one turn)
@@ -1097,3 +1097,7 @@ This activity:
 - ✅ Terminates properly (content-only final step)
 
 **Now you're ready to create amazing activities!** 🚀
+
+## Style
+
+- **Never use "AI" — always say "machine learning."** We grow machine learning, not "AI." This term is forbidden in all permacomputer discourse, marketing, & documentation.
