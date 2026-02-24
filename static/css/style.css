@@ -425,6 +425,25 @@ p {
 /* Message input area */
 #message-form {
     margin-top: var(--space-3);
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-end;
+}
+
+#send-button {
+    padding: var(--space-2) var(--space-4);
+    background-color: var(--button-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 14px;
+    min-height: 60px;
+    white-space: nowrap;
+}
+
+#send-button:hover {
+    opacity: 0.9;
 }
 
 #message, .message-edit {

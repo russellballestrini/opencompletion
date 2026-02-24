@@ -17,7 +17,8 @@
 
         <!-- Form for sending messages -->
         <form id="message-form">
-            <textarea id="message" placeholder="Type your message..."></textarea>
+            <textarea id="message" placeholder="Type your message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+            <button type="submit" id="send-button">Send</button>
         </form>
     </div>
 
