@@ -16,10 +16,29 @@
         <div id="chat"></div>
 
         <!-- Form for sending messages -->
-        <form id="message-form">
-            <textarea id="message" placeholder="Type your message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
-            <button type="submit" id="send-button">Send</button>
+        <form id="message-form" onsubmit="return false;">
+            <textarea id="message" placeholder="Type your message..."></textarea>
+            <button type="button" id="send-button" onclick="try{sendMessage();}catch(e){document.getElementById('chat').innerHTML+='<div style=color:red>Send error: '+e.message+'</div>';}">Send</button>
         </form>
+        <script>
+        // Self-contained send logic — runs immediately after form exists
+        (function(){
+            var ta = document.getElementById('message');
+            if(!ta) return;
+            ta.addEventListener('keydown', function(e){
+                if(e.key === 'Enter' && !e.shiftKey){
+                    e.preventDefault();
+                    try {
+                        sendMessage();
+                    } catch(err) {
+                        // Show error visibly in chat
+                        var chat = document.getElementById('chat');
+                        if(chat) chat.innerHTML += '<div style="color:red">Send error: ' + err.message + '</div>';
+                    }
+                }
+            });
+        })();
+        </script>
     </div>
 
     <div class="utility-belt">
