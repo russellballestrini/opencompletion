@@ -11,3 +11,4 @@ vars.sh
 .coverage
 htmlcov/
 unturf-debugging.md
+research/tmp*.yaml
