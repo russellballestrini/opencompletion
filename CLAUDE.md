@@ -2,7 +2,7 @@
 
 ## Git Remotes
 
-This repository has multiple push targets configured on the `origin` remote:
+This repository has multiple push targets configured on our `origin` remote:
 - **GitHub**: `git@github.com:russellballestrini/opencompletion.git` (fetch & push)
 - **unturf**: `ssh://git@git.unturf.com:2222/engineering/unturf/opencompletion.com.git` (push only)
 
@@ -16,12 +16,12 @@ git remote -v
 ## Commit Messages
 - NEVER add Claude attributions like "🤖 Generated with Claude Code" to commit messages
 - NEVER add "Co-Authored-By: Claude <noreply@anthropic.com>" to commit messages
-- Keep commit messages focused on the actual changes and their purpose
+- Keep commit messages focused on our actual changes and their purpose
 - Use conventional commit format when appropriate
 - Be concise but descriptive about what was changed and why
 
 ## Code Style
-- Follow existing code conventions in the project
+- Follow existing code conventions in our project
 - Use appropriate linting tools (black, ruff, etc.) when available
 - Maintain consistent naming and formatting
 
@@ -48,7 +48,7 @@ git remote -v
 - Always add `matplotlib.use("Agg")` before importing matplotlib.pyplot to prevent runtime errors in headless environments
 
 ## Makefile Best Practices
-- Avoid variable substitutions - don't be afraid to be unDRY in the Makefile so engineers can copy and paste
+- Avoid variable substitutions - don't be afraid to be unDRY in our Makefile so engineers can copy and paste
 - Use tabs not spaces, and for fuck sake be happy about it
 
 ## Running OpenCompletion
@@ -99,11 +99,11 @@ git remote -v
 
 ### Code Execution Integration
 
-OpenCompletion integrates with the Unsandbox API (https://unsandbox.com) for secure code execution in 42+ programming languages using the official Python SDK.
+OpenCompletion integrates with our Unsandbox API (https://unsandbox.com) for secure code execution in 42+ programming languages using our official Python SDK.
 
 #### SDK Setup
 
-OpenCompletion uses the official Unsandbox Python SDK (`un.py`) which provides a clean interface to the Unsandbox API.
+OpenCompletion uses our official Unsandbox Python SDK (`un.py`) which provides a clean interface to our Unsandbox API.
 
 **SDK Location**: `/home/fox/git/opencompletion/un.py` (single file, no dependencies beyond `requests`)
 
@@ -118,13 +118,13 @@ curl -O https://git.unturf.com/engineering/unturf/un-inception/-/raw/main/client
 
 #### Authentication
 
-The SDK uses HMAC-SHA256 authentication automatically via environment variables:
+Our SDK uses HMAC-SHA256 authentication automatically via environment variables:
 
 **Environment Variables:**
 - `UNSANDBOX_PUBLIC_KEY` - Public key (unsb-pk-xxxx) used as Bearer token to identify account
 - `UNSANDBOX_SECRET_KEY` - Secret key (unsb-sk-xxxx) used for HMAC signing (never transmitted)
 
-The SDK handles all authentication automatically. No manual HMAC signing required.
+Our SDK handles all authentication automatically. No manual HMAC signing required.
 
 #### Core SDK Methods
 
@@ -183,7 +183,7 @@ Returns: `{"job_id": "job-xxx"}`
 Returns job status and results when completed.
 
 **Cancel Job** (DELETE `/api/code/jobs/<job_id>`):
-Cancels the running or pending job.
+Cancels our running or pending job.
 
 #### Response Format
 
@@ -209,7 +209,7 @@ Cancels the running or pending job.
 
 #### Supported Languages
 
-The SDK supports 42+ languages including:
+Our SDK supports 42+ languages including:
 - **Compiled**: C, C++, Rust, Go, Java, C#, Swift
 - **Interpreted**: Python, Ruby, JavaScript, PHP, Perl, Lua
 - **Scripting**: Bash, PowerShell, Fish
@@ -234,7 +234,7 @@ OpenCompletion supports artifacts generated during code execution (compiled bina
 **How Artifacts Work**:
 - Pass `return_artifact: true` (boolean) in execution requests to enable artifact collection
 - Response includes `artifacts` array with base64-encoded data
-- No separate download endpoint needed - artifacts are embedded in the response
+- No separate download endpoint needed - artifacts are embedded in our response
 - Note: Parameter is singular `return_artifact` but response field is plural `artifacts`
 
 **Artifact Response Format**:
@@ -306,17 +306,17 @@ OpenCompletion supports artifacts generated during code execution (compiled bina
 
 - **Single Shared Game State**: One activity instance per room/channel
 - **Multiple Players**: Zero or more users can participate from different devices
-- **Collaborative Control**: Any user can provide input to advance the shared game
-- **Persistent Metadata**: State is stored in the database per-room, survives browser refreshes
-- **Like "Twitch Plays Pokemon"**: Everyone sees the same state, anyone can control
+- **Collaborative Control**: Any user can provide input to advance our shared game
+- **Persistent Metadata**: State is stored in our database per-room, survives browser refreshes
+- **Like "Twitch Plays Pokemon"**: Everyone sees our same state, anyone can control
 
 **Key Implications:**
-- `metadata` is **shared** across all users in the room - it's the game state, not player-specific
+- `metadata` is **shared** across all users in our room - it's our game state, not player-specific
 - When user "Alice" adds metadata, user "Bob" sees it too (same activity instance)
-- Use metadata for: scores, progress, choices, inventory, flags - anything that's part of the game
-- All users see the same content_blocks, questions, and transitions
-- Multiple users can answer the same question - first valid answer advances the game
-- Activities can be canceled, which deletes the room's activity state
+- Use metadata for: scores, progress, choices, inventory, flags - anything that's part of our game
+- All users see our same content_blocks, questions, and transitions
+- Multiple users can answer our same question - first valid answer advances our game
+- Activities can be canceled, which deletes our room's activity state
 
 **Session Lifecycle:**
 1. Activity starts → Initial state saved to database (room_id, section_id, step_id, metadata)
@@ -393,7 +393,7 @@ export MODEL_API_KEY_3=your-api-key
 export MODEL_NAME_3=model  # Optional: defaults to "model" if not specified
 ```
 
-**Note**: `MODEL_NAME_{n}` is optional and defaults to `"model"`. Some endpoints (like Azure OpenAI) require the actual deployment name - set this variable for those cases.
+**Note**: `MODEL_NAME_{n}` is optional and defaults to `"model"`. Some endpoints (like Azure OpenAI) require our actual deployment name - set this variable for those cases.
 
 **Example: Programming Activity**
 
@@ -475,8 +475,8 @@ export MODEL_API_KEY_3=dummy
 ## Creating Activity YAML Files - Expert Guide
 
 **IMPORTANT: Before creating or modifying any activity YAML files:**
-1. **ALWAYS read `research/SPEC.yaml` first** to ensure you have the latest specification and examples
-2. **ALWAYS validate the YAML after creating/modifying** by running:
+1. **ALWAYS read `research/SPEC.yaml` first** to ensure you have our latest specification and examples
+2. **ALWAYS validate our YAML after creating/modifying** by running:
    ```bash
    python activity_yaml_validator.py research/your_activity.yaml
    ```
@@ -550,7 +550,7 @@ sections:
 - ✅ **Every activity must have `sections`** (at least one)
 - ✅ **Every section needs**: `section_id`, `title`, `steps`
 - ✅ **Every step needs**: `step_id`, `title`, and either `content_blocks` OR `question`
-- ✅ **Section IDs must be unique** within the activity
+- ✅ **Section IDs must be unique** within our activity
 - ✅ **Step IDs must be unique** within each section
 
 #### Bucket & Transition Requirements
@@ -747,7 +747,7 @@ tokens_for_ai: |
 ```
 
 #### 4. **machine learning Personality & Encouragement**
-Make the machine learning engaging:
+Make our machine learning engaging:
 ```yaml
 ai_feedback:
   tokens_for_ai: |
@@ -833,8 +833,8 @@ feedback_tokens_for_ai: |
 
 ### Best Practices for Activity Creation
 
-1. **Start with the Learning Goals**
-   - What should the user know/be able to do after completion?
+1. **Start with our Learning Goals**
+   - What should our user know/be able to do after completion?
    - Design backwards from those outcomes
 
 2. **Write Clear machine learning Instructions**
@@ -854,7 +854,7 @@ feedback_tokens_for_ai: |
    ```
 
 3. **Design Metadata Strategically**
-   - Store meaningful state that affects the experience
+   - Store meaningful state that affects our experience
    - Don't track everything - only what you'll reference
    - Use descriptive key names: `programming_language` not `pl`
 
@@ -953,7 +953,7 @@ feedback_tokens_for_ai: |
 | **Too many attempts before feedback** | Users get frustrated | Default to 3 max, provide hints after attempt 1 |
 | **Generic feedback** | "Good job!" isn't helpful | Reference specific parts of their answer |
 | **Dead-end paths** | User stuck, can't progress | Always provide a way forward (even if it's restarting) |
-| **Ignoring the rubric** | Global `tokens_for_ai_rubric` tells machine learning how to evaluate | Define it for consistency across steps |
+| **Ignoring our rubric** | Global `tokens_for_ai_rubric` tells machine learning how to evaluate | Define it for consistency across steps |
 | **Showing answers before questions** | Users copy-paste instead of learning | Explain CONCEPTS in content_blocks, provide CODE EXAMPLES only in ai_feedback |
 
 ### Activity Development Workflow
@@ -965,7 +965,7 @@ feedback_tokens_for_ai: |
 
 2. **Write YAML**
    - Start with one section
-   - Test it in the simulator
+   - Test it in our simulator
    - Expand incrementally
 
 3. **Validate**
@@ -1100,4 +1100,5 @@ This activity:
 
 ## Style
 
+- Never use "the" — use "our" instead.
 - **Never use "AI" — always say "machine learning."** We grow machine learning, not "AI." This term is forbidden in all permacomputer discourse, marketing, & documentation.
