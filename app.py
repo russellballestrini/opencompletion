@@ -14,6 +14,7 @@ import os
 import random
 
 import boto3
+import requests
 import together
 
 # Unsandbox SDK for code execution
@@ -1245,6 +1246,38 @@ Examples:
         return jsonify({"filename": "compiled_binary"})
 
 
+def _unsandbox_error_response(e, log_label):
+    """Turn an Unsandbox SDK exception into an informative JSON error.
+
+    Surfaces the real upstream HTTP status + body when available instead of a
+    flat 500, so failures are debuggable from the browser console and logs.
+    Never serializes credentials: public/secret keys live in request headers,
+    never in response bodies, so echoing the upstream body is safe.
+    """
+    import traceback
+
+    if isinstance(e, requests.exceptions.HTTPError) and e.response is not None:
+        status = e.response.status_code
+        body = (e.response.text or "")[:2000]
+        print(f"{log_label}: HTTP {status} from Unsandbox: {body}")
+        traceback.print_exc()
+        out_status = status if 400 <= status < 600 else 502
+        return (
+            jsonify(
+                {
+                    "error": "Unsandbox upstream error",
+                    "upstream_status": status,
+                    "upstream_body": body,
+                }
+            ),
+            out_status,
+        )
+
+    print(f"{log_label}: {e}")
+    traceback.print_exc()
+    return jsonify({"error": f"{log_label}: {e}"}), 500
+
+
 # Unsandbox API proxy endpoints - keeps API keys server-side
 @app.route("/api/code/execute", methods=["POST"])
 def proxy_code_execute():
@@ -1292,8 +1325,7 @@ def proxy_code_execute():
         return jsonify({"job_id": result.get("job_id")}), 200
 
     except Exception as e:
-        print(f"Error proxying code execution: {e}")
-        return jsonify({"error": "Failed to execute code"}), 500
+        return _unsandbox_error_response(e, "Error proxying code execution")
 
 
 @app.route("/api/code/jobs/<job_id>", methods=["GET"])
@@ -1311,8 +1343,7 @@ def proxy_job_status(job_id):
         return jsonify(result), 200
 
     except Exception as e:
-        print(f"Error fetching job status: {e}")
-        return jsonify({"error": "Failed to fetch job status"}), 500
+        return _unsandbox_error_response(e, "Error fetching job status")
 
 
 @app.route("/api/code/jobs/<job_id>", methods=["DELETE"])
@@ -1330,8 +1361,7 @@ def proxy_job_cancel(job_id):
         return jsonify(result), 200
 
     except Exception as e:
-        print(f"Error cancelling job: {e}")
-        return jsonify({"error": "Failed to cancel job"}), 500
+        return _unsandbox_error_response(e, "Error cancelling job")
 
 
 @app.route("/api/fix-code", methods=["POST"])
