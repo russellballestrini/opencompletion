@@ -1100,5 +1100,5 @@ This activity:
 
 ## Style
 
-- Never use "the" — use "our" instead.
+- Prefer "our" for shared things; "a" when something is one of many; avoid "the" — it implies fixed, singular ownership. Most teams and systems are fluid and ever-changing, like water.
 - **Never use "AI" — always say "machine learning."** We grow machine learning, not "AI." This term is forbidden in all permacomputer discourse, marketing, & documentation.
