@@ -1444,24 +1444,73 @@ socket.on("message_chunk", (data) => {
         document.getElementById("chat").appendChild(messageWrapper);
     }
 
+    // Reasoning channel: lazy-create a collapsible <details> block above
+    // the message-content div. Only appears if the server actually streams
+    // delta.reasoning_content (i.e., thinking is on AND the model is using it).
+    // Auto-collapses below on the first content delta.
+    if (data.reasoning_content) {
+        let thinkingDetails = messageWrapper.querySelector(".message-thinking");
+        if (!thinkingDetails) {
+            // Ensure a message-body wrapper exists to anchor against
+            let messageBodyWrapper = messageWrapper.querySelector(".message-body");
+            if (!messageBodyWrapper) {
+                messageBodyWrapper = document.createElement("div");
+                messageBodyWrapper.className = "message-body";
+                messageWrapper.appendChild(messageBodyWrapper);
+            }
+            thinkingDetails = document.createElement("details");
+            thinkingDetails.className = "message-thinking";
+            thinkingDetails.open = true;
+            const summary = document.createElement("summary");
+            summary.textContent = "thinking…";
+            thinkingDetails.appendChild(summary);
+            const body = document.createElement("div");
+            body.className = "message-thinking-body";
+            body.style.opacity = "0.6";
+            body.style.fontStyle = "italic";
+            body.style.whiteSpace = "pre-wrap";
+            thinkingDetails.appendChild(body);
+            // Insert at top of message-body so thinking appears above the answer
+            messageBodyWrapper.insertBefore(thinkingDetails, messageBodyWrapper.firstChild);
+        }
+        const body = thinkingDetails.querySelector(".message-thinking-body");
+        body.textContent += data.reasoning_content;
+        if (!userHasScrolledUp) {
+            document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+        }
+        return;  // reasoning deltas don't touch buffer/markdown render
+    }
+
     // If the message-content div doesn't exist, create it
     if (!messageWrapper.querySelector(".message-content")) {
         // Create a message body wrapper to contain both header and content
-        const messageBodyWrapper = document.createElement("div");
-        messageBodyWrapper.className = "message-body";
-        messageWrapper.appendChild(messageBodyWrapper);
-        
+        let messageBodyWrapper = messageWrapper.querySelector(".message-body");
+        if (!messageBodyWrapper) {
+            messageBodyWrapper = document.createElement("div");
+            messageBodyWrapper.className = "message-body";
+            messageWrapper.appendChild(messageBodyWrapper);
+        }
+
         // Create header element for username/model
         const headerElement = document.createElement("div");
         headerElement.className = "message-header";
         messageBodyWrapper.appendChild(headerElement);
-        
+
         // Create content element for actual message content
         targetMessageElement = document.createElement("div");
         targetMessageElement.className = "message-content";
         messageBodyWrapper.appendChild(targetMessageElement);
     } else {
         targetMessageElement = messageWrapper.querySelector(".message-content");
+    }
+
+    // First content delta after thinking: auto-collapse the thinking block
+    // so the answer is the visible focus. Thinking stays one click away.
+    const thinkingDetails = messageWrapper.querySelector(".message-thinking");
+    if (thinkingDetails && thinkingDetails.open) {
+        thinkingDetails.open = false;
+        const summary = thinkingDetails.querySelector("summary");
+        if (summary) summary.textContent = "thinking (click to expand)";
     }
 
     // If the message buffer for this ID doesn't exist, create it

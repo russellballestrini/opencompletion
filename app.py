@@ -2241,7 +2241,21 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
             del cancellation_requests[msg_id]
             break
 
-        content = chunk.choices[0].delta.content
+        delta = chunk.choices[0].delta
+        # Qwen3.x / Deepseek-R1 / o1: thinking streams via delta.reasoning_content,
+        # final answer via delta.content. Forward reasoning deltas to the client
+        # so it can lazy-create a collapsible thinking block; do NOT persist them
+        # (transient, model-private intermediate state).
+        reasoning = getattr(delta, "reasoning_content", None)
+        if reasoning:
+            socketio.emit(
+                "message_chunk",
+                {"id": msg_id, "reasoning_content": reasoning},
+                room=room_name,
+            )
+            socketio.sleep(0)
+
+        content = delta.content
 
         if content:
             buffer += content  # Accumulate content
@@ -2358,7 +2372,18 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
             del cancellation_requests[msg_id]
             break
 
-        content = chunk["choices"][0]["delta"].get("content")
+        delta = chunk["choices"][0]["delta"]
+        # See OpenAI-client path above for rationale on reasoning_content.
+        reasoning = delta.get("reasoning_content")
+        if reasoning:
+            socketio.emit(
+                "message_chunk",
+                {"id": msg_id, "reasoning_content": reasoning},
+                room=room_name,
+            )
+            socketio.sleep(0)
+
+        content = delta.get("content")
 
         if content:
             buffer += content  # Accumulate content
