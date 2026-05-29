@@ -59,6 +59,11 @@
                 Auto-Play TTS: OFF
             </button>
         </div>
+        <div>
+            <button id="show-thinking-btn" onclick="toggleShowThinking()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
+                Thinking: OFF
+            </button>
+        </div>
 
        <div id="activity-controls">
            <h3>Activities</h3>
@@ -147,6 +152,13 @@ let isSyncingDropdowns = false;
 let autoPlayTTS = localStorage.getItem('autoPlayTTS') === 'true' || false;
 let ttsQueue = [];
 let isPlayingTTS = false;
+
+// Thinking-mode state. Default OFF. When OFF we send enable_thinking=false
+// with each chat_message so the server asks the model (Qwen3-style) to skip
+// chain-of-thought entirely — saving tokens, not just hiding output. As a
+// fallback, any reasoning_content that still arrives is dropped client-side
+// (see message_chunk handler). Toggle persists to localStorage.
+let showThinking = localStorage.getItem('showThinking') === 'true';
 
 // Vision model state for auto alt-text
 let visionAvailable = false;
@@ -374,6 +386,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
     
     // Initialize auto-play TTS button state from localStorage
     updateAutoPlayTTSDisplay();
+
+    // Initialize show-thinking button state from localStorage
+    updateShowThinkingDisplay();
 
     // Check for vision model availability (enables image hover descriptions)
     initVisionCapability();
@@ -660,7 +675,8 @@ function sendMessage() {
             "username": username,
             "message": messageToSend,
             "model": model,  // Pass model as a separate attribute
-            "room_name": room_name
+            "room_name": room_name,
+            "enable_thinking": showThinking  // false => ask model to skip chain-of-thought
         });
         messageTextarea.value = "";
         // Reset textarea height after sending
@@ -1112,6 +1128,29 @@ function processNextTTS() {
         });
 }
 
+// Update show-thinking button labels/colors on both desktop + mobile.
+function updateShowThinkingDisplay() {
+    const btn = document.getElementById("show-thinking-btn");
+    const btnMobile = document.getElementById("show-thinking-btn-mobile");
+    const label = showThinking ? "Thinking: ON" : "Thinking: OFF";
+    const color = showThinking ? "#4CAF50" : "#f44336";
+    if (btn) {
+        btn.textContent = label;
+        btn.style.backgroundColor = color;
+    }
+    if (btnMobile) {
+        btnMobile.textContent = label;
+        btnMobile.style.backgroundColor = color;
+    }
+}
+
+// Toggle reasoning_content display. Off by default; persisted in localStorage.
+function toggleShowThinking() {
+    showThinking = !showThinking;
+    localStorage.setItem('showThinking', showThinking.toString());
+    updateShowThinkingDisplay();
+}
+
 // Function to update auto-play TTS button display
 function updateAutoPlayTTSDisplay() {
     const autoPlayBtn = document.getElementById("auto-play-tts-btn");
@@ -1448,7 +1487,10 @@ socket.on("message_chunk", (data) => {
     // the message-content div. Only appears if the server actually streams
     // delta.reasoning_content (i.e., thinking is on AND the model is using it).
     // Auto-collapses below on the first content delta.
+    // Fallback guard: with Thinking OFF the server already suppresses reasoning
+    // at the model, but if a model ignores the switch and streams anyway, drop it.
     if (data.reasoning_content) {
+        if (!showThinking) return;
         let thinkingDetails = messageWrapper.querySelector(".message-thinking");
         if (!thinkingDetails) {
             // Ensure a message-body wrapper exists to anchor against

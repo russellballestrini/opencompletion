@@ -1899,7 +1899,14 @@ def handle_message(data):
             gevent.spawn(generate_dalle_image, room_name, message, username)
         else:
             # All other models (Groq, Together, Mistral, etc.) use OpenAI client
-            gevent.spawn(chat_gpt, username, room_name, model_name=model)
+            enable_thinking = data.get("enable_thinking", True)
+            gevent.spawn(
+                chat_gpt,
+                username,
+                room_name,
+                model_name=model,
+                enable_thinking=enable_thinking,
+            )
 
 
 @socketio.on("delete_message")
@@ -2120,7 +2127,7 @@ def chat_claude(
     socketio.emit("delete_processing_message", msg_id, room=room_name)
 
 
-def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
+def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True):
     openai_client, model_name = get_openai_client_and_model(model_name)
 
     temperature = 0
@@ -2194,23 +2201,29 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini"):
 
     first_chunk = True
 
+    create_kwargs = {
+        "model": model_name,
+        "messages": chat_history,
+        "n": 1,
+        "stream": True,
+    }
+    if "o3" not in model_name:
+        # o3 does not support temperature at all!
+        create_kwargs["temperature"] = temperature
+    if not enable_thinking:
+        # Qwen3 / vLLM-style switch to suppress chain-of-thought and save
+        # tokens. OpenAI's hosted API rejects unknown body params, so only
+        # send to self-hosted OpenAI-compatible endpoints; o1/o3 think
+        # unconditionally and would 400 on this anyway. Models whose chat
+        # template ignores the kwarg (e.g. Hermes) simply drop it.
+        base_url = str(getattr(openai_client, "base_url", "") or "")
+        if "api.openai.com" not in base_url:
+            create_kwargs["extra_body"] = {
+                "chat_template_kwargs": {"enable_thinking": False}
+            }
+
     try:
-        if "o3" in model_name:
-            # o3 does not support temperature at all!
-            chunks = openai_client.chat.completions.create(
-                model=model_name,
-                messages=chat_history,
-                n=1,
-                stream=True,
-            )
-        else:
-            chunks = openai_client.chat.completions.create(
-                model=model_name,
-                messages=chat_history,
-                n=1,
-                temperature=temperature,
-                stream=True,
-            )
+        chunks = openai_client.chat.completions.create(**create_kwargs)
     except Exception as e:
         with app.app_context():
             message_content = f"{model_name} Error: {e}"
