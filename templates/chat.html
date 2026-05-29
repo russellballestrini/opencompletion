@@ -1021,7 +1021,9 @@ function wrapSentencesForGlow(container) {
 // Without it (non-F5 models), we no-op rather than guess.
 function attachSentenceGlow(audio, playButton, sentences) {
     if (!audio || !playButton) return;
-    if (!Array.isArray(sentences) || !sentences.length) return;
+    // Allow an initially-empty array: under SSE it grows as sentences arrive,
+    // and the tick reads its length live. Undefined (non-F5) still no-ops.
+    if (!Array.isArray(sentences)) return;
     const wrapper = playButton.closest('.message-wrapper');
     const container = wrapper && wrapper.querySelector('.message-content');
     if (!container) return;
@@ -1030,7 +1032,6 @@ function attachSentenceGlow(audio, playButton, sentences) {
     const domCount = container._glowSentenceCount || 0;
     if (!spans.length || domCount <= 0) return;
 
-    const serverCount = sentences.length;
     let active = -1;
     function setActive(idx) {
         if (idx === active) return;
@@ -1044,15 +1045,16 @@ function attachSentenceGlow(audio, playButton, sentences) {
     // The rendered message and the synthesized text usually split into the same
     // sentence count; when they don't, map server index onto DOM spans by ratio.
     function domIndexFor(serverIdx) {
-        if (domCount === serverCount) return serverIdx;
-        return Math.min(domCount - 1, Math.floor(serverIdx * domCount / serverCount));
+        const sc = sentences.length || 1;
+        if (domCount === sc) return serverIdx;
+        return Math.min(domCount - 1, Math.floor(serverIdx * domCount / sc));
     }
 
     function tick() {
         if (audio.paused || audio.ended) return;
         const ms = audio.currentTime * 1000;
         let si = 0;
-        for (let i = 0; i < serverCount; i++) {
+        for (let i = 0; i < sentences.length; i++) {
             if (ms >= sentences[i].start_ms) si = i; else break;
         }
         setActive(domIndexFor(si));
@@ -1065,30 +1067,118 @@ function attachSentenceGlow(audio, playButton, sentences) {
     if (!audio.paused) requestAnimationFrame(tick);
 }
 
-// Fetch TTS with exact per-sentence timing (tts-1-f5 only).
-// Returns { audio, blob, blobUrl, sentences }; throws on a non-OK response.
-async function fetchTTSWithTimestamps(cleanText, model, voice) {
+// Decode a base64 string to a Uint8Array.
+function b64ToBytes(b64) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+}
+
+// Parse a fetch byte stream as Server-Sent Events, yielding {event, data}.
+async function* sseEvents(reader) {
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf("\n\n")) >= 0) {
+            const block = buf.slice(0, nl);
+            buf = buf.slice(nl + 2);
+            let ev = "message", data = "";
+            block.split("\n").forEach((line) => {
+                if (line.startsWith("event:")) ev = line.slice(6).trim();
+                else if (line.startsWith("data:")) data += line.slice(5).trim();
+            });
+            yield { event: ev, data: data };
+        }
+    }
+}
+
+// Stream TTS over SSE (tts-1-f5 only). Each event carries one sentence's mp3
+// plus exact timing. Audio feeds an MSE SourceBuffer (sequence mode) so playback
+// starts after sentence 0; `sentences` grows live to drive the glow. Returns
+// { audio, sentences, blobUrl, streamingComplete } — streamingComplete resolves
+// with the full { blob } once every sentence has arrived.
+async function fetchTTSStreamingSSE(cleanText, model, voice) {
+    const mseMime = "audio/mpeg";
+    const canStream = window.MediaSource && MediaSource.isTypeSupported(mseMime);
     const response = await fetch(TTS_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            model: model,
-            voice: voice,
-            input: cleanText,
-            response_format: "mp3",
-            timestamps: true
-        })
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${API_KEY}` },
+        body: JSON.stringify({ model: model, voice: voice, input: cleanText, sse: true })
     });
-    if (!response.ok) {
-        throw new Error(`TTS timestamps request failed: ${response.status}`);
+    if (!response.ok) throw new Error(`TTS SSE request failed: ${response.status}`);
+
+    const sentences = []; // grows as events arrive; shared with the glow
+    const chunks = [];     // mp3 bytes per sentence, for the final blob
+    const reader = response.body.getReader();
+
+    // No MSE for mp3 (e.g. Firefox/Safari): collect all, then play one blob.
+    if (!canStream) {
+        for await (const e of sseEvents(reader)) {
+            if (e.event !== "sentence") continue;
+            const o = JSON.parse(e.data);
+            sentences.push({ index: o.index, text: o.text, start_ms: o.start_ms, end_ms: o.end_ms });
+            chunks.push(b64ToBytes(o.audio_b64));
+        }
+        const blob = new Blob(chunks, { type: mseMime });
+        const blobUrl = URL.createObjectURL(blob);
+        const audio = new Audio(blobUrl);
+        audio.playbackRate = 0.9;
+        return { audio, sentences, blobUrl, streamingComplete: Promise.resolve({ blob }) };
     }
-    const data = await response.json();
-    const bytes = Uint8Array.from(atob(data.audio), function (c) { return c.charCodeAt(0); });
-    const blob = new Blob([bytes], { type: "audio/mpeg" });
-    const blobUrl = URL.createObjectURL(blob);
+
+    const mediaSource = new MediaSource();
+    const blobUrl = URL.createObjectURL(mediaSource);
     const audio = new Audio(blobUrl);
     audio.playbackRate = 0.9;
-    return { audio, blob, blobUrl, sentences: data.sentences || [] };
+
+    const streamingComplete = new Promise((resolve, reject) => {
+        mediaSource.addEventListener("sourceopen", async () => {
+            let sourceBuffer;
+            try {
+                sourceBuffer = mediaSource.addSourceBuffer(mseMime);
+                sourceBuffer.mode = "sequence";
+            } catch (e) { reject(e); return; }
+            const appendQueue = [];
+            let appending = false;
+            function processQueue() {
+                if (appending || appendQueue.length === 0) return;
+                appending = true;
+                try { sourceBuffer.appendBuffer(appendQueue.shift()); }
+                catch (e) { appending = false; }
+            }
+            sourceBuffer.addEventListener("updateend", () => { appending = false; processQueue(); });
+            try {
+                for await (const e of sseEvents(reader)) {
+                    if (e.event === "error") throw new Error("TTS SSE error");
+                    if (e.event !== "sentence") continue;
+                    const o = JSON.parse(e.data);
+                    sentences.push({ index: o.index, text: o.text, start_ms: o.start_ms, end_ms: o.end_ms });
+                    const bytes = b64ToBytes(o.audio_b64);
+                    chunks.push(bytes);
+                    appendQueue.push(bytes.slice().buffer);
+                    processQueue();
+                    if (audio.paused) audio.play().catch(() => {});
+                }
+                await new Promise((res) => {
+                    const check = () => (!appending && appendQueue.length === 0) ? res() : setTimeout(check, 50);
+                    check();
+                });
+                if (mediaSource.readyState === "open") mediaSource.endOfStream();
+                resolve({ blob: new Blob(chunks, { type: mseMime }) });
+            } catch (error) {
+                if (mediaSource.readyState === "open") { try { mediaSource.endOfStream("network"); } catch (e) { /* ignore */ } }
+                reject(error);
+            }
+        });
+        mediaSource.addEventListener("error", () => reject(new Error("MediaSource error")));
+    });
+
+    return { audio, sentences, blobUrl, streamed: true, streamingComplete };
 }
 
 // Function to read text using TTS (for manual button clicks) - now with streaming
@@ -1188,16 +1278,19 @@ async function speakTextQueued(text, playButton, messageId) {
         }
 
         try {
-            // F5 returns exact per-sentence timing — fetch it whole so the glow
-            // syncs to real boundaries. Trades streaming for accurate highlight.
+            // F5 streams over SSE: audio starts after sentence 0 (gapless via MSE)
+            // and the glow tracks exact per-sentence timing as events arrive.
             if (model === 'tts-1-f5') {
-                const result = await fetchTTSWithTimestamps(cleanText, model, voice);
+                const result = await fetchTTSStreamingSSE(cleanText, model, voice);
                 const audio = result.audio;
                 attachSentenceGlow(audio, playButton, result.sentences);
                 bindLifecycle(audio);
-                audioCache[cacheKey] = { blob: result.blob, sentences: result.sentences };
-                enableDownloadButton(messageId, playButton, result.blobUrl, voice);
-                audio.play().catch(reject);
+                // Cache the full clip + final sentence timing once streaming finishes.
+                result.streamingComplete.then(({ blob }) => {
+                    audioCache[cacheKey] = { blob, sentences: result.sentences };
+                    enableDownloadButton(messageId, playButton, URL.createObjectURL(blob), voice);
+                }).catch(e => console.error("TTS SSE completion error:", e));
+                if (audio.paused) audio.play().catch(reject);
                 return;
             }
 
