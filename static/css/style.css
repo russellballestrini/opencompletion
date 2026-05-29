@@ -1382,12 +1382,13 @@ a:hover {
     color: var(--text-secondary);
 }
 
-/* Per-sentence glow while TTS reads a message aloud */
+/* Per-sentence highlight while TTS reads a message aloud */
 .tts-sentence {
-    border-radius: 3px;
-    transition: background-color 0.12s ease, box-shadow 0.12s ease, color 0.12s ease;
+    border-radius: 2px;
+    transition: background-color 0.12s ease;
 }
 .tts-sentence.tts-reading {
-    background: rgba(255, 214, 92, 0.30);
-    box-shadow: 0 0 10px 2px rgba(255, 200, 70, 0.55);
+    background: rgba(255, 209, 64, 0.45);
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
 }
