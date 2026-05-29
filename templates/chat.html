@@ -143,6 +143,7 @@ const dompurify_config = {
 let userHasScrolledUp = false;
 let currentAudio = null; // To keep track of the currently playing audio
 let currentQueuedAudio = null; // To keep track of currently playing queued TTS audio
+let currentQueuedMessageId = null; // messageId of the queued audio currently playing (for cleanup on delete)
 let audioCache = {}; // Cache to store audio blobs
 
 // Flag to prevent mutual updates on desktop/mobile
@@ -1240,8 +1241,9 @@ function processNextTTS() {
     
     isPlayingTTS = true;
     const { text, playButton, messageId } = ttsQueue.shift();
+    currentQueuedMessageId = messageId;
     console.log("Processing TTS from queue:", messageId);
-    
+
     // Use non-blocking async processing
     speakTextQueued(text, playButton, messageId)
         .then(() => {
@@ -1252,6 +1254,7 @@ function processNextTTS() {
         })
         .finally(() => {
             isPlayingTTS = false;
+            currentQueuedMessageId = null;
             // Schedule next item with minimal delay to prevent blocking
             setTimeout(processNextTTS, 10);
         });
@@ -1331,8 +1334,9 @@ function toggleAutoPlayTTS() {
             currentQueuedAudio.currentTime = 0;
             currentQueuedAudio = null;
         }
+        currentQueuedMessageId = null;
     }
-    
+
     updateAutoPlayTTSDisplay();
 }
 
@@ -1803,6 +1807,30 @@ socket.on("message_deleted", (data) => {
     const messageElement = document.getElementById("message-" + data.message_id);
     if (messageElement) {
         messageElement.remove();
+    }
+
+    // Drop cached TTS audio for this message (keys are `${messageId}-${voice}`).
+    // The trailing dash keeps "12-" from matching "120-...".
+    const cachePrefix = data.message_id + "-";
+    Object.keys(audioCache).forEach((key) => {
+        if (key.startsWith(cachePrefix)) {
+            delete audioCache[key];
+        }
+    });
+
+    // Remove any pending queue entries for this message so the rest play in order.
+    ttsQueue = ttsQueue.filter((item) => item.messageId != data.message_id);
+
+    // If it's the message currently playing, stop it and advance the queue.
+    if (currentQueuedMessageId != null && currentQueuedMessageId == data.message_id) {
+        if (currentQueuedAudio) {
+            currentQueuedAudio.pause();
+            currentQueuedAudio.currentTime = 0;
+            currentQueuedAudio = null;
+        }
+        currentQueuedMessageId = null;
+        isPlayingTTS = false;
+        setTimeout(processNextTTS, 10);
     }
 });
 
