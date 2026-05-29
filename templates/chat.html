@@ -60,8 +60,8 @@
             </button>
         </div>
         <div>
-            <button id="show-thinking-btn" onclick="toggleShowThinking()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
-                Thinking: OFF
+            <button id="show-thinking-btn" onclick="toggleShowThinking()" style="width: 100%; margin-top: 10px; background-color: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
+                Thinking: ON
             </button>
         </div>
 
@@ -153,12 +153,12 @@ let autoPlayTTS = localStorage.getItem('autoPlayTTS') === 'true' || false;
 let ttsQueue = [];
 let isPlayingTTS = false;
 
-// Thinking-mode state. Default OFF. When OFF we send enable_thinking=false
+// Thinking-mode state. Default ON. When OFF we send enable_thinking=false
 // with each chat_message so the server asks the model (Qwen3-style) to skip
 // chain-of-thought entirely — saving tokens, not just hiding output. As a
 // fallback, any reasoning_content that still arrives is dropped client-side
 // (see message_chunk handler). Toggle persists to localStorage.
-let showThinking = localStorage.getItem('showThinking') === 'true';
+let showThinking = localStorage.getItem('showThinking') !== 'false';
 
 // Vision model state for auto alt-text
 let visionAvailable = false;
@@ -1294,7 +1294,7 @@ function updateShowThinkingDisplay() {
     }
 }
 
-// Toggle reasoning_content display. Off by default; persisted in localStorage.
+// Toggle thinking mode. On by default; persisted in localStorage.
 function toggleShowThinking() {
     showThinking = !showThinking;
     localStorage.setItem('showThinking', showThinking.toString());
