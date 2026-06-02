@@ -650,27 +650,15 @@ def favicon():
 
 @app.route("/")
 def index():
-    # Get statistics for homepage
     total_public_rooms = Room.query.filter_by(is_private=False, is_archived=False).count()
     total_private_rooms = 0
     user = auth.get_current_user()
     if user:
         total_private_rooms = Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id).count()
 
-    # Active rooms - rooms with at least one message
-    active_public_rooms = db.session.query(Room.id).join(Message).filter(
-        Room.is_private == False,
-        Room.is_archived == False
-    ).distinct().count()
-
-    # Total active users (from UserSession)
-    active_users = UserSession.query.distinct(UserSession.username).count()
-
     stats = {
         'total_public_rooms': total_public_rooms,
         'total_private_rooms': total_private_rooms,
-        'active_public_rooms': active_public_rooms,
-        'active_users': active_users,
     }
 
     return render_template("index.html", stats=stats, user=user)
