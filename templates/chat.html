@@ -1254,12 +1254,23 @@ async function speakTextQueued(text, playButton, messageId) {
 
         function bindLifecycle(audio) {
             currentQueuedAudio = audio;
+            // Save the message-level click handler so we can restore it
+            // once this queued audio ends — it's how replay-from-cache works.
+            const originalClick = playButton.onclick;
+            const toggleThisAudio = () => {
+                if (audio.paused) audio.play();
+                else audio.pause();
+            };
             audio.onplay = () => {
                 playButton.classList.remove("tts-queued", "tts-loading");
                 playButton.disabled = false;
                 playButton.textContent = "Pause";
                 currentAudio = audio;
                 currentAudio.playButton = playButton;
+                // Click should pause/resume THIS audio while it owns playback.
+                // Without this, the original onclick re-runs speakText and
+                // restarts from the cached blob — sounds like a double-play.
+                playButton.onclick = toggleThisAudio;
             };
             audio.onpause = () => {
                 if (!audio.ended) playButton.textContent = "Play";
@@ -1269,6 +1280,7 @@ async function speakTextQueued(text, playButton, messageId) {
                 playButton.classList.remove("tts-queued", "tts-loading");
                 playButton.disabled = false;
                 playButton.textContent = "Play";
+                playButton.onclick = originalClick;
                 currentQueuedAudio = null;
                 resolve();
             };
@@ -1277,6 +1289,7 @@ async function speakTextQueued(text, playButton, messageId) {
                 playButton.classList.remove("tts-queued", "tts-loading");
                 playButton.disabled = false;
                 playButton.textContent = "Play";
+                playButton.onclick = originalClick;
                 currentQueuedAudio = null;
                 reject(new Error("Audio playback failed"));
             };
