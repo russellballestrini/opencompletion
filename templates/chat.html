@@ -1193,6 +1193,25 @@ async function speakText(text, playButton, messageId) {
     // Clean the text to include only alphanumeric characters, spaces, and key punctuation
     const cleanText = text.replace(/[^a-zA-Z0-9\s.,!?]/g, '');
 
+    // Wire button + glow to THIS audio while it owns playback. While live, clicks
+    // toggle pause/resume on this audio (via toggleAudioPlayback for cross-message
+    // safety). When audio ends or errors, the original speakText handler is
+    // restored so users can replay from cache.
+    function takeOver(audio, sentences) {
+        const originalClick = playButton.onclick;
+        playButton.onclick = () => toggleAudioPlayback(audio, playButton);
+        audio.addEventListener('ended', () => {
+            playButton.textContent = "Play";
+            playButton.onclick = originalClick;
+        });
+        audio.addEventListener('error', () => {
+            playButton.textContent = "Play";
+            playButton.onclick = originalClick;
+        });
+        // attachSentenceGlow no-ops when sentences is undefined (non-F5 models).
+        attachSentenceGlow(audio, playButton, sentences);
+    }
+
     try {
         // Check if the audio is already cached
         if (audioCache[cacheKey]) {
@@ -1202,6 +1221,7 @@ async function speakText(text, playButton, messageId) {
             const audio = new Audio(audioUrl);
             audio.playbackRate = 0.9;
             enableDownloadButton(messageId, playButton, audioUrl, voice);
+            takeOver(audio, cachedData.sentences);
             toggleAudioPlayback(audio, playButton);
             return;
         }
@@ -1211,26 +1231,37 @@ async function speakText(text, playButton, messageId) {
         playButton.classList.add("tts-loading");
         playButton.disabled = true;
 
-        // Use streaming TTS
+        // F5: SSE gives per-sentence timing so the glow lights live during read.
+        if (model === 'tts-1-f5') {
+            const result = await fetchTTSStreamingSSE(cleanText, model, voice);
+            const audio = result.audio;
+            playButton.classList.remove("tts-loading");
+            playButton.disabled = false;
+            takeOver(audio, result.sentences);
+            toggleAudioPlayback(audio, playButton);
+            result.streamingComplete.then(({ blob }) => {
+                audioCache[cacheKey] = { blob, sentences: result.sentences };
+                enableDownloadButton(messageId, playButton, URL.createObjectURL(blob), voice);
+            }).catch(e => console.error("TTS SSE completion error:", e));
+            return;
+        }
+
+        // Other models: streaming playback, no glow (no per-sentence timing).
         const result = await fetchTTSStreaming(cleanText, model, voice);
         const audio = result.audio;
-
-        // Enable button immediately and start playback
         playButton.classList.remove("tts-loading");
         playButton.disabled = false;
+        takeOver(audio, undefined);
         toggleAudioPlayback(audio, playButton);
 
         // Handle streaming completion for caching and download button
         if (result.streamed && result.streamingComplete) {
             result.streamingComplete.then(({ blob }) => {
-                // Cache the blob for replay
                 audioCache[cacheKey] = { blob };
-                // Create downloadable URL from blob
                 const downloadUrl = URL.createObjectURL(blob);
                 enableDownloadButton(messageId, playButton, downloadUrl, voice);
             }).catch(e => console.error("Streaming completion error:", e));
         } else {
-            // Non-streamed fallback - cache immediately
             audioCache[cacheKey] = { blob: result.blob };
             enableDownloadButton(messageId, playButton, result.blobUrl, voice);
         }
@@ -1257,10 +1288,9 @@ async function speakTextQueued(text, playButton, messageId) {
             // Save the message-level click handler so we can restore it
             // once this queued audio ends — it's how replay-from-cache works.
             const originalClick = playButton.onclick;
-            const toggleThisAudio = () => {
-                if (audio.paused) audio.play();
-                else audio.pause();
-            };
+            // Route clicks through toggleAudioPlayback so we still pause any
+            // other audio that owns currentAudio (cross-message safety).
+            const toggleThisAudio = () => toggleAudioPlayback(audio, playButton);
             audio.onplay = () => {
                 playButton.classList.remove("tts-queued", "tts-loading");
                 playButton.disabled = false;
