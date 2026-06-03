@@ -1395,10 +1395,20 @@ a:hover {
 
 /* TTS play-button states: queued (waiting in line) → loading (fetching) → playing.
    Gives auto-play users a visible signal during the gap between message arrival
-   and audio start, so the wait doesn't feel like a hang. */
+   and audio start, so the wait doesn't feel like a hang. Explicit colors keep
+   the disabled state legible in both light and dark themes (browser default
+   disabled greys out to near-invisible against dark backgrounds). */
+.tts-queued,
+.tts-loading,
+.tts-queued:disabled,
+.tts-loading:disabled {
+    background-color: var(--button-secondary);
+    color: #ffffff;
+    border: 1px solid var(--button-secondary);
+    opacity: 1;
+}
 .tts-queued {
     cursor: wait !important;
-    opacity: 0.85;
 }
 .tts-queued::after {
     content: "•";
