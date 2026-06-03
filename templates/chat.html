@@ -995,7 +995,27 @@ function wrapSentencesForGlow(container) {
     // replay after a re-render finds the flag set, skips wrapping, and the
     // glow no-ops because querySelectorAll('.tts-sentence') comes back empty.
     if (container.dataset.glowWrapped === '1' && container.querySelector('.tts-sentence')) return;
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+    // chat_message (non-streaming) inlines the sender header into message-content
+    // as "<p><strong>[name](link):</strong></p>" — message_chunk uses a separate
+    // .message-header div. If we wrap the header as sentence 0, manual Play
+    // highlights the sender name instead of the actual first sentence. Detect
+    // the pattern (top-level <p> with one <strong> child, text ending in ":")
+    // and exclude it from the walk.
+    let headerParagraph = null;
+    const first = container.firstElementChild;
+    if (first && first.tagName === 'P' &&
+        first.children.length === 1 &&
+        first.firstElementChild &&
+        first.firstElementChild.tagName === 'STRONG' &&
+        first.textContent.trim().endsWith(':')) {
+        headerParagraph = first;
+    }
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+            if (headerParagraph && headerParagraph.contains(node)) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
     const nodes = [];
     let t;
     while ((t = walker.nextNode())) { if (t.nodeValue && t.nodeValue.trim()) nodes.push(t); }
@@ -1039,29 +1059,17 @@ function wrapSentencesForGlow(container) {
 // array from the speech service: [{index, text, start_ms, end_ms}, ...].
 // Without it (non-F5 models), we no-op rather than guess.
 function attachSentenceGlow(audio, playButton, sentences) {
-    console.log("[glow] attach called", {
-        hasAudio: !!audio,
-        hasButton: !!playButton,
-        sentencesType: Array.isArray(sentences) ? 'array' : typeof sentences,
-        sentencesLen: Array.isArray(sentences) ? sentences.length : -1
-    });
-    if (!audio || !playButton) { console.log("[glow] bail: missing audio/button"); return; }
+    if (!audio || !playButton) return;
     // Allow an initially-empty array: under SSE it grows as sentences arrive,
     // and the tick reads its length live. Undefined (non-F5) still no-ops.
-    if (!Array.isArray(sentences)) { console.log("[glow] bail: sentences not array"); return; }
+    if (!Array.isArray(sentences)) return;
     const wrapper = playButton.closest('.message-wrapper');
     const container = wrapper && wrapper.querySelector('.message-content');
-    if (!container) { console.log("[glow] bail: no container"); return; }
+    if (!container) return;
     wrapSentencesForGlow(container);
     const spans = container.querySelectorAll('.tts-sentence');
     const domCount = container._glowSentenceCount || 0;
-    console.log("[glow] post-wrap", {
-        spans: spans.length,
-        domCount,
-        glowWrappedFlag: container.dataset.glowWrapped,
-        containerHasContent: container.textContent.substring(0, 50)
-    });
-    if (!spans.length || domCount <= 0) { console.log("[glow] bail: no spans"); return; }
+    if (!spans.length || domCount <= 0) return;
 
     let active = -1;
     function setActive(idx) {
