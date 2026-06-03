@@ -975,7 +975,13 @@ async function fetchTTSStreaming(cleanText, model, voice) {
 // comparing audio.currentTime to those boundaries. No Web Audio / RMS heuristics.
 
 function wrapSentencesForGlow(container) {
-    if (!container || container.dataset.glowWrapped === '1') return;
+    if (!container) return;
+    // Skip only if the previous wrap survives. innerHTML overwrites (streaming
+    // chunks, message_updated, edit/save) wipe the spans but the dataset flag
+    // lives on the container itself — without this spans-present check, manual
+    // replay after a re-render finds the flag set, skips wrapping, and the
+    // glow no-ops because querySelectorAll('.tts-sentence') comes back empty.
+    if (container.dataset.glowWrapped === '1' && container.querySelector('.tts-sentence')) return;
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
     const nodes = [];
     let t;
