@@ -1392,3 +1392,39 @@ a:hover {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
 }
+
+/* TTS play-button states: queued (waiting in line) → loading (fetching) → playing.
+   Gives auto-play users a visible signal during the gap between message arrival
+   and audio start, so the wait doesn't feel like a hang. */
+.tts-queued {
+    cursor: wait !important;
+    opacity: 0.85;
+}
+.tts-queued::after {
+    content: "•";
+    display: inline-block;
+    margin-left: 6px;
+    animation: ttsPulse 1.2s ease-in-out infinite;
+}
+.tts-loading {
+    cursor: progress !important;
+}
+.tts-loading::after {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-left: 8px;
+    vertical-align: -1px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: ttsSpin 0.7s linear infinite;
+}
+@keyframes ttsPulse {
+    0%, 100% { opacity: 0.3; }
+    50%      { opacity: 1; }
+}
+@keyframes ttsSpin {
+    to { transform: rotate(360deg); }
+}

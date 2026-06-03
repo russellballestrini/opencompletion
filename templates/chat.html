@@ -1207,7 +1207,8 @@ async function speakText(text, playButton, messageId) {
         }
 
         // Set button to streaming state
-        playButton.textContent = "Streaming...";
+        playButton.textContent = "Loading";
+        playButton.classList.add("tts-loading");
         playButton.disabled = true;
 
         // Use streaming TTS
@@ -1215,6 +1216,7 @@ async function speakText(text, playButton, messageId) {
         const audio = result.audio;
 
         // Enable button immediately and start playback
+        playButton.classList.remove("tts-loading");
         playButton.disabled = false;
         toggleAudioPlayback(audio, playButton);
 
@@ -1234,6 +1236,7 @@ async function speakText(text, playButton, messageId) {
         }
     } catch (error) {
         console.error('Error in TTS:', error);
+        playButton.classList.remove("tts-loading");
         playButton.textContent = "Play"; // Reset button text on error
         playButton.disabled = false;
     }
@@ -1251,13 +1254,29 @@ async function speakTextQueued(text, playButton, messageId) {
 
         function bindLifecycle(audio) {
             currentQueuedAudio = audio;
+            audio.onplay = () => {
+                playButton.classList.remove("tts-queued", "tts-loading");
+                playButton.disabled = false;
+                playButton.textContent = "Pause";
+                currentAudio = audio;
+                currentAudio.playButton = playButton;
+            };
+            audio.onpause = () => {
+                if (!audio.ended) playButton.textContent = "Play";
+            };
             audio.onended = () => {
                 console.log("TTS finished for:", messageId);
+                playButton.classList.remove("tts-queued", "tts-loading");
+                playButton.disabled = false;
+                playButton.textContent = "Play";
                 currentQueuedAudio = null;
                 resolve();
             };
             audio.onerror = () => {
                 console.error("TTS audio error for:", messageId);
+                playButton.classList.remove("tts-queued", "tts-loading");
+                playButton.disabled = false;
+                playButton.textContent = "Play";
                 currentQueuedAudio = null;
                 reject(new Error("Audio playback failed"));
             };
@@ -1319,6 +1338,9 @@ async function speakTextQueued(text, playButton, messageId) {
                 audio.play().catch(reject);
             }
         } catch (error) {
+            playButton.classList.remove("tts-queued", "tts-loading");
+            playButton.disabled = false;
+            playButton.textContent = "Play";
             reject(error);
         }
     });
@@ -1328,6 +1350,11 @@ async function speakTextQueued(text, playButton, messageId) {
 function queueTTS(text, playButton, messageId) {
     ttsQueue.push({ text, playButton, messageId });
     console.log("Added to TTS queue:", messageId, "Queue length:", ttsQueue.length);
+    // Immediately show "Queued" so users see TTS is incoming even before fetch starts.
+    playButton.classList.remove("tts-loading");
+    playButton.classList.add("tts-queued");
+    playButton.disabled = true;
+    playButton.textContent = "Queued";
     processNextTTS();
 }
 
@@ -1341,6 +1368,12 @@ function processNextTTS() {
     const { text, playButton, messageId } = ttsQueue.shift();
     currentQueuedMessageId = messageId;
     console.log("Processing TTS from queue:", messageId);
+
+    // Swap "Queued" indicator for active "Loading" spinner while we fetch audio.
+    playButton.classList.remove("tts-queued");
+    playButton.classList.add("tts-loading");
+    playButton.disabled = true;
+    playButton.textContent = "Loading";
 
     // Use non-blocking async processing
     speakTextQueued(text, playButton, messageId)
@@ -1413,6 +1446,14 @@ function toggleAutoPlayTTS() {
     // If turning off, clear the queue and stop current audio
     if (!autoPlayTTS) {
         console.log("Clearing TTS queue, had", ttsQueue.length, "items");
+        // Reset any buttons that were showing the Queued/Loading indicator.
+        ttsQueue.forEach((item) => {
+            if (item.playButton) {
+                item.playButton.classList.remove("tts-queued", "tts-loading");
+                item.playButton.disabled = false;
+                item.playButton.textContent = "Play";
+            }
+        });
         ttsQueue = [];
         isPlayingTTS = false;
         
