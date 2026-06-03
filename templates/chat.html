@@ -1039,17 +1039,29 @@ function wrapSentencesForGlow(container) {
 // array from the speech service: [{index, text, start_ms, end_ms}, ...].
 // Without it (non-F5 models), we no-op rather than guess.
 function attachSentenceGlow(audio, playButton, sentences) {
-    if (!audio || !playButton) return;
+    console.log("[glow] attach called", {
+        hasAudio: !!audio,
+        hasButton: !!playButton,
+        sentencesType: Array.isArray(sentences) ? 'array' : typeof sentences,
+        sentencesLen: Array.isArray(sentences) ? sentences.length : -1
+    });
+    if (!audio || !playButton) { console.log("[glow] bail: missing audio/button"); return; }
     // Allow an initially-empty array: under SSE it grows as sentences arrive,
     // and the tick reads its length live. Undefined (non-F5) still no-ops.
-    if (!Array.isArray(sentences)) return;
+    if (!Array.isArray(sentences)) { console.log("[glow] bail: sentences not array"); return; }
     const wrapper = playButton.closest('.message-wrapper');
     const container = wrapper && wrapper.querySelector('.message-content');
-    if (!container) return;
+    if (!container) { console.log("[glow] bail: no container"); return; }
     wrapSentencesForGlow(container);
     const spans = container.querySelectorAll('.tts-sentence');
     const domCount = container._glowSentenceCount || 0;
-    if (!spans.length || domCount <= 0) return;
+    console.log("[glow] post-wrap", {
+        spans: spans.length,
+        domCount,
+        glowWrappedFlag: container.dataset.glowWrapped,
+        containerHasContent: container.textContent.substring(0, 50)
+    });
+    if (!spans.length || domCount <= 0) { console.log("[glow] bail: no spans"); return; }
 
     let active = -1;
     function setActive(idx) {
