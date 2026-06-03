@@ -129,9 +129,22 @@ const AUDIO_FORMAT = detectAudioFormat();
 // Get username from server (authenticated user's display name or None)
 let username = {% if username %}"{{ username }}"{% else %}null{% endif %};
 
-// If not authenticated, prompt for username
-if (!username) {
-    username = prompt("Enter your username:", "guest") || "guest";
+// Guest usernames stick in localStorage across page loads so you don't have
+// to retype them. The cache is invalidated on any login/logout transition:
+// - logging in lands on a page with a server-provided username → we clear it
+// - logging out lands on a page with no server username and (after the prior
+//   clear-on-login) no cache → we prompt fresh
+const GUEST_USERNAME_KEY = 'guestUsername';
+if (username) {
+    localStorage.removeItem(GUEST_USERNAME_KEY);
+} else {
+    const cached = localStorage.getItem(GUEST_USERNAME_KEY);
+    if (cached) {
+        username = cached;
+    } else {
+        username = prompt("Enter your username:", "guest") || "guest";
+        localStorage.setItem(GUEST_USERNAME_KEY, username);
+    }
 }
 
 // Configuration for DOMPurify to specify which tags and attributes are allowed
