@@ -884,9 +884,8 @@ def logout():
 
 
 @app.route("/profile")
-@auth.require_auth
 def profile_page():
-    """Profile settings page"""
+    """Profile settings page — works for both authenticated users and guests."""
     user = auth.get_current_user()
     return render_template("profile.html", user=user)
 
