@@ -1,6 +1,7 @@
 import json
 import yaml
 import os
+import threading
 import random
 import gevent
 
@@ -37,6 +38,9 @@ from activity_utils import (
     create_template_context,
     create_completion_skip_thinking,
     strip_reasoning,
+    resolve_bucket,
+    fold_first_token_logprobs,
+    first_token_top_logprobs,
 )
 
 
@@ -467,13 +471,20 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                     classifier_model,
                 )
 
-                # Emit the category to the frontend
+                # Emit the category to the frontend, with the classifier's
+                # confidence when the provider gave one.
+                _ro = last_readout()
+                _conf = (
+                    f" (confidence {_ro['p']:.0%})"
+                    if _ro and _ro.get("p") is not None
+                    else ""
+                )
                 socketio.emit(
                     "chat_message",
                     {
                         "id": None,
                         "username": "System",
-                        "content": f"Category: {category}",
+                        "content": f"Category: {category}{_conf}",
                     },
                     room=room_name,
                 )
@@ -1385,17 +1396,37 @@ def categorize_response(question, response, buckets, tokens_for_ai, model="MODEL
         },
     ]
 
+    simple_format = "BUCKET:" not in system_content
     try:
-        completion = create_completion_skip_thinking(
-            openai_client,
+        create_kwargs = dict(
             model=model_name,
             messages=messages,
             n=1,
             max_tokens=150,  # Increased for ANALYSIS + BUCKET format
             temperature=0,
         )
+        if simple_format:
+            # The simple format answers with the bucket name first, so the
+            # first token's top_logprobs are a distribution over the buckets:
+            # a confidence readout beside the verdict (see last_readout).
+            # Retried without when a hosted provider rejects the fields.
+            try:
+                completion = create_completion_skip_thinking(
+                    openai_client, logprobs=True, top_logprobs=20, **create_kwargs
+                )
+            except Exception as e:
+                if "logprob" not in str(e).lower():
+                    raise
+                completion = create_completion_skip_thinking(
+                    openai_client, **create_kwargs
+                )
+        else:
+            completion = create_completion_skip_thinking(openai_client, **create_kwargs)
         full_response = strip_reasoning(completion.choices[0].message.content.strip())
         print(f"DEBUG BUCKET CATEGORIZATION: Full Hermes response: {full_response}")
+        _record_readout(
+            first_token_top_logprobs(completion) if simple_format else None, buckets
+        )
 
         # Handle both ANALYSIS/BUCKET format and simple bucket response
         if "BUCKET:" in full_response:
@@ -1424,10 +1455,56 @@ def categorize_response(question, response, buckets, tokens_for_ai, model="MODEL
             # Simple bucket response (old format)
             category = full_response.lower().replace(" ", "_")
 
-        print(f"DEBUG BUCKET CATEGORIZATION: Extracted category: {category}")
+        # A verdict is one of the step's buckets or nothing: "Partial
+        # Understanding." used to reach the transition lookup as
+        # "partial_understanding." & tell the student "Unrecognized category".
+        resolved = resolve_bucket(category, buckets)
+        if resolved is not None:
+            category = (
+                resolved["bucket_name"] if isinstance(resolved, dict) else resolved
+            )
+        readout = last_readout()
+        print(
+            f"DEBUG BUCKET CATEGORIZATION: Extracted category: {category}"
+            + (
+                f" (p={readout['p']:.2f} mass={readout['mass']:.2f})"
+                if readout and readout.get("p") is not None
+                else ""
+            )
+        )
         return category
     except Exception as e:
         return f"Error: {e}"
+
+
+# Per-thread confidence readout of the last categorize_response call. Socket
+# handlers run concurrently, so a module global would interleave rooms.
+_readout = threading.local()
+
+
+def _record_readout(top, buckets):
+    if not top:
+        _readout.last = None
+        return
+    dist, mass = fold_first_token_logprobs(top, buckets)
+    best = max(dist, key=dist.get) if dist else None
+    _readout.last = {
+        "p": round(dist[best], 4) if best and mass else None,
+        "argmax": best if mass else None,
+        "mass": round(mass, 4),
+        "dist": {k: round(v, 3) for k, v in dist.items() if v},
+    }
+
+
+def last_readout():
+    """{p, argmax, mass, dist} of this thread's last categorize_response, or
+    None when the provider returned no logprobs (ANALYSIS/BUCKET format,
+    hosted providers that reject the field). p is the probability the model
+    put on its verdict's first token. Measured 2026-09-16 on Qwen3.6-27B in
+    unhomeschool (same lesson shape, 239 labeled evals): verdicts correct 25%
+    / 31% / 50% / 77% across p bands <.5 / .5-.7 / .7-.9 / >=.9. A readout an
+    activity author reads, never a grade."""
+    return getattr(_readout, "last", None)
 
 
 # Generate AI feedback

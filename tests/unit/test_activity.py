@@ -285,6 +285,78 @@ class TestCategorizeResponse(unittest.TestCase):
         self.assertEqual(result, "correct")
 
     @patch("activity.get_openai_client_and_model")
+    def test_categorize_response_resolves_to_a_bucket_and_reads_confidence(
+        self, mock_get_client
+    ):
+        """A verdict is one of the step's buckets or nothing: trailing
+        punctuation, case, spaces and a "correct" inside "incorrect" all
+        resolve to the bucket the model meant instead of reaching the
+        transition lookup as an Unrecognized category. On the simple format
+        the call asks for logprobs and last_readout() carries p."""
+        import math
+        from activity import categorize_response, last_readout
+
+        mock_client = MagicMock()
+        mock_get_client.return_value = (mock_client, "qwen")
+        buckets = ["correct", "incorrect", "partial_understanding"]
+
+        def reply(text, top=None):
+            r = MagicMock()
+            r.choices = [MagicMock()]
+            r.choices[0].message.content.strip.return_value = text
+            if top is None:
+                r.choices[0].logprobs = None
+            else:
+                r.choices[0].logprobs.content = [MagicMock()]
+                r.choices[0].logprobs.content[0].top_logprobs = [
+                    {"token": tok, "logprob": math.log(pr)} for tok, pr in top
+                ]
+            return r
+
+        cases = [
+            ("Incorrect.", "incorrect"),
+            ("Partial Understanding", "partial_understanding"),
+            ("BUCKET: correct (the student got it)", "correct"),
+            ("no idea", "no_idea"),  # nothing matched: the raw text goes on
+        ]
+        for text, want in cases:
+            with self.subTest(text=text):
+                mock_client.chat.completions.create.return_value = reply(text)
+                self.assertEqual(
+                    categorize_response("Q", "A", buckets, "grade it"), want
+                )
+                self.assertIsNone(last_readout())
+        kw = mock_client.chat.completions.create.call_args[1]
+        self.assertTrue(kw["logprobs"])
+        self.assertEqual(kw["top_logprobs"], 20)
+
+        mock_client.chat.completions.create.return_value = reply(
+            "partial_understanding",
+            [("partial", 0.76), ("in", 0.19), ("correct", 0.05)],
+        )
+        self.assertEqual(
+            categorize_response("Q", "A", buckets, "grade it"),
+            "partial_understanding",
+        )
+        r = last_readout()
+        self.assertEqual(r["argmax"], "partial_understanding")
+        self.assertAlmostEqual(r["p"], 0.76, places=3)
+        self.assertEqual(r["mass"], 1.0)
+
+        # ANALYSIS/BUCKET format: no logprobs asked, no readout, bucket resolved.
+        mock_client.chat.completions.create.return_value = reply(
+            "ANALYSIS: close\nBUCKET: Partial Understanding."
+        )
+        self.assertEqual(
+            categorize_response(
+                "Q", "A", buckets, "ANALYSIS: ... BUCKET: ..."
+            ),
+            "partial_understanding",
+        )
+        self.assertNotIn("logprobs", mock_client.chat.completions.create.call_args[1])
+        self.assertIsNone(last_readout())
+
+    @patch("activity.get_openai_client_and_model")
     def test_categorize_response_with_spaces(self, mock_get_client):
         """Test categorization handles extra spaces"""
         from activity import categorize_response

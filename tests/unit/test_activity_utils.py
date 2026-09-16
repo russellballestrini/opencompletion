@@ -14,6 +14,8 @@ Tests cover:
 import pytest
 import re
 from activity_utils import (
+    resolve_bucket,
+    fold_first_token_logprobs,
     render_template,
     evaluate_condition,
     check_conditions,
@@ -594,3 +596,47 @@ class TestIntegration:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestBucketResolutionAndFold:
+    """resolve_bucket maps classifier text onto a step bucket (longest name
+    first, so "correct" inside "incorrect" grades nothing right by
+    accident); fold_first_token_logprobs turns a first-token top_logprobs
+    list into a distribution over bucket names."""
+
+    def test_resolve_bucket(self):
+        buckets = ["correct", "incorrect", "partial_understanding", 3, True]
+        assert resolve_bucket("Incorrect.", buckets) == "incorrect"
+        assert resolve_bucket("correct", buckets) == "correct"
+        assert resolve_bucket("Partial Understanding", buckets) == "partial_understanding"
+        assert resolve_bucket("3", buckets) == 3
+        assert resolve_bucket("true", buckets) is True
+        assert resolve_bucket("no idea", buckets) is None
+        assert resolve_bucket("", buckets) is None
+        assert resolve_bucket("correct", [{"bucket_name": "correct"}]) == {
+            "bucket_name": "correct"
+        }
+
+    def test_fold_first_token_logprobs(self):
+        import math
+
+        buckets = ["correct", "partial_understanding", "incorrect", "off_topic"]
+        top = [
+            {"token": "partial", "logprob": math.log(0.6)},
+            {"token": " correct", "logprob": math.log(0.2)},
+            {"token": "in", "logprob": math.log(0.1)},
+            {"token": "Based", "logprob": math.log(0.1)},
+        ]
+        dist, mass = fold_first_token_logprobs(top, buckets)
+        assert abs(mass - 0.9) < 1e-6
+        assert abs(dist["partial_understanding"] - 0.6 / 0.9) < 1e-6
+        assert dist["off_topic"] == 0.0
+        # A token prefixing two buckets is dropped, never split.
+        dist, mass = fold_first_token_logprobs(
+            [{"token": "correct", "logprob": math.log(0.9)},
+             {"token": "off", "logprob": math.log(0.1)}],
+            ["correct", "correct_no_work", "off_topic"],
+        )
+        assert abs(mass - 0.1) < 1e-6 and dist["off_topic"] == 1.0
+        assert fold_first_token_logprobs(None, buckets)[1] == 0.0
+        assert fold_first_token_logprobs([{"token": "x"}], buckets)[1] == 0.0

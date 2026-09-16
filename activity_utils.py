@@ -10,6 +10,7 @@ Features:
 - Progressive hints
 """
 
+import math
 import re
 import random
 import operator
@@ -419,3 +420,92 @@ def create_completion_skip_thinking(openai_client, **create_kwargs):
         if _rejects_chat_template_kwargs(e):
             return openai_client.chat.completions.create(**create_kwargs)
         raise
+
+
+# ── Categorization readout ───────────────────────────────────────────
+
+
+def _bucket_name(bucket):
+    """A bucket as written in YAML may be a string, an int, a bool or a
+    {bucket_name, ...} mapping; the classifier compares on its name."""
+    if isinstance(bucket, dict):
+        return str(bucket.get("bucket_name", ""))
+    return str(bucket)
+
+
+def resolve_bucket(category, buckets):
+    """Map the classifier's text onto one of the step's buckets, or return
+    None. Exact match first (case & whitespace folded), then the LONGEST
+    bucket name contained in the text — longest first because "correct" is a
+    substring of "incorrect", so a first-match scan would grade a wrong answer
+    right. A model that answers "Partial Understanding." or "BUCKET: correct
+    (the student ...)" lands on its bucket instead of on the Unrecognized
+    category error."""
+    norm = str(category or "").strip().lower().replace(" ", "_")
+    names = [(_bucket_name(b), b) for b in buckets]
+    for name, b in names:
+        if norm == name.lower().replace(" ", "_"):
+            return b
+    for name, b in sorted(names, key=lambda nb: -len(nb[0])):
+        key = name.lower().replace(" ", "_")
+        if key and key in norm:
+            return b
+    return None
+
+
+def fold_first_token_logprobs(top, buckets):
+    """Fold a first-token `top_logprobs` list onto the bucket names by prefix
+    and return (dist, mass): dist maps every bucket name to its renormalised
+    probability, mass is the share of listed probability that landed on any
+    bucket. A token prefixing exactly one bucket ("partial" for
+    partial_understanding, " correct" for correct) carries its mass there; a
+    token prefixing several ("correct" where correct & correct_no_work both
+    exist) is dropped, never split. Same fold as uncloseai-cli decisions.py &
+    unhomeschool nu._fold_first_token. Anything that is not a list of
+    {token, logprob} entries folds to zeros."""
+    keys = {}
+    for b in buckets:
+        name = _bucket_name(b)
+        keys[name] = re.sub(r"[^a-z0-9]", "", name.lower())
+    got = {name: 0.0 for name in keys}
+    listed = assigned = 0.0
+    if not isinstance(top, list):
+        return got, 0.0
+    for t in top:
+        try:
+            pr = math.exp(float(t["logprob"]))
+            token = str(t.get("token") or "")
+        except (TypeError, ValueError, KeyError, AttributeError):
+            continue
+        listed += pr
+        nt = re.sub(r"[^a-z0-9]", "", token.lower())
+        if not nt:
+            continue
+        hits = [n for n, k in keys.items() if k and (k.startswith(nt) or nt.startswith(k))]
+        if len(hits) == 1:
+            got[hits[0]] += pr
+            assigned += pr
+    total = sum(got.values())
+    dist = {n: (v / total if total else 0.0) for n, v in got.items()}
+    return dist, (assigned / listed if listed else 0.0)
+
+
+def first_token_top_logprobs(completion):
+    """The first generated token's top_logprobs from an OpenAI-style
+    completion, as a list of {token, logprob} dicts, or None."""
+    try:
+        content = completion.choices[0].logprobs.content
+        first = content[0]
+        top = first.top_logprobs
+    except (AttributeError, IndexError, TypeError):
+        return None
+    if not isinstance(top, list):
+        return None
+    out = []
+    for t in top:
+        if isinstance(t, dict):
+            out.append({"token": t.get("token"), "logprob": t.get("logprob")})
+        else:
+            out.append({"token": getattr(t, "token", None),
+                        "logprob": getattr(t, "logprob", None)})
+    return out
