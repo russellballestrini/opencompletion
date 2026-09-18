@@ -24,15 +24,57 @@ def auth_html():
         return render_template("auth.html")
 
 
+_BROWSER_CANDIDATES = (
+    "google-chrome",
+    "google-chrome-stable",
+    "chromium",
+    "chromium-browser",
+)
+_browser_cache = {}
+
+
+def _working_browser():
+    """The first installed Chromium-family binary that can dump about:blank
+    headlessly within ten seconds, or None. Probed once per session: on
+    GitHub Actions /usr/bin/chromium (a snapshot build) hangs before it
+    loads any page (2026-09-18), while the runner's Google Chrome works, so
+    presence on PATH is not enough."""
+    if "browser" in _browser_cache:
+        return _browser_cache["browser"]
+    found = None
+    for name in _BROWSER_CANDIDATES:
+        path = shutil.which(name)
+        if not path:
+            continue
+        try:
+            probe = subprocess.run(
+                [
+                    path,
+                    "--headless",
+                    "--no-sandbox",
+                    "--disable-gpu",
+                    "--dump-dom",
+                    "about:blank",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=dict(os.environ, DBUS_SESSION_BUS_ADDRESS="/dev/null"),
+            )
+        except (subprocess.TimeoutExpired, OSError):
+            continue
+        if probe.returncode == 0 and "<html" in probe.stdout.lower():
+            found = path
+            break
+    _browser_cache["browser"] = found
+    return found
+
+
 @pytest.mark.parametrize("width", [320, 480, 1280])
 def test_auth_accessibility_layout_and_flow(auth_html, tmp_path, width):
-    browser = (
-        shutil.which("chromium")
-        or shutil.which("chromium-browser")
-        or shutil.which("google-chrome")
-    )
+    browser = _working_browser()
     if not browser:
-        pytest.skip("Chromium required for real-browser UI checks")
+        pytest.skip("A headless Chromium/Chrome that launches is required")
     # DOMContentLoaded ensures the template's Enter handlers are installed first.
     probe = r"""
 <script>
