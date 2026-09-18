@@ -216,7 +216,8 @@ class TestArena(unittest.TestCase):
     def test_game_is_seeded_and_ends_with_a_winner(self):
         a = arena.play_game("super_hunter", "random", "k:1", "a", use_classifier=False)
         b = arena.play_game("super_hunter", "random", "k:1", "a", use_classifier=False)
-        self.assertEqual(a, b)
+        strip = lambda r: {k: v for k, v in r.items() if k != "seconds"}  # noqa: E731
+        self.assertEqual(strip(a), strip(b))
         self.assertIn(a["winner"], ("a", "b"))
         self.assertLessEqual(max(a["a_shots"], a["b_shots"]), 100)
         self.assertEqual(
