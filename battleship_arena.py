@@ -68,6 +68,7 @@ class Side:
         self.llm_ok = 0
         self.llm_fallback = 0
         self.llm_turns = 0
+        self.llm_errors = {}
 
     def fire(self, chat=None, use_classifier=None):
         shot = bm.choose_shot(
@@ -85,6 +86,18 @@ class Side:
             last = self.state["llm_last"] or {}
             self.llm_ok += 1 if last.get("ok") else 0
             self.llm_fallback += 1 if last.get("fallback") else 0
+            if not last.get("ok"):
+                # The failure's shape (exception name), never the prompt.
+                kind = (
+                    (last.get("text") or "error")[:60].split(":")[1].strip()
+                    if ":" in (last.get("text") or "")
+                    else "error"
+                )
+                self.llm_errors[kind] = self.llm_errors.get(kind, 0) + 1
+            elif last.get("fallback"):
+                self.llm_errors["unusable answer"] = (
+                    self.llm_errors.get("unusable answer", 0) + 1
+                )
         return shot, hit, sunk_name
 
     @property
@@ -104,6 +117,7 @@ class Side:
                 "turns": self.llm_turns,
                 "ok": self.llm_ok,
                 "fallback": self.llm_fallback,
+                "errors": dict(self.llm_errors),
             }
         return out
 
@@ -220,6 +234,7 @@ def run(
             "classifier": classifier.describe() or "none configured",
             "llm_endpoint": os.environ.get("MODEL_ENDPOINT_1", ""),
             "llm_model": os.environ.get("MODEL_NAME_1", bm.LLM_DEFAULT_MODEL),
+            "llm_timeout_s": bm.LLM_TIMEOUT_S,
             "jev_weight": jev_hunter.JEV_WEIGHT,
             "jev_candidates": jev_hunter.CANDIDATES,
             "seconds": round(time.monotonic() - t0, 1),
@@ -246,6 +261,15 @@ def _stats(values):
     }
 
 
+def _merge_llm(total, part):
+    for k, n in part.items():
+        if k == "errors":
+            for kind, c in n.items():
+                total["errors"][kind] = total["errors"].get(kind, 0) + c
+        else:
+            total[k] += n
+
+
 def summarize(results):
     modes = results["config"]["modes"]
     wins = {m: {o: 0 for o in modes} for m in modes}
@@ -253,7 +277,7 @@ def summarize(results):
     first_wins = {"first": 0, "second": 0}
     shots_to_win = {m: [] for m in modes}
     jev_sources = {"jev": 0, "grid": 0}
-    llm = {"turns": 0, "ok": 0, "fallback": 0}
+    llm = {"turns": 0, "ok": 0, "fallback": 0, "errors": {}}
     for g in results["games"]:
         a, b, w = g["a"], g["b"], g["winner"]
         played[a][b] += 1
@@ -267,8 +291,7 @@ def summarize(results):
                 for s, n in g[f"{k}_jev_sources"].items():
                     jev_sources[s] += n
             if f"{k}_llm" in g:
-                for s, n in g[f"{k}_llm"].items():
-                    llm[s] += n
+                _merge_llm(llm, g[f"{k}_llm"])
     solo = {m: [] for m in modes}
     for s in results["solo"]:
         solo[s["mode"]].append(s["solo_shots"])
@@ -276,8 +299,7 @@ def summarize(results):
             for k, n in s["solo_jev_sources"].items():
                 jev_sources[k] += n
         if "solo_llm" in s:
-            for k, n in s["solo_llm"].items():
-                llm[k] += n
+            _merge_llm(llm, s["solo_llm"])
     total_wins = {m: sum(wins[m].values()) for m in modes}
     total_played = {m: sum(played[m].values()) for m in modes}
     return {
@@ -340,6 +362,11 @@ def report(results):
         lines.append(
             f"llm reasoner: {ll['ok']}/{ll['turns']} turns answered by the chat model, "
             f"{ll['fallback']} fell back to the grid's top cell"
+            + (
+                f" ({', '.join(f'{k} x{n}' for k, n in ll['errors'].items())})"
+                if ll.get("errors")
+                else ""
+            )
         )
     return "\n".join(lines)
 

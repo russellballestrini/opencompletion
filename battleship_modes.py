@@ -61,7 +61,9 @@ LABELS = {
     "jev_reasoner": "Jev Reasoner",
 }
 LLM_CANDIDATES = 6
-LLM_TIMEOUT_S = 10
+# Qwen3.8-27B answers a turn in ~3 s alone & slower under concurrent games;
+# LLM_TIMEOUT_S in the environment sizes the wait (the activity used 10).
+LLM_TIMEOUT_S = float(os.environ.get("LLM_TIMEOUT_S") or 30)
 LLM_DEFAULT_MODEL = "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic"
 
 
