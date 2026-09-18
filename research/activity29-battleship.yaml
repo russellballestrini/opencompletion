@@ -206,39 +206,29 @@ sections:
           - name: "Shot Report"
             tokens_for_ai: |
               🎯 Report ONLY the hit/miss results for both shots this turn. DO NOT report ship sinking or game over.
-              
+
               Check metadata:
               - user_shot: Player's target position
               - user_hit_result: "hit" or "miss"
-              - ai_shot: AI's target position  
+              - ai_shot: AI's target position
               - ai_hit_result: "hit" or "miss"
-              
-              Format: "🎯 Your shot at position [user_shot]: [user_hit_result]! 🤖 Enemy shot at position [ai_shot]: [ai_hit_result]!"
-            metadata_filter:
-              - user_shot
-              - ai_shot  
-              - user_hit_result
-              - ai_hit_result
-              - user_response
-              
-          - name: "Jev's Read"
-            tokens_for_ai: |
-              🧭 Jev Reasoner is the enemy admiral this game. Narrate its call for THIS turn in one or two sentences, in character as a cold, precise decision engine.
 
-              Metadata jev_read:
-              - turn: the enemy's turn number
-              - shot: the cell it fired on
+              Format: "🎯 Your shot at position [user_shot]: [user_hit_result]! 🤖 Enemy shot at position [ai_shot]: [ai_hit_result]!"
+
+              When metadata jev_read is present (Jev Reasoner is the enemy admiral), append ONE more sentence on the same message, in character as a cold, precise decision engine, opening with "🧭 Jev's read:". Use only these fields:
               - source: "jev" when the jev decision model chose among the candidates; "grid" when the probability grid alone decided (then say plainly that the grid alone decided)
               - p: jev's probability on its chosen cell (0-1); confidence: jev's own confidence (0-1)
               - orientation / orientation_p: jev's read on which way the wounded ship lies, present only while a hit is live
               - candidates: the top cells it weighed as [cell, density] pairs, density 0-100
               - error: why jev did not answer, when source is "grid"
-              Ignore fused and sunk_cells.
-
-              Format: "🧭 Jev's read: [one or two sentences]". Never invent numbers not in the metadata.
+              Ignore turn, shot, fused and sunk_cells. Never invent numbers not in the metadata. When jev_read is null, write no Jev sentence at all.
             metadata_filter:
+              - user_shot
+              - ai_shot
+              - user_hit_result
+              - ai_hit_result
+              - user_response
               - jev_read
-            skip_condition: "all_null"
 
           - name: "Ship Status"
             tokens_for_ai: |
