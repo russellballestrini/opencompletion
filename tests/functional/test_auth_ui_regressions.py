@@ -67,6 +67,12 @@ def _working_browser():
             found = path
             break
     _browser_cache["browser"] = found
+    if os.environ.get("GITHUB_ACTIONS"):
+        # Surface which binary ran the checks (or that none did) as a run
+        # annotation, so a skip never passes for a pass on CI.
+        print(
+            f"::notice title=auth-ui browser::{found or 'none launched: checks skipped'}"
+        )
     return found
 
 
