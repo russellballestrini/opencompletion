@@ -67,12 +67,6 @@ def _working_browser():
             found = path
             break
     _browser_cache["browser"] = found
-    if os.environ.get("GITHUB_ACTIONS"):
-        # Surface which binary ran the checks (or that none did) as a run
-        # annotation, so a skip never passes for a pass on CI.
-        print(
-            f"::notice title=auth-ui browser::{found or 'none launched: checks skipped'}"
-        )
     return found
 
 
@@ -80,6 +74,10 @@ def _working_browser():
 def test_auth_accessibility_layout_and_flow(auth_html, tmp_path, width):
     browser = _working_browser()
     if not browser:
+        if os.environ.get("GITHUB_ACTIONS"):
+            # The hosted runner ships Chrome; a skip there would let a
+            # green job pass for checks that never ran.
+            pytest.fail("no headless Chromium/Chrome launches on this runner")
         pytest.skip("A headless Chromium/Chrome that launches is required")
     # DOMContentLoaded ensures the template's Enter handlers are installed first.
     probe = r"""
