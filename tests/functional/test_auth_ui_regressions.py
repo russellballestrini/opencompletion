@@ -3,6 +3,7 @@
 Run: venv/bin/python -m pytest tests/functional/test_auth_ui_regressions.py
 Browser cases skip if Chromium is absent. Requests are stubbed intentionally.
 """
+
 import json
 from pathlib import Path
 import shutil
@@ -10,7 +11,6 @@ import subprocess
 
 from flask import Flask, render_template
 import pytest
-
 
 ROOT = Path(__file__).resolve().parents[2]
 pytestmark = pytest.mark.functional
@@ -47,7 +47,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         check(document.getElementById('auth-otp').maxLength === 6, 'OTP length');
         const email = document.getElementById('auth-email');
         email.focus();
-        check(getComputedStyle(email).outlineStyle === 'solid' && getComputedStyle(email).outlineWidth === '3px', 'input focus outline');
+        check(document.activeElement === email, 'input takes focus');
+        // :focus only matches while the window itself has focus, which a
+        // headless window is not always granted: wait briefly for it, and
+        // when it never arrives verify the declared ring instead of the
+        // computed one (the computed check flaked ~1 in 3 runs, 2026-09-18).
+        for (let i = 0; i < 20 && !document.hasFocus(); i++) await new Promise(r => setTimeout(r, 50));
+        const ringOf = style => style.outlineStyle === 'solid' && style.outlineWidth === '3px';
+        let ring = ringOf(getComputedStyle(email));
+        if (!ring && !document.hasFocus()) {
+            ring = [...document.styleSheets].flatMap(sheet => [...sheet.cssRules]).some(rule =>
+                rule.selectorText && rule.selectorText.includes('input:focus') && ringOf(rule.style));
+        }
+        check(ring, 'input focus outline');
         check(matchMedia('(prefers-reduced-motion: reduce)').matches, 'reduced motion enabled');
         check(getComputedStyle(document.querySelector('button')).transitionDuration === '0s', 'reduced motion transition');
         const requests = [];
@@ -99,11 +111,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 """
     page = tmp_path / "auth.html"
     page.write_text(auth_html.replace("</body>", probe + "</body>"))
-    command = [browser, "--headless", "--disable-gpu", "--no-sandbox",
-               "--no-proxy-server", "--disable-background-networking",
-               "--force-prefers-reduced-motion", f"--window-size={width},900",
-               f"--user-data-dir={tmp_path / 'browser'}", "--virtual-time-budget=3000",
-               "--dump-dom", page.as_uri()]
+    command = [
+        browser,
+        "--headless",
+        "--disable-gpu",
+        "--no-sandbox",
+        "--no-proxy-server",
+        "--disable-background-networking",
+        "--force-prefers-reduced-motion",
+        f"--window-size={width},900",
+        f"--user-data-dir={tmp_path / 'browser'}",
+        "--virtual-time-budget=3000",
+        "--dump-dom",
+        page.as_uri(),
+    ]
     result = subprocess.run(command, capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stderr
     assert 'data-probe="passed"' in result.stdout, result.stdout + result.stderr
