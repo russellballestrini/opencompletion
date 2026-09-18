@@ -247,8 +247,6 @@ sections:
           import matplotlib.pyplot as plt
           import io
           import base64
-          import requests
-          import json
 
           # Define ship sizes
           ship_sizes = {
@@ -281,35 +279,10 @@ sections:
 
           # AI state variables
           ai_mode = metadata.get("ai_mode", "random")
-          jev_read = None  # Jev Reasoner's readout for this turn (see jev_hunter.py)
+          jev_read = None  # Jev Reasoner's readout for this turn (see battleship_modes.py)
 
-          # Initialize probability matrix with realistic ship placement probabilities
-          if "probability_matrix" not in metadata:
-              probability_matrix = [[0] * 10 for _ in range(10)]
-              # Calculate how many ship placements use each cell
-              ship_lengths = [5, 4, 3, 3, 2]
-              for y in range(10):
-                  for x in range(10):
-                      count = 0
-                      for ship_len in ship_lengths:
-                          # Horizontal ships that would cover this cell
-                          for start_x in range(max(0, x - ship_len + 1), min(x + 1, 10 - ship_len + 1)):
-                              count += 1
-                          # Vertical ships that would cover this cell
-                          for start_y in range(max(0, y - ship_len + 1), min(y + 1, 10 - ship_len + 1)):
-                              count += 1
-                      probability_matrix[y][x] = count
-              print("DEBUG: Initial probability matrix created")
-              # Debug print the initial grid
-              print("DEBUG: Initial grid:")
-              for row in probability_matrix:
-                  print(f"  {' '.join(f'{x:2d}' for x in row)}")
-          else:
-              probability_matrix = metadata.get("probability_matrix")
-              print("DEBUG: Using existing probability matrix")
-          hits = metadata.get("hits", [])
-          misses = metadata.get("misses", [])
-          sunk_ships = metadata.get("sunk_ships", [])
+          probability_matrix = metadata.get("probability_matrix")
+          llm_last = None
 
           # Function to check if a ship is sunk
           def check_sunk(board, hits, ship_name):
@@ -343,355 +316,37 @@ sections:
 
               ax.plot([x_start, x_end], [y_start, y_end], color='red', linewidth=2)
 
-          # Function to update probability matrix
-          def update_probability(x, y, hit):
-              global probability_matrix, hits, misses, sunk_ships, ship_sizes
-
-              if hit:
-                  hits.append((x, y))
-                  probability_matrix[y][x] = 0  # Mark hit
-                  # Increase probabilities for adjacent cells
-                  for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-                      nx, ny = x + dx, y + dy
-                      if 0 <= nx < 10 and 0 <= ny < 10 and probability_matrix[ny][nx] > 0:
-                          probability_matrix[ny][nx] += 5  # Increase probability significantly
-              else:
-                  misses.append((x, y))
-                  probability_matrix[y][x] = -1  # Mark miss
-
-              # Set probabilities to 1 for cells that can't fit any remaining ships
-              max_ship_size = max(size for ship, size in ship_sizes.items() if ship not in sunk_ships)
-              for y in range(10):
-                  for x in range(10):
-                      if probability_matrix[y][x] > 0 and not can_fit_ship(x, y, max_ship_size):
-                          probability_matrix[y][x] = 1  # Minimum probability
-
-          # Function to check if a ship can fit
-          def can_fit_ship(x, y, ship_size):
-              # Check horizontal fit
-              if x + ship_size <= 10:
-                  fit = True
-                  for i in range(ship_size):
-                      if probability_matrix[y][x+i] <= 0:
-                          fit = False
-                          break
-                  if fit:
-                      return True
-              # Check vertical fit
-              if y + ship_size <= 10:
-                  fit = True
-                  for i in range(ship_size):
-                      if probability_matrix[y+i][x] <= 0:
-                          fit = False
-                          break
-                  if fit:
-                      return True
-              return False
-
-          # Function to generate a chat model's (LLM) reasoning
-          def llm_reason_move(game_state, turn_number, top_candidates):
-              global ai_hits, ai_shots, ai_sunk_ships, probability_matrix
-              import os
-              import requests
-              import json
-
-              # Chat model endpoint from environment (MODEL_1)
-              llm_endpoint = os.environ.get('MODEL_ENDPOINT_1', 'https://hermes.ai.unturf.com/v1')
-              llm_api_key = os.environ.get('MODEL_API_KEY_1', '')
-              llm_model = os.environ.get('MODEL_NAME_1', 'adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic')
-
-              # Prepare game state summary
-              hits_summary = f"AI hits so far: {len(ai_hits)} positions hit"
-              misses_summary = f"AI misses so far: {len(ai_shots) - len(ai_hits)} positions missed"
-              sunk_ships_summary = f"Ships sunk: {len(ai_sunk_ships)} out of 5"
-              available_positions = [i for i in range(100) if i not in ai_shots]
-              top_six_candidates = top_candidates[0:6] if len(top_candidates) >= 6 else top_candidates
-
-              # Create reasoning prompt
-              prompt = (
-                  f"You are an expert Battleship AI. Turn {turn_number}.\n\n"
-                  f"CRITICAL: You MUST choose from these TOP probability positions: {top_six_candidates}\n\n"
-                  f"Game Data:\n"
-                  f"- {hits_summary}\n"
-                  f"- {misses_summary}\n"
-                  f"- {sunk_ships_summary}\n\n"
-                  f"INSTRUCTIONS: Pick ONE number from {top_six_candidates} - these are the mathematically optimal targets.\n\n"
-                  f"Format your response EXACTLY like this:\n\n"
-                  f"ANALYSIS: [3 sentences explaining why you chose from the top probability positions]\n\n"
-                  f"MOVE: [ONE number from this list: {top_six_candidates}]\n\n"
-                  f"You MUST pick from {top_six_candidates} - do not pick any other number."
-              )
-
-              try:
-                  headers = {
-                      'Authorization': f'Bearer {llm_api_key}',
-                      'Content-Type': 'application/json'
-                  }
-
-                  data = {
-                      'model': llm_model,
-                      'messages': [{'role': 'user', 'content': prompt}],
-                      'max_tokens': 300,
-                      'temperature': 0.5
-                  }
-
-                  response = requests.post(f'{llm_endpoint}/chat/completions',
-                                         headers=headers, json=data, timeout=10)
-
-                  print(f"DEBUG: API Status: {response.status_code}")
-                  if response.status_code == 200:
-                      result = response.json()
-                      reasoning = result['choices'][0]['message']['content'].strip()
-                      print(f"DEBUG: Real API response: {reasoning}")
-                      return reasoning
-                  else:
-                      print(f"DEBUG: API failed with status {response.status_code}: {response.text[:200]}")
-                      fallback_move = top_candidates[0] if top_candidates else random.choice([i for i in range(100) if i not in ai_shots])
-                      return f"ANALYSIS: Turn {turn_number} suggests targeting high-probability zones based on mathematical analysis. The current hit pattern indicates potential ship orientations that guide strategic decisions. Focusing on adjacent unexplored cells maximizes discovery potential.\n\nMOVE: {fallback_move}"
-
-              except Exception as e:
-                  print(f"DEBUG: API exception: {str(e)}")
-                  fallback_move = top_candidates[0] if top_candidates else random.choice([i for i in range(100) if i not in ai_shots])
-                  return f"ANALYSIS: After {turn_number} turns, probability analysis guides optimal targeting strategies. Current data suggests focusing on clustered high-value positions for maximum efficiency. Strategic patience combined with mathematical precision will yield victory.\n\nMOVE: {fallback_move}"
-
-          # AI chooses a shot
+          # AI chooses a shot: every admiral lives in battleship_modes.py, the
+          # same functions battleship_arena.py measures, so what plays in a
+          # room is exactly what the arena reports.
           def choose_ai_shot():
-              global can_fit_ship, update_probability, generate_hunt_targets, random_search, probability_matrix, ai_mode, ai_shots, random, user_board, ai_hits, ai_hit_result, llm_reason_move, ship_sizes, ai_sunk_ships, jev_read
-
-              if ai_mode == "llm_reasoner":
-                  # Use probability algorithm + a chat model's reasoning
-
-                  # Update probability matrix based on shots
-                  remaining_ships = [ship for ship in ship_sizes.keys() if ship not in ai_sunk_ships]
-                  remaining_ship_sizes = [ship_sizes[ship] for ship in remaining_ships]
-                  print(f"DEBUG: Remaining ships: {remaining_ships}")
-                  print(f"DEBUG: Total shots: {len(ai_shots)}, Hits: {len(ai_hits)}, Misses: {len(ai_shots) - len(ai_hits)}")
-
-                  # Recalculate entire probability matrix
-                  new_probability_matrix = [[0] * 10 for _ in range(10)]
-
-                  for y in range(10):
-                      for x in range(10):
-                          pos = y * 10 + x
-                          if pos in ai_shots:
-                              new_probability_matrix[y][x] = 0  # Already shot
-                          else:
-                              # Count how many ship placements could use this cell
-                              for ship_size in remaining_ship_sizes:
-                                  # Check horizontal placements
-                                  for start_x in range(max(0, x - ship_size + 1), min(x + 1, 10 - ship_size + 1)):
-                                      valid = True
-                                      includes_hit = False
-                                      for dx in range(ship_size):
-                                          check_pos = y * 10 + (start_x + dx)
-                                          if check_pos in ai_shots and check_pos not in ai_hits:
-                                              valid = False  # Ship can't go through a miss
-                                              break
-                                          if check_pos in ai_hits:
-                                              includes_hit = True
-                                      if valid:
-                                          # Base probability for valid placement
-                                          new_probability_matrix[y][x] += 1
-                                          # Bonus if it includes a hit
-                                          if includes_hit:
-                                              new_probability_matrix[y][x] += 10
-
-                                  # Check vertical placements
-                                  for start_y in range(max(0, y - ship_size + 1), min(y + 1, 10 - ship_size + 1)):
-                                      valid = True
-                                      includes_hit = False
-                                      for dy in range(ship_size):
-                                          check_pos = (start_y + dy) * 10 + x
-                                          if check_pos in ai_shots and check_pos not in ai_hits:
-                                              valid = False  # Ship can't go through a miss
-                                              break
-                                          if check_pos in ai_hits:
-                                              includes_hit = True
-                                      if valid:
-                                          # Base probability for valid placement
-                                          new_probability_matrix[y][x] += 1
-                                          # Bonus if it includes a hit
-                                          if includes_hit:
-                                              new_probability_matrix[y][x] += 10
-
-                  # Replace the old matrix with the new one
-                  probability_matrix = new_probability_matrix
-
-                  # Boost probabilities around unsunk hits
-                  for hit_pos in ai_hits:
-                      hit_x, hit_y = hit_pos % 10, hit_pos // 10
-                      # Check if this hit is part of a sunk ship
-                      hit_is_sunk = False
-                      for ship_name in ai_sunk_ships:
-                          # This would need ship position tracking to work properly
-                          pass  # Skip for now, assume all hits need chasing
-
-                      if not hit_is_sunk:
-                          # Boost adjacent cells
-                          for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-                              adj_x, adj_y = hit_x + dx, hit_y + dy
-                              if 0 <= adj_x < 10 and 0 <= adj_y < 10:
-                                  adj_pos = adj_y * 10 + adj_x
-                                  if adj_pos not in ai_shots:
-                                      # Only boost if not already boosted
-                                      if probability_matrix[adj_y][adj_x] < 50:
-                                          probability_matrix[adj_y][adj_x] = 50  # Set to fixed high value instead of adding
-
-                  # Find top 6 highest probability positions
-                  position_probs = []
-                  for i in range(100):
-                      if i not in ai_shots:  # Only consider unshot positions
-                          x, y = i % 10, i // 10
-                          position_probs.append((probability_matrix[y][x], i))
-
-                  # Sort by probability (descending) and take top positions
-                  position_probs.sort(reverse=True)
-                  candidates = [pos for prob, pos in position_probs[:20]]  # Take top 20 for variety
-                  max_prob = position_probs[0][0] if position_probs else 0
-
-                  # Fallback if no candidates found
-                  if not candidates:
-                      candidates = [i for i in range(100) if i not in ai_shots]
-
-                  # Debug: Log what we're working with
-                  turn_number = len(ai_shots) + 1
-                  print(f"DEBUG: Turn {turn_number}, Max prob: {max_prob}")
-                  print("DEBUG: Probability grid:")
-                  for y in range(10):
-                      row = [f"{probability_matrix[y][x]:2d}" for x in range(10)]
-                      print(f"  {' '.join(row)}")
-                  print(f"DEBUG: Top candidates: {candidates[:10]}")
-
-                  reasoning_response = llm_reason_move("battleship", turn_number, candidates)
-
-                  # Analysis already logged in llm_reason_move function
-
-                  # Extract move from response - try multiple parsing methods
-                  try:
-                      if "MOVE:" in reasoning_response:
-                          move_part = reasoning_response.split("MOVE:")[1].strip()
-                          ai_shot = int(move_part.split()[0])
-                          print(f"DEBUG: Hermes Move: {ai_shot} (from 'MOVE: {move_part.split()[0]}')")
-                      else:
-                          # Fallback: extract any number from the response that's in candidates
-                          import re
-                          numbers = re.findall(r'\b(\d+)\b', reasoning_response)
-                          valid_moves = [int(n) for n in numbers if int(n) in candidates and int(n) not in ai_shots]
-                          if valid_moves:
-                              ai_shot = valid_moves[0]
-                              print(f"DEBUG: Hermes Move (parsed): {ai_shot} from numbers {numbers}")
-                          else:
-                              raise Exception(f"ERROR: Hermes response had no valid moves! Response: {reasoning_response}, Candidates: {candidates}")
-
-                      # Validate the shot is legal
-                      if ai_shot in ai_shots or ai_shot < 0 or ai_shot > 99:
-                          ai_shot = random.choice(candidates)
-                          print(f"DEBUG: Invalid shot, using fallback: {ai_shot}")
-
-                  except Exception as e:
-                      ai_shot = random.choice(candidates)
-                      print(f"DEBUG: Parse error: {e}, using fallback: {ai_shot}")
-
-              elif ai_mode == "jev_reasoner":
-                  # Jev Reasoner: an exact placement-density grid recomputed
-                  # every turn, fused with ONE jev decision over the top
-                  # candidates (jev_hunter.py). Fails open to the grid alone.
-                  import jev_hunter
-                  sunk_cells = [i for i, s in enumerate(user_board) if s in ai_sunk_ships]
-                  remaining_sizes = [size for name, size in ship_sizes.items() if name not in ai_sunk_ships]
-                  read = jev_hunter.choose_shot(ai_shots, ai_hits, sunk_cells, remaining_sizes)
-                  ai_shot = read["shot"]
-                  probability_matrix = [read["fused"][r * 10:(r + 1) * 10] for r in range(10)]
-                  jev = read["jev"] or {}
-                  jev_read = {
-                      "turn": len(ai_shots) + 1,
-                      "shot": ai_shot,
-                      "source": read["source"],
-                      "error": read["error"],
-                      "candidates": read["candidates"],
-                      "p": jev.get("p"),
-                      "confidence": jev.get("confidence"),
-                      "orientation": jev.get("orientation"),
-                      "orientation_p": jev.get("orientation_p"),
-                      "instance": jev.get("instance"),
-                      "model": jev.get("model"),
-                      "fused": read["fused"],
-                      "sunk_cells": sunk_cells,
-                  }
-              elif ai_mode == "super_hunter":
-                  # Use probabilistic grid algorithm
-                  max_prob = 0
-                  candidates = []
-                  for i in range(100):
-                      if i not in ai_shots:  # Exclude already-fired cells
-                          x, y = i % 10, i // 10
-                          if probability_matrix[y][x] > max_prob:
-                              max_prob = probability_matrix[y][x]
-                              candidates = [i]
-                          elif probability_matrix[y][x] == max_prob:
-                              candidates.append(i)
-                  ai_shot = random.choice(candidates)
-              elif ai_mode == "hunter":
-                  # Simple hunter mode logic
-                  if hits:
-                      # Target adjacent cells of the last hit
-                      last_hit = hits[-1]
-                      hunt_targets = generate_hunt_targets(last_hit, ai_shots)
-                      if hunt_targets:
-                          ai_shot = hunt_targets.pop(0)
-                      else:
-                          ai_shot = random_search()
-                  else:
-                      ai_shot = random_search()
-              else:
-                  # Random mode
-                  ai_shot = random_search()
-
-              # Update AI state after the shot
-              if user_board[ai_shot] != -1:
+              global ai_hits, ai_hit_result, probability_matrix, jev_read, llm_last
+              import battleship_modes as bm
+              st = bm.new_state()
+              st["shots"] = list(ai_shots)
+              st["hits"] = list(ai_hits)
+              st["misses"] = [s for s in ai_shots if s not in ai_hits]
+              st["sunk_ships"] = list(ai_sunk_ships)
+              st["sunk_cells"] = [i for i, s in enumerate(user_board) if s in ai_sunk_ships]
+              st["probability_matrix"] = probability_matrix
+              ai_shot = bm.choose_shot(ai_mode, st, random)
+              # Referee: what the shot did, so the mode can learn from it.
+              hit = user_board[ai_shot] != -1
+              sunk_name, sunk_cells = None, ()
+              if hit:
                   ai_hits.append(ai_shot)
                   ai_hit_result = "hit"
-                  if ai_mode == "super_hunter" or ai_mode == "llm_reasoner":
-                      update_probability(ai_shot % 10, ai_shot // 10, True)
+                  name = user_board[ai_shot]
+                  cells = [i for i, s in enumerate(user_board) if s == name]
+                  if all(c in ai_hits for c in cells):
+                      sunk_name, sunk_cells = name, cells
               else:
                   ai_hit_result = "miss"
-                  if ai_mode == "super_hunter" or ai_mode == "llm_reasoner":
-                      update_probability(ai_shot % 10, ai_shot // 10, False)
-
+              bm.record_shot(ai_mode, st, ai_shot, hit, sunk_name, sunk_cells)
+              probability_matrix = st["probability_matrix"]
+              jev_read = st["jev_read"]
+              llm_last = st["llm_last"]
               return ai_shot
-
-          # Function for random search
-          def random_search():
-              available_positions = []
-              for i in range(100):
-                  if i not in ai_shots:
-                      available_positions.append(i)
-              return random.choice(available_positions)
-
-          # Function to generate hunt targets around a hit
-          def generate_hunt_targets(hit_position, ai_shots):
-              potential_targets = []
-              row, col = divmod(hit_position, 10)
-
-              # Up
-              if row > 0:
-                  potential_targets.append(hit_position - 10)
-              # Down
-              if row < 9:
-                  potential_targets.append(hit_position + 10)
-              # Left
-              if col > 0:
-                  potential_targets.append(hit_position - 1)
-              # Right
-              if col < 9:
-                  potential_targets.append(hit_position + 1)
-
-              # Filter out already fired positions
-              filtered_targets = []
-              for pos in potential_targets:
-                  if pos not in ai_shots:
-                      filtered_targets.append(pos)
-              return filtered_targets
 
           # Get the user's shot
           try:
@@ -878,10 +533,8 @@ sections:
                       "ai_sunk_ship_this_round": ai_sunk_ship_this_round,
                       "ai_mode": ai_mode,
                       "jev_read": jev_read,
+                      "llm_last": llm_last,
                       "probability_matrix": probability_matrix,
-                      "hits": hits,
-                      "misses": misses,
-                      "sunk_ships": sunk_ships,
                       "user_winning_move": user_winning_move,
                       "ai_winning_move": ai_winning_move
                   }

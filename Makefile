@@ -30,6 +30,7 @@ help:
 	@echo "  validate-yaml        - Validate all YAML files in research/"
 	@echo "  classifier-check     - Smoke test our classifier model (MODEL_CLASSIFIER_ENDPOINT_N)"
 	@echo "  jev-bench            - Self-play Jev Reasoner's probability grid (grid only, no network)"
+	@echo "  arena                - Every battleship mode plays every other, 10 games per pair"
 	@echo ""
 	@echo "🛠️ Development Commands:"
 	@echo "  venv                 - Create virtual environment and install dependencies"
@@ -324,3 +325,12 @@ classifier-check: venv
 jev-bench: venv
 	@echo "🎯 Self-playing Jev Reasoner's grid..."
 	OPENCOMPLETION_CLASSIFIER=off venv/bin/python jev_hunter.py 200 0
+
+# Round robin of every battleship admiral (battleship_arena.py): 10 games
+# per pair plus solo clears, one JSON of results & a text table. The two
+# model-backed modes use MODEL_1 & the classifier from the environment;
+# source vars.sh first for the real thing.
+.PHONY: arena
+arena: venv
+	@echo "⚓ Running our battleship arena..."
+	PYTHONUNBUFFERED=1 venv/bin/python battleship_arena.py --games 10 --seed 0 --out arena_results.json

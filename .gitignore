@@ -13,3 +13,4 @@ htmlcov/
 reports/
 unturf-debugging.md
 research/tmp*.yaml
+arena_results.json
