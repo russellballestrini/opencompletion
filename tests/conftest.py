@@ -17,6 +17,7 @@ import os
 
 class MockTiktokenEncoding:
     """Mock tiktoken encoding that doesn't make network requests"""
+
     def encode(self, text):
         # Simple approximation: ~4 chars per token
         return list(range(len(text) // 4 + 1))
@@ -24,6 +25,7 @@ class MockTiktokenEncoding:
 
 class MockTiktoken:
     """Mock tiktoken module"""
+
     _encoding = MockTiktokenEncoding()
 
     @staticmethod
@@ -37,8 +39,8 @@ class MockTiktoken:
 
 # Insert mock tiktoken into sys.modules BEFORE any imports
 # Use the class itself (not an instance) so patching works correctly
-if 'tiktoken' not in sys.modules:
-    sys.modules['tiktoken'] = MockTiktoken
+if "tiktoken" not in sys.modules:
+    sys.modules["tiktoken"] = MockTiktoken
 
 
 def pytest_configure(config):
@@ -46,11 +48,11 @@ def pytest_configure(config):
     Called early in pytest startup, before test collection.
     Ensures tiktoken is mocked before any test imports happen.
     """
-    if 'tiktoken' not in sys.modules:
-        sys.modules['tiktoken'] = MockTiktoken
+    if "tiktoken" not in sys.modules:
+        sys.modules["tiktoken"] = MockTiktoken
     else:
         # If tiktoken was already imported, patch its functions
-        tiktoken_mod = sys.modules['tiktoken']
+        tiktoken_mod = sys.modules["tiktoken"]
         tiktoken_mod.encoding_for_model = MockTiktoken.encoding_for_model
         tiktoken_mod.get_encoding = MockTiktoken.get_encoding
 
@@ -74,6 +76,13 @@ TEST_ENV_VARS = {
 
 # Apply environment variables immediately for import
 os.environ.update(TEST_ENV_VARS)
+
+# A developer's own classifier endpoint (MODEL_CLASSIFIER_ENDPOINT_N in the
+# shell) must not turn every categorize in the suite into a live vendor
+# call. The knob is read at call time, so pinning it off here holds for the
+# whole run; tests that exercise the classifier set the knob in their own
+# setUp (tests/unit/test_classifier.py).
+os.environ["OPENCOMPLETION_CLASSIFIER"] = "off"
 
 
 @pytest.fixture(scope="session", autouse=True)

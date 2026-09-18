@@ -43,6 +43,11 @@ from activity_utils import (
     first_token_top_logprobs,
 )
 
+# A second kind of model: a decision endpoint that answers a categorization
+# AS a decision (probability per bucket). Asked first when configured,
+# fails open onto the chat path below.
+import classifier as _classifier
+
 
 def handle_get_activity_status(data):
     """Get the current activity status for a room."""
@@ -1397,6 +1402,19 @@ def categorize_response(question, response, buckets, tokens_for_ai, model="MODEL
     ]
 
     simple_format = "BUCKET:" not in system_content
+
+    # A classifier model answers first when one is configured: the step's
+    # tokens_for_ai are its instructions, the bucket list its choice set,
+    # question + response its state. It fails OPEN onto the chat path: an
+    # error leaves a breadcrumb on the readout so a vendor failing over on
+    # every call never looks like one that is off.
+    _readout.last = None
+    _readout.cls_error = None
+    if _classifier.available():
+        got = _categorize_via_classifier(question, response, buckets, tokens_for_ai)
+        if got is not None:
+            return got
+
     try:
         create_kwargs = dict(
             model=model_name,
@@ -1482,9 +1500,43 @@ def categorize_response(question, response, buckets, tokens_for_ai, model="MODEL
 _readout = threading.local()
 
 
+def _categorize_via_classifier(question, response, buckets, tokens_for_ai):
+    """Route one categorization to a classifier model (`classifier.py`).
+    Returns the bucket name, or None so the chat path runs exactly as
+    before (fail-open) with the failure parked on the readout."""
+    try:
+        d = _classifier.categorize(question, response, buckets, tokens_for_ai)
+    except _classifier.ClassifierError as exc:
+        _readout.cls_error = str(exc)[:200]
+        return None
+    except Exception as exc:  # noqa: BLE001  a defect in the bridge, not the vendor
+        _readout.cls_error = f"{type(exc).__name__}: {exc}"[:200]
+        return None
+    _readout.last = {
+        "p": d["p"],
+        "argmax": d["value"],
+        "mass": 1.0,
+        "dist": {b: round(v, 3) for b, v in d["dist"].items() if v},
+        "source": _classifier.SOURCE,
+        "confidence": d["confidence"],
+        "instance": d["instance"],
+        "model": d["model"],
+    }
+    print(
+        f"DEBUG BUCKET CATEGORIZATION: classifier {d['instance']} ({d['model']})"
+        f" -> {d['value']} (p={d['p']:.2f} confidence={d['confidence']})"
+    )
+    return d["value"]
+
+
 def _record_readout(top, buckets):
+    cls_error = getattr(_readout, "cls_error", None)
     if not top:
-        _readout.last = None
+        _readout.last = (
+            {"p": None, "source": "chat", "classifier_error": cls_error}
+            if cls_error
+            else None
+        )
         return
     dist, mass = fold_first_token_logprobs(top, buckets)
     best = max(dist, key=dist.get) if dist else None
@@ -1493,17 +1545,24 @@ def _record_readout(top, buckets):
         "argmax": best if mass else None,
         "mass": round(mass, 4),
         "dist": {k: round(v, 3) for k, v in dist.items() if v},
+        "source": "chat",
     }
+    if cls_error:
+        _readout.last["classifier_error"] = cls_error
 
 
 def last_readout():
-    """{p, argmax, mass, dist} of this thread's last categorize_response, or
-    None when the provider returned no logprobs (ANALYSIS/BUCKET format,
-    hosted providers that reject the field). p is the probability the model
-    put on its verdict's first token. Measured 2026-09-16 on Qwen3.6-27B in
-    unhomeschool (same lesson shape, 239 labeled evals): verdicts correct 25%
-    / 31% / 50% / 77% across p bands <.5 / .5-.7 / .7-.9 / >=.9. A readout an
-    activity author reads, never a grade."""
+    """{p, argmax, mass, dist, source} of this thread's last
+    categorize_response, or None when the provider returned no logprobs
+    (ANALYSIS/BUCKET format, hosted providers that reject the field).
+    `source` is `classifier` when a decision model answered (then
+    `confidence`, `instance` & `model` ride along) or `chat`; a
+    `classifier_error` breadcrumb names why a configured classifier did not
+    decide. p is the probability the model put on its verdict. Measured
+    2026-09-16 on Qwen3.6-27B in unhomeschool (same lesson shape, 239 labeled
+    evals): chat verdicts correct 25% / 31% / 50% / 77% across p bands <.5 /
+    .5-.7 / .7-.9 / >=.9. A readout an activity author reads, never a
+    grade."""
     return getattr(_readout, "last", None)
 
 

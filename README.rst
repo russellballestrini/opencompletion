@@ -86,6 +86,17 @@ Here are some free endpoint for research only!::
     export MODEL_ENDPOINT_2=https://qwen.ai.unturf.com/v1
     export MODEL_ENDPOINT_3=https://gpt-oss.ai.unturf.com/v1
 
+Optional classifier model, a decision endpoint that answers a categorization
+AS a decision (a probability per bucket, nothing to parse). Asked first by
+``categorize_response`` when configured, fails open onto the chat model.
+Same vocabulary as ``uncloseai-cli`` and ``unhomeschool``; see ``classifier.py``
+and ``make classifier-check``::
+
+    export MODEL_CLASSIFIER_ENDPOINT_0=https://api.typesafe.ai
+    export MODEL_CLASSIFIER_API_KEY_0=your-typesafe-api-key
+    export MODEL_CLASSIFIER_ID_0=jev-latest        # optional
+    export OPENCOMPLETION_CLASSIFIER=auto          # auto | on | off
+
 Optional SMTP for email OTP authentication::
 
     export SMTP_HOST=smtp.gmail.com

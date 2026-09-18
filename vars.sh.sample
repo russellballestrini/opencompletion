@@ -48,3 +48,15 @@ export MODEL_API_KEY_9="gone"
 # Enable code-generated filenames (enabled by default: "true", disabled: "false")
 # When enabled, uses Hermes AI to generate meaningful 1-3 word filenames for downloaded binaries
 export ENABLE_CODE_GEN_FILENAMES="true"
+
+# Classifier model (optional): a decision endpoint that answers a
+# categorization AS a decision, a probability per bucket, nothing to parse.
+# Same vocabulary as uncloseai-cli & unhomeschool, so one environment
+# configures our whole mesh. See classifier.py. Wire shape today: TypeSafe
+# System One (models jev-latest / jev-preview) or a LiteLLM /typesafe proxy.
+# export MODEL_CLASSIFIER_ENDPOINT_0="https://api.typesafe.ai"
+# export MODEL_CLASSIFIER_API_KEY_0="your-typesafe-api-key"
+# export MODEL_CLASSIFIER_ID_0="jev-latest"
+# export OPENCOMPLETION_CLASSIFIER="auto"   # auto | on | off
+# export OPENCOMPLETION_CLASSIFIER_TIMEOUT_S="8"
+# export OPENCOMPLETION_CLASSIFIER_MIN_P="0"   # below this p, chat decides

@@ -9,6 +9,8 @@ from openai import OpenAI
 # Add parent directory to path to import activity_utils
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import classifier
+
 # Import activity utilities for v2.0 features
 from activity_utils import (
     render_template,
@@ -142,9 +144,7 @@ def get_openai_client_and_model(model_name=None):
     # Handle MODEL_X references with health-aware fallback
     if model_name.startswith("MODEL_"):
         requested = model_name.split("_")[1]
-        candidates = [requested] + [
-            n for n in CONFIGURED_MODEL_NUMS if n != requested
-        ]
+        candidates = [requested] + [n for n in CONFIGURED_MODEL_NUMS if n != requested]
         for num in candidates:
             resolved = _resolve_model_num(num)
             if resolved:
@@ -204,6 +204,16 @@ def categorize_response(question, response, buckets, tokens_for_ai, model="MODEL
             "content": f"Question: {question}\nResponse: {response}\n\nCategory:",
         },
     ]
+
+    # A classifier model (classifier.py) answers first when one is configured
+    # & fails open onto the chat path below, exactly as activity.py does.
+    if classifier.available():
+        try:
+            return classifier.categorize(question, response, buckets, tokens_for_ai)[
+                "value"
+            ]
+        except classifier.ClassifierError as exc:
+            print(f"classifier: {exc}; chat decides", file=sys.stderr)
 
     try:
         client, model_name = get_openai_client_and_model(model)
