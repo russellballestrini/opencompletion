@@ -5,12 +5,13 @@ Browser cases skip if Chromium is absent. Requests are stubbed intentionally.
 """
 
 import json
-from pathlib import Path
+import os
 import shutil
 import subprocess
+from pathlib import Path
 
-from flask import Flask, render_template
 import pytest
+from flask import Flask, render_template
 
 ROOT = Path(__file__).resolve().parents[2]
 pytestmark = pytest.mark.functional
@@ -25,7 +26,11 @@ def auth_html():
 
 @pytest.mark.parametrize("width", [320, 480, 1280])
 def test_auth_accessibility_layout_and_flow(auth_html, tmp_path, width):
-    browser = shutil.which("chromium") or shutil.which("chromium-browser")
+    browser = (
+        shutil.which("chromium")
+        or shutil.which("chromium-browser")
+        or shutil.which("google-chrome")
+    )
     if not browser:
         pytest.skip("Chromium required for real-browser UI checks")
     # DOMContentLoaded ensures the template's Enter handlers are installed first.
@@ -111,20 +116,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 """
     page = tmp_path / "auth.html"
     page.write_text(auth_html.replace("</body>", probe + "</body>"))
+    # CI-safe launch: a hosted runner has no D-Bus session, no keyring & a
+    # first-run flow; without these Chromium 152 sat on --dump-dom until the
+    # 30 s timeout on every GitHub Actions run (2026-09-18).
     command = [
         browser,
         "--headless",
         "--disable-gpu",
         "--no-sandbox",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-dev-shm-usage",
+        "--disable-extensions",
+        "--disable-crash-reporter",
+        "--disable-breakpad",
+        "--disable-sync",
+        "--metrics-recording-only",
+        "--password-store=basic",
+        "--use-mock-keychain",
         "--no-proxy-server",
         "--disable-background-networking",
         "--force-prefers-reduced-motion",
         f"--window-size={width},900",
         f"--user-data-dir={tmp_path / 'browser'}",
         "--virtual-time-budget=3000",
+        "--timeout=10000",
         "--dump-dom",
         page.as_uri(),
     ]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+    env = dict(os.environ, DBUS_SESSION_BUS_ADDRESS="/dev/null")
+    result = subprocess.run(
+        command, capture_output=True, text=True, timeout=30, env=env
+    )
     assert result.returncode == 0, result.stderr
     assert 'data-probe="passed"' in result.stdout, result.stdout + result.stderr

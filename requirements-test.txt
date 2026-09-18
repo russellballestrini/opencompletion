@@ -7,3 +7,4 @@ black
 flake8
 radon>=6,<7
 pytest-github-actions-annotate-failures
+pytest-env
