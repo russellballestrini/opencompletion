@@ -166,7 +166,7 @@ COVERAGE_MIN ?= 0
 
 .PHONY: quality-setup test-cov coverage cc crap quality
 quality-setup: venv
-	$(PYTHON) -m pip install -r requirements-test.txt 'radon>=6,<7'
+	$(PYTHON) -m pip install -r requirements-test.txt
 
 test-cov: coverage
 coverage:

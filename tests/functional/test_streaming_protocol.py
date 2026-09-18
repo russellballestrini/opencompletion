@@ -25,7 +25,10 @@ def is_gevent_patched():
     """Check if gevent has already monkey-patched the ssl module."""
     try:
         import gevent.monkey
-        return gevent.monkey.is_module_patched('ssl') or gevent.monkey.is_module_patched('socket')
+
+        return gevent.monkey.is_module_patched(
+            "ssl"
+        ) or gevent.monkey.is_module_patched("socket")
     except ImportError:
         return False
 
@@ -65,6 +68,8 @@ class StreamingProtocolTest(unittest.TestCase):
             chunk = MagicMock()
             chunk.choices = [MagicMock()]
             chunk.choices[0].delta.content = content
+            # A MagicMock fabricates a truthy reasoning_content; a plain chunk has none.
+            chunk.choices[0].delta.reasoning_content = None
             mock_chunks.append(chunk)
 
         mock_client = MagicMock()
@@ -161,7 +166,9 @@ class StreamingProtocolTest(unittest.TestCase):
         """Test AWS Bedrock/Claude streaming with new protocol"""
         # Skip if gevent has already monkey-patched (causes recursion errors with boto3)
         if is_gevent_patched():
-            self.skipTest("Skipped: gevent monkey patching causes recursion errors with boto3")
+            self.skipTest(
+                "Skipped: gevent monkey patching causes recursion errors with boto3"
+            )
 
         # Mock Bedrock streaming response
         mock_events = []
@@ -213,7 +220,9 @@ class StreamingProtocolTest(unittest.TestCase):
                 mock_message_class = MagicMock()
                 mock_message_class.return_value = mock_message
                 # Mock the query chain: Message.query.filter_by().order_by().limit().all()
-                mock_message_class.query.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = []
+                mock_message_class.query.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = (
+                    []
+                )
 
                 # Import boto3 to patch it directly (works even when already imported)
                 import boto3
@@ -337,6 +346,8 @@ class StreamingProtocolTest(unittest.TestCase):
             chunk = MagicMock()
             chunk.choices = [MagicMock()]
             chunk.choices[0].delta.content = content
+            # A MagicMock fabricates a truthy reasoning_content; a plain chunk has none.
+            chunk.choices[0].delta.reasoning_content = None
             mock_chunks.append(chunk)
 
         mock_client = MagicMock()
@@ -374,7 +385,9 @@ class StreamingProtocolTest(unittest.TestCase):
                 mock_message_class = MagicMock()
                 mock_message_class.return_value = mock_message
                 # Mock the query chain: Message.query.filter_by().order_by().limit().all()
-                mock_message_class.query.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = []
+                mock_message_class.query.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = (
+                    []
+                )
 
                 with patch.object(app.db.session, "add"), patch.object(
                     app.db.session, "commit"
@@ -441,6 +454,8 @@ class StreamingProtocolTest(unittest.TestCase):
             chunk = MagicMock()
             chunk.choices = [MagicMock()]
             chunk.choices[0].delta.content = content
+            # A MagicMock fabricates a truthy reasoning_content; a plain chunk has none.
+            chunk.choices[0].delta.reasoning_content = None
             mock_chunks.append(chunk)
 
         mock_client = MagicMock()

@@ -5,3 +5,4 @@ pytest-flask
 pytest-asyncio
 black
 flake8
+radon>=6,<7

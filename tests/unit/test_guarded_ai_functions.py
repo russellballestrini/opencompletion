@@ -327,7 +327,12 @@ class TestGuardedAI(unittest.TestCase):
     )
     def test_get_openai_client_and_model_default(self):
         """Explicit MODEL_NAME_1 wins over querying the endpoint's model list"""
-        with patch("guarded_ai.MODEL_CLIENT_MAP", {}):
+        # DEFAULT_MODEL is read from the shell at import; a shell (or CI) that
+        # configures MODEL_ENDPOINT_0 would make MODEL_0 the main & this test
+        # about MODEL_1 meaningless, so pin the main here.
+        with patch("guarded_ai.MODEL_CLIENT_MAP", {}), patch(
+            "guarded_ai.DEFAULT_MODEL", "MODEL_1"
+        ), patch("guarded_ai.CONFIGURED_MODEL_NUMS", ["1"]):
             with patch.dict("guarded_ai._endpoint_health", {}, clear=True):
                 with patch("guarded_ai.get_client_for_endpoint") as mock_get_client:
                     mock_client = MagicMock()
@@ -397,9 +402,7 @@ class TestGuardedAI(unittest.TestCase):
                 with patch(
                     "guarded_ai.get_client_for_endpoint", side_effect=client_for
                 ):
-                    with patch(
-                        "guarded_ai.CONFIGURED_MODEL_NUMS", ["1", "2"]
-                    ):
+                    with patch("guarded_ai.CONFIGURED_MODEL_NUMS", ["1", "2"]):
                         client, model = get_openai_client_and_model("MODEL_1")
 
                         self.assertEqual(model, "qwen-model")
