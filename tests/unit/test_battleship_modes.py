@@ -164,6 +164,52 @@ class TestLLMReasoner(unittest.TestCase):
         self.assertTrue(st["llm_last"]["fallback"])
 
 
+class TestChatTransport(unittest.TestCase):
+    ENV = {
+        "MODEL_ENDPOINT_1": "https://one.test/v1",
+        "MODEL_API_KEY_1": "k1",
+        "MODEL_ENDPOINT_2": "https://two.test/v1/",
+        "MODEL_API_KEY_2": "k2",
+        "MODEL_NAME_2": "qwen",
+    }
+
+    def test_backends_prefer_model_1_then_ascend(self):
+        self.assertEqual(
+            [b[0] for b in bm.chat_backends(self.ENV)],
+            ["https://one.test/v1", "https://two.test/v1"],
+        )
+        env = dict(self.ENV, LLM_MODEL="MODEL_2")
+        self.assertEqual(bm.chat_backends(env)[0][0], "https://two.test/v1")
+
+    def test_dead_first_endpoint_falls_through_and_cools(self):
+        bm._chat_cooling.clear()
+        calls = []
+
+        def post(url, headers=None, json=None, timeout=None):
+            calls.append((url, json["model"]))
+            if "one.test" in url:
+                raise ConnectionError("502")
+            m = mock.MagicMock()
+            m.raise_for_status.return_value = None
+            m.json.return_value = {"choices": [{"message": {"content": "MOVE: 44"}}]}
+            return m
+
+        with mock.patch.dict("os.environ", self.ENV), mock.patch("requests.post", post):
+            self.assertEqual(bm.default_chat("p"), "MOVE: 44")
+            self.assertEqual(bm.default_chat("q"), "MOVE: 44")
+        self.assertEqual(
+            [c[0] for c in calls],
+            [
+                "https://one.test/v1/chat/completions",
+                "https://two.test/v1/chat/completions",
+                "https://two.test/v1/chat/completions",
+            ],
+        )
+        self.assertEqual(calls[1][1], "qwen")
+        self.assertIn("https://one.test/v1", bm._chat_cooling)
+        bm._chat_cooling.clear()
+
+
 class TestJevAndDispatch(unittest.TestCase):
     def test_jev_reasoner_fills_readout_and_matrix(self):
         st = _state(shots=[44], hits=[44])

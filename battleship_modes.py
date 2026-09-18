@@ -44,6 +44,7 @@ passed in, so an arena run reproduces from a seed.
 import os
 import random
 import re
+import time
 
 import jev_hunter
 
@@ -231,28 +232,64 @@ def llm_prompt(st, grid, cands):
     )
 
 
+def chat_backends(env=None):
+    """Every configured MODEL_ENDPOINT_n as (endpoint, key_env, name_env),
+    the preferred one (LLM_MODEL, default MODEL_1) first, then ascending:
+    the same health-aware fallback chain the app's chat path walks."""
+    env = os.environ if env is None else env
+    nums = [
+        str(i) for i in range(100) if (env.get(f"MODEL_ENDPOINT_{i}") or "").strip()
+    ]
+    pref = (env.get("LLM_MODEL") or "MODEL_1").split("_")[-1]
+    order = ([pref] if pref in nums else []) + [n for n in nums if n != pref]
+    return [
+        (
+            env[f"MODEL_ENDPOINT_{n}"].rstrip("/"),
+            f"MODEL_API_KEY_{n}",
+            f"MODEL_NAME_{n}",
+        )
+        for n in order
+    ]
+
+
+_chat_cooling = {}
+CHAT_COOLDOWN_S = 60.0
+
+
 def default_chat(prompt, timeout=LLM_TIMEOUT_S):
-    """The activity's transport: MODEL_1 over an OpenAI-style chat
-    completion. Returns the text, or raises."""
+    """The activity's transport: an OpenAI-style chat completion on the
+    first configured MODEL_n that answers, MODEL_1 preferred. An endpoint
+    that fails cools for CHAT_COOLDOWN_S so a dead mirror costs one
+    timeout per minute, not one per turn. Keys are read here & travel only
+    in the header. Returns the text, or raises the last failure."""
     import requests
 
-    endpoint = os.environ.get("MODEL_ENDPOINT_1", "https://hermes.ai.unturf.com/v1")
-    key = os.environ.get("MODEL_API_KEY_1", "")
-    model = os.environ.get("MODEL_NAME_1", LLM_DEFAULT_MODEL)
-    resp = requests.post(
-        f"{endpoint}/chat/completions",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json={
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 300,
-            "temperature": 0.5,
-            "chat_template_kwargs": {"enable_thinking": False},
-        },
-        timeout=timeout,
-    )
-    resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"].strip()
+    last = None
+    for endpoint, key_env, name_env in chat_backends():
+        if _chat_cooling.get(endpoint, 0.0) > time.monotonic():
+            continue
+        try:
+            resp = requests.post(
+                f"{endpoint}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {os.environ.get(key_env, '')}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": os.environ.get(name_env) or LLM_DEFAULT_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 300,
+                    "temperature": 0.5,
+                    "chat_template_kwargs": {"enable_thinking": False},
+                },
+                timeout=timeout,
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip()
+        except Exception as exc:  # noqa: BLE001
+            _chat_cooling[endpoint] = time.monotonic() + CHAT_COOLDOWN_S
+            last = exc
+    raise last or RuntimeError("no MODEL_ENDPOINT_n configured")
 
 
 def parse_move(text, candidates, fired):
