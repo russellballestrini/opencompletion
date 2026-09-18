@@ -192,7 +192,12 @@ class TestChatTransport(unittest.TestCase):
             m.json.return_value = {"data": [{"id": "served-model"}]}
             return m
 
-        env = {"MODEL_ENDPOINT_1": "https://one.test/v1", "MODEL_API_KEY_1": "k"}
+        # conftest pins MODEL_NAME_1=test-model for the app; blank it here.
+        env = {
+            "MODEL_ENDPOINT_1": "https://one.test/v1",
+            "MODEL_API_KEY_1": "k",
+            "MODEL_NAME_1": "",
+        }
         with mock.patch.dict("os.environ", env, clear=False), mock.patch(
             "requests.get", get
         ):
