@@ -28,6 +28,8 @@ help:
 	@echo ""
 	@echo "📋 Validation Commands:"
 	@echo "  validate-yaml        - Validate all YAML files in research/"
+	@echo "  classifier-check     - Smoke test our classifier model (MODEL_CLASSIFIER_ENDPOINT_N)"
+	@echo "  jev-bench            - Self-play Jev Reasoner's probability grid (grid only, no network)"
 	@echo ""
 	@echo "🛠️ Development Commands:"
 	@echo "  venv                 - Create virtual environment and install dependencies"
@@ -307,3 +309,18 @@ test-artifact:
 	@echo "✓ Artifact test complete!"
 	@echo ""
 	@echo "Cleanup: rm /tmp/artifact.b64 /tmp/artifact_binary"
+
+# Smoke test a classifier model (a decision endpoint, see classifier.py):
+# lists each instance's models & asks one sample categorization. The key
+# never leaves the request builder.
+.PHONY: classifier-check
+classifier-check: venv
+	@echo "🧭 Checking our classifier model..."
+	venv/bin/python classifier.py
+
+# Self-play benchmark of Jev Reasoner's exact placement-density grid
+# (jev_hunter.py), grid only, no network: mean shots to sink a random fleet.
+.PHONY: jev-bench
+jev-bench: venv
+	@echo "🎯 Self-playing Jev Reasoner's grid..."
+	OPENCOMPLETION_CLASSIFIER=off venv/bin/python jev_hunter.py 200 0

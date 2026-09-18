@@ -29,9 +29,13 @@ tokens_for_ai_rubric: |
 
     * keeps track of hits and uses a probability grid normalized to 100 and always picks the max or random of any 100.
 
-  * hermes reasoner
+  * llm reasoner
 
-    * uses the probability algorithm paired with hermes to reason for 3 sentences about what the next 0-99 move should be given the current game state and turn number
+    * uses the probability algorithm paired with a chat model (llm) to reason for 3 sentences about what the next 0-99 move should be given the current game state and turn number
+
+  * jev reasoner
+
+    * recomputes an exact placement-density probability grid every turn: every placement of every ship still afloat that avoids misses and sunk cells counts, and while a hit is live only placements explaining it count. then asks jev, a decision model, to choose among the top 6 cells in one typed question. jev's probabilities are fused with the grid (grid 0.6, jev 0.4, each on its own max scale, so jev overturns a near-tie but never a landslide) and the maximum is fired. falls back to the grid alone when jev is unavailable.
 
   Did any player miss sinking a ship that was found? was it due to end game or a blunder?
 
@@ -54,17 +58,19 @@ sections:
 
       - step_id: "step_1"
         title: "Choose AI Mode"
-        question: "Choose the AI mode: Random, Hunter, Super Human Hunter, or Hermes Reasoner?"
+        question: "Choose the AI mode: Random, Hunter, Super Human Hunter, LLM Reasoner, or Jev Reasoner?"
         tokens_for_ai: |
           If the user chooses Random, categorize as 'random_mode'.
           If the user chooses Hunter, categorize as 'hunter_mode'.
           If the user chooses Super Human Hunter, categorize as 'super_hunter_mode'.
-          If the user chooses Hermes Reasoner, categorize as 'hermes_reasoner_mode'.
+          If the user chooses LLM Reasoner (or Hermes Reasoner, its old name), categorize as 'llm_reasoner_mode'.
+          If the user chooses Jev Reasoner (or Jev Hunter), categorize as 'jev_reasoner_mode'.
         feedback_tokens_for_ai: |
           If the user chooses Random, say: "Random mode selected! The AI will make completely random moves."
           If the user chooses Hunter, say: "Hunter mode selected! The AI will systematically hunt around hits."
           If the user chooses Super Human Hunter, say: "Super Human Hunter mode selected! The AI will use advanced probability analysis."
-          If the user chooses Hermes Reasoner, say: "Hermes Reasoner mode selected! The AI will use probability analysis combined with reasoning to make strategic decisions."
+          If the user chooses LLM Reasoner, say: "LLM Reasoner mode selected! The AI will use probability analysis combined with a chat model's reasoning to make strategic decisions."
+          If the user chooses Jev Reasoner, say: "Jev Reasoner mode selected! The AI recomputes an exact probability grid every turn and asks jev, a decision model, to choose the shot."
         processing_script: |
           import random
 
@@ -94,7 +100,8 @@ sections:
           - random_mode
           - hunter_mode
           - super_hunter_mode
-          - hermes_reasoner_mode
+          - llm_reasoner_mode
+          - jev_reasoner_mode
         transitions:
           random_mode:
             run_processing_script: True
@@ -117,12 +124,19 @@ sections:
             metadata_add:
               ai_mode: "super_hunter"
             next_section_and_step: "section_1:step_2"
-          hermes_reasoner_mode:
+          llm_reasoner_mode:
             run_processing_script: True
             ai_feedback:
-              tokens_for_ai: "Hermes Reasoner Mode enabled for the AI. The AI will use probability analysis combined with reasoning to make strategic decisions."
+              tokens_for_ai: "LLM Reasoner Mode enabled for the AI. The AI will use probability analysis combined with a chat model's reasoning to make strategic decisions."
             metadata_add:
-              ai_mode: "hermes_reasoner"
+              ai_mode: "llm_reasoner"
+            next_section_and_step: "section_1:step_2"
+          jev_reasoner_mode:
+            run_processing_script: True
+            ai_feedback:
+              tokens_for_ai: "Jev Reasoner Mode enabled for the AI. Every turn it recomputes an exact placement-density probability grid and asks jev, a decision model, to choose among the top cells. Its read is drawn as a heatmap beside the boards."
+            metadata_add:
+              ai_mode: "jev_reasoner"
             next_section_and_step: "section_1:step_2"
 
       - step_id: "step_2"
@@ -185,6 +199,25 @@ sections:
               - ai_hit_result
               - user_response
               
+          - name: "Jev's Read"
+            tokens_for_ai: |
+              🧭 Jev Reasoner is the enemy admiral this game. Narrate its call for THIS turn in one or two sentences, in character as a cold, precise decision engine.
+
+              Metadata jev_read:
+              - turn: the enemy's turn number
+              - shot: the cell it fired on
+              - source: "jev" when the jev decision model chose among the candidates; "grid" when the probability grid alone decided (then say plainly that the grid alone decided)
+              - p: jev's probability on its chosen cell (0-1); confidence: jev's own confidence (0-1)
+              - orientation / orientation_p: jev's read on which way the wounded ship lies, present only while a hit is live
+              - candidates: the top cells it weighed as [cell, density] pairs, density 0-100
+              - error: why jev did not answer, when source is "grid"
+              Ignore fused and sunk_cells.
+
+              Format: "🧭 Jev's read: [one or two sentences]". Never invent numbers not in the metadata.
+            metadata_filter:
+              - jev_read
+            skip_condition: "all_null"
+
           - name: "Ship Status"
             tokens_for_ai: |
               A ship has been destroyed! Generate a dramatic 2-3 sentence description.
@@ -258,6 +291,7 @@ sections:
 
           # AI state variables
           ai_mode = metadata.get("ai_mode", "random")
+          jev_read = None  # Jev Reasoner's readout for this turn (see jev_hunter.py)
 
           # Initialize probability matrix with realistic ship placement probabilities
           if "probability_matrix" not in metadata:
@@ -364,16 +398,17 @@ sections:
                       return True
               return False
 
-          # Function to generate Hermes reasoning
-          def hermes_reason_move(game_state, turn_number, top_candidates):
+          # Function to generate a chat model's (LLM) reasoning
+          def llm_reason_move(game_state, turn_number, top_candidates):
               global ai_hits, ai_shots, ai_sunk_ships, probability_matrix
               import os
               import requests
               import json
 
-              # Get Hermes endpoint from environment
-              hermes_endpoint = os.environ.get('MODEL_ENDPOINT_1', 'https://hermes.ai.unturf.com/v1')
-              hermes_api_key = os.environ.get('MODEL_API_KEY_1', '')
+              # Chat model endpoint from environment (MODEL_1)
+              llm_endpoint = os.environ.get('MODEL_ENDPOINT_1', 'https://hermes.ai.unturf.com/v1')
+              llm_api_key = os.environ.get('MODEL_API_KEY_1', '')
+              llm_model = os.environ.get('MODEL_NAME_1', 'adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic')
 
               # Prepare game state summary
               hits_summary = f"AI hits so far: {len(ai_hits)} positions hit"
@@ -399,18 +434,18 @@ sections:
 
               try:
                   headers = {
-                      'Authorization': f'Bearer {hermes_api_key}',
+                      'Authorization': f'Bearer {llm_api_key}',
                       'Content-Type': 'application/json'
                   }
 
                   data = {
-                      'model': 'adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic',
+                      'model': llm_model,
                       'messages': [{'role': 'user', 'content': prompt}],
                       'max_tokens': 300,
                       'temperature': 0.5
                   }
 
-                  response = requests.post(f'{hermes_endpoint}/chat/completions',
+                  response = requests.post(f'{llm_endpoint}/chat/completions',
                                          headers=headers, json=data, timeout=10)
 
                   print(f"DEBUG: API Status: {response.status_code}")
@@ -431,10 +466,10 @@ sections:
 
           # AI chooses a shot
           def choose_ai_shot():
-              global can_fit_ship, update_probability, generate_hunt_targets, random_search, probability_matrix, ai_mode, ai_shots, random, user_board, ai_hits, ai_hit_result, hermes_reason_move, ship_sizes, ai_sunk_ships
+              global can_fit_ship, update_probability, generate_hunt_targets, random_search, probability_matrix, ai_mode, ai_shots, random, user_board, ai_hits, ai_hit_result, llm_reason_move, ship_sizes, ai_sunk_ships, jev_read
 
-              if ai_mode == "hermes_reasoner":
-                  # Use probability algorithm + Hermes reasoning
+              if ai_mode == "llm_reasoner":
+                  # Use probability algorithm + a chat model's reasoning
 
                   # Update probability matrix based on shots
                   remaining_ships = [ship for ship in ship_sizes.keys() if ship not in ai_sunk_ships]
@@ -537,9 +572,9 @@ sections:
                       print(f"  {' '.join(row)}")
                   print(f"DEBUG: Top candidates: {candidates[:10]}")
 
-                  reasoning_response = hermes_reason_move("battleship", turn_number, candidates)
+                  reasoning_response = llm_reason_move("battleship", turn_number, candidates)
 
-                  # Analysis already logged in hermes_reason_move function
+                  # Analysis already logged in llm_reason_move function
 
                   # Extract move from response - try multiple parsing methods
                   try:
@@ -567,6 +602,32 @@ sections:
                       ai_shot = random.choice(candidates)
                       print(f"DEBUG: Parse error: {e}, using fallback: {ai_shot}")
 
+              elif ai_mode == "jev_reasoner":
+                  # Jev Reasoner: an exact placement-density grid recomputed
+                  # every turn, fused with ONE jev decision over the top
+                  # candidates (jev_hunter.py). Fails open to the grid alone.
+                  import jev_hunter
+                  sunk_cells = [i for i, s in enumerate(user_board) if s in ai_sunk_ships]
+                  remaining_sizes = [size for name, size in ship_sizes.items() if name not in ai_sunk_ships]
+                  read = jev_hunter.choose_shot(ai_shots, ai_hits, sunk_cells, remaining_sizes)
+                  ai_shot = read["shot"]
+                  probability_matrix = [read["fused"][r * 10:(r + 1) * 10] for r in range(10)]
+                  jev = read["jev"] or {}
+                  jev_read = {
+                      "turn": len(ai_shots) + 1,
+                      "shot": ai_shot,
+                      "source": read["source"],
+                      "error": read["error"],
+                      "candidates": read["candidates"],
+                      "p": jev.get("p"),
+                      "confidence": jev.get("confidence"),
+                      "orientation": jev.get("orientation"),
+                      "orientation_p": jev.get("orientation_p"),
+                      "instance": jev.get("instance"),
+                      "model": jev.get("model"),
+                      "fused": read["fused"],
+                      "sunk_cells": sunk_cells,
+                  }
               elif ai_mode == "super_hunter":
                   # Use probabilistic grid algorithm
                   max_prob = 0
@@ -600,11 +661,11 @@ sections:
               if user_board[ai_shot] != -1:
                   ai_hits.append(ai_shot)
                   ai_hit_result = "hit"
-                  if ai_mode == "super_hunter" or ai_mode == "hermes_reasoner":
+                  if ai_mode == "super_hunter" or ai_mode == "llm_reasoner":
                       update_probability(ai_shot % 10, ai_shot // 10, True)
               else:
                   ai_hit_result = "miss"
-                  if ai_mode == "super_hunter" or ai_mode == "hermes_reasoner":
+                  if ai_mode == "super_hunter" or ai_mode == "llm_reasoner":
                       update_probability(ai_shot % 10, ai_shot // 10, False)
 
               return ai_shot
@@ -729,7 +790,8 @@ sections:
                   print(f"DEBUG: AI has {len(user_ship_positions_left)} user positions left - no winning move")
 
               # Plot the boards
-              fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+              panels = 3 if ai_mode == "jev_reasoner" else 2
+              fig, axs = plt.subplots(1, panels, figsize=(6 * panels, 6))
               fig.suptitle("Battleship", fontsize=16)
 
               # User's view of AI's board
@@ -787,6 +849,13 @@ sections:
                   handles.append(plt.Rectangle((0, 0), 1, 1, color=color, alpha=0.5))
               axs[1].legend(handles, ship_colors.keys(), loc='upper right', fontsize=8)
 
+              # Jev Reasoner's read: the fused probability grid that decided this shot
+              if ai_mode == "jev_reasoner" and jev_read is not None:
+                  import jev_hunter
+                  jev_hunter.draw_heatmap(
+                      axs[2], jev_read["fused"], ai_shots, ai_hits, jev_read["sunk_cells"], shot=ai_shot,
+                      title=f"Jev Reasoner's Read (turn {jev_read['turn']}, {jev_read['source']})")
+
               buf = io.BytesIO()
               plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.1)
               plt.close(fig)
@@ -818,6 +887,7 @@ sections:
                       "user_sunk_ship_this_round": user_sunk_ship_this_round,
                       "ai_sunk_ship_this_round": ai_sunk_ship_this_round,
                       "ai_mode": ai_mode,
+                      "jev_read": jev_read,
                       "probability_matrix": probability_matrix,
                       "hits": hits,
                       "misses": misses,

@@ -363,6 +363,63 @@ If not specified, both default to `MODEL_1` (Hermes-3-Llama-3.1-8B):
 - Excellent for role-playing and general tasks
 - Great classifier and feedback generator
 
+### Classifier model: a second kind of model (gated enhancement)
+
+`classifier.py` talks to a DECISION endpoint: one `state`, typed questions
+(`choice` over the buckets, `noul` yes/no, `score` over ordered levels),
+answers with a probability per label & nothing to parse. Same shape & env
+vocabulary as `uncloseai-cli/classifier.py` & `unhomeschool/classifier.py`,
+vendor-agnostic on purpose (wire shape today: TypeSafe System One, models
+`jev-latest` / `jev-preview`, or a LiteLLM `/typesafe` proxy):
+
+```
+MODEL_CLASSIFIER_ENDPOINT_0=https://api.typesafe.ai   # the whole entry
+MODEL_CLASSIFIER_API_KEY_0=...                        # optional (a proxy adds its own)
+MODEL_CLASSIFIER_ID_0=jev-latest                      # optional
+OPENCOMPLETION_CLASSIFIER=auto|on|off                 # auto: on whenever an endpoint exists
+OPENCOMPLETION_CLASSIFIER_TIMEOUT_S=8                 # a learner waits on this before the chat fallback
+OPENCOMPLETION_CLASSIFIER_MIN_P=0                     # below this p, chat decides
+```
+
+Sites: `activity.categorize_response` & `research/guarded_ai.py`'s copy
+(choice over the step's buckets; `Question:` + `Response:` as state, the
+step's `tokens_for_ai` as instructions) & Jev Reasoner in Battleship
+(`jev_hunter.py`, below). Feedback PROSE stays on the chat model; a decision
+model writes none. `classifier_model` / `feedback_model` in a YAML keep
+naming CHAT models; the classifier model is discovered from the environment
+only.
+
+**Fail-open, never a floor.** Any vendor error, timeout or unanswered
+question runs the chat path exactly as before & leaves `classifier_error`
+on `activity.last_readout()`, so a vendor failing on every call never looks
+like one that is off. Readouts carry `source: chat|classifier` plus the
+vendor's `confidence`, `instance` & `model`. `tests/conftest.py` pins the
+knob off so a developer's endpoint never turns a unit test into a vendor
+call; `tests/unit/test_classifier.py` exercises it with `urlopen` replaced.
+`make classifier-check` is the smoke test. Operation Voyeur: the key is read
+inside the request builder only, never an argument, a result, an error or a
+log line.
+
+### Jev Reasoner: a probability grid read by a decision model (Battleship)
+
+`research/activity29-battleship.yaml` offers five enemy admirals: Random,
+Hunter, Super Human Hunter (heuristic grid), LLM Reasoner (grid + a chat
+model reasoning in prose, formerly "Hermes Reasoner") & **Jev Reasoner**
+(`jev_hunter.py`). Jev Reasoner recomputes an EXACT placement-density grid
+every turn (every placement of every ship still afloat that avoids misses &
+sunk cells; while a hit is live only placements explaining it count,
+weighted by how many they cover), offers the top six cells to a classifier
+model as ONE `choice` question (the ASCII board & per-cell evidence as
+state & criteria, plus a `choice` on the wounded ship's orientation), fuses
+jev's distribution with the grid (grid 0.6, jev 0.4, each on its own max
+scale, so jev overturns a near-tie & never a landslide), & fires the
+maximum. No classifier:
+the grid alone decides & the readout says so (`jev_read.source: grid`).
+The activity draws the fused grid as a third heatmap panel & a "Jev's Read"
+feedback prompt narrates the call. `python3 jev_hunter.py [games] [seed]`
+self-plays the grid alone (mean ~44 shots per fleet, 2026-09-18);
+`tests/unit/test_jev_hunter.py` covers the grid, the wire & the fail-open.
+
 **Recommended Model Combinations**
 
 | Activity Type | Classifier | Feedback | Rationale |
