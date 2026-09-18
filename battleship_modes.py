@@ -253,7 +253,28 @@ def chat_backends(env=None):
 
 
 _chat_cooling = {}
+_chat_models = {}
 CHAT_COOLDOWN_S = 60.0
+
+
+def _model_for(endpoint, name_env, headers, timeout):
+    """MODEL_NAME_n when set, else the endpoint's first listed model (the
+    app's own rule: an endpoint serving one model names it in /models),
+    else the historical default. Cached per endpoint for the process."""
+    explicit = os.environ.get(name_env)
+    if explicit:
+        return explicit
+    if endpoint not in _chat_models:
+        import requests
+
+        try:
+            rows = requests.get(f"{endpoint}/models", headers=headers, timeout=timeout)
+            rows.raise_for_status()
+            ids = [m.get("id") for m in rows.json().get("data", []) if m.get("id")]
+            _chat_models[endpoint] = ids[0] if ids else LLM_DEFAULT_MODEL
+        except Exception:  # noqa: BLE001
+            _chat_models[endpoint] = LLM_DEFAULT_MODEL
+    return _chat_models[endpoint]
 
 
 def default_chat(prompt, timeout=LLM_TIMEOUT_S):
@@ -268,15 +289,16 @@ def default_chat(prompt, timeout=LLM_TIMEOUT_S):
     for endpoint, key_env, name_env in chat_backends():
         if _chat_cooling.get(endpoint, 0.0) > time.monotonic():
             continue
+        headers = {
+            "Authorization": f"Bearer {os.environ.get(key_env, '')}",
+            "Content-Type": "application/json",
+        }
         try:
             resp = requests.post(
                 f"{endpoint}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {os.environ.get(key_env, '')}",
-                    "Content-Type": "application/json",
-                },
+                headers=headers,
                 json={
-                    "model": os.environ.get(name_env) or LLM_DEFAULT_MODEL,
+                    "model": _model_for(endpoint, name_env, headers, timeout),
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": 300,
                     "temperature": 0.5,

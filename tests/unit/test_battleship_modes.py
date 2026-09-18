@@ -181,6 +181,34 @@ class TestChatTransport(unittest.TestCase):
         env = dict(self.ENV, LLM_MODEL="MODEL_2")
         self.assertEqual(bm.chat_backends(env)[0][0], "https://two.test/v1")
 
+    def test_unnamed_endpoint_uses_its_first_listed_model(self):
+        bm._chat_models.clear()
+        calls = []
+
+        def get(url, headers=None, timeout=None):
+            calls.append(url)
+            m = mock.MagicMock()
+            m.raise_for_status.return_value = None
+            m.json.return_value = {"data": [{"id": "served-model"}]}
+            return m
+
+        env = {"MODEL_ENDPOINT_1": "https://one.test/v1", "MODEL_API_KEY_1": "k"}
+        with mock.patch.dict("os.environ", env, clear=False), mock.patch(
+            "requests.get", get
+        ):
+            self.assertEqual(
+                bm._model_for("https://one.test/v1", "MODEL_NAME_1", {}, 5),
+                "served-model",
+            )
+            # Cached: a second ask costs no request.
+            bm._model_for("https://one.test/v1", "MODEL_NAME_1", {}, 5)
+        self.assertEqual(calls, ["https://one.test/v1/models"])
+        with mock.patch.dict("os.environ", {"MODEL_NAME_1": "pinned"}):
+            self.assertEqual(
+                bm._model_for("https://one.test/v1", "MODEL_NAME_1", {}, 5), "pinned"
+            )
+        bm._chat_models.clear()
+
     def test_dead_first_endpoint_falls_through_and_cools(self):
         bm._chat_cooling.clear()
         calls = []
@@ -194,7 +222,9 @@ class TestChatTransport(unittest.TestCase):
             m.json.return_value = {"choices": [{"message": {"content": "MOVE: 44"}}]}
             return m
 
-        with mock.patch.dict("os.environ", self.ENV), mock.patch("requests.post", post):
+        with mock.patch.dict("os.environ", self.ENV), mock.patch(
+            "requests.post", post
+        ), mock.patch("requests.get", side_effect=ConnectionError("502")):
             self.assertEqual(bm.default_chat("p"), "MOVE: 44")
             self.assertEqual(bm.default_chat("q"), "MOVE: 44")
         self.assertEqual(
