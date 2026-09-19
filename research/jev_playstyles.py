@@ -33,11 +33,13 @@ import json
 import os
 import random
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import battleship_arena as arena  # noqa: E402
 import classifier  # noqa: E402
 import jev_hunter as jh  # noqa: E402
 
@@ -282,6 +284,193 @@ def versus(va, vb, seed_key, first):
     )
 
 
+# ── Cross play: jev playstyles against the existing game modes ─────
+# battleship_modes' admirals (random, hunter, super_hunter, llm_reasoner)
+# clear the same boards solo, & the strongest playstyles meet each of
+# them head-to-head under a hard cap on jev calls.
+
+_jev_calls = {"n": 0}
+_jev_lock = threading.Lock()
+
+
+def _count_jev(n):
+    with _jev_lock:
+        _jev_calls["n"] += n
+        return _jev_calls["n"]
+
+
+def solo_mode(mode, seed_key):
+    row = arena.solo_clear(mode, seed_key, use_classifier=False)
+    return dict(
+        variant=mode,
+        board=seed_key,
+        shots=row["solo_shots"],
+        jev_turns=0,
+        errors=0,
+        seconds=row["seconds"],
+        kind="mode",
+    )
+
+
+def versus_mode(variant, mode, seed_key, first, cap):
+    """One playstyle `variant` against one existing `mode`. Returns None
+    (skipped) when the jev call budget is spent before the game starts."""
+    if _jev_calls["n"] >= cap:
+        return None
+    rng = random.Random(seed_key)
+    board_v, board_m = jh.place_ships(rng), jh.place_ships(rng)
+    v = dict(
+        shots=[],
+        hits=[],
+        sunk_cells=[],
+        sunk=set(),
+        dice=random.Random(f"{seed_key}:{variant}"),
+    )
+    m_side = arena.Side(mode, board_v, random.Random(f"{seed_key}:{mode}"))
+    order = ("v", "m") if first == "a" else ("m", "v")
+    winner, jev_turns = None, 0
+    while winner is None:
+        for who in order:
+            if who == "v":
+                remaining = [n2 for n, n2 in SHIPS.items() if n not in v["sunk"]]
+                shot, source, _ = choose(
+                    variant,
+                    v["shots"],
+                    v["hits"],
+                    v["sunk_cells"],
+                    remaining,
+                    v["dice"],
+                )
+                if source == "jev":
+                    jev_turns += 1
+                    _count_jev(1)
+                v["shots"].append(shot)
+                if board_m[shot] != -1:
+                    v["hits"].append(shot)
+                    name = board_m[shot]
+                    cells = [c for c, x in enumerate(board_m) if x == name]
+                    if all(c in v["hits"] for c in cells):
+                        v["sunk"].add(name)
+                        v["sunk_cells"].extend(cells)
+                if len(v["sunk"]) == len(SHIPS):
+                    winner = variant
+                    break
+            else:
+                m_side.fire(use_classifier=False)
+                if m_side.done:
+                    winner = mode
+                    break
+    return dict(
+        a=variant,
+        b=mode,
+        first=first,
+        winner=winner,
+        jev_turns=jev_turns,
+        shots={variant: len(v["shots"]), mode: len(m_side.state["shots"])},
+    )
+
+
+def run_cross(res, modes, games, top, cap, workers=4, chat_workers=2, progress=print):
+    """Add the existing modes to `res`: solo on the trial's boards (no jev
+    calls; the chat model at `chat_workers`) & head-to-head against the
+    `top` playstyles by solo mean, `games` per pair, under `cap` jev calls."""
+    seed, boards = res["config"]["seed"], res["config"]["boards"]
+    keys = [f"{seed}:board:{i}" for i in range(boards)]
+    _jev_calls["n"] = 0
+    solo_rows = []
+    fast = [m for m in modes if m != "llm_reasoner"]
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for row in pool.map(
+            lambda j: solo_mode(*j), [(m, k) for m in fast for k in keys]
+        ):
+            solo_rows.append(row)
+            progress(f"[solo {row['variant']:<13}] {row['shots']:>3} shots")
+    if "llm_reasoner" in modes:
+        with ThreadPoolExecutor(max_workers=chat_workers) as pool:
+            for row in pool.map(lambda k: solo_mode("llm_reasoner", k), keys):
+                solo_rows.append(row)
+                progress(f"[solo llm_reasoner ] {row['shots']:>3} shots")
+    res["solo"].extend(solo_rows)
+    for m in modes:
+        xs = sorted(r["shots"] for r in solo_rows if r["variant"] == m)
+        res["summary"][m] = dict(
+            n=len(xs),
+            mean=round(sum(xs) / len(xs), 2),
+            median=xs[len(xs) // 2],
+            min=xs[0],
+            max=xs[-1],
+            kind="mode",
+        )
+    playstyles = [v for v in res["ranking"] if v != "grid"][:top]
+    jobs = [
+        (v, m, f"{seed}:cross:{v}:{m}:{g}", "ab"[g % 2], cap)
+        for v in playstyles
+        for m in modes
+        for g in range(games)
+    ]
+    llm_jobs = [j for j in jobs if j[1] == "llm_reasoner"]
+    other = [j for j in jobs if j[1] != "llm_reasoner"]
+    rows = []
+    for batch, w in ((other, workers), (llm_jobs, chat_workers)):
+        with ThreadPoolExecutor(max_workers=w) as pool:
+            for row in pool.map(lambda j: versus_mode(*j), batch):
+                if row is None:
+                    continue
+                rows.append(row)
+                progress(
+                    f"[cross {row['a']:<9} v {row['b']:<13}] {row['winner']:<13} in "
+                    f"{row['shots'][row['winner']]:>3}  jev calls so far {_jev_calls['n']}"
+                )
+    res["cross"] = rows
+    res["cross_config"] = dict(
+        modes=modes,
+        games=games,
+        playstyles=playstyles,
+        cap=cap,
+        jev_calls=_jev_calls["n"],
+        skipped=len(jobs) - len(rows),
+    )
+    wins = {v: {m: 0 for m in modes} for v in playstyles}
+    played = {v: {m: 0 for m in modes} for v in playstyles}
+    for r in rows:
+        played[r["a"]][r["b"]] += 1
+        if r["winner"] == r["a"]:
+            wins[r["a"]][r["b"]] += 1
+    res["cross_wins"], res["cross_played"] = wins, played
+    return res
+
+
+def report_cross(res):
+    if "cross" not in res:
+        return ""
+    cc = res["cross_config"]
+    s = res["summary"]
+    lines = [
+        "",
+        f"existing modes on the same {res['config']['boards']} boards "
+        "(solo shots, mean / median / min / max)",
+    ]
+    for m in cc["modes"]:
+        x = s[m]
+        lines.append(
+            f"  {m:<13}{x['mean']:>7}{x['median']:>8}{x['min']:>5}{x['max']:>5}"
+        )
+    lines += [
+        "",
+        f"playstyles v existing modes, {cc['games']} games per pair, "
+        f"{cc['jev_calls']} jev calls (cap {cc['cap']}, {cc['skipped']} games skipped)",
+    ]
+    lines.append(" " * 10 + "".join(f"{m:>14}" for m in cc["modes"]) + "   won/played")
+    for v in cc["playstyles"]:
+        w, p = res["cross_wins"][v], res["cross_played"][v]
+        lines.append(
+            f"{v:<10}"
+            + "".join(f"{w[m]}/{p[m]}".rjust(14) for m in cc["modes"])
+            + f"{sum(w.values()):>8}/{sum(p.values())}"
+        )
+    return "\n".join(lines)
+
+
 def run(
     boards=20,
     seed=0,
@@ -412,17 +601,52 @@ def main(argv=None):
         "--variants", nargs="+", default=list(VARIANTS), choices=list(VARIANTS)
     )
     ap.add_argument("--out", default="jev_playstyles.json")
+    ap.add_argument(
+        "--load", help="extend an existing results file instead of running the trial"
+    )
+    ap.add_argument(
+        "--cross",
+        nargs="*",
+        help="existing modes to compare against (default: all four)",
+    )
+    ap.add_argument("--cross-games", type=int, default=3)
+    ap.add_argument(
+        "--cross-top", type=int, default=3, help="how many playstyles, by solo mean"
+    )
+    ap.add_argument(
+        "--cross-cap",
+        type=int,
+        default=1950,
+        help="hard cap on jev calls for the cross games",
+    )
+    ap.add_argument("--chat-workers", type=int, default=2)
     a = ap.parse_args(argv)
     if not classifier.available():
         print(
             "no classifier configured: every variant would be the grid", file=sys.stderr
         )
         return 2
-    res = run(a.boards, a.seed, a.workers, a.variants, a.versus_games)
+    if a.load:
+        with open(a.load) as f:
+            res = json.load(f)
+    else:
+        res = run(a.boards, a.seed, a.workers, a.variants, a.versus_games)
+    if a.cross is not None:
+        modes = a.cross or ["random", "hunter", "super_hunter", "llm_reasoner"]
+        run_cross(
+            res,
+            modes,
+            a.cross_games,
+            a.cross_top,
+            a.cross_cap,
+            a.workers,
+            a.chat_workers,
+        )
     with open(a.out, "w") as f:
         json.dump(res, f, indent=1)
     print()
     print(report(res))
+    print(report_cross(res))
     print(f"\nwrote {a.out}")
     return 0
 
