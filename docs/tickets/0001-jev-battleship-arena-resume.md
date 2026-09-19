@@ -1,6 +1,6 @@
 # 0001: Jev Battleship arena, resume when TypeSafe credits return
 
-**Status:** blocked (vendor billing). **Opened:** 2026-09-19. **Owner:** fox.
+**Status:** done 2026-09-19 22:49 UTC (key replaced, every pass rerun & published). **Opened:** 2026-09-19. **Owner:** fox.
 
 ## Where it stands
 
@@ -39,7 +39,19 @@ with charts from `plots_for_arena_blog_post.py` beside the 2024 data.
   actually answered (the fallback chain resolved Qwen). Small defect:
   record the resolved model per endpoint in `battleship_arena.run`.
 
-## Resume steps
+## Outcome (2026-09-19 evening)
+
+Key replaced ~21:45 UTC. Jev solo leg replayed (1,800 calls, all jev),
+playstyle trial (8,800), whole-board pass incl. blind jev (2,700), cross
+pass v the four admirals (1,470, cap 1,950): about 14,800 jev calls, zero
+errors. Post published & updated live through the evening:
+`russell.ballestrini.net/battleship-arena-five-admirals-one-grid/`.
+Finding: with placement counts in the prompt every jev playstyle sits
+inside dice noise of the grid (SHH's own second dice stream: 48.3 v 44.8);
+without counts jev needs 79 shots. Data: `uploads/2024/battleship-solvers/
+{arena_results,jev_playstyles,jev_wire}.json`.
+
+## Resume steps (historical; all done except 5)
 
 1. Confirm credits: `make classifier-check` after `source vars.sh`.
 2. Jev solo leg only (about 1,800 calls):
