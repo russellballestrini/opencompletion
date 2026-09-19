@@ -54,6 +54,12 @@ VARIANTS = {
     "top10": dict(weight=0.4, k=10),
     "orient": dict(weight=0.4, k=6, orient=True),
     "score": dict(weight=0.4, k=6, score=True),
+    # Whole-board variants: the labels are EVERY unfired cell, not the
+    # grid's top few. jev_all still sees each cell's density; jev_blind
+    # sees the board only, so it measures jev alone.
+    "jev_all": dict(weight=1.0, k=100, whole=True),
+    "fuse_all": dict(weight=0.4, k=100, whole=True),
+    "jev_blind": dict(weight=1.0, k=100, whole=True, blind=True),
 }
 
 _SCORE_RUBRIC = [
@@ -104,6 +110,53 @@ def jev_score_read(grid, shots, hits, sunk_cells, remaining):
     )
 
 
+def jev_whole_board_read(grid, shots, hits, sunk_cells, remaining, blind=False):
+    """One `choice` over EVERY unfired cell. With `blind`, the criteria name
+    only the cell's position & the prompt carries no density at all, so
+    the answer is jev's own read of the board."""
+    fired = set(shots)
+    cells = [c for c in range(jh.CELLS) if c not in fired]
+    if not cells:
+        raise classifier.ClassifierError("no cells left")
+    live = set(hits) - set(sunk_cells)
+    state = (
+        f"Battleship, 10x10, cells 0-99 (cell = row*10 + column). Turn {len(fired) + 1}. "
+        f"Ships still afloat (lengths): {sorted(remaining, reverse=True)}. "
+        f"Live hits not yet sunk: {sorted(live) or 'none'}.\n"
+        "Board (. unknown, o miss, X live hit, # sunk):\n"
+        + jh.board_ascii(shots, hits, sunk_cells)
+    )
+    if blind:
+        criteria = {
+            str(c): f"Cell {c} (row {c // SIZE}, column {c % SIZE})." for c in cells
+        }
+        instructions = (
+            "You are Jev, admiral of a Battleship fleet. Choose the cell to fire on "
+            "next that sinks the enemy fleet in the fewest shots."
+        )
+    else:
+        criteria = {
+            str(c): jh.describe_candidate(c, grid[c], hits, sunk_cells) for c in cells
+        }
+        instructions = (
+            "You are Jev, admiral of a Battleship fleet. Choose the cell to fire on "
+            "next that sinks the enemy fleet in the fewest shots: finish a wounded "
+            "ship along its line before hunting open water; in open water prefer "
+            "cells more ship placements can cover (higher density)."
+        )
+    d = classifier.choose(
+        state, [str(c) for c in cells], instructions=instructions, criteria=criteria
+    )
+    return dict(
+        candidates=cells,
+        value=int(d["value"]),
+        dist={int(c): p for c, p in d["dist"].items()},
+        confidence=d["confidence"],
+        orientation=None,
+        orientation_p=None,
+    )
+
+
 def orient_boost(grid, hits, sunk_cells, orientation, p, factor=1.5):
     """Boost cells that extend the live hits along `orientation`."""
     live = set(hits) - set(sunk_cells)
@@ -124,9 +177,18 @@ def choose(variant, shots, hits, sunk_cells, remaining, rng):
     grid = jh.normalize(jh.density_grid(shots, hits, sunk_cells, remaining))
     weight, k = cfg["weight"], cfg["k"]
     source, error = "grid", None
-    if weight > 0 and jh.top_candidates(grid, shots, k):
+    if weight > 0 and (cfg.get("whole") or jh.top_candidates(grid, shots, k)):
         try:
-            if cfg.get("score"):
+            if cfg.get("whole"):
+                read = jev_whole_board_read(
+                    grid,
+                    shots,
+                    hits,
+                    sunk_cells,
+                    remaining,
+                    blind=cfg.get("blind", False),
+                )
+            elif cfg.get("score"):
                 read = jev_score_read(grid, shots, hits, sunk_cells, remaining)
             else:
                 read = jh.jev_read(grid, shots, hits, sunk_cells, remaining, k=k)
