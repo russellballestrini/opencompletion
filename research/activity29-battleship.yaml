@@ -189,7 +189,7 @@ sections:
           manual_setup:
             content_blocks:
               - "You place the fleet. Five ships, one at a time: **Carrier** (5), **Battleship** (4), **Cruiser** (3), **Submarine** (3), **Destroyer** (2)."
-              - "For each ship reply with its start and end tiles, for example `23 27` for a Carrier along row 2, or `5 45` for one down column 5. Tiles run 0 to 99, left to right, top to bottom."
+              - "For each ship reply with two tiles on the same row or column, for example `23 27` for a Carrier along row 2, or `5 45` for one down column 5. Two tiles closer together than the ship is long are fine: the ship extends along that line to its full length. Tiles run 0 to 99, left to right, top to bottom."
               - "Say **random** at any point and the rest of the fleet is placed for you."
               - "First: your **Carrier** (5 tiles)."
             counts_as_attempt: false
@@ -202,7 +202,7 @@ sections:
 
       - step_id: "place"
         title: "Place a Ship"
-        question: "Start and end tiles for the ship named above (for example `23 27`), or say random to place the rest."
+        question: "Two tiles on one row or column for the ship named above (for example `23 27`), or say random to place the rest."
         tokens_for_ai: |
           If the response contains two numbers between 0 and 99 (any separator: space, comma, 'to', dash), categorize as 'placement'.
           If the user says random, auto, automatic, skip, or asks to place the rest for them, categorize as 'random_rest'.
@@ -234,7 +234,7 @@ sections:
           elif queue:
               tiles = bm.parse_placement(metadata.get("placement_input", ""))
               if tiles is None:
-                  result = "I need two tiles, like 23 27."
+                  result = "I need two tiles on one row or column, like 23 27."
               else:
                   ok, result, cells = bm.place_ship(board, queue[0], *tiles)
           queue = bm.unplaced(board)

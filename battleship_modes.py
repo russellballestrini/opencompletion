@@ -459,30 +459,66 @@ def unplaced(board):
 
 
 def place_ship(board, name, a, b):
-    """Try to put `name` on `board` from tile `a` to tile `b`. Returns
-    (ok, message, cells); on ok the board is updated in place."""
+    """Put `name` on `board` through tiles `a` & `b`. The two tiles pin the
+    line & the position; when they sit closer together than the ship is
+    long, the ship extends along that line to its full length, forward
+    (right or down) first, then back, taking the first extension that
+    stays on the board & crosses no other ship. Returns (ok, message,
+    cells); on ok the board is updated in place."""
     size = SHIPS[name]
     if not (0 <= a < CELLS and 0 <= b < CELLS):
         return False, "Tiles run 0 to 99.", []
-    cells = placement_cells(a, b)
-    if cells is None:
+    span = placement_cells(a, b)
+    if span is None:
         return (
             False,
-            f"{a} and {b} are not in a straight line; a ship sits in one row or one column.",
+            (
+                f"{a} and {b} are not in a straight line; a ship sits in one row or one column."
+            ),
             [],
         )
-    if len(cells) != size:
+    if len(span) > size:
         return (
             False,
-            f"The {name} is {size} tiles long; {a} to {b} covers {len(cells)}.",
+            f"The {name} is {size} tiles long; {a} to {b} covers {len(span)}.",
             [],
         )
-    taken = [c for c in cells if board[c] != -1]
+    step = (
+        1
+        if span[-1] - span[0] < SIZE and len(span) > 1 or (len(span) == 1 and False)
+        else SIZE
+    )
+    if len(span) == 1:
+        # A single tile pins nothing about direction: try along the row, then the column.
+        options = [(1, span), (SIZE, span)]
+    else:
+        options = [(step, span)]
+    for stp, cells0 in options:
+        lo = cells0[0]
+        need = size - len(cells0)
+        # Extensions: forward by k, back by need - k, k from need down to 0.
+        for k in range(need, -1, -1):
+            start = lo - (need - k) * stp
+            cells = [start + i * stp for i in range(size)]
+            if any(c < 0 or c >= CELLS for c in cells):
+                continue
+            if stp == 1 and len({c // SIZE for c in cells}) != 1:
+                continue
+            if all(board[c] == -1 for c in cells):
+                for c in cells:
+                    board[c] = name
+                return True, f"{name} placed on {cells[0]} to {cells[-1]}.", cells
+    taken = sorted({c for c in span if board[c] != -1})
     if taken:
         return False, f"Tiles {taken} already hold your {board[taken[0]]}.", []
-    for c in cells:
-        board[c] = name
-    return True, f"{name} placed on {cells[0]} to {cells[-1]}.", cells
+    return (
+        False,
+        (
+            f"No room for the {name} ({size} tiles) through {a} and {b}: it would run off "
+            "the board or across another ship."
+        ),
+        [],
+    )
 
 
 def place_remaining(board, rng=random):

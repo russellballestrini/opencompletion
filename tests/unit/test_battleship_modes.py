@@ -307,9 +307,9 @@ class TestPlacement(unittest.TestCase):
         ok, msg, _ = bm.place_ship(board, "Battleship", 23, 26)
         self.assertFalse(ok)
         self.assertIn("already hold your Carrier", msg)
-        ok, msg, _ = bm.place_ship(board, "Battleship", 0, 4)
+        ok, msg, _ = bm.place_ship(board, "Destroyer", 0, 4)
         self.assertFalse(ok)
-        self.assertIn("4 tiles long", msg)
+        self.assertIn("2 tiles long; 0 to 4 covers 5", msg)
         ok, msg, _ = bm.place_ship(board, "Battleship", 0, 11)
         self.assertFalse(ok)
         self.assertIn("straight line", msg)
@@ -318,6 +318,38 @@ class TestPlacement(unittest.TestCase):
         ok, msg, _ = bm.place_ship(board, "Destroyer", 99, 98)
         self.assertTrue(ok)
         self.assertEqual(bm.unplaced(board), ["Battleship", "Cruiser", "Submarine"])
+
+    def test_two_close_tiles_extend_along_the_line(self):
+        board = [-1] * 100
+        # Adjacent pair on a row: extends forward to full length.
+        ok, msg, cells = bm.place_ship(board, "Carrier", 23, 24)
+        self.assertTrue(ok)
+        self.assertEqual(cells, [23, 24, 25, 26, 27])
+        # Column pair at the right edge: extends down.
+        ok, _, cells = bm.place_ship(board, "Battleship", 9, 19)
+        self.assertEqual(cells, [9, 19, 29, 39])
+        # Row pair at the end of the board: has to extend back.
+        ok, _, cells = bm.place_ship(board, "Cruiser", 98, 99)
+        self.assertEqual(cells, [97, 98, 99])
+        # A single tile pins position only: row first, then column.
+        ok, _, cells = bm.place_ship(board, "Submarine", 44, 44)
+        self.assertEqual(cells, [44, 45, 46])
+        ok, _, cells = bm.place_ship(board, "Destroyer", 90, 90)
+        self.assertEqual(cells, [90, 91])
+        self.assertEqual(bm.unplaced(board), [])
+
+    def test_extension_dodges_other_ships_and_reports_when_boxed_in(self):
+        board = [-1] * 100
+        bm.place_ship(board, "Carrier", 25, 29)  # occupies the end of row 2
+        # Battleship pinned at 23 24 cannot extend forward past 25; it extends back.
+        ok, _, cells = bm.place_ship(board, "Battleship", 23, 24)
+        self.assertTrue(ok)
+        self.assertEqual(cells, [21, 22, 23, 24])
+        # Row 2 now full from 21 to 29: a Cruiser pinned at 20 has nowhere along the row.
+        board2 = list(board)
+        ok, msg, _ = bm.place_ship(board2, "Cruiser", 20, 21)
+        self.assertFalse(ok)
+        self.assertIn("already hold your Battleship", msg)
 
     def test_place_remaining_completes_a_legal_fleet(self):
         board = [-1] * 100
