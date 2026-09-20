@@ -536,11 +536,21 @@ class TestGuardedAIClientAndErrorHandling(unittest.TestCase):
         self.assertEqual(result, text)
 
     def test_translate_text_error_handling(self):
-        """Test error handling in translation (tests the bug with undefined 'client')"""
-        result = guarded_ai.translate_text("Hello", "Spanish")
+        """A failing completion comes back as an Error: string, never raises.
+        Hermetic: CI exports a real MODEL_ENDPOINT_0, & when that endpoint is
+        up an unmocked call translates 'Hello' for real & the assertion
+        below fails (2026-09-20)."""
+        with patch("guarded_ai.get_openai_client_and_model") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.chat.completions.create.side_effect = Exception(
+                "Translation Error"
+            )
+            mock_get_client.return_value = (mock_client, "test-model")
 
-        # Should return an error due to undefined 'client' variable
+            result = guarded_ai.translate_text("Hello", "Spanish")
+
         self.assertTrue(result.startswith("Error:"))
+        self.assertIn("Translation Error", result)
 
     def test_execute_processing_script_basic(self):
         """Test basic script execution functionality"""
