@@ -50,7 +50,7 @@ sections:
         content_blocks:
           - |
             Welcome to Battleship! 🚢
-            In this game, both you and the AI have a fleet of ships placed randomly on a 10x10 grid.
+            In this game, you and the AI each have a fleet of five ships on a 10x10 grid. The AI's fleet is placed at random; yours can be random too, or you can place each ship yourself.
             The grid positions are numbered 0 to 99.
 
             Your goal is to sink all of the AI's ships before it sinks yours.
@@ -108,12 +108,10 @@ sections:
                               placed = True
               return board
 
-          user_board = place_ships()
-          ai_board = place_ships()  # AI also gets randomly placed ships
+          ai_board = place_ships()  # the AI's fleet; the player's comes from Fleet Setup
 
           script_result = {
               "metadata": {
-                  "user_board": user_board,
                   "ai_board": ai_board
               }
           }
@@ -131,35 +129,151 @@ sections:
               tokens_for_ai: "Random Mode enabled for the AI."
             metadata_add:
               ai_mode: "random"
-            next_section_and_step: "section_1:step_2"
+            next_section_and_step: "section_1:setup"
           hunter_mode:
             run_processing_script: True
             ai_feedback:
               tokens_for_ai: "Hunter Mode enabled for the AI."
             metadata_add:
               ai_mode: "hunter"
-            next_section_and_step: "section_1:step_2"
+            next_section_and_step: "section_1:setup"
           super_hunter_mode:
             run_processing_script: True
             ai_feedback:
               tokens_for_ai: "Super Human Hunter Mode enabled for the AI."
             metadata_add:
               ai_mode: "super_hunter"
-            next_section_and_step: "section_1:step_2"
+            next_section_and_step: "section_1:setup"
           llm_reasoner_mode:
             run_processing_script: True
             ai_feedback:
               tokens_for_ai: "LLM Reasoner Mode enabled for the AI. The AI will use probability analysis combined with a chat model's reasoning to make strategic decisions."
             metadata_add:
               ai_mode: "llm_reasoner"
-            next_section_and_step: "section_1:step_2"
+            next_section_and_step: "section_1:setup"
           jev_reasoner_mode:
             run_processing_script: True
             ai_feedback:
               tokens_for_ai: "Jev Reasoner Mode enabled for the AI. Every turn it recomputes an exact placement-density probability grid and asks jev, a decision model, to choose among the top cells. Its read is drawn as a heatmap beside the boards."
             metadata_add:
               ai_mode: "jev_reasoner"
+            next_section_and_step: "section_1:setup"
+
+      - step_id: "setup"
+        title: "Fleet Setup"
+        question: "Your fleet: a random layout, or place your ships yourself?"
+        tokens_for_ai: |
+          If the user wants a random, automatic, or quick layout, categorize as 'random_setup'.
+          If the user wants to place, pick, choose, or position their ships themselves (manual), categorize as 'manual_setup'.
+          Otherwise categorize as 'unclear'.
+        processing_script: |
+          import random
+          import battleship_modes as bm
+          board = bm.place_remaining([-1] * 100, random)
+          script_result = {
+              "plot_image": bm.render_fleet(board, "Your Ships (random layout)"),
+              "set_background": True,
+              "metadata": {"user_board": board, "placed_ships": bm.unplaced([-1] * 100), "next_ship": None},
+          }
+        buckets:
+          - random_setup
+          - manual_setup
+          - unclear
+        transitions:
+          random_setup:
+            run_processing_script: True
+            ai_feedback:
+              tokens_for_ai: "Tell the admiral their fleet has been dealt at random and the battle begins. One sentence."
+            counts_as_attempt: false
             next_section_and_step: "section_1:step_2"
+          manual_setup:
+            content_blocks:
+              - "You place the fleet. Five ships, one at a time: **Carrier** (5), **Battleship** (4), **Cruiser** (3), **Submarine** (3), **Destroyer** (2)."
+              - "For each ship reply with its start and end tiles, for example `23 27` for a Carrier along row 2, or `5 45` for one down column 5. Tiles run 0 to 99, left to right, top to bottom."
+              - "Say **random** at any point and the rest of the fleet is placed for you."
+              - "First: your **Carrier** (5 tiles)."
+            counts_as_attempt: false
+            next_section_and_step: "section_1:place"
+          unclear:
+            content_blocks:
+              - "Say **random** for a random layout, or **place** to position your ships yourself."
+            counts_as_attempt: false
+            next_section_and_step: "section_1:setup"
+
+      - step_id: "place"
+        title: "Place a Ship"
+        question: "Start and end tiles for the ship named above (for example `23 27`), or say random to place the rest."
+        tokens_for_ai: |
+          If the response contains two numbers between 0 and 99 (any separator: space, comma, 'to', dash), categorize as 'placement'.
+          If the user says random, auto, automatic, skip, or asks to place the rest for them, categorize as 'random_rest'.
+          Otherwise categorize as 'invalid_placement'.
+        feedback_tokens_for_ai: |
+          You are the fleet's quartermaster. One or two sentences, plain and exact.
+        feedback_prompts:
+          - name: "Placement Report"
+            tokens_for_ai: |
+              Metadata:
+              - placement_result: what happened with the tiles the admiral gave (a success line, or why it was refused)
+              - placed_ships: ships now on the board
+              - next_ship / next_ship_size: the ship to place next, or null when the fleet is complete
+              Repeat placement_result word for word. If next_ship is not null, end with: "Next: your [next_ship] ([next_ship_size] tiles)." If next_ship is null, say the fleet is complete and the battle begins.
+            metadata_filter:
+              - placement_result
+              - placed_ships
+              - next_ship
+              - next_ship_size
+        processing_script: |
+          import random
+          import battleship_modes as bm
+          board = metadata.get("user_board") or [-1] * 100
+          queue = bm.unplaced(board)
+          result = None
+          if str(metadata.get("placement_random") or "").lower() in ("yes", "true", "1"):
+              board = bm.place_remaining(board, random)
+              result = "The rest of the fleet has been placed for you."
+          elif queue:
+              tiles = bm.parse_placement(metadata.get("placement_input", ""))
+              if tiles is None:
+                  result = "I need two tiles, like 23 27."
+              else:
+                  ok, result, cells = bm.place_ship(board, queue[0], *tiles)
+          queue = bm.unplaced(board)
+          next_ship = queue[0] if queue else None
+          script_result = {
+              "plot_image": bm.render_fleet(board, "Your Ships" if not queue else f"Your Ships (placing the {queue[0]})"),
+              "set_background": True,
+              "metadata": {
+                  "user_board": board,
+                  "placement_result": result,
+                  "placed_ships": [n for n, _ in bm.FLEET if n in set(board)],
+                  "next_ship": next_ship,
+                  "next_ship_size": bm.SHIPS[next_ship] if next_ship else None,
+              },
+          }
+          if not queue:
+              script_result["next_section_and_step"] = "section_1:step_2"
+        buckets:
+          - placement
+          - random_rest
+          - invalid_placement
+        transitions:
+          placement:
+            run_processing_script: True
+            metadata_tmp_add:
+              placement_input: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "section_1:place"
+          random_rest:
+            run_processing_script: True
+            metadata_tmp_add:
+              placement_random: "yes"
+            counts_as_attempt: false
+            next_section_and_step: "section_1:place"
+          invalid_placement:
+            content_blocks:
+              - "Reply with two tiles, start and end, for example `23 27`. Or say **random** to place the rest."
+            counts_as_attempt: false
+            next_section_and_step: "section_1:place"
 
       - step_id: "step_2"
         title: "Take a Shot"

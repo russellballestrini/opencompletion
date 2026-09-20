@@ -420,3 +420,119 @@ def record_shot(mode, st, shot, hit, sunk_ship=None, sunk_cells=()):
         st["sunk_ships"].append(sunk_ship)
         st["sunk_cells"].extend(c for c in sunk_cells if c not in st["sunk_cells"])
     return st
+
+
+# ── Fleet placement (the player's own board) ───────────────────────
+# The chat UI skipped placement for years & dealt the player a random
+# fleet. A placement is two tiles, start & end; the engine checks the line
+# is straight, the length matches the ship, it fits the board, & it
+# overlaps nothing, then asks for the next ship. "random" fills the rest.
+
+FLEET = list(SHIPS.items())  # placement order: Carrier first
+
+
+def parse_placement(text):
+    """Two cell numbers 0-99 anywhere in `text`, or None."""
+    nums = [int(n) for n in re.findall(r"\b(\d{1,2})\b", str(text or ""))]
+    nums = [n for n in nums if 0 <= n < CELLS]
+    return (nums[0], nums[1]) if len(nums) >= 2 else None
+
+
+def placement_cells(a, b):
+    """The cells from `a` to `b` inclusive when they share a row or a
+    column, else None."""
+    ra, ca = divmod(a, SIZE)
+    rb, cb = divmod(b, SIZE)
+    if ra == rb:
+        lo, hi = sorted((ca, cb))
+        return [ra * SIZE + c for c in range(lo, hi + 1)]
+    if ca == cb:
+        lo, hi = sorted((ra, rb))
+        return [r * SIZE + ca for r in range(lo, hi + 1)]
+    return None
+
+
+def unplaced(board):
+    """Ship names not yet on `board`, in fleet order."""
+    on_board = set(board)
+    return [name for name, _ in FLEET if name not in on_board]
+
+
+def place_ship(board, name, a, b):
+    """Try to put `name` on `board` from tile `a` to tile `b`. Returns
+    (ok, message, cells); on ok the board is updated in place."""
+    size = SHIPS[name]
+    if not (0 <= a < CELLS and 0 <= b < CELLS):
+        return False, "Tiles run 0 to 99.", []
+    cells = placement_cells(a, b)
+    if cells is None:
+        return (
+            False,
+            f"{a} and {b} are not in a straight line; a ship sits in one row or one column.",
+            [],
+        )
+    if len(cells) != size:
+        return (
+            False,
+            f"The {name} is {size} tiles long; {a} to {b} covers {len(cells)}.",
+            [],
+        )
+    taken = [c for c in cells if board[c] != -1]
+    if taken:
+        return False, f"Tiles {taken} already hold your {board[taken[0]]}.", []
+    for c in cells:
+        board[c] = name
+    return True, f"{name} placed on {cells[0]} to {cells[-1]}.", cells
+
+
+def place_remaining(board, rng=random):
+    """Random legal placements for every ship not yet on `board`."""
+    for name in unplaced(board):
+        size = SHIPS[name]
+        while True:
+            cells = rng.choice(jev_hunter.placements(size))
+            if all(board[c] == -1 for c in cells):
+                for c in cells:
+                    board[c] = name
+                break
+    return board
+
+
+def render_fleet(board, title="Your Ships"):
+    """One panel of the player's board as a base64 PNG, the same drawing
+    the game uses for the right-hand panel."""
+    import base64
+    import io
+
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    colors = {
+        "Carrier": "blue",
+        "Battleship": "green",
+        "Cruiser": "orange",
+        "Submarine": "purple",
+        "Destroyer": "pink",
+    }
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.set_xlim(0, SIZE)
+    ax.set_ylim(0, SIZE)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.grid(True)
+    ax.set_title(title, fontsize=12)
+    for i, ship in enumerate(board):
+        x, y = i % SIZE, SIZE - 1 - i // SIZE
+        if ship != -1:
+            ax.add_patch(plt.Rectangle((x, y), 1, 1, color=colors[ship], alpha=0.5))
+        ax.text(
+            x + 0.5, y + 0.5, str(i), fontsize=8, ha="center", va="center", color="gray"
+        )
+    handles = [plt.Rectangle((0, 0), 1, 1, color=c, alpha=0.5) for c in colors.values()]
+    ax.legend(handles, colors.keys(), loc="upper right", fontsize=8)
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", bbox_inches="tight", pad_inches=0.1)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode("utf-8")

@@ -415,8 +415,11 @@ jev's distribution with the grid (grid 0.6, jev 0.4, each on its own max
 scale, so jev overturns a near-tie & never a landslide), & fires the
 maximum. No classifier:
 the grid alone decides & the readout says so (`jev_read.source: grid`).
-The activity draws the fused grid as a third heatmap panel & a "Jev's Read"
-feedback prompt narrates the call. `python3 jev_hunter.py [games] [seed]`
+The activity draws the fused grid as a third heatmap panel & the Shot
+Report narrates jev's call. **Fleet Setup** (step `setup`) lets the player
+take a random fleet or place each ship (step `place`: two tiles per ship,
+validated by `battleship_modes.place_ship`; "random" fills the rest); the
+AI's fleet is always random. `python3 jev_hunter.py [games] [seed]`
 self-plays the grid alone (mean ~44 shots per fleet, 2026-09-18);
 `tests/unit/test_jev_hunter.py` covers the grid, the wire & the fail-open.
 

@@ -283,6 +283,63 @@ class TestJevAndDispatch(unittest.TestCase):
         json.dumps(st)
 
 
+class TestPlacement(unittest.TestCase):
+    def test_parse_placement(self):
+        self.assertEqual(bm.parse_placement("23 27"), (23, 27))
+        self.assertEqual(bm.parse_placement("from 5 to 45 please"), (5, 45))
+        self.assertEqual(bm.parse_placement("0,4"), (0, 4))
+        self.assertIsNone(bm.parse_placement("random"))
+        self.assertIsNone(bm.parse_placement("42"))
+        self.assertIsNone(bm.parse_placement("123 4"))
+
+    def test_placement_cells(self):
+        self.assertEqual(bm.placement_cells(27, 23), [23, 24, 25, 26, 27])
+        self.assertEqual(bm.placement_cells(5, 45), [5, 15, 25, 35, 45])
+        self.assertIsNone(bm.placement_cells(0, 11))
+        self.assertEqual(bm.placement_cells(9, 9), [9])
+
+    def test_place_ship_rules(self):
+        board = [-1] * 100
+        ok, msg, cells = bm.place_ship(board, "Carrier", 23, 27)
+        self.assertTrue(ok)
+        self.assertEqual(cells, [23, 24, 25, 26, 27])
+        self.assertEqual([c for c, s in enumerate(board) if s == "Carrier"], cells)
+        ok, msg, _ = bm.place_ship(board, "Battleship", 23, 26)
+        self.assertFalse(ok)
+        self.assertIn("already hold your Carrier", msg)
+        ok, msg, _ = bm.place_ship(board, "Battleship", 0, 4)
+        self.assertFalse(ok)
+        self.assertIn("4 tiles long", msg)
+        ok, msg, _ = bm.place_ship(board, "Battleship", 0, 11)
+        self.assertFalse(ok)
+        self.assertIn("straight line", msg)
+        ok, msg, _ = bm.place_ship(board, "Destroyer", 98, 108)
+        self.assertFalse(ok)
+        ok, msg, _ = bm.place_ship(board, "Destroyer", 99, 98)
+        self.assertTrue(ok)
+        self.assertEqual(bm.unplaced(board), ["Battleship", "Cruiser", "Submarine"])
+
+    def test_place_remaining_completes_a_legal_fleet(self):
+        board = [-1] * 100
+        bm.place_ship(board, "Carrier", 0, 4)
+        bm.place_remaining(board, random.Random(4))
+        self.assertEqual(bm.unplaced(board), [])
+        counts = {}
+        for s in board:
+            if s != -1:
+                counts[s] = counts.get(s, 0) + 1
+        self.assertEqual(counts, bm.SHIPS)
+        self.assertEqual(
+            [c for c, s in enumerate(board) if s == "Carrier"], [0, 1, 2, 3, 4]
+        )
+
+    def test_render_fleet_is_png_base64(self):
+        import base64
+
+        png = base64.b64decode(bm.render_fleet([-1] * 100))
+        self.assertTrue(png.startswith(b"\x89PNG"))
+
+
 class TestArena(unittest.TestCase):
     def test_judge(self):
         board = jev_hunter.place_ships(random.Random(5))
