@@ -3,6 +3,7 @@ round robin that measures them. No network: the chat transport is
 injected & the classifier knob is pinned off."""
 
 import json
+import os
 import random
 import sys
 import unittest
@@ -227,7 +228,11 @@ class TestChatTransport(unittest.TestCase):
             m.json.return_value = {"choices": [{"message": {"content": "MOVE: 44"}}]}
             return m
 
-        with mock.patch.dict("os.environ", self.ENV), mock.patch(
+        # CI & developer shells carry their own MODEL_ENDPOINT_n; the chain
+        # must see exactly these two, so drop every MODEL_* first.
+        env = {k: v for k, v in os.environ.items() if not k.startswith("MODEL_")}
+        env.update(self.ENV)
+        with mock.patch.dict("os.environ", env, clear=True), mock.patch(
             "requests.post", post
         ), mock.patch("requests.get", side_effect=ConnectionError("502")):
             self.assertEqual(bm.default_chat("p"), "MOVE: 44")
