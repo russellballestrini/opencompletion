@@ -10,10 +10,10 @@ function sanitizeUsername(username) {
 }
 
 // Function to copy message content to clipboard
-function copyMessageContent(content) {
+// `button` is passed in: window.event is gone by the time the promise settles.
+function copyMessageContent(content, button) {
     navigator.clipboard.writeText(content).then(() => {
-        // Optional: show a temporary success message
-        const button = event.currentTarget;
+        if (!button) return;
         const originalText = button.textContent;
         button.textContent = 'Copied!';
         setTimeout(() => {

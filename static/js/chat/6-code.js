@@ -176,7 +176,9 @@ async function executeCodeBlock(code, blockElement, playButton) {
         });
 
         if (!asyncResponse.ok) {
-            throw new Error(`HTTP error! status: ${asyncResponse.status}`);
+            // Show our server's reason (e.g. "Sign in to run code") when it gives one
+            const failure = await asyncResponse.json().catch(() => ({}));
+            throw new Error(failure.error || `HTTP error! status: ${asyncResponse.status}`);
         }
 
         const { job_id } = await asyncResponse.json();

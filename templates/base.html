@@ -32,8 +32,9 @@
       <a class="btn btn-block" href="/">New room</a>
 
       <div id="room-tabs" role="tablist">
-          <button type="button" class="room-tab {% if not current_room or not current_room.is_private %}active{% endif %}" id="public-rooms-tab" role="tab" onclick="switchRoomTab('public')">Public</button>
-          <button type="button" class="room-tab {% if current_room and current_room.is_private %}active{% endif %}" id="private-rooms-tab" role="tab" onclick="switchRoomTab('private')">Private</button>
+          {% set private_active = current_room and current_room.is_private %}
+          <button type="button" class="room-tab {% if not private_active %}active{% endif %}" id="public-rooms-tab" role="tab" aria-controls="public-rooms-section" aria-selected="{{ 'false' if private_active else 'true' }}" onclick="switchRoomTab('public')">Public</button>
+          <button type="button" class="room-tab {% if private_active %}active{% endif %}" id="private-rooms-tab" role="tab" aria-controls="private-rooms-section" aria-selected="{{ 'true' if private_active else 'false' }}" onclick="switchRoomTab('private')">Private</button>
       </div>
 
       <div id="private-rooms-section" class="room-section" {% if not (current_room and current_room.is_private) %}hidden{% endif %}>
@@ -120,6 +121,8 @@
         const isPublic = tab === 'public';
         document.getElementById('public-rooms-tab').classList.toggle('active', isPublic);
         document.getElementById('private-rooms-tab').classList.toggle('active', !isPublic);
+        document.getElementById('public-rooms-tab').setAttribute('aria-selected', String(isPublic));
+        document.getElementById('private-rooms-tab').setAttribute('aria-selected', String(!isPublic));
         document.getElementById('public-rooms-section').hidden = !isPublic;
         document.getElementById('private-rooms-section').hidden = isPublic;
     }

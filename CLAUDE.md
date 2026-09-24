@@ -192,6 +192,11 @@ Returns: `{"job_id": "job-xxx"}`
 **Get Job Status** (GET `/api/code/jobs/<job_id>`):
 Returns job status and results when completed.
 
+**Who may run code**: `/api/code/execute` needs a signed-in person (it spends
+our Unsandbox account) unless `OPENCOMPLETION_GUEST_CODE_EXEC=on`. Status &
+cancel answer only for job ids the same browser session started; any other
+id is a 404.
+
 **Cancel Job** (DELETE `/api/code/jobs/<job_id>`):
 Cancels our running or pending job.
 

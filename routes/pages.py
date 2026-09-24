@@ -1,6 +1,7 @@
 """Pages people open: home, sign in, profile, our style guide, favicon."""
 
 import os
+from urllib.parse import urlsplit
 
 from flask import (
     Blueprint,
@@ -49,8 +50,14 @@ def safe_next_url(value):
     Only a single leading slash is accepted, so `//evil.example` and
     `https://...` can never turn our sign-in page into an open redirect.
     """
-    if value and value.startswith("/") and not value.startswith(("//", "/\\")):
-        return value
+    # Browsers drop tabs & newlines inside URLs, so "/\t/evil.example" would
+    # become "//evil.example": refuse any control character or backslash.
+    if not value or any(ord(c) < 0x20 or ord(c) == 0x7F or c == "\\" for c in value):
+        return "/"
+    parts = urlsplit(value)
+    if value.startswith("/") and not value.startswith("//") and not parts.netloc:
+        if not parts.scheme:
+            return value
     return "/"
 
 

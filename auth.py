@@ -190,9 +190,19 @@ def verify_otp(email, otp_code):
         _otp_failures.pop(email, None)
         return otp_token
 
+    # Only a live code can be guessed, so only it gets a counter; random
+    # emails with no code never grow our in-memory table.
+    live = [
+        token
+        for token in OTPToken.query.filter_by(email=email, used=False).all()
+        if token.is_valid()
+    ]
+    if not live:
+        _otp_failures.pop(email, None)
+        return None
     failures = _otp_failures.get(email, 0) + 1
     if failures >= MAX_OTP_FAILURES:
-        for token in OTPToken.query.filter_by(email=email, used=False).all():
+        for token in live:
             token.used = True
         db.session.commit()
         _otp_failures.pop(email, None)

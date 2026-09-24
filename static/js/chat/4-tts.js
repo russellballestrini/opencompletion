@@ -727,7 +727,10 @@ function toggleAudioPlayback(audio, playButton) {
     currentAudio = audio;
     currentAudio.playButton = playButton;
 
-    audio.onended = () => {
-        playButton.textContent = "Play";
-    };
+    // A listener, not onended: queued audio's lifecycle owns onended &
+    // resolves our auto-play queue from it.
+    if (!audio._toggleEndedBound) {
+        audio._toggleEndedBound = true;
+        audio.addEventListener("ended", () => { playButton.textContent = "Play"; });
+    }
 }

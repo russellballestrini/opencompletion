@@ -138,3 +138,14 @@ def test_changing_names_requires_sign_in(client):
 )
 def test_bad_bodies_get_400_not_500(client, path):
     assert client.post(path, data="not json").status_code == 400
+
+
+def test_guesses_without_a_live_code_are_not_remembered(client):
+    import auth
+
+    for i in range(20):
+        client.post(
+            "/auth/verify-otp",
+            json={"email": f"nobody{i}@example.test", "otp_code": "123456"},
+        )
+    assert auth._otp_failures == {}

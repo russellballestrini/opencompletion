@@ -60,3 +60,10 @@ export ENABLE_CODE_GEN_FILENAMES="true"
 # export OPENCOMPLETION_CLASSIFIER="auto"   # auto | on | off
 # export OPENCOMPLETION_CLASSIFIER_TIMEOUT_S="8"
 # export OPENCOMPLETION_CLASSIFIER_MIN_P="0"   # below this p, chat decides
+
+# Code execution through Unsandbox (https://unsandbox.com). Running code
+# spends this account, so it needs a signed-in person; set
+# OPENCOMPLETION_GUEST_CODE_EXEC=on to let guests run code too.
+#export UNSANDBOX_PUBLIC_KEY=unsb-pk-xxxx
+#export UNSANDBOX_SECRET_KEY=unsb-sk-xxxx
+#export OPENCOMPLETION_GUEST_CODE_EXEC=on

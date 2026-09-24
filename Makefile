@@ -72,7 +72,7 @@ venv/.installed: requirements.txt requirements-test.txt
 init-db: venv
 	@echo "🗄️ Initializing database tables..."
 	@if [ -f vars.sh ]; then \
-		. ./vars.sh && venv/bin/python init_db.py; \
+		. ./vars.sh && venv/bin/python init_db.py && \
 		echo "✅ Database tables created successfully"; \
 	else \
 		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \

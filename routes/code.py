@@ -4,8 +4,9 @@ machine learning helpers that fix code & name artifacts."""
 import os
 
 import requests
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 
+import auth
 import un
 from activity_utils import create_completion_skip_thinking, strip_reasoning
 from routes import DEPS
@@ -124,6 +125,38 @@ def _unsandbox_error_response(e, log_label):
     return jsonify({"error": f"{log_label}: {e}"}), 500
 
 
+# Jobs a browser session started; status & cancel answer only for these.
+# Bounded so a long session cannot grow its cookie without limit.
+MAX_TRACKED_JOBS = 50
+
+
+def code_exec_refused():
+    """A (response, status) when this caller may not run code, else None.
+
+    Running code spends this server's Unsandbox account, so it needs a
+    signed-in person unless OPENCOMPLETION_GUEST_CODE_EXEC=on opens it to
+    guests (a classroom server, say).
+    """
+    if auth.get_current_user():
+        return None
+    if os.environ.get("OPENCOMPLETION_GUEST_CODE_EXEC", "").lower() in (
+        "1",
+        "on",
+        "true",
+    ):
+        return None
+    return jsonify({"error": "Sign in to run code"}), 401
+
+
+def remember_job(job_id):
+    jobs = [j for j in session.get("code_jobs", []) if j != job_id]
+    session["code_jobs"] = (jobs + [job_id])[-MAX_TRACKED_JOBS:]
+
+
+def owns_job(job_id):
+    return job_id in session.get("code_jobs", [])
+
+
 # Unsandbox API proxy endpoints - keeps API keys server-side
 @bp.route("/api/code/execute", methods=["POST"])
 def proxy_code_execute():
@@ -137,6 +170,10 @@ def proxy_code_execute():
         data = request.get_json(silent=True)
         if not data:
             return jsonify({"error": "Request body required"}), 400
+
+        refused = code_exec_refused()
+        if refused:
+            return refused
 
         # Check if credentials are configured
         public_key = os.environ.get("UNSANDBOX_PUBLIC_KEY")
@@ -163,8 +200,11 @@ def proxy_code_execute():
             "POST", "/execute", public_key, secret_key, request_body
         )
 
-        # Return job_id from response
-        return jsonify({"job_id": result.get("job_id")}), 200
+        # Return job_id from response, remembered as this session's job
+        job_id = result.get("job_id")
+        if job_id:
+            remember_job(job_id)
+        return jsonify({"job_id": job_id}), 200
 
     except Exception as e:
         return _unsandbox_error_response(e, "Error proxying code execution")
@@ -179,6 +219,11 @@ def proxy_job_status(job_id):
             "UNSANDBOX_SECRET_KEY"
         ):
             return jsonify({"error": "Code execution not configured"}), 503
+
+        # Only the session that started a job may read or cancel it; any
+        # other id answers like an unknown one.
+        if not owns_job(job_id):
+            return jsonify({"error": "Job not found"}), 404
 
         # Use SDK's get_job method
         result = un.get_job(job_id)
@@ -199,6 +244,11 @@ def proxy_job_cancel(job_id):
             "UNSANDBOX_SECRET_KEY"
         ):
             return jsonify({"error": "Code execution not configured"}), 503
+
+        # Only the session that started a job may read or cancel it; any
+        # other id answers like an unknown one.
+        if not owns_job(job_id):
+            return jsonify({"error": "Job not found"}), 404
 
         # Use SDK's cancel_job method
         result = un.cancel_job(job_id)

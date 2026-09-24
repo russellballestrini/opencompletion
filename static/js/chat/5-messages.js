@@ -56,7 +56,7 @@ socket.on("chat_message", (data) => {
         const copyButton = document.createElement("button");
         copyButton.textContent = "Copy";
         copyButton.className = "copy-button";
-        copyButton.onclick = () => copyMessageContent(data.content);
+        copyButton.onclick = () => copyMessageContent(data.content, copyButton);
         buttonContainer.appendChild(copyButton);
 
         // Create the play button for TTS
@@ -92,9 +92,13 @@ socket.on("chat_message", (data) => {
     if (data.id) {
         document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
 
-        // Check if this message should auto-execute (from auto-fix)
-        if (window.pendingAutoExec) {
-            const autoExecData = window.pendingAutoExec;
+        // Auto-run our own posted fix, and only that: in a busy room another
+        // person's message can arrive first, and its code must never run
+        // unasked. A message that is not our fix leaves the pending run alone.
+        const pendingFix = window.pendingAutoExec;
+        if (pendingFix && data.username === username
+                && data.content.includes(pendingFix.code.trim())) {
+            const autoExecData = pendingFix;
             window.pendingAutoExec = null; // Clear it so we don't re-execute
 
             // Find the code block that was just added
@@ -179,7 +183,7 @@ socket.on("previous_messages", (data) => {
     const copyButton = document.createElement("button");
     copyButton.textContent = "Copy";
     copyButton.className = "copy-button";
-    copyButton.onclick = () => copyMessageContent(data.content);
+    copyButton.onclick = () => copyMessageContent(data.content, copyButton);
     buttonContainer.appendChild(copyButton);
 
     // Create the play button for TTS
@@ -382,7 +386,7 @@ socket.on("message_chunk", (data) => {
         const copyButton = document.createElement("button");
         copyButton.textContent = "Copy";
         copyButton.className = "copy-button";
-        copyButton.onclick = () => copyMessageContent(messageBuffers[data.id]);
+        copyButton.onclick = () => copyMessageContent(messageBuffers[data.id], copyButton);
         buttonContainer.appendChild(copyButton);
 
         // Create the play button for TTS
@@ -454,7 +458,16 @@ socket.on("message_deleted", (data) => {
 });
 
 // Socket event for when a message is updated
+// Drop cached speech for every voice of a message (keys are `${id}-${voice}`).
+function forgetCachedAudio(messageId) {
+    const cachePrefix = messageId + "-";
+    Object.keys(audioCache).forEach((key) => {
+        if (key.startsWith(cachePrefix)) delete audioCache[key];
+    });
+}
+
 socket.on("message_updated", (data) => {
+    forgetCachedAudio(data.message_id);
     // Find the existing message wrapper by ID
     const messageWrapper = document.getElementById("message-" + data.message_id);
 
@@ -525,10 +538,8 @@ function saveEditedMessage(messageId, textarea, messageContentContainer) {
         "room_name": room_name
     });
 
-    // Clear the cached audio for this message to recompute TTS
-    if (audioCache[messageId]) {
-        delete audioCache[messageId];
-    }
+    // Edited text needs fresh speech
+    forgetCachedAudio(messageId);
 
     // Reset the edit button to its original state
     const messageWrapper = messageContentContainer.closest('.message-wrapper');

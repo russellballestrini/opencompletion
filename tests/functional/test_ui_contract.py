@@ -195,6 +195,11 @@ def test_sign_in_says_where_the_code_went(client):
         ("//evil.example", "/"),
         ("/\\evil.example", "/"),
         ("https://evil.example", "/"),
+        ("/\t/evil.example", "/"),  # browsers drop the tab: //evil.example
+        ("/\n/evil.example", "/"),
+        ("/%09/evil.example", "/%09/evil.example"),  # still encoded: a path
+        ("/x\\y", "/"),
+        ("javascript:alert(1)", "/"),
     ],
 )
 def test_sign_in_returns_only_to_our_own_pages(value, expected):
@@ -409,15 +414,28 @@ window.addEventListener('load', () => {
         '<img src=x onerror="window.pwned=2">',
         '<a href="javascript:window.pwned=3">click</a>',
         '<script>window.pwned=4<\/script>',
+        '<iframe src="https://evil.example" style="position:fixed;inset:0"></iframe>',
+        '<div style="position:fixed;inset:0;background:red">overlay</div>',
     ];
     attacks.forEach((content, i) => deliver('chat_message', {id: 10 + i, username: 'mallory', content}));
     attacks.forEach((content, i) => deliver('previous_messages', {id: 20 + i, username: 'mallory', content}));
     deliver('message_updated', {message_id: 1, content: attacks[0], username: 'ada'});
-    check(!chat.querySelector('[onerror], script, a[href^="javascript:"]'), 'hostile markup removed');
+    check(!chat.querySelector('[onerror], script, a[href^="javascript:"], iframe, [style*="fixed"]'), 'hostile markup removed');
     check(chat.querySelector('#message-10 img[src^="data:image/jpeg"]'), 'data: images still show');
     check(chat.querySelector('#message-20 img[src^="data:image/jpeg"]'), 'historical data: images still show');
     const handlers = [...chat.querySelectorAll('*')].flatMap(el => [...el.attributes].map(a => a.name)).filter(n => n.startsWith('on'));
     check(handlers.length === 0, 'no on* handler attributes: ' + handlers.join(','));
+
+    // Copy gives feedback on its own button (window.event is gone by then)
+    navigator.clipboard.writeText = () => Promise.resolve();
+    const copyButton = document.querySelector('#message-1 .button-container .copy-button');
+    copyButton.click();
+
+    // Sidebar tabs tell assistive tech which is selected
+    switchRoomTab('private');
+    check(document.getElementById('private-rooms-tab').getAttribute('aria-selected') === 'true'
+        && document.getElementById('public-rooms-tab').getAttribute('aria-selected') === 'false', 'tabs report aria-selected');
+    switchRoomTab('public');
 
     // A name full of markdown stays a name
     deliver('chat_message', {id: 30, username: '[x](javascript:alert(1))', content: 'hi'});
@@ -438,6 +456,7 @@ window.addEventListener('load', () => {
     check(box.value === '', 'box clears after send');
 
     setTimeout(() => {
+        check(copyButton.textContent === 'Copied!', 'copy shows Copied!: ' + copyButton.textContent);
         check(!window.pwned, 'no injected script ran (' + window.pwned + ')');
         document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
     }, 300);
@@ -482,3 +501,10 @@ def test_header_menu_on_phones(client, tmp_path, width):
     html = client.get("/browse").get_data(as_text=True)
     out = run_probe(html, MENU_PROBE, tmp_path, width)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+def test_models_endpoint_answers(client):
+    """/models refreshes our model map on a timer kept in app.py."""
+    response = client.get("/models")
+    assert response.status_code == 200
+    assert "models" in response.json

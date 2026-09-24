@@ -48,9 +48,6 @@ def browse_rooms():
     )
 
 
-_model_map_refreshed_at = 0.0
-
-
 @bp.route("/api/activities", methods=["GET"])
 def get_activities():
     """Return the list of available activities."""

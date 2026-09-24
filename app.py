@@ -660,6 +660,9 @@ routes.register(
 )
 
 
+_model_map_refreshed_at = 0.0
+
+
 @app.route("/models", methods=["GET"])
 def get_models():
     # Refresh rotation periodically: drop endpoints that went down and pick

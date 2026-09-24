@@ -44,13 +44,14 @@ if (username) {
     }
 }
 
-// Configuration for DOMPurify to specify which tags and attributes are allowed
+// What DOMPurify keeps in a message. No iframe & no style attribute: a
+// sender could otherwise cover our page with a full-screen overlay or
+// another site. Images & video (including data: images) still render.
 const dompurify_config = {
-  ADD_TAGS: ["iframe", "img", "video"],
-  FORBID_TAGS: ["form"], 
+  ADD_TAGS: ["img", "video"],
+  FORBID_TAGS: ["form", "iframe", "style"],
   ALLOWED_ATTR: [
-    "src", "width", "height", "frameborder", "allowfullscreen", 
-    "alt", "class", "title", "style", "controls",
+    "src", "width", "height", "alt", "class", "title", "controls",
   ]
 };
 
