@@ -149,6 +149,9 @@ def create_otp_token(email):
     for token in existing_tokens:
         token.used = True
 
+    # A fresh code gets a fresh budget of guesses
+    _otp_failures.pop(email, None)
+
     # Generate new OTP
     otp_code = generate_otp()
     otp_token = OTPToken(email=email, otp_code=otp_code)
@@ -159,12 +162,22 @@ def create_otp_token(email):
     return otp_token
 
 
+# Wrong guesses allowed per email before every live code for it is burned.
+# A 6-digit code would otherwise fall to brute force inside its 10 minutes;
+# burning forces a fresh code, which emails its owner. The counter lives in
+# memory (a restart only resets counts; burned codes stay burned in the
+# database), so no schema change is needed.
+MAX_OTP_FAILURES = 5
+_otp_failures = {}
+
+
 def verify_otp(email, otp_code):
     """Verify an OTP code for the given email
 
     Returns:
         - OTPToken object if valid
-        - None if invalid
+        - None if invalid (the MAX_OTP_FAILURES-th miss burns every live
+          code for this email)
     """
     otp_token = OTPToken.query.filter_by(
         email=email, otp_code=otp_code, used=False
@@ -174,8 +187,17 @@ def verify_otp(email, otp_code):
         # Mark as used
         otp_token.used = True
         db.session.commit()
+        _otp_failures.pop(email, None)
         return otp_token
 
+    failures = _otp_failures.get(email, 0) + 1
+    if failures >= MAX_OTP_FAILURES:
+        for token in OTPToken.query.filter_by(email=email, used=False).all():
+            token.used = True
+        db.session.commit()
+        _otp_failures.pop(email, None)
+    else:
+        _otp_failures[email] = failures
     return None
 
 
