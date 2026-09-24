@@ -28,13 +28,22 @@ _BROWSER_CANDIDATES = (
 )
 _browser_cache = {}
 
-# Stand-ins for CDN libraries so a page runs from file:// without network.
-_CDN_STUBS = {
-    "socket.io": "window.io = () => ({on() {}, emit() {}, off() {}});",
-    "marked": "window.marked = {parse: s => s, setOptions() {}, use() {}};",
-    "purify": "window.DOMPurify = {sanitize: s => s, addHook() {}};",
-    "highlight": "window.hljs = {highlightElement() {}, highlightAll() {}, configure() {}};",
-}
+# socket.io is swapped for a fake: `testSocket.deliver(event, data)` plays a
+# server event into the page's handlers & `testSocket.sent` records emits.
+FAKE_SOCKET = """<script>
+window.io = () => {
+    const handlers = {};
+    const socket = {
+        sent: [],
+        on(event, fn) { (handlers[event] = handlers[event] || []).push(fn); },
+        off() {},
+        emit(event, data) { socket.sent.push([event, data]); },
+        deliver(event, data) { (handlers[event] || []).forEach(fn => fn(data)); }
+    };
+    window.testSocket = socket;
+    return socket;
+};
+</script>"""
 
 
 def working_browser():
@@ -86,33 +95,14 @@ def require_browser():
 
 
 def offline_page(html):
-    """Inline /static/ CSS & JS and stub CDN scripts so `html` runs from a
-    file:// URL exactly as our stylesheet & scripts would style & drive it."""
-
-    def inline_css(match):
-        path = ROOT / match.group(1).lstrip("/")
-        return f"<style>{path.read_text()}</style>"
-
-    def inline_js(match):
-        path = ROOT / match.group(1).lstrip("/")
-        return f"<script>{path.read_text()}</script>"
-
-    def stub_cdn(match):
-        src = match.group(1)
-        for key, stub in _CDN_STUBS.items():
-            if key in src:
-                return f"<script>{stub}</script>"
-        return "<script></script>"
-
+    """Point /static/ URLs at our files on disk so `html` runs from a file://
+    URL with exactly our stylesheet, scripts & vendored libraries, and put
+    a fake in place of socket.io (no server to talk to)."""
     html = re.sub(
-        r'<link rel="stylesheet" href="(/static/[^"]+)"[^>]*>', inline_css, html
+        r'<script src="/static/vendor/socket\.io[^"]*"></script>', FAKE_SOCKET, html
     )
-    html = re.sub(r'<link rel="stylesheet" href="https://[^"]+"[^>]*>', "", html)
-    html = re.sub(r'<script src="(/static/[^"]+)"></script>', inline_js, html)
-    html = re.sub(
-        r'<script\s+src="(https://[^"]+)"[^>]*>\s*</script>', stub_cdn, html, flags=re.S
-    )
-    return html
+    static = (ROOT / "static").as_uri()
+    return re.sub(r'(src|href)="/static/', rf'\1="{static}/', html)
 
 
 # Runs before any page script: a blocking dialog would hang --dump-dom.

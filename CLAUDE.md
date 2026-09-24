@@ -81,14 +81,13 @@ git remote -v
 - Both share `_head.html` & `_site_nav.html`; sign in is `_auth_steps.html` + `static/js/auth.js`
 - All styling is in `static/css/style.css` (tokens on `:root`, dark under `[data-theme="dark"]`); templates carry no `<style>` or raw colours
 - `make test-ui` checks our page contract & layouts in headless Chromium at 320/375/768/1280px
-- JavaScript code is inline in chat.html for real-time chat functionality
-- Uses Socket.IO for WebSocket communication
-- Uses marked.js for Markdown rendering and DOMPurify for XSS protection
-- Code blocks are rendered with highlight.js for syntax highlighting
+- Chat's JavaScript lives in `static/js/chat/` as ordered plain scripts sharing globals: `1-state.js`, `2-vision.js`, `3-room.js`, `4-tts.js`, `5-messages.js`, `6-code.js`, `7-activities.js`; server values arrive via `window.CHAT_CONFIG` in chat.html, never Jinja inside a .js file
+- Socket.IO, marked.js, DOMPurify & highlight.js are vendored in `static/vendor/` (pinned versions & sha256 in its README); no CDNs at runtime
+- Every message renders through `renderMarkdown()` (marked + DOMPurify), images included; never assign message text to innerHTML directly
 
 ### Code Block Rendering
 - Code blocks are processed in messages after markdown conversion
-- Copy buttons are added via `addCopyButtonToCodeBlock()` function in chat.html
+- Copy buttons are added via `addCopyButtonToCodeBlock()` in `static/js/chat/6-code.js`
 - Code blocks support:
   - Syntax highlighting via highlight.js
   - Line numbers via `addLineNumbers()` function

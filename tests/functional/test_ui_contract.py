@@ -252,13 +252,33 @@ def test_private_room_updates_stay_inside_the_room(test_app):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("path", ALL_PAGES)
-def test_inline_scripts_parse(client, path, tmp_path):
+def require_node():
     node = shutil.which("node")
     if not node:
         if os.environ.get("GITHUB_ACTIONS"):
             pytest.fail("node is required to syntax-check page scripts")
         pytest.skip("node is required to syntax-check page scripts")
+    return node
+
+
+@pytest.mark.parametrize(
+    "script",
+    sorted(str(p.relative_to(ROOT)) for p in (ROOT / "static" / "js").rglob("*.js")),
+)
+def test_static_scripts_parse_and_hold_no_template_syntax(script):
+    source = ROOT / script
+    text = source.read_text()
+    # Jinja never renders static files; server values go via CHAT_CONFIG.
+    assert "{{" not in text and "{%" not in text
+    result = subprocess.run(
+        [require_node(), "--check", str(source)], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("path", ALL_PAGES)
+def test_inline_scripts_parse(client, path, tmp_path):
+    node = require_node()
     html = client.get(path).get_data(as_text=True)
     scripts = re.findall(r"<script>(.*?)</script>", html, re.S)
     assert scripts
@@ -363,4 +383,70 @@ def test_chat_works_on_every_screen(client, tmp_path, width):
     make_room("lobby", message="hello")
     html = client.get("/chat/lobby").get_data(as_text=True)
     out = run_probe(html, CHAT_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+MESSAGE_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const chat = document.getElementById('chat');
+    const deliver = (event, data) => testSocket.deliver(event, data);
+
+    // Rendering: markdown, code blocks & their buttons
+    deliver('chat_message', {id: 1, username: 'ada', content: '**bold** words\n\n```python\nprint(1)\n```'});
+    const first = document.getElementById('message-1');
+    check(first && first.querySelector('strong'), 'markdown renders');
+    check(first.querySelector('pre code.hljs'), 'code highlighted');
+    check(first.querySelector('.copy-button') && first.querySelector('.play-button'), 'code block buttons');
+    check(!first.querySelector('a[href^="/profile/"]'), 'no link to a profile page that does not exist');
+
+    // Sanitizing: live, historical & edited messages, image shortcut included
+    const attacks = [
+        '<img src="data:image/jpeg;base64,AAAA" onerror="window.pwned=1">',
+        '<img src=x onerror="window.pwned=2">',
+        '<a href="javascript:window.pwned=3">click</a>',
+        '<script>window.pwned=4<\/script>',
+    ];
+    attacks.forEach((content, i) => deliver('chat_message', {id: 10 + i, username: 'mallory', content}));
+    attacks.forEach((content, i) => deliver('previous_messages', {id: 20 + i, username: 'mallory', content}));
+    deliver('message_updated', {message_id: 1, content: attacks[0], username: 'ada'});
+    check(!chat.querySelector('[onerror], script, a[href^="javascript:"]'), 'hostile markup removed');
+    check(chat.querySelector('#message-10 img[src^="data:image/jpeg"]'), 'data: images still show');
+    check(chat.querySelector('#message-20 img[src^="data:image/jpeg"]'), 'historical data: images still show');
+    const handlers = [...chat.querySelectorAll('*')].flatMap(el => [...el.attributes].map(a => a.name)).filter(n => n.startsWith('on'));
+    check(handlers.length === 0, 'no on* handler attributes: ' + handlers.join(','));
+
+    // A name full of markdown stays a name
+    deliver('chat_message', {id: 30, username: '[x](javascript:alert(1))', content: 'hi'});
+    check(!chat.querySelector('#message-30 a'), 'markdown in a name makes no link');
+
+    // Streaming: chunks accumulate into one rendered message
+    deliver('message_chunk', {id: 40, username: 'hermes', model_name: 'hermes', content: 'Hello '});
+    deliver('message_chunk', {id: 40, username: 'hermes', model_name: 'hermes', content: '*world*', is_complete: true});
+    const streamed = document.querySelector('#message-40 .message-content');
+    check(streamed && streamed.querySelector('em') && streamed.textContent.includes('Hello world'), 'chunks stream in');
+
+    // Sending: what we type goes to our room, as us
+    const box = document.getElementById('message');
+    box.value = 'from the probe';
+    document.getElementById('send-button').click();
+    const sent = testSocket.sent.find(([event]) => event === 'chat_message');
+    check(sent && sent[1].message === 'from the probe' && sent[1].room_name === 'lobby', 'send emits chat_message');
+    check(box.value === '', 'box clears after send');
+
+    setTimeout(() => {
+        check(!window.pwned, 'no injected script ran (' + window.pwned + ')');
+        document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+    }, 300);
+});
+</script>
+"""
+
+
+def test_chat_renders_sanitizes_streams_and_sends(client, tmp_path):
+    make_room("lobby")
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    out = run_probe(html, MESSAGE_PROBE, tmp_path, 1280)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

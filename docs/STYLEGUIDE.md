@@ -20,7 +20,8 @@ Rules:
 
 - Every page extends `layout.html` or `base.html` & links `style.css` once. **(tested)**
 - Templates hold no `<style>` blocks & no raw colours in `style=""`. **(tested)**
-- Shared behaviour lives in `static/js/`: `site.js` (theme, sign out), `auth.js` (sign in), `utils.js` (`slugify`).
+- Shared behaviour lives in `static/js/`: `site.js` (theme, sign out), `auth.js` (sign in), `utils.js` (`slugify`), `chat/*.js` (chat, in load order). Static scripts hold no template syntax & parse under `node --check`. **(tested)**
+- Third-party browser libraries are vendored in `static/vendor/`, never loaded from a CDN.
 
 ## Tokens
 
