@@ -244,3 +244,126 @@ def test_activity_status_reveals_nothing_about_private_rooms(test_app, app_modul
         guest.emit("get_activity_status", {"room_name": "secret"})
     assert handler.call_count == 1
     assert handler.call_args.args[0] == {"room_name": "secret"}
+
+
+# --- room names -----------------------------------------------------------
+
+SCANNER_NAME = "bs4' UNION ALL SELECT NULL,NULL,NULL-- 88ojyu"
+
+
+@pytest.mark.parametrize(
+    "name, ok",
+    [
+        ("lobby", True),
+        ("my-room_2", True),
+        ("a" * 64, True),
+        ("a" * 65, False),
+        ("Lobby", False),
+        ("-lobby", False),
+        ("two words", False),
+        ("", False),
+        (None, False),
+        (SCANNER_NAME, False),
+    ],
+)
+def test_valid_room_name(name, ok):
+    from routes.rooms import valid_room_name
+
+    assert valid_room_name(name) is ok
+
+
+def test_chat_page_refuses_to_offer_a_room_nobody_could_name(test_app, app_module):
+    from models import Room
+
+    client = http_client(test_app)
+    assert client.get("/chat/bs4%27%20UNION%20ALL%20SELECT%20NULL--").status_code == 404
+    assert client.get("/chat/lobby").status_code == 200
+
+    # A room from before our rule still opens.
+    make_room("Old Room")
+    assert client.get("/chat/Old Room").status_code == 200
+    assert Room.query.count() == 1
+
+
+def test_socket_join_and_post_create_no_room_under_a_junk_name(test_app, app_module):
+    from models import Message, Room
+
+    guest = socket_client(app_module, http_client(test_app))
+    guest.emit("join", {"room_name": SCANNER_NAME, "username": "guest"})
+    guest.emit(
+        "chat_message",
+        {"room_name": SCANNER_NAME, "username": "g", "message": "x", "model": "None"},
+    )
+    assert Room.query.count() == 0
+    assert Message.query.count() == 0
+
+    guest.emit("join", {"room_name": "lobby", "username": "guest"})
+    assert Room.query.filter_by(name="lobby").count() == 1
+
+
+def test_room_create_api_refuses_a_junk_name(test_app):
+    from models import Room
+
+    client = http_client(test_app)
+    response = client.post("/api/rooms/create", json={"name": SCANNER_NAME})
+    assert response.status_code == 400
+    assert Room.query.count() == 0
+    assert client.post("/api/rooms/create", json={"name": "fine"}).status_code == 200
+
+
+def test_prune_rooms_lists_then_deletes_only_empty_junk(test_app):
+    import io
+
+    import prune_rooms
+    from models import Room
+
+    make_room("lobby")
+    make_room(SCANNER_NAME)
+    chatty = make_room("Old Room")
+    add_message(chatty, "keep me")
+
+    out = io.StringIO()
+    assert prune_rooms.prune(out=out) == 0
+    assert "UNION" in out.getvalue()
+    assert Room.query.count() == 3
+
+    assert prune_rooms.prune(delete=True, out=io.StringIO()) == 1
+    assert {r.name for r in Room.query.all()} == {"lobby", "Old Room"}
+
+    assert prune_rooms.prune(delete=True, include_messages=True, out=io.StringIO()) == 1
+    assert {r.name for r in Room.query.all()} == {"lobby"}
+
+
+def test_prune_keeps_a_room_running_an_activity(test_app):
+    import io
+
+    import prune_rooms
+    from models import ActivityState, Room, db
+
+    room = make_room(SCANNER_NAME)
+    db.session.add(
+        ActivityState(room_id=room.id, section_id="s", step_id="t", s3_file_path="a")
+    )
+    db.session.commit()
+
+    assert prune_rooms.prune(delete=True, out=io.StringIO()) == 0
+    assert Room.query.count() == 1
+
+
+def test_prune_rechecks_for_messages_when_it_deletes(test_app):
+    import prune_rooms
+    from models import Message, Room
+
+    room = make_room(SCANNER_NAME)
+    assert prune_rooms.junk_rooms() == [(room, 0)]
+    add_message(room, "posted after our listing")
+
+    assert prune_rooms.delete_room(room) is False
+    assert Room.query.count() == 1
+    assert Message.query.count() == 1
+
+
+@pytest.mark.parametrize("body", [{"name": None}, {"name": 7}, ["lobby"]])
+def test_room_create_api_refuses_a_name_that_is_not_text(test_app, body):
+    response = http_client(test_app).post("/api/rooms/create", json=body)
+    assert response.status_code == 400

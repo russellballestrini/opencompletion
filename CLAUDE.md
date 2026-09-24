@@ -80,6 +80,7 @@ git remote -v
 - `app.py`: our Flask app, chat itself (`/chat/<room>`, Socket.IO events, model streaming, S3 & title helpers) & the model map
 - `routes/`: HTTP blueprints registered by `routes.register(app, ...)`: `pages.py` (home, sign in, profile, style guide), `accounts.py` (email-code sign in, names), `rooms.py` (browse, rooms API, search, downloads, `room_access_denied`), `code.py` (Unsandbox proxy, fix-code, artifact names)
 - Blueprints never `import app` (a server started as `python app.py` runs as `__main__`); shared helpers arrive via `routes.DEPS`, Socket.IO via `current_app.extensions["socketio"]`
+- A NEW room's name must match `[a-z0-9][a-z0-9_-]{0,63}` (`routes.rooms.valid_room_name`, what `slugify()` in `static/js/utils.js` makes); `/chat/<junk>` is a 404 & creates nothing, rooms that already exist open whatever they're called. `make prune-rooms` lists older scanner junk, `. ./vars.sh && venv/bin/python prune_rooms.py --delete` removes the empty ones (no messages, no activity)
 - `SQLALCHEMY_DATABASE_URI` overrides our default `instance/chat.db`
 - `SECRET_KEY` signs session cookies; unset, `auth.load_secret_key` keeps a random one in `instance/secret_key` (never a built-in default)
 - CI tests CPython 3.11, 3.12, 3.13 & 3.14 (every release still receiving fixes)
