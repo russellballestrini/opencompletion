@@ -4,14 +4,12 @@ Run: venv/bin/python -m pytest tests/functional/test_auth_ui_regressions.py
 Browser cases skip if Chromium is absent. Requests are stubbed intentionally.
 """
 
-import json
-import os
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
 from flask import Flask, render_template
+
+from browser import run_probe  # tests/functional/browser.py
 
 ROOT = Path(__file__).resolve().parents[2]
 pytestmark = pytest.mark.functional
@@ -24,61 +22,8 @@ def auth_html():
         return render_template("auth.html")
 
 
-_BROWSER_CANDIDATES = (
-    "google-chrome",
-    "google-chrome-stable",
-    "chromium",
-    "chromium-browser",
-)
-_browser_cache = {}
-
-
-def _working_browser():
-    """The first installed Chromium-family binary that can dump about:blank
-    headlessly within ten seconds, or None. Probed once per session: on
-    GitHub Actions /usr/bin/chromium (a snapshot build) hangs before it
-    loads any page (2026-09-18), while the runner's Google Chrome works, so
-    presence on PATH is not enough."""
-    if "browser" in _browser_cache:
-        return _browser_cache["browser"]
-    found = None
-    for name in _BROWSER_CANDIDATES:
-        path = shutil.which(name)
-        if not path:
-            continue
-        try:
-            probe = subprocess.run(
-                [
-                    path,
-                    "--headless",
-                    "--no-sandbox",
-                    "--disable-gpu",
-                    "--dump-dom",
-                    "about:blank",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                env=dict(os.environ, DBUS_SESSION_BUS_ADDRESS="/dev/null"),
-            )
-        except (subprocess.TimeoutExpired, OSError):
-            continue
-        if probe.returncode == 0 and "<html" in probe.stdout.lower():
-            found = path
-            break
-    _browser_cache["browser"] = found
-    return found
-
-
 @pytest.mark.parametrize("width", [320, 480, 1280])
 def test_auth_accessibility_layout_and_flow(auth_html, tmp_path, width):
-    browser = _working_browser()
-    if not browser:
-        if os.environ.get("GITHUB_ACTIONS"):
-            # The hosted runner ships Chrome; a skip there would let a
-            # green job pass for checks that never ran.
-            pytest.fail("no headless Chromium/Chrome launches on this runner")
-        pytest.skip("A headless Chromium/Chrome that launches is required")
     # DOMContentLoaded ensures the template's Enter handlers are installed first.
     probe = r"""
 <script>
@@ -160,39 +105,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 </script>
 """
-    page = tmp_path / "auth.html"
-    page.write_text(auth_html.replace("</body>", probe + "</body>"))
-    # CI-safe launch: a hosted runner has no D-Bus session, no keyring & a
-    # first-run flow; without these Chromium 152 sat on --dump-dom until the
-    # 30 s timeout on every GitHub Actions run (2026-09-18).
-    command = [
-        browser,
-        "--headless",
-        "--disable-gpu",
-        "--no-sandbox",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--disable-dev-shm-usage",
-        "--disable-extensions",
-        "--disable-crash-reporter",
-        "--disable-breakpad",
-        "--disable-sync",
-        "--metrics-recording-only",
-        "--password-store=basic",
-        "--use-mock-keychain",
-        "--no-proxy-server",
-        "--disable-background-networking",
-        "--force-prefers-reduced-motion",
-        f"--window-size={width},900",
-        f"--user-data-dir={tmp_path / 'browser'}",
-        "--virtual-time-budget=3000",
-        "--timeout=10000",
-        "--dump-dom",
-        page.as_uri(),
-    ]
-    env = dict(os.environ, DBUS_SESSION_BUS_ADDRESS="/dev/null")
-    result = subprocess.run(
-        command, capture_output=True, text=True, timeout=30, env=env
+    out = run_probe(
+        auth_html,
+        probe,
+        tmp_path,
+        width,
+        extra_flags=("--force-prefers-reduced-motion",),
     )
-    assert result.returncode == 0, result.stderr
-    assert 'data-probe="passed"' in result.stdout, result.stdout + result.stderr
+    assert 'data-probe="passed"' in out, out

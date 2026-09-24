@@ -42,7 +42,10 @@ from models import db, Room, UserSession, Message, ActivityState, User, OTPToken
 app = Flask(__name__, instance_relative_config=True)
 
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-in-production")
-app.config["SQLALCHEMY_DATABASE_URI"] = (
+# SQLALCHEMY_DATABASE_URI picks another database (pytest.ini & CI use
+# sqlite:///:memory:); by default a SQLite file lives in instance/.
+os.makedirs(app.instance_path, exist_ok=True)
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI") or (
     f"sqlite:///{os.path.join(app.instance_path, 'chat.db')}"
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -517,7 +520,7 @@ def generate_og_description(room, max_chars: int = 500) -> str:
     if len(description) > max_chars:
         description = description[: max_chars - 3].rsplit(" ", 1)[0] + "..."
 
-    return description if description else "AI-powered chat room on OpenCompletion"
+    return description if description else "A chat room on OpenCompletion"
 
 
 def _resolve_model_num(model_num, check_health=True):
@@ -605,64 +608,22 @@ def get_openai_client_and_model(model_name=None):
 
 
 HELP_MESSAGE = """
-**Available Commands:**
-- `/activity [s3_file_path]`: Start an activity from the specified S3 file path.
-- `/activity cancel`: Cancel the current activity.
-- `/activity info`: Display information about the current activity.
-- `/activity metadata`: Display metadata for the current activity.
-- `/s3 ls [s3_file_path_pattern]`: List files in S3 matching the pattern.
-- `/s3 load [s3_file_path]`: Load a file from S3.
-- `/s3 save [s3_key_path]`: Save the most recent code block from the chatroom to S3.
-- `/title new`: Generates a new title which reflects conversation content for the current chatroom.
-- `/cancel`: Cancel the most recent chat completion from streaming into the chatroom.
-- `/help`: Display this help message.
+**Talking to a model**
+- Pick a model under **Model** in our room controls (the right sidebar; the ⚙ button on a phone). With **None**, messages go only to people.
+- Models are listed live from this server's configured endpoints, so the list changes as endpoints come & go.
+- An image model (a name containing `dall-e`) turns your message into an image.
 
-**Interacting with AI Models:**
-- Select a model from the dropdown menu above the chat input. Available models are dynamically loaded from configured endpoints and include options like `gpt-4o-mini`, `llama3-70b-8192`, `anthropic.claude-3-sonnet-20240229-v1:0`, and `dall-e-3` for image generation.
-- Type your message and send it. The selected model will respond if it's not "None".
-- For image generation, select `dall-e-3` and provide a prompt (e.g., "A futuristic cityscape").
+**Commands**
+- `/activity research/activity0.yaml`: start an activity (or choose one under **Activity**).
+- `/activity cancel`, `/activity info`, `/activity metadata`: manage the running activity.
+- `/s3 ls [pattern]`, `/s3 load [path]`, `/s3 save [key]`: list, load or save files in this server's S3 bucket, when one is configured.
+- `/title new`: write a new room title from the conversation so far.
+- `/cancel`: stop the reply that is streaming in.
+- `/help`: show this message.
 
-**Getting Started:**
-Welcome to the chatroom! Here, you can explore various AI models and engage in interactive activities. Here's how you can get started:
-
-1. **Explore the Chatroom:**
-   - Join a chatroom by navigating to its unique URL. You can see the list of available chatrooms on the main page.
-   - Once inside, you can start a conversation by typing your message in the chatbox.
-
-2. **Start an Activity:**
-   - To begin an educational activity, use the `/activity` command followed by the path to the activity YAML file. For example:
-**Getting Started:**
-
-Welcome to the chatroom! Here, you can explore various AI models and engage in interactive activities. Here's how you can get started:
-
-1. **Explore the Chatroom:**
-   - Join a chatroom by navigating to its unique URL. You can see the list of available chatrooms on the main page.
-   - Once inside, you can start a conversation by typing your message in the chatbox.
-
-2. **Start an Activity:**
-   - To begin an educational activity, use the `/activity` command followed by the path to the activity YAML file. For example:
-     ```
-     /activity research/activity0.yaml
-     ```
-   - The AI will guide you through the activity, providing feedback and information as you progress.
-
-3. **Interact with AI Models:**
-   - To interact with a specific AI model, simply type the model's command followed by your prompt. For example:
-     ```
-     gpt-4 What is the capital of France?
-     ```
-   - The system will process your message and provide a response from the selected model.
-
-4. **Manage Files with S3:**
-   - Use the `/s3` commands to load, save, or list files in your S3 bucket. For example, to list all files, use:
-     ```
-     /s3 ls *
-     ```
-
-5. **Get Help:**
-   - If you need assistance or want to see a list of available commands, type `/help` to display this message.
-
-Feel free to explore and experiment with different commands and models. Enjoy your time in the chatroom!
+**Rooms**
+- Everyone in a public room sees every message; anyone with its link can join.
+- Private rooms are visible to their owner only. **Rooms** in our sidebar lists them all.
 """
 
 
@@ -729,10 +690,35 @@ def index():
     return render_template("index.html", stats=stats, user=user)
 
 
+def safe_next_url(value):
+    """A same-site path to return to after sign in, else home.
+
+    Only a single leading slash is accepted, so `//evil.example` and
+    `https://...` can never turn our sign-in page into an open redirect.
+    """
+    if value and value.startswith("/") and not value.startswith(("//", "/\\")):
+        return value
+    return "/"
+
+
 @app.route("/auth")
 def auth_page():
     """Authentication page"""
-    return render_template("auth.html")
+    return render_template(
+        "auth.html",
+        user=auth.get_current_user(),
+        next_url=safe_next_url(request.args.get("next", "")),
+    )
+
+
+@app.route("/styleguide")
+def styleguide():
+    """Our living style guide: every shared component, rendered by our CSS.
+
+    docs/STYLEGUIDE.md explains the rules; this page shows them & is what
+    tests/functional/test_ui_contract.py loads at phone & desktop widths.
+    """
+    return render_template("styleguide.html", user=auth.get_current_user())
 
 
 @app.route("/browse")
@@ -849,11 +835,10 @@ def send_otp():
     # Create OTP token
     otp_token = auth.create_otp_token(email)
 
-    # Send OTP via email
-    if auth.send_otp_email(email, otp_token.otp_code):
-        return jsonify(
-            {"success": True, "message": "OTP sent to your email", "email": email}
-        )
+    # Send OTP via email; `delivery` tells the page where it really went.
+    delivery = auth.send_otp_email(email, otp_token.otp_code)
+    if delivery:
+        return jsonify({"success": True, "delivery": delivery, "email": email})
     else:
         return jsonify({"error": "Failed to send OTP email"}), 500
 
@@ -1095,6 +1080,19 @@ def get_rooms_api():
     )
 
 
+def emit_room_list_update(room, room_data):
+    """Tell sidebars about a new or retitled room.
+
+    A public room goes to every client. A private room's name & title are
+    its owner's business: they go only to our clients inside that room,
+    never to the whole site.
+    """
+    if room.is_private:
+        socketio.emit("update_room_list", room_data, room=room.name)
+    else:
+        socketio.emit("update_room_list", room_data, room=None)
+
+
 @app.route("/api/rooms/create", methods=["POST"])
 def create_room_api():
     """Create a new room"""
@@ -1135,7 +1133,7 @@ def create_room_api():
         "is_private": new_room.is_private,
         "is_new": True,  # Flag to indicate this is a new room, not an update
     }
-    socketio.emit("update_room_list", new_room_data, room=None)
+    emit_room_list_update(new_room, new_room_data)
 
     return jsonify(
         {
@@ -1577,7 +1575,7 @@ def chat(room_name):
 
     # Generate Open Graph metadata for social sharing
     og_image = None
-    og_description = "AI-powered chat room on OpenCompletion"
+    og_description = "A chat room on OpenCompletion"
     og_title = f"{room_name} - OpenCompletion"
 
     if room:
@@ -1678,102 +1676,93 @@ def download_chat_history_md():
 
 @app.route("/search")
 def search_page():
-    # Query all rooms so that newest is first.
-    rooms = Room.query.order_by(Room.id.desc()).all()
-
-    keywords = request.args.get("keywords", "")
-    username = request.args.get("username", "guest")
+    user = auth.get_current_user()
+    keywords = request.args.get("keywords", "").strip()
     if not keywords:
         return render_template(
-            "search.html",
-            rooms=rooms,
-            keywords=keywords,
-            results=[],
-            username=username,
-            error="Keywords are required",
+            "search.html", keywords="", results=[], user=user, error=None
         )
 
-    # Call the function to search messages
-    search_results = search_messages(keywords)
+    search_results = search_messages(keywords, user)
 
-    # If there's exactly one search result, redirect directly to that room
+    # Exactly one hit: go straight to that room, keeping model & voice.
     if len(search_results) == 1:
-        room_result = search_results[0]
-        room_name = room_result["room_name"]
-
-        # Build the redirect URL with current parameters
-        redirect_params = {}
-        if username and username != "guest":
-            redirect_params["username"] = username
-
-        # Preserve other URL parameters like model, voice, etc.
-        for param in ["model", "voice"]:
-            value = request.args.get(param)
-            if value:
-                redirect_params[param] = value
-
-        redirect_url = url_for("chat", room_name=room_name, **redirect_params)
-        return redirect(redirect_url)
+        redirect_params = {
+            param: request.args[param]
+            for param in ("model", "voice")
+            if request.args.get(param)
+        }
+        return redirect(
+            url_for("chat", room_name=search_results[0]["room_name"], **redirect_params)
+        )
 
     return render_template(
-        "search.html",
-        rooms=rooms,
-        keywords=keywords,
-        results=search_results,
-        username=username,
-        error=None,
+        "search.html", keywords=keywords, results=search_results, user=user, error=None
     )
 
 
-def search_messages(keywords):
-    search_results = {}
+def search_messages(keywords, user=None):
+    """Rank rooms by keyword hits in their messages.
 
-    # Split the keywords by spaces and sanitize
-    keyword_list = keywords.lower().split()
-
-    # Sanitize keywords to prevent SQL injection
+    Only rooms the caller may open are searched: public rooms that are not
+    archived, plus the caller's own private rooms. A search must never
+    reveal that someone else's private room exists.
+    """
     sanitized_keywords = []
-    for keyword in keyword_list:
-        # Remove potentially dangerous characters and limit length
-        sanitized_keyword = "".join(
-            c for c in keyword if c.isalnum() or c.isspace() or c in "-_"
-        )[:50]
-        if sanitized_keyword.strip():  # Only add non-empty keywords
-            sanitized_keywords.append(sanitized_keyword.strip())
+    for keyword in keywords.lower().split():
+        # Keep word characters only & cap the length; the query is
+        # parameterized either way, this just bounds the LIKE patterns.
+        sanitized_keyword = "".join(c for c in keyword if c.isalnum() or c in "-_")[:50]
+        if sanitized_keyword:
+            sanitized_keywords.append(sanitized_keyword)
 
     if not sanitized_keywords:
-        return {}
+        return []
 
-    # Search for messages containing any of the sanitized keywords using parameterized query
-    messages = Message.query.filter(
-        db.or_(
-            *[Message.content.ilike(f"%{keyword}%") for keyword in sanitized_keywords]
+    visible = db.and_(Room.is_private.is_(False), Room.is_archived.is_(False))
+    if user:
+        visible = db.or_(
+            visible,
+            db.and_(
+                Room.is_private.is_(True),
+                Room.is_archived.is_(False),
+                Room.owner_id == user.id,
+            ),
         )
-    ).all()
 
-    for message in messages:
-        room = Room.query.get(message.room_id)
-        if room:
-            # Calculate the score based on the number of occurrences of all keywords
-            score = sum(
-                message.content.lower().count(keyword) for keyword in keyword_list
+    rows = (
+        db.session.query(Message.content, Room)
+        .join(Room, Message.room_id == Room.id)
+        .filter(visible)
+        .filter(
+            db.or_(
+                *[
+                    Message.content.ilike(f"%{keyword}%")
+                    for keyword in sanitized_keywords
+                ]
             )
+        )
+        .all()
+    )
 
-            if room.id not in search_results:
-                search_results[room.id] = {
-                    "room_id": room.id,
-                    "room_name": room.name,
-                    "room_title": room.title,
-                    "score": 0,
-                }
+    search_results = {}
+    for content, room in rows:
+        score = sum(content.lower().count(keyword) for keyword in sanitized_keywords)
+        result = search_results.setdefault(
+            room.id,
+            {
+                "room_id": room.id,
+                "name": room.name,
+                "title": room.title,
+                "room_name": room.name,
+                "room_title": room.title,
+                "is_private": room.is_private,
+                "score": 0,
+            },
+        )
+        result["score"] += score
 
-            search_results[room.id]["score"] += score
-
-    # Convert the dictionary to a list and sort results by score in descending order
-    search_results_list = list(search_results.values())
-    search_results_list.sort(key=lambda x: x["score"], reverse=True)
-
-    return search_results_list
+    return sorted(search_results.values(), key=lambda r: r["score"], reverse=True)
 
 
 # Handle user joining a room
@@ -1856,7 +1845,7 @@ def on_join(data):
         socketio.emit("update_room_title", {"title": room.title}, room=room.name)
         # Emit an event to update this room's title in the sidebar for all users.
         updated_room_data = {"id": room.id, "name": room.name, "title": room.title}
-        socketio.emit("update_room_list", updated_room_data, room=None)
+        emit_room_list_update(room, updated_room_data)
 
     # commit session & active user list and title to database.
     db.session.commit()
@@ -2619,7 +2608,7 @@ def generate_new_title(room_name, username):
 
         # Emit an event to update this rooms title in the sidebar for all users.
         updated_room_data = {"id": room.id, "name": room.name, "title": room.title}
-        socketio.emit("update_room_list", updated_room_data, room=None)
+        emit_room_list_update(room, updated_room_data)
 
         # Optionally, send a confirmation message to the room
         confirmation_message = f"New title created: {new_title}"

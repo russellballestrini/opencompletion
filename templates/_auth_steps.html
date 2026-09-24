@@ -1,0 +1,36 @@
+{# Email-code sign in, driven by static/js/auth.js. Used by auth.html's
+   card & chat's sign-in dialog; `data-after` says what success does. #}
+<div id="auth-step-email" class="auth-step active">
+    <h2>Sign in or sign up</h2>
+    <p>We'll send a 6-digit code to your email. No password.</p>
+    <label for="auth-email">Email address</label>
+    <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+    <button type="button" class="btn btn-block" onclick="sendOTP()">Send code</button>
+    <div id="auth-email-error" class="error-message" role="alert"></div>
+</div>
+
+<div id="auth-step-otp" class="auth-step">
+    <h2>Enter your code</h2>
+    <p id="auth-otp-sent">Code requested for <strong><span id="auth-email-display"></span></strong>. It expires in 10 minutes.</p>
+    <p id="auth-otp-note" class="auth-note" hidden></p>
+    <label for="auth-otp">Verification code</label>
+    <input type="text" id="auth-otp" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+    <button type="button" class="btn btn-block" onclick="verifyOTP()">Verify</button>
+    <button type="button" class="btn btn-secondary btn-block secondary-btn" onclick="backToEmailStep()">Back</button>
+    <div id="auth-otp-error" class="error-message" role="alert"></div>
+</div>
+
+<div id="auth-step-name" class="auth-step">
+    <h2>Choose a display name</h2>
+    <p>3-50 characters: letters, numbers, underscores & hyphens. Others in a room see this name.</p>
+    <label for="auth-display-name">Display name</label>
+    <input type="text" id="auth-display-name" placeholder="your_name" maxlength="50" pattern="[a-zA-Z0-9_-]{3,50}" autocomplete="nickname">
+    <button type="button" class="btn btn-block" onclick="claimName()">Finish sign up</button>
+    <div id="auth-name-error" class="error-message" role="alert"></div>
+</div>
+
+<div id="auth-step-success" class="auth-step">
+    <h2>You're signed in</h2>
+    <p>Welcome, <strong><span id="auth-success-name"></span></strong>.</p>
+    <button type="button" class="btn btn-block" onclick="finishAuth()">Continue</button>
+</div>

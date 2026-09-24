@@ -5,11 +5,14 @@
 {% block content %}
 
     <div id="chat-container">
-        <!-- Search form -->
-        <div id="search-form">
-            <form action="/search" method="get">
-                <input type="text" id="search-keywords" name="keywords" placeholder="Search for keywords..." value="{{ keywords }}">
+        <!-- Top bar: search, plus drawer toggles on phones -->
+        <div class="chat-topbar">
+            <button type="button" class="icon-btn drawer-toggle" onclick="openDrawer('rooms')" aria-label="Rooms & site menu">☰</button>
+            <form id="search-form" action="/search" method="get" role="search">
+                <label class="visually-hidden" for="search-keywords">Search messages</label>
+                <input type="search" id="search-keywords" name="keywords" placeholder="Search messages" value="{{ keywords|default('') }}">
             </form>
+            <button type="button" class="icon-btn drawer-toggle" onclick="openDrawer('controls')" aria-label="Room controls">⚙</button>
         </div>
 
         <!-- Chat area where messages will be displayed -->
@@ -17,31 +20,33 @@
 
         <!-- Form for sending messages -->
         <form id="message-form">
+            <label class="visually-hidden" for="message">Message</label>
             <textarea id="message" placeholder="Type your message..."></textarea>
-            <button type="button" id="send-button" onclick="sendMessage()">Send</button>
+            <button type="button" id="send-button" class="btn" onclick="sendMessage()">Send</button>
         </form>
     </div>
 
-    <div class="utility-belt">
-        <!-- Room Actions -->
+    <aside class="utility-belt" aria-label="Room controls">
+        <button type="button" class="icon-btn drawer-close" onclick="closeDrawer()" aria-label="Close controls">×</button>
         {% if current_room %}
-        <div class="room-actions-section" style="margin-bottom: 15px;">
-            <h3 style="margin-top: 0; margin-bottom: 10px;">Room Actions</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                <button class="room-action-btn" onclick="forkRoom({{ current_room.id }})" style="width: 100%;">🍴 Fork</button>
+        <section class="room-actions-section">
+            <h3>Room</h3>
+            <div class="button-row">
+                <button type="button" class="btn btn-secondary" onclick="forkRoom({{ current_room.id }}, {{ 'true' if user else 'false' }})">Fork</button>
                 {% if user and current_room.owner_id == user.id %}
-                <button class="room-action-btn delete-btn" onclick="deleteRoom({{ current_room.id }})" style="width: 100%;">🗑️ Delete</button>
+                <button type="button" class="btn btn-secondary" onclick="archiveRoom({{ current_room.id }})">Archive</button>
+                <button type="button" class="btn btn-danger" onclick="deleteRoom({{ current_room.id }})">Delete</button>
                 {% endif %}
             </div>
-        </div>
+        </section>
         {% endif %}
 
-        <div class="download-links">
-            History
-            <a href="/download_chat_history?room_name={{ room_name }}" download="{{ room_name }}.json">JSON</a> or
-            <a href="/download_chat_history_md?room_name={{ room_name }}" download="{{ room_name }}.md">Markdown</a>
-        </div>
-        <br>
+        <p class="download-links">
+            Download history:
+            <a href="/download_chat_history?room_name={{ room_name|urlencode }}" download="{{ room_name }}.json">JSON</a> ·
+            <a href="/download_chat_history_md?room_name={{ room_name|urlencode }}" download="{{ room_name }}.md">Markdown</a>
+        </p>
+
         <div>
             <label for="model-select">Model</label>
             <select id="model-select">
@@ -54,36 +59,26 @@
                 <!-- Voices will be populated from API -->
             </select>
         </div>
-        <div>
-            <button id="theme-toggle-btn" onclick="toggleTheme()" style="width: 100%; margin-top: 10px; background-color: #555; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
-                Dark Mode
-            </button>
-        </div>
-        <div>
-            <button id="auto-play-tts-btn" onclick="toggleAutoPlayTTS()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
-                Auto-Play TTS: OFF
-            </button>
-        </div>
-        <div>
-            <button id="show-thinking-btn" onclick="toggleShowThinking()" style="width: 100%; margin-top: 10px; background-color: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
-                Thinking: ON
-            </button>
+        <div class="button-stack">
+            <button type="button" id="auto-play-tts-btn" class="btn btn-secondary btn-block btn-toggle" aria-pressed="false" onclick="toggleAutoPlayTTS()">Read replies aloud</button>
+            <button type="button" id="show-thinking-btn" class="btn btn-secondary btn-block btn-toggle" aria-pressed="true" onclick="toggleShowThinking()">Show model thinking</button>
         </div>
 
        <div id="activity-controls">
            <h3>Activities</h3>
-           <div id="current-activity-info" style="display: none;">
-               <p>Current Activity: <span id="current-activity-name"></span></p>
-               <button id="cancel-activity-btn" onclick="cancelActivity()">Cancel Activity</button>
+           <div id="current-activity-info" hidden>
+               <p>Running: <span id="current-activity-name"></span></p>
+               <button type="button" id="cancel-activity-btn" class="btn btn-danger btn-block" onclick="cancelActivity()">Cancel activity</button>
            </div>
            <div id="activity-list-section">
-               <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 5px; margin-bottom: 5px;">
+               <label for="activity-select">Activity</label>
+               <div class="select-row">
                    <select id="activity-select">
-                       <option value="">-- Select an Activity --</option>
+                       <option value="">Choose an activity</option>
                    </select>
-                   <button id="refresh-activities-btn" onclick="refreshActivityList()">🔄</button>
+                   <button type="button" id="refresh-activities-btn" class="icon-btn" onclick="refreshActivityList()" aria-label="Refresh activity list">↻</button>
                </div>
-               <button id="load-activity-btn" onclick="loadSelectedActivity()" style="margin-top: 5px;">Load Activity</button>
+               <button type="button" id="load-activity-btn" class="btn btn-block" onclick="loadSelectedActivity()">Start activity</button>
            </div>
        </div>
 
@@ -102,7 +97,7 @@
            </div>
        </div>
 
-    </div>
+    </aside>
 
 <script>
 // Constants
@@ -110,7 +105,7 @@ const API_KEY = "dummy-api-key";
 const TTS_API_URL = "https://speech.ai.unturf.com/v1/audio/speech";
 const VOICES_API_URL = "https://speech.ai.unturf.com/v1/voices";
 // Code execution API (proxied through backend to keep API key secure)
-const room_name = "{{ room_name }}";
+const room_name = {{ room_name|tojson }};
 
 // TTS Streaming: Detect best audio format for this browser
 // Chrome/Edge: mp3 works, MediaSource supports audio/mpeg
@@ -127,7 +122,7 @@ function detectAudioFormat() {
 const AUDIO_FORMAT = detectAudioFormat();
 
 // Get username from server (authenticated user's display name or None)
-let username = {% if username %}"{{ username }}"{% else %}null{% endif %};
+let username = {{ username|tojson if username else 'null' }};
 
 // Guest usernames stick in localStorage across page loads so you don't have
 // to retype them. The cache is invalidated on any login/logout transition:
@@ -163,9 +158,6 @@ let currentAudio = null; // To keep track of the currently playing audio
 let currentQueuedAudio = null; // To keep track of currently playing queued TTS audio
 let currentQueuedMessageId = null; // messageId of the queued audio currently playing (for cleanup on delete)
 let audioCache = {}; // Cache to store audio blobs
-
-// Flag to prevent mutual updates on desktop/mobile
-let isSyncingDropdowns = false;
 
 // Auto-play TTS state
 let autoPlayTTS = localStorage.getItem('autoPlayTTS') === 'true' || false;
@@ -314,11 +306,11 @@ async function getImageDescription(imgSrc) {
 
 // Setup hover handlers for images in chat
 function setupImageHoverDescriptions() {
-    const messagesContainer = document.getElementById('messages');
+    const messagesContainer = document.getElementById('chat');
     if (!messagesContainer) return;
 
-    // Use mouseover (bubbles) for event delegation
-    messagesContainer.addEventListener('mouseover', async (e) => {
+    // Delegated: mouseover for pointers, click so a tap works on touch screens
+    const describeImage = async (e) => {
         if (!visionAvailable) return;
 
         // Check if target is an image
@@ -349,7 +341,9 @@ function setupImageHoverDescriptions() {
         img.style.cursor = '';
         delete img.dataset.visionProcessing;
         img.dataset.visionDone = 'true';
-    });
+    };
+    messagesContainer.addEventListener('mouseover', describeImage);
+    messagesContainer.addEventListener('click', describeImage);
 }
 
 // Function to sanitize the username
@@ -378,9 +372,6 @@ function copyMessageContent(content) {
 function syncDropdownsAndQueryString() {
     const modelSelectDesktop = document.getElementById("model-select");
     const voiceSelectDesktop = document.getElementById("voice-select");
-    const modelSelectMobile = document.getElementById("model-select-mobile");
-    const voiceSelectMobile = document.getElementById("voice-select-mobile");
-
     // Get current values
     const currentModel = modelSelectDesktop.value;
     const currentVoice = voiceSelectDesktop.value;
@@ -388,8 +379,6 @@ function syncDropdownsAndQueryString() {
     // Sync dropdowns
     modelSelectDesktop.value = currentModel;
     voiceSelectDesktop.value = currentVoice;
-    if (modelSelectMobile) modelSelectMobile.value = currentModel;
-    if (voiceSelectMobile) voiceSelectMobile.value = currentVoice;
 
     // Save to localStorage for persistence
     localStorage.setItem('selectedModel', currentModel);
@@ -400,8 +389,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const chatContainer = document.getElementById("chat");
     const modelSelectDesktop = document.getElementById("model-select");
     const voiceSelectDesktop = document.getElementById("voice-select");
-    const modelSelectMobile = document.getElementById("model-select-mobile");
-    const voiceSelectMobile = document.getElementById("voice-select-mobile");
     
     // Initialize auto-play TTS button state from localStorage
     updateAutoPlayTTSDisplay();
@@ -418,35 +405,24 @@ document.addEventListener('DOMContentLoaded', (event) => {
         while (modelSelectDesktop.options.length > 1) {
             modelSelectDesktop.remove(1);
         }
-        while (modelSelectMobile.options.length > 1) {
-            modelSelectMobile.remove(1);
-        }
-        // Append new model options to both dropdowns
+        // Append new model options
         models.forEach(modelId => {
             const option = document.createElement('option');
             option.value = modelId;
             option.textContent = modelId;
             modelSelectDesktop.appendChild(option);
-
-            const optionMobile = document.createElement('option');
-            optionMobile.value = modelId;
-            optionMobile.textContent = modelId;
-            modelSelectMobile.appendChild(optionMobile);
         });
         // Restore from localStorage (check if value exists in options)
         const storedModel = localStorage.getItem('selectedModel') || "None";
         const validOptions = Array.from(modelSelectDesktop.options).map(o => o.value);
         const modelToSelect = validOptions.includes(storedModel) ? storedModel : "None";
         modelSelectDesktop.value = modelToSelect;
-        modelSelectMobile.value = modelToSelect;
-        console.log(`Model restored from localStorage: ${modelToSelect}`);
     }
 
     // Function to populate the voice dropdown
     function populateVoiceDropdown(voicesData) {
         // Clear existing options
         voiceSelectDesktop.innerHTML = '';
-        if (voiceSelectMobile) voiceSelectMobile.innerHTML = '';
 
         // Group voices by model
         const voicesByModel = {};
@@ -469,9 +445,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 });
 
                 voiceSelectDesktop.appendChild(optgroup);
-                if (voiceSelectMobile) {
-                    voiceSelectMobile.appendChild(optgroup.cloneNode(true));
-                }
             }
         });
 
@@ -479,8 +452,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const initialVoice = localStorage.getItem('selectedVoice') || voiceSelectDesktop.options[0]?.value;
         if (initialVoice) {
             voiceSelectDesktop.value = initialVoice;
-            if (voiceSelectMobile) voiceSelectMobile.value = initialVoice;
-            console.log(`Voice restored from localStorage: ${initialVoice}`);
         }
     }
 
@@ -540,8 +511,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 console.error("Error fetching voices:", error);
                 // Leave dropdown empty if API fails
                 voiceSelectDesktop.innerHTML = '';
-                if (voiceSelectMobile) voiceSelectMobile.innerHTML = '';
-            });
+                    });
     }
 
     chatContainer.addEventListener('scroll', () => {
@@ -554,39 +524,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
     // here or call syncDropdownsAndQueryString() - that would overwrite localStorage
     // with empty values before the dropdowns are populated.
 
-    // Add event listeners for desktop dropdowns
-    modelSelectDesktop.addEventListener("change", () => {
-        if (isSyncingDropdowns) return;
-        isSyncingDropdowns = true;
-        modelSelectMobile.value = modelSelectDesktop.value;
-        syncDropdownsAndQueryString();
-        isSyncingDropdowns = false;
-    });
-
-    voiceSelectDesktop.addEventListener("change", () => {
-        if (isSyncingDropdowns) return;
-        isSyncingDropdowns = true;
-        voiceSelectMobile.value = voiceSelectDesktop.value;
-        syncDropdownsAndQueryString();
-        isSyncingDropdowns = false;
-    });
-
-    // Add event listeners for mobile dropdowns
-    modelSelectMobile.addEventListener("change", () => {
-        if (isSyncingDropdowns) return;
-        isSyncingDropdowns = true;
-        modelSelectDesktop.value = modelSelectMobile.value;
-        syncDropdownsAndQueryString();
-        isSyncingDropdowns = false;
-    });
-
-    voiceSelectMobile.addEventListener("change", () => {
-        if (isSyncingDropdowns) return;
-        isSyncingDropdowns = true;
-        voiceSelectDesktop.value = voiceSelectMobile.value;
-        syncDropdownsAndQueryString();
-        isSyncingDropdowns = false;
-    });
+    // Persist model & voice choices
+    modelSelectDesktop.addEventListener("change", syncDropdownsAndQueryString);
+    voiceSelectDesktop.addEventListener("change", syncDropdownsAndQueryString);
 });
 
 // Socket event when the user connects
@@ -600,13 +540,9 @@ socket.on("connect", () => {
 function updateUserLists(activeUsers, inactiveUsers) {
     const activeUserListElement = document.getElementById("active-users");
     const inactiveUserListElement = document.getElementById("inactive-users");
-    const activeUserListElementMobile = document.getElementById("active-users-mobile");
-    const inactiveUserListElementMobile = document.getElementById("inactive-users-mobile");
 
     activeUserListElement.innerHTML = ''; // Clear the current list
     inactiveUserListElement.innerHTML = ''; // Clear the current list
-    activeUserListElementMobile.innerHTML = ''; // Clear the current list (mobile)
-    inactiveUserListElementMobile.innerHTML = ''; // Clear the current list (mobile)
 
     // Populate the list with active users (desktop)
     activeUsers.forEach(user => {
@@ -642,39 +578,6 @@ function updateUserLists(activeUsers, inactiveUsers) {
         inactiveUserListElement.appendChild(userItem);
     });
 
-    // Populate the list with active users (mobile)
-    activeUsers.forEach(user => {
-        const userItemMobile = document.createElement("li");
-        // If it's the logged-in user, make it clickable to profile
-        if (user === username) {
-            const userLink = document.createElement("a");
-            userLink.href = "/profile";
-            userLink.textContent = user;
-            userLink.style.color = "var(--text-primary)";
-            userLink.style.textDecoration = "none";
-            userItemMobile.appendChild(userLink);
-        } else {
-            userItemMobile.textContent = user;
-        }
-        activeUserListElementMobile.appendChild(userItemMobile);
-    });
-
-    // Populate the list with inactive users (mobile)
-    inactiveUsers.forEach(user => {
-        const userItemMobile = document.createElement("li");
-        // If it's the logged-in user, make it clickable to profile
-        if (user === username) {
-            const userLink = document.createElement("a");
-            userLink.href = "/profile";
-            userLink.textContent = user;
-            userLink.style.color = "var(--text-secondary)";
-            userLink.style.textDecoration = "none";
-            userItemMobile.appendChild(userLink);
-        } else {
-            userItemMobile.textContent = user;
-        }
-        inactiveUserListElementMobile.appendChild(userItemMobile);
-    });
 }
 
 // Update user lists whenever the event is received
@@ -736,80 +639,44 @@ socket.on("update_room_title", (data) => {
 });
 
 // Socket event to update the room title in the sidebar or add new rooms.
+// Each item is <li data-room-id><a><b>name</b><br>title<br>N users</a></li>,
+// the same markup base.html renders, built with DOM methods (no innerHTML).
+function fillRoomLink(link, room, userCount) {
+    link.textContent = '';
+    const nameElement = document.createElement('b');
+    nameElement.textContent = room.name;
+    link.appendChild(nameElement);
+    if (room.title) {
+        link.appendChild(document.createElement('br'));
+        link.appendChild(document.createTextNode(room.title));
+    }
+    if (userCount) {
+        link.appendChild(document.createElement('br'));
+        link.appendChild(document.createTextNode(`${userCount} users`));
+    }
+}
+
 socket.on('update_room_list', function(updatedRoom) {
-    // Find the room list item by its data-room-id attribute
     const roomListItem = document.querySelector(`#rooms-list li[data-room-id="${updatedRoom.id}"]`);
 
     if (roomListItem) {
-        // Room exists - update it
-        // Extract user count from existing content (safer than regex on innerHTML)
-        const userCountText = roomListItem.textContent.match(/(\d+)\s*users/);
-        const userCount = userCountText ? userCountText[1] : null;
-        const ownerBadge = roomListItem.querySelector('.owner-badge');
-
-        // Clear and rebuild content safely using DOM methods
-        roomListItem.innerHTML = '';
-
-        // Add room name
-        const nameElement = document.createElement('b');
-        nameElement.textContent = updatedRoom.name;
-        roomListItem.appendChild(nameElement);
-
-        // Add room title if present
-        if (updatedRoom.title) {
-            roomListItem.appendChild(document.createElement('br'));
-            const titleText = document.createTextNode(updatedRoom.title);
-            roomListItem.appendChild(titleText);
-        }
-
-        // Add user count if it existed
-        if (userCount) {
-            roomListItem.appendChild(document.createElement('br'));
-            const userText = document.createTextNode(` ${userCount} users`);
-            roomListItem.appendChild(userText);
-        }
-
-        // Re-add owner badge if it existed
-        if (ownerBadge) {
-            roomListItem.appendChild(ownerBadge);
-        }
+        const link = roomListItem.querySelector('a');
+        const userCountText = link.textContent.match(/(\d+)\s*users/);
+        fillRoomLink(link, updatedRoom, userCountText ? userCountText[1] : null);
     } else if (updatedRoom.is_new) {
-        // New room - add it to the appropriate list
         const targetList = updatedRoom.is_private
             ? document.querySelector('#private-rooms-section .rooms-list')
             : document.querySelector('#public-rooms-section .rooms-list');
+        if (!targetList) return;
 
-        if (targetList) {
-            // Create new room list item using safe DOM methods
-            const newLink = document.createElement('a');
-            newLink.href = `/chat/${encodeURIComponent(updatedRoom.name)}`;
-
-            const newLi = document.createElement('li');
-            newLi.setAttribute('data-room-id', updatedRoom.id);
-            if (updatedRoom.is_private) {
-                newLi.classList.add('private-room');
-            }
-
-            // Add room name safely
-            const nameElement = document.createElement('b');
-            nameElement.textContent = updatedRoom.name;
-            newLi.appendChild(nameElement);
-
-            // Add room title if present
-            if (updatedRoom.title) {
-                newLi.appendChild(document.createElement('br'));
-                const titleText = document.createTextNode(updatedRoom.title);
-                newLi.appendChild(titleText);
-            }
-
-            // Add user count
-            newLi.appendChild(document.createElement('br'));
-            const userText = document.createTextNode(' 0 users');
-            newLi.appendChild(userText);
-
-            newLink.appendChild(newLi);
-            targetList.appendChild(newLink);
-        }
+        const newLi = document.createElement('li');
+        newLi.setAttribute('data-room-id', updatedRoom.id);
+        newLi.classList.add(updatedRoom.is_private ? 'private-room' : 'public-room');
+        const newLink = document.createElement('a');
+        newLink.href = `/chat/${encodeURIComponent(updatedRoom.name)}`;
+        fillRoomLink(newLink, updatedRoom, null);
+        newLi.appendChild(newLink);
+        targetList.prepend(newLi);
     }
 });
 
@@ -1222,7 +1089,6 @@ async function fetchTTSStreamingSSE(cleanText, model, voice) {
 
 // Function to read text using TTS (for manual button clicks) - now with streaming
 async function speakText(text, playButton, messageId) {
-    console.log("speakText called with:", {text: text, messageId, autoPlay: autoPlayTTS});
     const voiceSelectValue = document.getElementById("voice-select").value;
 
     // Parse model and voice from the dropdown value (format: "model:voice")
@@ -1473,20 +1339,9 @@ function processNextTTS() {
         });
 }
 
-// Update show-thinking button labels/colors on both desktop + mobile.
+// Toggle buttons carry their state in aria-pressed; CSS colours it.
 function updateShowThinkingDisplay() {
-    const btn = document.getElementById("show-thinking-btn");
-    const btnMobile = document.getElementById("show-thinking-btn-mobile");
-    const label = showThinking ? "Thinking: ON" : "Thinking: OFF";
-    const color = showThinking ? "#4CAF50" : "#f44336";
-    if (btn) {
-        btn.textContent = label;
-        btn.style.backgroundColor = color;
-    }
-    if (btnMobile) {
-        btnMobile.textContent = label;
-        btnMobile.style.backgroundColor = color;
-    }
+    document.getElementById("show-thinking-btn").setAttribute("aria-pressed", String(showThinking));
 }
 
 // Toggle thinking mode. On by default; persisted in localStorage.
@@ -1496,21 +1351,9 @@ function toggleShowThinking() {
     updateShowThinkingDisplay();
 }
 
-// Function to update auto-play TTS button display
 function updateAutoPlayTTSDisplay() {
-    const autoPlayBtn = document.getElementById("auto-play-tts-btn");
-    const autoPlayBtnMobile = document.getElementById("auto-play-tts-btn-mobile");
-    
-    if (autoPlayTTS) {
-        autoPlayBtn.textContent = "Auto-Play TTS: ON";
-        autoPlayBtn.style.backgroundColor = "#4CAF50";
-        autoPlayBtnMobile.textContent = "Auto-Play TTS: ON";
-        autoPlayBtnMobile.style.backgroundColor = "#4CAF50";
-    } else {
-        autoPlayBtn.textContent = "Auto-Play TTS: OFF";
-        autoPlayBtn.style.backgroundColor = "#f44336";
-        autoPlayBtnMobile.textContent = "Auto-Play TTS: OFF";
-        autoPlayBtnMobile.style.backgroundColor = "#f44336";
+    document.getElementById("auto-play-tts-btn").setAttribute("aria-pressed", String(autoPlayTTS));
+    if (!autoPlayTTS) {
         // Clear queue when turning off
         ttsQueue = [];
         isPlayingTTS = false;
@@ -1712,7 +1555,6 @@ socket.on("chat_message", (data) => {
                 // Find the play button after buttons have been created
                 const buttons = messageWrapper.querySelectorAll("button");
                 const playButton = Array.from(buttons).find(btn => btn.textContent === "Play");
-                console.log("Auto-play TTS: enabled=", autoPlayTTS, "content=", data.content, "playButton=", playButton);
                 if (playButton) {
                     console.log("Queueing TTS for message:", data.id);
                     queueTTS(data.content, playButton, data.id);
@@ -2000,21 +1842,12 @@ socket.on("message_chunk", (data) => {
         messageWrapper.insertBefore(buttonContainer, messageWrapper.firstChild);
         
         // Auto-play TTS if enabled and message is complete (only when streaming finishes)
-        console.log("DEBUG: Streaming complete check:", {
-            autoPlayTTS: autoPlayTTS,
-            is_complete: data.is_complete,
-            hasBuffer: !!messageBuffers[data.id],
-            bufferContent: messageBuffers[data.id] ? messageBuffers[data.id].substring(0, 50) + "..." : "none",
-            messageId: data.id
-        });
         if (autoPlayTTS && data.is_complete && messageBuffers[data.id] && messageBuffers[data.id].trim() !== "") {
             const playButton = Array.from(buttonContainer.querySelectorAll("button")).find(btn => btn.textContent === "Play");
-            console.log("DEBUG: Found play button for streaming TTS:", playButton ? "YES" : "NO", playButton?.textContent);
             if (playButton) {
                 setTimeout(() => {
                     // Use content from the content element (clean text without header)
                     const cleanText = targetMessageElement.textContent || targetMessageElement.innerText || "";
-                    console.log("DEBUG: Queueing streaming TTS:", data.id, cleanText.substring(0, 50) + "...");
                     queueTTS(cleanText, playButton, data.id);
                 }, 50); // Small delay to let the message render
             }
@@ -2918,29 +2751,15 @@ function refreshActivityList() {
         .then(response => response.json())
         .then(data => {
             const activitySelect = document.getElementById('activity-select');
-            const activitySelectMobile = document.getElementById('activity-select-mobile');
-            
-            // Clear existing options except the first one for desktop
+            // Keep the placeholder option at index 0
             while (activitySelect.options.length > 1) {
                 activitySelect.remove(1);
             }
-            
-            // Clear existing options except the first one for mobile
-            while (activitySelectMobile.options.length > 1) {
-                activitySelectMobile.remove(1);
-            }
-            
-            // Add activities to both dropdowns
             data.activities.forEach(activity => {
                 const option = document.createElement('option');
                 option.value = activity;
                 option.textContent = activity;
                 activitySelect.appendChild(option);
-                
-                const optionMobile = document.createElement('option');
-                optionMobile.value = activity;
-                optionMobile.textContent = activity;
-                activitySelectMobile.appendChild(optionMobile);
             });
         })
         .catch(error => {
@@ -2950,33 +2769,12 @@ function refreshActivityList() {
 }
 
 function loadSelectedActivity() {
-    const activitySelect = document.getElementById('activity-select');
-    const selectedActivity = activitySelect.value;
-    
+    const selectedActivity = document.getElementById('activity-select').value;
     if (!selectedActivity) {
-        alert('Please select an activity');
+        alert('Please choose an activity');
         return;
     }
-    
-    // Send command to load activity
-    socket.emit("chat_message", {
-        "username": username,
-        "message": `/activity ${selectedActivity}`,
-        "model": document.getElementById("model-select").value,
-        "room_name": room_name
-    });
-}
-
-function loadSelectedActivityMobile() {
-    const activitySelectMobile = document.getElementById('activity-select-mobile');
-    const selectedActivity = activitySelectMobile.value;
-    
-    if (!selectedActivity) {
-        alert('Please select an activity');
-        return;
-    }
-    
-    // Send command to load activity
+    closeDrawer();
     socket.emit("chat_message", {
         "username": username,
         "message": `/activity ${selectedActivity}`,
@@ -2986,7 +2784,7 @@ function loadSelectedActivityMobile() {
 }
 
 function cancelActivity() {
-    if (confirm('Are you sure you want to cancel the current activity?')) {
+    if (confirm('Cancel the running activity? Its progress in this room is deleted.')) {
         socket.emit("chat_message", {
             "username": username,
             "message": "/activity cancel",
@@ -2998,25 +2796,10 @@ function cancelActivity() {
 
 // Socket event for activity status updates
 socket.on("activity_status", (data) => {
-    const currentActivityInfo = document.getElementById('current-activity-info');
-    const activityListSection = document.getElementById('activity-list-section');
-    const currentActivityName = document.getElementById('current-activity-name');
-    const currentActivityInfoMobile = document.getElementById('current-activity-info-mobile');
-    const activityListSectionMobile = document.getElementById('activity-list-section-mobile');
-    const currentActivityNameMobile = document.getElementById('current-activity-name-mobile');
-    
+    document.getElementById('current-activity-info').hidden = !data.active;
+    document.getElementById('activity-list-section').hidden = !!data.active;
     if (data.active) {
-        currentActivityInfo.style.display = 'block';
-        activityListSection.style.display = 'none';
-        currentActivityName.textContent = data.activity_name || 'Unknown';
-        currentActivityInfoMobile.style.display = 'block';
-        activityListSectionMobile.style.display = 'none';
-        currentActivityNameMobile.textContent = data.activity_name || 'Unknown';
-    } else {
-        currentActivityInfo.style.display = 'none';
-        activityListSection.style.display = 'block';
-        currentActivityInfoMobile.style.display = 'none';
-        activityListSectionMobile.style.display = 'block';
+        document.getElementById('current-activity-name').textContent = data.activity_name || 'Unknown';
     }
 });
 

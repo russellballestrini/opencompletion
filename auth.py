@@ -1,7 +1,7 @@
 """Authentication module for email OTP-based authentication"""
 
 import os
-import random
+import secrets
 import smtplib
 import socket
 from email.mime.text import MIMEText
@@ -14,8 +14,8 @@ from models import db, User, OTPToken
 
 
 def generate_otp():
-    """Generate a 6-digit OTP code"""
-    return "".join([str(random.randint(0, 9)) for _ in range(6)])
+    """Generate a 6-digit OTP code from a cryptographic source."""
+    return "".join(secrets.choice("0123456789") for _ in range(6))
 
 
 def send_otp_email(email, otp_code):
@@ -23,6 +23,11 @@ def send_otp_email(email, otp_code):
 
     Attempts to send via localhost:25 first. If that fails, tries configured SMTP.
     Falls back to console output if all methods fail.
+
+    Returns where the code went: "email" when a mail server accepted it,
+    "console" when it was only printed to this server's log. Both are
+    truthy so sign in still works in development, but the page says which
+    one happened rather than claiming an email was sent.
 
     Optional environment variables (only needed if localhost SMTP unavailable):
     - SMTP_HOST: SMTP server hostname (e.g., smtp.gmail.com)
@@ -110,7 +115,7 @@ If you didn't request this code, you can safely ignore this email.
         with smtplib.SMTP("localhost", 25, timeout=2) as server:
             server.send_message(msg)
         print(f"[INFO] OTP sent via localhost:25 to {email}")
-        return True
+        return "email"
     except (ConnectionRefusedError, OSError, smtplib.SMTPException) as e:
         # Localhost not available, try configured SMTP if available
         if smtp_host and smtp_user and smtp_password:
@@ -120,7 +125,7 @@ If you didn't request this code, you can safely ignore this email.
                     server.login(smtp_user, smtp_password)
                     server.send_message(msg)
                 print(f"[INFO] OTP sent via {smtp_host} to {email}")
-                return True
+                return "email"
             except Exception as smtp_error:
                 print(f"[ERROR] Failed to send OTP via {smtp_host}: {smtp_error}")
 
@@ -133,8 +138,8 @@ If you didn't request this code, you can safely ignore this email.
         print(f"\nOTP CODE: {otp_code}")
         print(f"\nThis code expires in 10 minutes.")
         print(f"{'='*60}\n")
-        # Return True to allow development workflow
-        return True
+        # Truthy so the development workflow still signs in.
+        return "console"
 
 
 def create_otp_token(email):

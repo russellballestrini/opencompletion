@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+{% set active_nav = 'styleguide' %}
+
+{% block title %}Style guide - OpenCompletion{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Style guide</h1>
+<p class="page-subtitle">Every shared component, drawn by <code>static/css/style.css</code>. The rules behind it live in <code>docs/STYLEGUIDE.md</code>; toggle dark mode above to check both themes.</p>
+
+<section class="card" aria-labelledby="sg-colour">
+    <h2 id="sg-colour">Colour tokens</h2>
+    <p class="muted">Templates use these names, never raw colours.</p>
+    <div class="swatches">
+        {% for token in ['bg-primary', 'bg-secondary', 'bg-tertiary', 'text-primary', 'text-secondary', 'button-primary', 'button-success', 'button-danger', 'border-color', 'focus-ring'] %}
+        <div class="swatch" style="--swatch: var(--{{ token }})"><span>--{{ token }}</span></div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="card" aria-labelledby="sg-type">
+    <h2 id="sg-type">Type</h2>
+    <h1>Heading 1</h1>
+    <h2>Heading 2</h2>
+    <h3>Heading 3</h3>
+    <p>Body text is 14px system UI at 1.5 line height. <a href="#sg-type">Links</a> use <code>--link-color</code>.</p>
+    <p class="muted">Muted text explains, it never carries the only copy of a fact.</p>
+</section>
+
+<section class="card" aria-labelledby="sg-buttons">
+    <h2 id="sg-buttons">Buttons</h2>
+    <p class="muted">One primary action per view. Every button is at least 44px tall.</p>
+    <div class="button-row">
+        <button type="button" class="btn">Primary</button>
+        <button type="button" class="btn btn-secondary">Secondary</button>
+        <button type="button" class="btn btn-danger">Danger</button>
+        <button type="button" class="btn" disabled>Disabled</button>
+    </div>
+    <p></p>
+    <div class="button-row">
+        <button type="button" class="btn btn-secondary btn-toggle" aria-pressed="true" onclick="this.setAttribute('aria-pressed', String(this.getAttribute('aria-pressed') !== 'true'))">Toggle (on)</button>
+        <button type="button" class="icon-btn" aria-label="Icon button">⚙</button>
+    </div>
+</section>
+
+<section class="card" aria-labelledby="sg-forms">
+    <h2 id="sg-forms">Forms</h2>
+    <div class="form-group">
+        <label for="sg-input">Label above every field</label>
+        <input id="sg-input" class="form-input" type="text" placeholder="Placeholder shows format, not the label">
+        <span class="form-hint">Hints state the real rule, e.g. 3-50 letters, numbers, _ or -.</span>
+    </div>
+    <fieldset class="choice-group">
+        <legend class="visually-hidden">Choice</legend>
+        <label><input type="radio" name="sg-choice" checked> Option one</label>
+        <label><input type="radio" name="sg-choice"> Option two</label>
+    </fieldset>
+    <div class="alert alert-success" role="status">Success says what changed.</div>
+    <div class="alert alert-error" role="alert">Errors say what failed & what to do next.</div>
+</section>
+
+<section class="card" aria-labelledby="sg-data">
+    <h2 id="sg-data">Stats, tabs & rooms</h2>
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-value">12</div><div class="stat-label">Public rooms</div></div>
+        <div class="stat-card"><div class="stat-value">3</div><div class="stat-label">Your private rooms</div></div>
+    </div>
+    <div class="tabs" role="tablist">
+        <button type="button" class="room-tab active" role="tab" aria-selected="true">Public</button>
+        <button type="button" class="room-tab" role="tab" aria-selected="false">Private</button>
+    </div>
+    <div class="room-grid">
+        <a class="room-card" href="#sg-data">
+            <div class="room-card-header"><h3 class="room-card-name">study-group</h3></div>
+            <p class="room-card-title">Linear algebra, chapter 3</p>
+            <p class="room-card-meta">2 here now</p>
+        </a>
+        <a class="room-card" href="#sg-data">
+            <div class="room-card-header"><h3 class="room-card-name">a-very-long-room-name-that-must-wrap-on-a-phone</h3><span class="badge badge-private">Private</span></div>
+            <p class="room-card-title">Long names wrap instead of overflowing</p>
+        </a>
+    </div>
+    <div class="empty-state">
+        <h3>Empty states</h3>
+        <p>Say what is missing & offer the next step.</p>
+    </div>
+</section>
+{% endblock %}

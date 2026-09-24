@@ -81,6 +81,12 @@ def test_auth_decorator(context):
 
 
 def test_otp_leading_zero(monkeypatch):
-    digits = iter([0, 1, 2, 3, 4, 5])
-    monkeypatch.setattr(auth.random, "randint", lambda a, b: next(digits))
+    digits = iter("012345")
+    monkeypatch.setattr(auth.secrets, "choice", lambda alphabet: next(digits))
     assert auth.generate_otp() == "012345"
+
+
+def test_otp_is_six_digits_from_a_cryptographic_source():
+    codes = {auth.generate_otp() for _ in range(50)}
+    assert all(len(code) == 6 and code.isdigit() for code in codes)
+    assert len(codes) > 40

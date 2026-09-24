@@ -1,0 +1,27 @@
+{# Shared <head> contents for every page: layout.html & chat's base.html. #}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+{% set _desc = og_description|default('Open source chat rooms where people & machine learning models work together.') %}
+{% set _title = og_title|default('OpenCompletion') %}
+<meta name="description" content="{{ _desc }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="OpenCompletion">
+<meta property="og:title" content="{{ _title }}">
+<meta property="og:description" content="{{ _desc }}">
+<meta property="og:image" content="{{ og_image or url_for('static', filename='images/og-default.png', _external=True) }}">
+<meta property="og:image:alt" content="{{ 'Preview image for ' ~ _title if og_image else 'OpenCompletion logo' }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ _title }}">
+<meta name="twitter:description" content="{{ _desc }}">
+<meta name="twitter:image" content="{{ og_image or url_for('static', filename='images/og-default.png', _external=True) }}">
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<script>
+    // Apply the saved theme before first paint so no page flashes.
+    (function () {
+        let theme = 'light';
+        try { theme = localStorage.getItem('theme') || 'light'; } catch (e) {}
+        document.documentElement.setAttribute('data-theme', theme);
+    })();
+</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">

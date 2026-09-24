@@ -1,542 +1,165 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile Settings - OpenCompletion</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <script>
-        // Set theme immediately to prevent flash
-        (function() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-        })();
-    </script>
-    <style>
-        :root {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f7f7f7;
-            --bg-tertiary: #e1e1e1;
-            --text-primary: #333333;
-            --text-secondary: #666666;
-            --border-color: #e1e1e1;
-            --button-primary: #667eea;
-            --button-hover: #764ba2;
-            --input-bg: #ffffff;
-            --input-border: #e1e1e1;
-            --success-color: #28a745;
-            --error-color: #dc3545;
-        }
+{% extends "layout.html" %}
+{% set active_nav = 'profile' %}
 
-        [data-theme="dark"] {
-            --bg-primary: #1a1a1a;
-            --bg-secondary: #2d2d2d;
-            --bg-tertiary: #3d3d3d;
-            --text-primary: #e1e1e1;
-            --text-secondary: #a0a0a0;
-            --border-color: #3d3d3d;
-            --button-primary: #667eea;
-            --button-hover: #764ba2;
-            --input-bg: #2d2d2d;
-            --input-border: #3d3d3d;
-            --success-color: #28a745;
-            --error-color: #dc3545;
-        }
+{% block title %}{{ 'Profile' if user else 'Settings' }} - OpenCompletion{% endblock %}
+{% block page_class %}page-narrow{% endblock %}
 
-        body {
-            font-family: Arial, sans-serif;
-            background-color: var(--bg-secondary);
-            color: var(--text-primary);
-            margin: 0;
-            padding: 20px;
-            transition: background-color 0.3s, color 0.3s;
-        }
+{% block content %}
+<h1 class="page-title">{{ 'Profile' if user else 'Settings' }}</h1>
 
-        .header {
-            max-width: 1400px;
-            margin: 0 auto 30px;
-            display: grid;
-            grid-template-columns: 1fr auto;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .header h1 {
-            color: var(--text-primary);
-            margin: 0;
-            transition: color 0.3s;
-        }
-
-        .header-actions {
-            display: grid;
-            grid-auto-flow: column;
-            gap: 10px;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, var(--button-primary) 0%, var(--button-hover) 100%);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: transform 0.2s;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-        }
-
-        .content-container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .subtitle {
-            text-align: center;
-            color: var(--text-secondary);
-            margin-bottom: 30px;
-            transition: color 0.3s;
-        }
-
-        .section {
-            background-color: var(--bg-primary);
-            border-radius: 8px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .section h2 {
-            margin-top: 0;
-            color: var(--text-primary);
-            font-size: 18px;
-            margin-bottom: 15px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-
-        input[type="text"] {
-            width: 100%;
-            border: 2px solid var(--input-border);
-            border-radius: 5px;
-            padding: 12px;
-            font-size: 16px;
-            box-sizing: border-box;
-            background-color: var(--input-bg);
-            color: var(--text-primary);
-            transition: border-color 0.3s;
-        }
-
-        input[type="text"]:focus {
-            outline: none;
-            border-color: var(--button-primary);
-        }
-
-        .availability-indicator {
-            font-size: 14px;
-            margin-top: 5px;
-            min-height: 20px;
-            display: none;
-        }
-
-        .availability-indicator.show {
-            display: block;
-        }
-
-        .available {
-            color: var(--success-color);
-        }
-
-        .unavailable {
-            color: var(--error-color);
-        }
-
-        .current-value {
-            background-color: var(--bg-tertiary);
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            font-size: 14px;
-        }
-
-        .current-value strong {
-            color: var(--text-primary);
-        }
-
-        button {
-            background: linear-gradient(135deg, var(--button-primary) 0%, var(--button-hover) 100%);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 12px 24px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: transform 0.2s;
-            width: 100%;
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-        }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .theme-selector {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .theme-option {
-            padding: 15px;
-            border: 2px solid var(--input-border);
-            border-radius: 5px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.3s;
-            background-color: var(--input-bg);
-        }
-
-        .theme-option:hover {
-            border-color: var(--button-primary);
-        }
-
-        .theme-option.active {
-            border-color: var(--button-primary);
-            background-color: var(--bg-tertiary);
-        }
-
-        .theme-option .icon {
-            font-size: 32px;
-            margin-bottom: 5px;
-        }
-
-        @media (max-width: 768px) {
-            .header {
-                grid-template-columns: 1fr;
-            }
-            .header-actions {
-                grid-auto-flow: row;
-            }
-        }
-
-        .message {
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            display: none;
-        }
-
-        .message.success {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .message.error {
-            background-color: var(--error-color);
-            color: white;
-        }
-
-        .message.show {
-            display: block;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>⚙️ Profile Settings</h1>
-        <div class="header-actions">
-            <a href="/" class="btn">🏠 Home</a>
-            <a href="/browse" class="btn btn-secondary">📋 Browse Rooms</a>
-            {% if user %}
-            <button class="btn btn-secondary" onclick="logout()">🚪 Log Out</button>
-            {% else %}
-            <a href="/auth" class="btn btn-secondary">🔐 Sign In</a>
-            {% endif %}
+{% if user %}
+<section class="card" aria-labelledby="username-heading">
+    <h2 id="username-heading">Display name</h2>
+    <p class="muted">Signed in as <strong>{{ user.display_name }}</strong> ({{ user.email }}).</p>
+    <div id="username-message" class="alert" role="status"></div>
+    <form id="username-form">
+        <div class="form-group">
+            <label for="new-username">New display name</label>
+            <input type="text" id="new-username" class="form-input" placeholder="your_name"
+                   pattern="[a-zA-Z0-9_-]{3,50}" maxlength="50" autocomplete="nickname" required
+                   aria-describedby="availability-indicator">
+            <span id="availability-indicator" class="form-hint">3-50 characters: letters, numbers, underscores & hyphens.</span>
         </div>
+        <button type="submit" id="update-username-btn" class="btn btn-block" disabled>Update display name</button>
+    </form>
+</section>
+{% else %}
+<section class="card" aria-labelledby="guest-heading">
+    <h2 id="guest-heading">Guest name</h2>
+    <p class="muted">You're a guest. Your name lives in this browser only, & anyone can post under any guest name. <a href="/auth?next=/profile">Sign in</a> to hold one name everywhere.</p>
+    <p>Current guest name: <strong id="current-guest-name">(none)</strong></p>
+    <div id="guest-message" class="alert" role="status"></div>
+    <form id="guest-username-form">
+        <div class="form-group">
+            <label for="new-guest-username">New guest name</label>
+            <input type="text" id="new-guest-username" class="form-input" placeholder="your_name" maxlength="50" required>
+        </div>
+        <button type="submit" class="btn btn-block">Save guest name</button>
+    </form>
+    <p></p>
+    <button type="button" id="clear-guest-btn" class="btn btn-secondary btn-block">Forget guest name (ask again next visit)</button>
+</section>
+{% endif %}
+
+<section class="card" aria-labelledby="appearance-heading">
+    <h2 id="appearance-heading">Appearance</h2>
+    <p class="muted">Saved in this browser.</p>
+    <div class="theme-options">
+        <button type="button" class="theme-option" data-theme-choice="light" aria-pressed="false" onclick="setTheme('light')">☀️ Light</button>
+        <button type="button" class="theme-option" data-theme-choice="dark" aria-pressed="false" onclick="setTheme('dark')">🌙 Dark</button>
     </div>
+</section>
 
-    <div class="content-container">
-        <p class="subtitle">Manage your account preferences</p>
+{% if user %}
+<button type="button" class="btn btn-secondary btn-block" onclick="signOut()">Sign out</button>
+{% endif %}
+{% endblock %}
 
-        {% if user %}
-        <!-- Authenticated: Change DB-backed Username -->
-        <div class="section">
-            <h2>Change Username</h2>
-            <div class="current-value">
-                Current username: <strong>{{ user.display_name }}</strong>
-            </div>
-            <div id="username-message" class="message"></div>
-            <form id="username-form">
-                <div class="form-group">
-                    <label for="new-username">New Username</label>
-                    <input
-                        type="text"
-                        id="new-username"
-                        placeholder="Enter new username"
-                        pattern="[a-zA-Z0-9_-]{3,50}"
-                        title="3-50 characters (letters, numbers, underscores, hyphens only)"
-                        required
-                    >
-                    <div id="availability-indicator" class="availability-indicator"></div>
-                </div>
-                <button type="submit" id="update-username-btn" disabled>Update Username</button>
-            </form>
-        </div>
-        {% else %}
-        <!-- Guest: Change localStorage guest name -->
-        <div class="section">
-            <h2>Guest Name</h2>
-            <p style="color: var(--text-secondary); font-size: 14px; margin-top: 0;">
-                You're browsing as a guest. Your name is stored in your browser only.
-                <a href="/auth" style="color: var(--button-primary);">Sign in</a> to claim a permanent username.
-            </p>
-            <div class="current-value">
-                Current guest name: <strong id="current-guest-name">(none)</strong>
-            </div>
-            <div id="guest-message" class="message"></div>
-            <form id="guest-username-form">
-                <div class="form-group">
-                    <label for="new-guest-username">New Guest Name</label>
-                    <input
-                        type="text"
-                        id="new-guest-username"
-                        placeholder="Enter new guest name"
-                        required
-                    >
-                </div>
-                <button type="submit" id="save-guest-btn">Save Guest Name</button>
-            </form>
-            <button type="button" id="clear-guest-btn"
-                    style="background: #6c757d; margin-top: 10px;">
-                🗑️ Clear Guest Name (re-prompt on next visit)
-            </button>
-        </div>
-        {% endif %}
+{% block scripts %}
+<script>
+{% if user %}
+    const currentUsername = {{ user.display_name|tojson }};
+    const indicator = document.getElementById('availability-indicator');
+    const submitBtn = document.getElementById('update-username-btn');
+    const formatHint = indicator.textContent;
+    let checkTimeout;
 
-        <!-- Theme Section -->
-        <div class="section">
-            <h2>Appearance</h2>
-            <div class="theme-selector">
-                <div class="theme-option" data-theme="light" onclick="setTheme('light')">
-                    <div class="icon">☀️</div>
-                    <div>Light Mode</div>
-                </div>
-                <div class="theme-option" data-theme="dark" onclick="setTheme('dark')">
-                    <div class="icon">🌙</div>
-                    <div>Dark Mode</div>
-                </div>
-            </div>
-        </div>
-    </div>
+    function setIndicator(text, ok) {
+        indicator.textContent = text;
+        indicator.style.color = ok === undefined ? '' : (ok ? 'var(--text-success)' : 'var(--text-error)');
+    }
 
-    <script>
-        // Theme Management
-        function setTheme(theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
+    document.getElementById('new-username').addEventListener('input', function (e) {
+        const username = e.target.value.trim();
+        clearTimeout(checkTimeout);
+        submitBtn.disabled = true;
 
-            // Update active state
-            document.querySelectorAll('.theme-option').forEach(option => {
-                option.classList.remove('active');
-            });
-            document.querySelector(`.theme-option[data-theme="${theme}"]`).classList.add('active');
+        if (!username || username === currentUsername) {
+            setIndicator(formatHint);
+            return;
         }
-
-        // Load saved theme on page load
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        setTheme(savedTheme);
-
-        {% if user %}
-        let checkTimeout;
-        const currentUsername = "{{ user.display_name }}";
-
-        // Username availability check
-        document.getElementById('new-username').addEventListener('input', function(e) {
-            const username = e.target.value.trim();
-            const indicator = document.getElementById('availability-indicator');
-            const submitBtn = document.getElementById('update-username-btn');
-
-            // Clear previous timeout
-            clearTimeout(checkTimeout);
-
-            // Hide indicator and disable button if same as current username
-            if (username === currentUsername) {
-                indicator.textContent = '';
-                indicator.classList.remove('show');
-                submitBtn.disabled = true;
-                return;
-            }
-
-            // Show indicator when username changes
-            indicator.classList.add('show');
-
-            // Reset if empty
-            if (!username) {
-                indicator.textContent = '';
-                indicator.classList.remove('show');
-                submitBtn.disabled = true;
-                return;
-            }
-
-            // Validate format
-            const isValid = /^[a-zA-Z0-9_-]{3,50}$/.test(username);
-            if (!isValid) {
-                indicator.textContent = 'Invalid format (3-50 chars: letters, numbers, _, -)';
-                indicator.className = 'availability-indicator unavailable show';
-                submitBtn.disabled = true;
-                return;
-            }
-
-            // Check availability after 500ms delay
-            indicator.textContent = 'Checking availability...';
-            indicator.className = 'availability-indicator show';
-
-            checkTimeout = setTimeout(async () => {
-                try {
-                    const response = await fetch(`/api/check-username?username=${encodeURIComponent(username)}`);
-                    const data = await response.json();
-
-                    if (data.available) {
-                        indicator.textContent = '✓ Username is available';
-                        indicator.className = 'availability-indicator available show';
-                        submitBtn.disabled = false;
-                    } else {
-                        indicator.textContent = '✗ Username is already taken';
-                        indicator.className = 'availability-indicator unavailable show';
-                        submitBtn.disabled = true;
-                    }
-                } catch (error) {
-                    indicator.textContent = 'Error checking availability';
-                    indicator.className = 'availability-indicator unavailable show';
-                    submitBtn.disabled = true;
-                }
-            }, 500);
-        });
-
-        // Username update form
-        document.getElementById('username-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const newUsername = document.getElementById('new-username').value.trim();
-            const messageDiv = document.getElementById('username-message');
-            const submitBtn = document.getElementById('update-username-btn');
-
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Updating...';
-
+        if (!/^[a-zA-Z0-9_-]{3,50}$/.test(username)) {
+            setIndicator('Use 3-50 letters, numbers, underscores or hyphens.', false);
+            return;
+        }
+        setIndicator('Checking availability…');
+        checkTimeout = setTimeout(async () => {
             try {
-                const response = await fetch('/api/update-username', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ new_username: newUsername })
-                });
-
+                const response = await fetch(`/api/check-username?username=${encodeURIComponent(username)}`);
                 const data = await response.json();
-
-                if (response.ok) {
-                    messageDiv.textContent = 'Username updated successfully! Redirecting...';
-                    messageDiv.className = 'message success show';
-
-                    // Redirect after 2 seconds
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2000);
-                } else {
-                    messageDiv.textContent = data.error || 'Failed to update username';
-                    messageDiv.className = 'message error show';
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Update Username';
-                }
+                setIndicator(data.available ? '✓ Available' : '✗ Already taken', !!data.available);
+                submitBtn.disabled = !data.available;
             } catch (error) {
-                messageDiv.textContent = 'Network error. Please try again.';
-                messageDiv.className = 'message error show';
+                setIndicator('Could not check availability. Please try again.', false);
+            }
+        }, 500);
+    });
+
+    document.getElementById('username-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const messageDiv = document.getElementById('username-message');
+        submitBtn.disabled = true;
+        try {
+            const response = await fetch('/api/update-username', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({new_username: document.getElementById('new-username').value.trim()})
+            });
+            const data = await response.json();
+            if (response.ok) {
+                messageDiv.textContent = 'Display name updated. Reloading…';
+                messageDiv.className = 'alert alert-success';
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                messageDiv.textContent = data.error || 'Failed to update display name';
+                messageDiv.className = 'alert alert-error';
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Update Username';
             }
-        });
-
-        // Logout function
-        async function logout() {
-            if (!confirm('Are you sure you want to log out?')) {
-                return;
-            }
-
-            try {
-                const response = await fetch('/auth/logout', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'}
-                });
-
-                if (response.ok) {
-                    window.location.href = '/';
-                } else {
-                    alert('Failed to log out. Please try again.');
-                }
-            } catch (error) {
-                alert('Network error. Please try again.');
-            }
+        } catch (error) {
+            messageDiv.textContent = 'Network error. Please try again.';
+            messageDiv.className = 'alert alert-error';
+            submitBtn.disabled = false;
         }
-        {% else %}
-        // Guest username management — mirrors chat.html's GUEST_USERNAME_KEY
-        const GUEST_USERNAME_KEY = 'guestUsername';
+    });
+{% else %}
+    // Same key chat.html reads for a guest's name.
+    const GUEST_USERNAME_KEY = 'guestUsername';
+    const guestMessage = document.getElementById('guest-message');
 
-        function refreshGuestName() {
-            const name = localStorage.getItem(GUEST_USERNAME_KEY);
-            document.getElementById('current-guest-name').textContent = name || '(none — will prompt on next visit)';
-            document.getElementById('new-guest-username').value = name || '';
+    function readGuestName() {
+        try { return localStorage.getItem(GUEST_USERNAME_KEY); } catch (e) { return null; }
+    }
+
+    function refreshGuestName() {
+        const name = readGuestName();
+        document.getElementById('current-guest-name').textContent = name || '(none: chat will ask)';
+        document.getElementById('new-guest-username').value = name || '';
+    }
+
+    function say(text, ok) {
+        guestMessage.textContent = text;
+        guestMessage.className = 'alert ' + (ok ? 'alert-success' : 'alert-error');
+    }
+
+    refreshGuestName();
+
+    document.getElementById('guest-username-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const newName = document.getElementById('new-guest-username').value.trim();
+        if (!newName) {
+            say('Guest name cannot be empty.', false);
+            return;
         }
+        localStorage.setItem(GUEST_USERNAME_KEY, newName);
         refreshGuestName();
+        say('Saved. Rooms you open from now on use it.', true);
+    });
 
-        document.getElementById('guest-username-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const newName = document.getElementById('new-guest-username').value.trim();
-            const messageDiv = document.getElementById('guest-message');
-
-            if (!newName) {
-                messageDiv.textContent = 'Guest name cannot be empty.';
-                messageDiv.className = 'message error show';
-                return;
-            }
-
-            localStorage.setItem(GUEST_USERNAME_KEY, newName);
-            refreshGuestName();
-            messageDiv.textContent = 'Guest name saved! Refresh chat to use it.';
-            messageDiv.className = 'message success show';
-        });
-
-        document.getElementById('clear-guest-btn').addEventListener('click', function() {
-            if (!confirm('Clear your guest name? You will be prompted for a new one next time you visit chat.')) {
-                return;
-            }
-            localStorage.removeItem(GUEST_USERNAME_KEY);
-            refreshGuestName();
-            const messageDiv = document.getElementById('guest-message');
-            messageDiv.textContent = 'Guest name cleared.';
-            messageDiv.className = 'message success show';
-        });
-        {% endif %}
-    </script>
-</body>
-</html>
+    document.getElementById('clear-guest-btn').addEventListener('click', function () {
+        localStorage.removeItem(GUEST_USERNAME_KEY);
+        refreshGuestName();
+        say('Forgotten. Chat will ask for a name next time.', true);
+    });
+{% endif %}
+</script>
+{% endblock %}

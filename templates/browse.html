@@ -1,301 +1,68 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Browse Rooms - OpenCompletion</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <script>
-        // Set theme immediately to prevent flash
-        (function() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-        })();
-    </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: var(--bg-page);
-            color: var(--text-primary);
-            margin: 0;
-            padding: 20px;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-        .header {
-            max-width: 1400px;
-            margin: 0 auto 30px;
-            display: grid;
-            grid-template-columns: 1fr auto;
-            align-items: center;
-            gap: 15px;
-        }
-        .header h1 {
-            color: var(--text-primary);
-            margin: 0;
-            transition: color 0.3s ease;
-        }
-        .header-actions {
-            display: grid;
-            grid-auto-flow: column;
-            gap: 10px;
-        }
-        .btn {
-            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: transform 0.2s;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-        .btn-secondary {
-            background: #6c757d;
-        }
-        .room-tabs {
-            max-width: 1400px;
-            margin: 0 auto 20px;
-            display: grid;
-            grid-auto-flow: column;
-            grid-auto-columns: max-content;
-            gap: 10px;
-            border-bottom: 2px solid #e1e1e1;
-        }
-        .room-tab {
-            background: none;
-            border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            cursor: pointer;
-            color: var(--text-secondary);
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-        }
-        .room-tab:hover {
-            color: var(--button-primary);
-        }
-        .room-tab:focus {
-            outline: none;
-            background: none;
-        }
-        .room-tab.active {
-            color: var(--button-primary);
-            border-bottom-color: var(--button-primary);
-            font-weight: bold;
-        }
-        .rooms-container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        .room-section {
-            display: none;
-        }
-        .room-section.active {
-            display: block;
-        }
-        .rooms-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-        .room-card {
-            background: var(--bg-card);
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease;
-            cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-            display: block;
-        }
-        .room-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-        }
-        .room-card-header {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            align-items: start;
-            margin-bottom: 10px;
-        }
-        .room-name {
-            font-size: 20px;
-            font-weight: bold;
-            color: var(--button-primary);
-            margin: 0 0 5px 0;
-        }
-        .room-title {
-            color: var(--text-secondary);
-            font-size: 14px;
-            margin: 8px 0;
-            line-height: 1.4;
-            transition: color 0.3s ease;
-        }
-        .room-meta {
-            display: grid;
-            grid-auto-flow: column;
-            grid-auto-columns: max-content;
-            gap: 15px;
-            margin-top: 12px;
-            font-size: 14px;
-            color: var(--text-muted);
-            transition: color 0.3s ease;
-        }
-        .room-meta-item {
-            display: grid;
-            grid-auto-flow: column;
-            align-items: center;
-            gap: 5px;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
-            transition: color 0.3s ease;
-        }
-        .empty-state h3 {
-            color: var(--text-secondary);
-            margin-bottom: 10px;
-            transition: color 0.3s ease;
-        }
-        .auth-prompt {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .auth-prompt button {
-            margin-top: 10px;
-        }
-        @media (max-width: 768px) {
-            .rooms-grid {
-                grid-template-columns: 1fr;
-            }
-            .header {
-                grid-template-columns: 1fr;
-            }
-            .header-actions {
-                grid-auto-flow: row;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🚀 Browse Rooms</h1>
-        <div class="header-actions">
-            <a href="/" class="btn">🏠 Home</a>
-            {% if user %}
-            <a href="/profile" class="btn btn-secondary">👤 {{ user.display_name }}</a>
-            {% else %}
-            <a href="/auth" class="btn btn-secondary">🔐 Sign In</a>
-            {% endif %}
-        </div>
+{% extends "layout.html" %}
+{% set active_nav = 'browse' %}
+
+{% block title %}Rooms - OpenCompletion{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Rooms</h1>
+<p class="page-subtitle">Most recently active first. <a href="/">Create a room</a></p>
+
+<div class="tabs" role="tablist">
+    <button type="button" class="room-tab active" role="tab" aria-selected="true" aria-controls="public-section" id="public-tab" onclick="switchTab('public')">Public ({{ public_rooms|length }})</button>
+    <button type="button" class="room-tab" role="tab" aria-selected="false" aria-controls="private-section" id="private-tab" onclick="switchTab('private')">Private{% if user %} ({{ private_rooms|length }}){% endif %}</button>
+</div>
+
+<section id="public-section" role="tabpanel" aria-labelledby="public-tab">
+    {% if public_rooms %}
+    <div class="room-grid">
+        {% for room in public_rooms %}
+        {% set active = room.get_active_users()|length %}
+        {% set meta = (active ~ ' here now') if active else '' %}
+        {% include "_room_card.html" %}
+        {% endfor %}
     </div>
-
-    <div class="room-tabs">
-        <button class="room-tab active" onclick="switchTab('public', this)">
-            🌍 Public Rooms
-        </button>
-        <button class="room-tab" onclick="switchTab('private', this)">
-            🔐 Private Rooms
-        </button>
+    {% else %}
+    <div class="empty-state">
+        <h3>No public rooms yet</h3>
+        <p><a class="btn" href="/">Create the first one</a></p>
     </div>
+    {% endif %}
+</section>
 
-    <div class="rooms-container">
-        <!-- Public Rooms -->
-        <div id="public-section" class="room-section active">
-            {% if public_rooms %}
-            <div class="rooms-grid">
-                {% for room in public_rooms %}
-                <a href="{{ url_for('chat', room_name=room.name) }}" class="room-card">
-                    <div class="room-card-header">
-                        <h3 class="room-name">{{ room.name }}</h3>
-                        <span class="badge badge-public">Public</span>
-                    </div>
-                    {% if room.title %}
-                    <p class="room-title">{{ room.title }}</p>
-                    {% endif %}
-                    <div class="room-meta">
-                        <span class="room-meta-item">
-                            👥 {{ room.get_active_users()|length }} active
-                        </span>
-                    </div>
-                </a>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="empty-state">
-                <h3>No public rooms yet</h3>
-                <p>Be the first to create one!</p>
-                <a href="/" class="btn">Create a Room</a>
-            </div>
-            {% endif %}
+<section id="private-section" role="tabpanel" aria-labelledby="private-tab" hidden>
+    {% if user %}
+        {% if private_rooms %}
+        <div class="room-grid">
+            {% for room in private_rooms %}
+            {% set meta = '' %}
+            {% include "_room_card.html" %}
+            {% endfor %}
         </div>
-
-        <!-- Private Rooms -->
-        <div id="private-section" class="room-section">
-            {% if user %}
-                {% if private_rooms %}
-                <div class="rooms-grid">
-                    {% for room in private_rooms %}
-                    <a href="{{ url_for('chat', room_name=room.name) }}" class="room-card">
-                        <div class="room-card-header">
-                            <h3 class="room-name">{{ room.name }}</h3>
-                            <span class="badge badge-private">Private</span>
-                        </div>
-                        {% if room.title %}
-                        <p class="room-title">{{ room.title }}</p>
-                        {% endif %}
-                        <div class="room-meta">
-                            <span class="room-meta-item">
-                                👥 {{ room.get_active_users()|length }} active
-                            </span>
-                        </div>
-                    </a>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="empty-state">
-                    <h3>No private rooms yet</h3>
-                    <p>Create your first private room!</p>
-                    <a href="/" class="btn">Create a Room</a>
-                </div>
-                {% endif %}
-            {% else %}
-            <div class="auth-prompt">
-                <h3>🔒 Private rooms are only visible to you</h3>
-                <p>Sign in to create and access your private rooms</p>
-                <a href="/auth" class="btn">Sign In / Sign Up</a>
-            </div>
-            {% endif %}
+        {% else %}
+        <div class="empty-state">
+            <h3>No private rooms yet</h3>
+            <p><a class="btn" href="/">Create a private room</a></p>
         </div>
+        {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <h3>Private rooms are only visible to their owner</h3>
+        <p><a class="btn" href="/auth?next=/browse">Sign in to see yours</a></p>
     </div>
+    {% endif %}
+</section>
+{% endblock %}
 
-    <script>
-        function switchTab(tab, element) {
-            // Update tab buttons
-            document.querySelectorAll('.room-tab').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            element.classList.add('active');
-
-            // Update sections
-            document.querySelectorAll('.room-section').forEach(section => {
-                section.classList.remove('active');
-            });
-            document.getElementById(tab + '-section').classList.add('active');
+{% block scripts %}
+<script>
+    function switchTab(tab) {
+        for (const name of ['public', 'private']) {
+            const selected = name === tab;
+            const button = document.getElementById(name + '-tab');
+            button.classList.toggle('active', selected);
+            button.setAttribute('aria-selected', String(selected));
+            document.getElementById(name + '-section').hidden = !selected;
         }
-    </script>
-</body>
-</html>
+    }
+</script>
+{% endblock %}

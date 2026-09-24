@@ -1,67 +1,24 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Results - OpenCompletion</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-    <div class="header">
-        <h1>🔍 Search Results</h1>
-        <div class="header-actions">
-            <a href="/" class="btn">🏠 Home</a>
-            <a href="/browse" class="btn btn-secondary">📋 Browse Rooms</a>
-            {% if user %}
-            <a href="/profile" class="btn btn-secondary">👤 {{ user.display_name }}</a>
-            {% else %}
-            <a href="/auth" class="btn btn-secondary">🔐 Sign In</a>
-            {% endif %}
-        </div>
-    </div>
+{% extends "layout.html" %}
+{% set active_nav = 'search' %}
 
-    {% if error %}
-        <div class="alert alert-error">{{ error }}</div>
-    {% endif %}
+{% block title %}{% if keywords %}{{ keywords }} - {% endif %}Search - OpenCompletion{% endblock %}
 
-    {% if results %}
-        <div class="search-info">
-            Found <strong>{{ results|length }}</strong> result{{ 's' if results|length != 1 else '' }}
-        </div>
-
-        <div class="results-container">
-            <div class="rooms-grid">
-                {% for result in results %}
-                <a href="{{ url_for('chat', room_name=result.room_name) }}" class="room-card">
-                    <div class="room-card-header">
-                        <h3 class="room-name">{{ result.room_name }}</h3>
-                        <span class="room-badge">Score: {{ "%.2f"|format(result.score) }}</span>
-                    </div>
-                    {% if result.room_title %}
-                    <p class="room-title">{{ result.room_title }}</p>
-                    {% else %}
-                    <p class="room-title">Untitled Room</p>
-                    {% endif %}
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-    {% elif not error %}
-        <div class="results-container">
-            <div class="empty-state">
-                <div class="empty-state-icon">🔍</div>
-                <h3>No results found</h3>
-                <p>Try searching for different keywords</p>
-                <a href="/browse" class="btn" style="margin-top: 20px;">Browse All Rooms</a>
-            </div>
-        </div>
-    {% endif %}
-
-    <script>
-        // Theme persistence
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-    </script>
-</body>
-</html>
+{% block content %}
+<h1 class="page-title">Search messages</h1>
+{% if not keywords %}
+<p class="page-subtitle">Type words in our search box above. We search public rooms{% if user %} & your private rooms{% endif %}.</p>
+{% elif results %}
+<p class="page-subtitle">{{ results|length }} room{{ '' if results|length == 1 else 's' }} mention <strong>{{ keywords }}</strong>, most mentions first.</p>
+<div class="room-grid">
+    {% for room in results %}
+    {% set meta = room.score ~ ' mention' ~ ('' if room.score == 1 else 's') %}
+    {% include "_room_card.html" %}
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <h3>No messages mention “{{ keywords }}”</h3>
+    <p>We searched public rooms{% if user %} & your private rooms{% endif %}. Try other words, or <a href="/browse">browse rooms</a>.</p>
+</div>
+{% endif %}
+{% endblock %}

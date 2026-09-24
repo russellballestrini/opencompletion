@@ -31,7 +31,7 @@ git remote -v
 - Verify changes work as expected
 
 ## Linting
-- **ALWAYS run lint before committing**: `make lint` or `flake8 app.py activity.py --select=E9,F63,F7,F82`
+- **ALWAYS run lint before committing**: `make lint` (black --check plus `flake8 --select=E9,F63,F7,F82`)
 - Fix all lint errors before pushing - GitHub CI will fail on lint errors
 - Key error codes checked:
   - E9: Runtime errors (syntax errors, IO errors)
@@ -62,9 +62,10 @@ git remote -v
 ### Makefile Commands
 - `make venv` - Create virtual environment and install dependencies
 - `make init-db` - Initialize database tables
-- `make test` - Run all tests
-- `make lint` - Run code linting (black, isort, flake8)
-- `make dev-setup` - Install development dependencies
+- `make test` - Unit, integration, functional tests & YAML validation (no network)
+- `make test-ui` - Page contract & mobile layouts in headless Chromium
+- `make lint` - black --check & flake8 (syntax, undefined names)
+- `make ci` - lint + test, exactly what GitHub Actions runs
 
 ### Network Infrastructure
 
@@ -75,8 +76,11 @@ git remote -v
 ## OpenCompletion Architecture
 
 ### Frontend Structure
-- Main chat interface is in `templates/chat.html`
-- Base template with CSS is in `templates/base.html`
+- **Read `docs/STYLEGUIDE.md` before touching a template or style.css**; `/styleguide` renders every component
+- Pages extend `templates/layout.html`; chat (`templates/chat.html`) extends `templates/base.html`, its app shell
+- Both share `_head.html` & `_site_nav.html`; sign in is `_auth_steps.html` + `static/js/auth.js`
+- All styling is in `static/css/style.css` (tokens on `:root`, dark under `[data-theme="dark"]`); templates carry no `<style>` or raw colours
+- `make test-ui` checks our page contract & layouts in headless Chromium at 320/375/768/1280px
 - JavaScript code is inline in chat.html for real-time chat functionality
 - Uses Socket.IO for WebSocket communication
 - Uses marked.js for Markdown rendering and DOMPurify for XSS protection
@@ -84,7 +88,7 @@ git remote -v
 
 ### Code Block Rendering
 - Code blocks are processed in messages after markdown conversion
-- Copy buttons are added via `addCopyButtonToCodeBlock()` function (line 1176 in chat.html)
+- Copy buttons are added via `addCopyButtonToCodeBlock()` function in chat.html
 - Code blocks support:
   - Syntax highlighting via highlight.js
   - Line numbers via `addLineNumbers()` function

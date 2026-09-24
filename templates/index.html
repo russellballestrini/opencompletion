@@ -1,289 +1,80 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenCompletion - AI-Powered Chat Rooms</title>
+{% extends "layout.html" %}
+{% set active_nav = 'home' %}
 
-    <!-- Meta description for SEO -->
-    <meta name="description" content="OpenCompletion - Machine learning powered collaboration. Create public or private AI chat rooms, collaborate with AI models, and share conversations.">
+{% block content %}
+<h1 class="page-title">OpenCompletion</h1>
+<p class="page-subtitle">Chat rooms where people & machine learning models work together.</p>
 
-    <!-- Open Graph meta tags for social sharing (Facebook, Discord, LinkedIn, etc.) -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="OpenCompletion - AI-Powered Chat Rooms">
-    <meta property="og:description" content="Machine learning powered collaboration. Create public or private AI chat rooms, collaborate with AI models, and share conversations.">
-    <meta property="og:site_name" content="OpenCompletion">
-    <meta property="og:image" content="{{ url_for('static', filename='images/og-default.png', _external=True) }}">
-    <meta property="og:image:alt" content="OpenCompletion - AI-Powered Chat Rooms">
-
-    <!-- Twitter Card meta tags -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="OpenCompletion - AI-Powered Chat Rooms">
-    <meta name="twitter:description" content="Machine learning powered collaboration. Create public or private AI chat rooms, collaborate with AI models, and share conversations.">
-    <meta name="twitter:image" content="{{ url_for('static', filename='images/og-default.png', _external=True) }}">
-
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
-    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: var(--bg-page);
-            color: var(--text-primary);
-            display: grid;
-            place-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-        #main-container {
-            background-color: var(--bg-card);
-            border-radius: 10px;
-            padding: 30px;
-            width: 100%;
-            max-width: 800px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            transition: background-color 0.3s ease;
-        }
-        h1 {
-            color: var(--text-primary);
-            margin-bottom: 10px;
-            text-align: center;
-            transition: color 0.3s ease;
-        }
-        .tagline {
-            text-align: center;
-            color: var(--text-secondary);
-            margin-bottom: 30px;
-            transition: color 0.3s ease;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .stat-number {
-            font-size: 32px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .stat-label {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        #join-section {
-            background-color: var(--bg-section);
-            border-radius: 8px;
-            padding: 25px;
-            margin-bottom: 20px;
-            transition: background-color 0.3s ease;
-        }
-        #join-section h2 {
-            margin-top: 0;
-            color: var(--text-primary);
-            transition: color 0.3s ease;
-        }
-        #join-room-form {
-            display: grid;
-            gap: 10px;
-        }
-        input[type="text"] {
-            width: 100%;
-            border: 2px solid var(--border-color);
-            border-radius: 5px;
-            padding: 12px;
-            font-size: 16px;
-            box-sizing: border-box;
-            background-color: var(--bg-card);
-            color: var(--text-primary);
-            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
-        }
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .room-type-selector {
-            display: grid;
-            grid-auto-flow: column;
-            grid-auto-columns: max-content;
-            gap: 20px;
-            align-items: center;
-            padding: 10px 0;
-        }
-        .room-type-selector label {
-            display: grid;
-            grid-auto-flow: column;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .room-type-selector input[type="radio"] {
-            width: auto;
-            cursor: pointer;
-        }
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 12px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        button:hover {
-            transform: translateY(-2px);
-        }
-        .auth-status {
-            text-align: center;
-            padding: 15px;
-            background: var(--bg-status);
-            border-radius: 8px;
-            margin-bottom: 20px;
-            transition: background-color 0.3s ease;
-        }
-        .auth-status.logged-in {
-            background: var(--bg-status-logged);
-        }
-        .browse-link {
-            text-align: center;
-            margin-top: 20px;
-        }
-        .browse-link a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .browse-link a:hover {
-            text-decoration: underline;
-        }
-    </style>
-</head>
-<body>
-    <div id="main-container">
-        <h1>🚀 OpenCompletion</h1>
-        <p class="tagline">Machine Learning Powered Collaboration</p>
-
-        <!-- Statistics -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-number">{{ stats.total_public_rooms }}</div>
-                <div class="stat-label">Public Rooms</div>
-            </div>
-            {% if user %}
-            <div class="stat-card">
-                <div class="stat-number">{{ stats.total_private_rooms }}</div>
-                <div class="stat-label">Private Rooms</div>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- Auth status -->
-        {% if user %}
-        <div class="auth-status logged-in">
-            ✅ Signed in as <strong>{{ user.display_name }}</strong> ({{ user.email }})
-            <div style="margin-top: 10px;">
-                <a href="/profile" style="color: #667eea; text-decoration: none; font-weight: bold;">⚙️ Profile Settings</a>
-            </div>
-        </div>
-        {% else %}
-        <div class="auth-status">
-            👋 Welcome! <a href="/auth">Sign in</a> to create private rooms
-        </div>
-        {% endif %}
-
-        <!-- Join room form -->
-        <div id="join-section">
-            <h2>Join or Create a Room</h2>
-            <form id="join-room-form">
-                <input id="room" type="text" placeholder="Enter room name" required>
-                <div class="room-type-selector">
-                    <label>
-                        <input type="radio" name="room-type" value="public" checked>
-                        🌍 Public Room
-                    </label>
-                    <label>
-                        <input type="radio" name="room-type" value="private">
-                        🔐 Private Room
-                    </label>
-                </div>
-                <button type="submit">Create/Join Room</button>
-            </form>
-        </div>
-
-        <div class="browse-link">
-            <a href="/browse">Or browse existing rooms →</a>
-        </div>
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_public_rooms }}</div>
+        <div class="stat-label">Public rooms</div>
     </div>
+    {% if user %}
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_private_rooms }}</div>
+        <div class="stat-label">Your private rooms</div>
+    </div>
+    {% endif %}
+</div>
 
-    <script>
-        // Theme persistence
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
+<section class="card" aria-labelledby="join-heading">
+    <h2 id="join-heading">Join or create a room</h2>
+    <form id="join-room-form" novalidate>
+        <div class="form-group">
+            <label for="room">Room name</label>
+            <input id="room" class="form-input" type="text" placeholder="e.g. study-group" autocomplete="off" required>
+            <span class="form-hint">Letters & numbers; spaces become hyphens. An existing name joins that room.</span>
+        </div>
+        <fieldset class="choice-group">
+            <legend class="visually-hidden">Who can see this room</legend>
+            <label><input type="radio" name="room-type" value="public" checked> Public: anyone with the link can read & post</label>
+            <label><input type="radio" name="room-type" value="private"{% if not user %} disabled{% endif %}> Private: only you</label>
+        </fieldset>
+        {% if not user %}
+        <p class="form-hint"><a href="/auth">Sign in</a> to create private rooms.</p>
+        {% endif %}
+        <div id="join-error" class="error-message" role="alert"></div>
+        <button type="submit" class="btn btn-block">Open room</button>
+    </form>
+</section>
 
-        document.getElementById('join-room-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const roomInput = document.getElementById('room').value.trim();
-            const roomType = document.querySelector('input[name="room-type"]:checked').value;
+<p><a href="/browse">Browse existing rooms →</a></p>
+{% endblock %}
 
-            if (!roomInput) {
-                alert('Please enter a room name');
-                return;
-            }
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+<script>
+    document.getElementById('join-room-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const errorEl = document.getElementById('join-error');
+        const room = slugify(document.getElementById('room').value.trim());
+        const roomType = document.querySelector('input[name="room-type"]:checked').value;
+        errorEl.textContent = '';
 
-            const room = slugify(roomInput);
-
-            if (!room) {
-                alert('Please enter a valid room name with at least some letters or numbers');
-                return;
-            }
-
-            // If private room, check authentication
-            if (roomType === 'private') {
-                {% if not user %}
-                alert('You must be signed in to create private rooms. Please sign in first.');
-                window.location.href = '/auth';
-                return;
-                {% endif %}
-
-                // Create private room via API
-                try {
-                    const response = await fetch('/api/rooms/create', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            name: room,
-                            is_private: true
-                        })
-                    });
-
-                    const data = await response.json();
-
-                    if (response.ok) {
-                        window.location.href = `/chat/${data.room.name}`;
-                    } else {
-                        alert(data.error || 'Failed to create private room');
-                    }
-                } catch (error) {
-                    alert('Network error. Please try again.');
-                }
+        if (!room) {
+            errorEl.textContent = 'Please enter a room name with at least one letter or number.';
+            return;
+        }
+        if (roomType === 'public') {
+            window.location.href = `/chat/${room}`;
+            return;
+        }
+        try {
+            const response = await fetch('/api/rooms/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: room, is_private: true})
+            });
+            const data = await response.json();
+            if (response.ok) {
+                window.location.href = `/chat/${data.room.name}`;
             } else {
-                // Public room - just navigate
-                window.location.href = `/chat/${room}`;
+                errorEl.textContent = data.error || 'Failed to create private room';
             }
-        });
-    </script>
-</body>
-</html>
-
+        } catch (error) {
+            errorEl.textContent = 'Network error. Please try again.';
+        }
+    });
+</script>
+{% endblock %}
