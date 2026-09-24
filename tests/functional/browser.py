@@ -68,6 +68,9 @@ CHROME_FLAGS = [
     "--no-proxy-server",
     "--disable-background-networking",
     "--hide-scrollbars",
+    # No name resolves: an image, audio or script URL fails at once
+    # instead of stalling virtual time on a real network.
+    "--host-resolver-rules=MAP * ~NOTFOUND",
 ]
 _CHROME_ENV = dict(os.environ, DBUS_SESSION_BUS_ADDRESS="/dev/null")
 _probe_failures = []
@@ -145,11 +148,16 @@ def offline_page(html):
     return re.sub(r'(src|href)="/static/', rf'\1="{static}/', html)
 
 
-# Runs before any page script: a blocking dialog would hang --dump-dom.
+# Runs before any page script: a blocking dialog would hang --dump-dom, and
+# a network request would too. Headless Chrome's virtual clock waits on
+# pending requests, so one slow reply (chat asks /models & a voices API on
+# load) held a chat page past 60 s on a CI runner (2026-09-24). Every fetch
+# fails at once unless a probe stubs its own.
 DIALOG_STUBS = """<script>
 window.alert = () => {};
 window.confirm = () => true;
 window.prompt = (message, fallback) => fallback || 'tester';
+window.fetch = () => Promise.reject(new TypeError('offline test page'));
 </script>"""
 
 

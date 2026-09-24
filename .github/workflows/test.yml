@@ -93,6 +93,13 @@ jobs:
     - name: Install
       run: make venv
 
+    # Same warm-up as the test jobs: coverage runs our browser tests too.
+    - name: Warm up Chrome
+      run: |
+        google-chrome --version
+        timeout 90 google-chrome --headless --no-sandbox --disable-gpu \
+          --no-first-run --disable-dev-shm-usage --dump-dom about:blank > /dev/null || true
+
     - name: Coverage floor
       run: make coverage-check
 
