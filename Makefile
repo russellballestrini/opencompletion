@@ -81,7 +81,7 @@ init-db: venv
 	fi
 
 # Lists rooms a scanner left behind (names our room-name rule refuses);
-# `venv/bin/python prune_rooms.py --delete` removes the empty ones.
+# `. ./vars.sh && venv/bin/python prune_rooms.py --delete` removes the empty ones.
 .PHONY: prune-rooms
 prune-rooms: venv
 	. ./vars.sh && venv/bin/python prune_rooms.py

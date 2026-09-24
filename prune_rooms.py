@@ -3,10 +3,10 @@
 Scanners walking /chat/<payload> used to leave a room behind for every
 probe (`bs4' UNION ALL SELECT ...`). New names are checked now; this sweeps
 out what came before. It only lists unless given --delete, and --delete
-only touches rooms holding no messages unless --include-messages is given.
+only touches rooms holding no messages or activity unless --include-messages is given.
 
-    python prune_rooms.py                 # list
-    python prune_rooms.py --delete        # delete the empty ones
+    . ./vars.sh && python prune_rooms.py             # list
+    . ./vars.sh && python prune_rooms.py --delete    # delete the empty ones
 """
 
 import argparse
@@ -24,25 +24,46 @@ def junk_rooms():
     return [(r, Message.query.filter_by(room_id=r.id).count()) for r in rooms]
 
 
-def delete_room(room):
+def holds_content(room):
+    """True when `room` holds messages or a running activity."""
+    return (
+        Message.query.filter_by(room_id=room.id).first() is not None
+        or ActivityState.query.filter_by(room_id=room.id).first() is not None
+    )
+
+
+def delete_room(room, include_messages=False):
+    """Delete `room`; unless `include_messages`, only while it holds nothing.
+
+    The first write takes our database's write lock, so the emptiness check
+    after it sees every message committed before & none can land until our
+    commit: a message posted mid-prune keeps its room. Returns True if gone.
+    """
+    UserSession.query.filter_by(room_id=room.id).delete()
+    if not include_messages and holds_content(room):
+        db.session.rollback()
+        return False
     Room.query.filter_by(forked_from_id=room.id).update({"forked_from_id": None})
     Message.query.filter_by(room_id=room.id).delete()
     ActivityState.query.filter_by(room_id=room.id).delete()
-    UserSession.query.filter_by(room_id=room.id).delete()
     db.session.delete(room)
+    db.session.commit()
+    return True
 
 
 def prune(delete=False, include_messages=False, out=sys.stdout):
-    """Print each junk room; delete the chosen ones. Returns how many went."""
+    """Print each junk room; delete the chosen ones. Returns how many went.
+
+    Without `include_messages` a room holding messages or a running activity
+    is kept.
+    """
     deleted = 0
     for room, count in junk_rooms():
-        doomed = delete and (include_messages or count == 0)
-        verdict = "deleted" if doomed else "kept"
-        print(f"{verdict:7} {room.id:6} {count:5} msgs  {room.name!r}", file=out)
-        if doomed:
-            delete_room(room)
-            deleted += 1
-    db.session.commit()
+        name, room_id = room.name, room.id
+        gone = delete and delete_room(room, include_messages)
+        verdict = "deleted" if gone else "kept"
+        print(f"{verdict:7} {room_id:6} {count:5} msgs  {name!r}", file=out)
+        deleted += gone
     return deleted
 
 

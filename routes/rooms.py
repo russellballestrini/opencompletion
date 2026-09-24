@@ -135,7 +135,9 @@ def emit_room_list_update(room, room_data):
 def create_room_api():
     """Create a new room"""
     user = auth.get_current_user()
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict) or not isinstance(data.get("name", ""), str):
+        return jsonify({"error": "Room name is required"}), 400
     room_name = data.get("name", "").strip()
     is_private = data.get("is_private", False)
 
