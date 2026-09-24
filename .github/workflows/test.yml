@@ -85,3 +85,28 @@ jobs:
 
     - name: Coverage floor
       run: make coverage-check
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build image
+      run: docker build -t opencompletion .
+
+    - name: Start & serve pages
+      run: |
+        docker run -d --name oc -p 5001:5001 \
+          -e MODEL_ENDPOINT_1=http://127.0.0.1:9/v1 -e MODEL_API_KEY_1=none \
+          opencompletion
+        for i in $(seq 1 30); do
+          curl -fsS -o /dev/null http://127.0.0.1:5001/ && break
+          sleep 2
+        done
+        for path in / /browse /styleguide /auth /chat/lobby; do
+          curl -fsS -o /dev/null -w "$path %{http_code}\n" "http://127.0.0.1:5001$path"
+        done
+
+    - name: Container log
+      if: always()
+      run: docker logs oc

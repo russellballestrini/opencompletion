@@ -15,8 +15,8 @@ Features
 - Integration with language models for generating room titles and processing messages.
 - Syntax highlighting for code blocks within messages.
 - Markdown rendering for messages.
-- **Code execution**: Run code blocks directly in the browser with support for 38+ programming languages.
-- **Text-to-speech**: Convert AI responses to speech with multiple voice options.
+- **Code execution**: Run code blocks from chat in 42+ programming languages via Unsandbox.
+- **Text-to-speech**: Read model replies aloud with multiple voice options.
 - Commands to load and save code blocks to AWS S3.
 - Database storage for messages and chatrooms using SQLAlchemy.
 - Migration support with Flask-Migrate.
@@ -26,19 +26,12 @@ Features
 Requirements
 ------------
 
-- Python 3.6+
-- Flask
-- Flask-SocketIO
-- Flask-SQLAlchemy
-- Flask-Migrate
-- eventlet or gevent
-- boto3 (for interacting with AWS Bedrock currently Claude, and S3 access)
-- OpenAI client (for interacting with vLLM & Ollama inference servers)
+- Python 3.11 or newer (CI runs 3.11 & 3.13)
+- ``make``; everything else installs into ``venv/`` from ``requirements.txt``
+- At least one OpenAI-compatible model endpoint (vLLM, Ollama, llama.cpp, ...)
 
 Installation
 ------------
-
-To set up the project, follow these steps:
 
 1. Clone this repository::
 
@@ -51,21 +44,48 @@ To set up the project, follow these steps:
    - GitHub: ``git@github.com:russellballestrini/opencompletion.git``
    - unturf: ``ssh://git@git.unturf.com:2222/engineering/unturf/opencompletion.com.git``
 
-2. Create a virtual environment and activate it::
+2. Create ``venv/`` with every dependency (re-run after a pull; it only
+   reinstalls when a requirements file changed)::
 
-    python3 -m venv env
-    source env/bin/activate  # On Windows use `env\Scripts\activate`
+    make venv
 
-3. Install the required dependencies::
+3. Copy ``vars.sh.sample`` to ``vars.sh`` & fill in your endpoints and keys
+   (``vars.sh`` is gitignored; never commit it)::
 
-    pip install -r requirements.txt
+    cp vars.sh.sample vars.sh
 
-4. Initialize the database:
+4. Create our database tables (a SQLite file in ``instance/`` unless
+   ``SQLALCHEMY_DATABASE_URI`` says otherwise), then mark migrations current::
 
-   Before running the application for the first time, you need to create the database and tables, and then stamp the Alembic migrations to mark them as up to date. Follow these steps::
+    make init-db
+    source vars.sh && FLASK_APP=app venv/bin/flask db stamp head
 
-        python init_db.py
-        flask db stamp head
+5. Run it::
+
+    source vars.sh && venv/bin/python app.py
+
+Docker
+------
+
+Our ``Dockerfile`` runs the same app; ``vars.sh`` is mounted at run time,
+never baked into an image::
+
+    docker build -t opencompletion .
+    docker run -p 5001:5001 \
+        -v "$PWD/vars.sh:/opt/server/vars.sh:ro" \
+        -v opencompletion-data:/opt/server/instance \
+        opencompletion
+
+The named volume keeps our SQLite database across containers (a host
+directory would need to be writable by the container's non-root user). CI
+builds & starts this image on every push (job ``docker``).
+
+Tests
+-----
+
+``make test`` runs unit, integration & functional tests plus YAML validation
+with no network; ``make test-ui`` checks every page in headless Chromium at
+phone to desktop widths; ``make ci`` is exactly what GitHub Actions runs.
 
 Usage
 -----
@@ -134,32 +154,35 @@ Commands
 
 The chatrooms support some special commands:
 
-- ``/title new``: Generates a new title which reflects conversation content for the current chatroom using gpt-4.
+- ``/title new``: Generates a new title which reflects conversation content for the current chatroom using our default model.
 - ``/cancel``: Cancel the most recent chat completion from streaming into the chatroom.
 - ``/help``: Displays the list of commands and models to choose from.
 
 Code Execution
 --------------
 
-Code blocks can be executed directly in the browser using the "▶ Run" button. Supports 30+ programming languages with automatic language detection. Code runs in isolated, self-terminating sandbox containers. Compiled binaries can be downloaded directly from the interface.
+Code blocks can be executed from chat with the "▶ Run" button. Supports 42+ programming languages with automatic language detection. Code runs in isolated, self-terminating Unsandbox containers, and compiled binaries can be downloaded from the interface.
+
+Set ``UNSANDBOX_PUBLIC_KEY`` & ``UNSANDBOX_SECRET_KEY`` to enable it. Running code spends that account, so it needs a signed-in person unless ``OPENCOMPLETION_GUEST_CODE_EXEC=on``.
 
 
 Structure
 ---------
 
-- ``app.py``: The main Flask application file containing the backend logic.
-- ``chat.html``: The HTML template for the chatroom interface.
-- ``static/``: Directory for static files like CSS, JavaScript, and images.
-- ``templates/``: Directory for HTML templates.
-- ``research/``: Guarded AI activities or processes. Example YAMLs.
+- ``app.py``: our Flask app & chat itself (the chat page, Socket.IO events, model streaming).
+- ``routes/``: HTTP blueprints: pages, accounts (email-code sign in), rooms (browse, search, downloads), code execution.
+- ``templates/``: pages extend ``layout.html``; chat extends ``base.html``. ``/styleguide`` shows every component.
+- ``static/``: ``css/style.css`` (our one stylesheet), ``js/`` (site, sign in & ``chat/``), ``vendor/`` (pinned browser libraries).
+- ``research/``: activity YAMLs & the ``guarded_ai.py`` simulator.
+- ``docs/STYLEGUIDE.md``: our UI rules, tested by ``make test-ui``.
 
 
 Activity Mode
 --------------
 
-Activity mode is an interactive experience where users can engage with a guided AI to learn and answer questions.
+Activity mode is an interactive experience where users learn & answer questions guided by machine learning.
 
-The AI provides feedback based on the user's responses and guides them through different sections and steps of an activity.
+Our model provides feedback based on the user's responses and guides them through different sections and steps of an activity.
 
 This mode is designed to be on the "rails", educational, & engaging.
 
@@ -169,7 +192,7 @@ The server expects to load the YAML file out of the S3 bucket you specify in you
 
     ``/activity path-to-activity.yaml``
 
-2. **Display Activity Info**: Use the ``/activity info`` command to display AI information about the current activity, including grading and user performance.
+2. **Display Activity Info**: Use the ``/activity info`` command to display information about the current activity, including grading and user performance.
 
     ``/activity info``
 
