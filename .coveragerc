@@ -19,4 +19,5 @@ include =
     init_db.py
     models.py
     research/guarded_ai.py
+    routes/*.py
 show_missing = True

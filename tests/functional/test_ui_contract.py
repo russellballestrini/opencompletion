@@ -14,7 +14,7 @@ import shutil
 import subprocess
 from html.parser import HTMLParser
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -235,7 +235,8 @@ def test_private_room_updates_stay_inside_the_room(test_app):
     import app as app_module
     from models import Room
 
-    with patch.object(app_module, "socketio") as socketio:
+    socketio = MagicMock()
+    with patch.dict(test_app.extensions, {"socketio": socketio}):
         app_module.emit_room_list_update(
             Room(name="mine", is_private=True), {"name": "mine"}
         )

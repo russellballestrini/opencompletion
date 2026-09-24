@@ -66,7 +66,7 @@ git remote -v
 - `make test-ui` - Page contract & mobile layouts in headless Chromium
 - `make lint` - black --check & flake8 (syntax, undefined names)
 - `make ci` - lint + test, exactly what GitHub Actions runs
-- `make coverage-check` - Fail below our 55% coverage floor (CI job `coverage`); raise it as tests land, never lower it
+- `make coverage-check` - Fail below our 58% coverage floor (CI job `coverage`); raise it as tests land, never lower it
 
 ### Network Infrastructure
 
@@ -75,6 +75,12 @@ git remote -v
 - See `unturf-debugging.md` for network troubleshooting (gitignored)
 
 ## OpenCompletion Architecture
+
+### Backend Structure
+- `app.py`: our Flask app, chat itself (`/chat/<room>`, Socket.IO events, model streaming, S3 & title helpers) & the model map
+- `routes/`: HTTP blueprints registered by `routes.register(app, ...)`: `pages.py` (home, sign in, profile, style guide), `accounts.py` (email-code sign in, names), `rooms.py` (browse, rooms API, search, downloads, `room_access_denied`), `code.py` (Unsandbox proxy, fix-code, artifact names)
+- Blueprints never `import app` (a server started as `python app.py` runs as `__main__`); shared helpers arrive via `routes.DEPS`, Socket.IO via `current_app.extensions["socketio"]`
+- `SQLALCHEMY_DATABASE_URI` overrides our default `instance/chat.db`
 
 ### Frontend Structure
 - **Read `docs/STYLEGUIDE.md` before touching a template or style.css**; `/styleguide` renders every component
