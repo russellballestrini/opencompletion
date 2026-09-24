@@ -1552,9 +1552,8 @@ def chat(room_name):
 
     # If room doesn't exist yet, it will be created in get_room() when user joins
     # But check if they're trying to access a private room they don't own
-    if room and room.is_private:
-        if not user or room.owner_id != user.id:
-            return "Access denied: This is a private room", 403
+    if room_access_denied(room, user):
+        return "Access denied: This is a private room", 403
 
     # Query public rooms and user's private rooms for sidebar
     public_rooms = (
@@ -1603,9 +1602,10 @@ def chat(room_name):
 @app.route("/download_chat_history", methods=["GET"])
 def download_chat_history():
     room_name = request.args.get("room_name")
-    room = get_room(room_name)
+    room = Room.query.filter_by(name=room_name).first()
 
-    if not room:
+    # A private room answers 404 like a missing one: its name stays secret.
+    if not room or room_access_denied(room, auth.get_current_user()):
         return jsonify({"error": "Room not found"}), 404
 
     messages = Message.query.filter_by(room_id=room.id).all()
@@ -1637,9 +1637,10 @@ def download_chat_history():
 @app.route("/download_chat_history_md", methods=["GET"])
 def download_chat_history_md():
     room_name = request.args.get("room_name")
-    room = get_room(room_name)
+    room = Room.query.filter_by(name=room_name).first()
 
-    if not room:
+    # A private room answers 404 like a missing one: its name stays secret.
+    if not room or room_access_denied(room, auth.get_current_user()):
         return jsonify({"error": "Room not found"}), 404
 
     messages = Message.query.filter_by(room_id=room.id).all()
@@ -1765,16 +1766,51 @@ def search_messages(keywords, user=None):
     return sorted(search_results.values(), key=lambda r: r["score"], reverse=True)
 
 
+def room_access_denied(room, user):
+    """True when `user` may not see or post in `room`.
+
+    Private rooms belong to their owner alone; every socket event & download
+    applies our same rule the /chat page does, so knowing a private room's
+    name never opens it.
+    """
+    return bool(room and room.is_private and (not user or room.owner_id != user.id))
+
+
+def resolve_username(claimed):
+    """The name a socket event may post under.
+
+    A signed-in person always posts as their own display name, whatever the
+    client sent. A guest picks any name except a registered display name,
+    `system` or a model's name (those mark messages as system/assistant turns
+    in model prompts); a clash gets " (guest)" appended so it stays visible.
+    Commas are dropped because rooms store their user lists as CSV.
+    """
+    user = auth.get_current_user()
+    if user:
+        return user.display_name
+    name = str(claimed or "").replace(",", " ").strip()[:50] or "guest"
+    lowered = name.lower()
+    reserved = {n.lower() for n in SYSTEM_USERS} | {"system"}
+    taken = User.query.filter(db.func.lower(User.display_name) == lowered).first()
+    if lowered in reserved or taken:
+        return f"{name} (guest)"
+    return name
+
+
 # Handle user joining a room
 @socketio.on("join")
 def on_join(data):
     room_name = data["room_name"]
-    username = data["username"]
+    user = auth.get_current_user()
+    existing = Room.query.filter_by(name=room_name).first()
+    if room_access_denied(existing, user):
+        emit("access_denied", {"room_name": room_name}, room=request.sid)
+        return
+    username = resolve_username(data.get("username"))
     room = get_room(room_name)
 
     # Set owner for newly created rooms (if room has no owner and user is authenticated)
     if room.owner_id is None:
-        user = auth.get_current_user()
         if user:
             room.owner_id = user.id
             db.session.add(room)
@@ -1782,6 +1818,9 @@ def on_join(data):
 
     # Add the user to the active users list
     room.add_user(username)
+
+    # Tell this client the name it really posts under (see resolve_username).
+    emit("your_username", {"username": username}, room=request.sid)
 
     # Store session data in the database
     user_session = UserSession(
@@ -1903,8 +1942,11 @@ def on_disconnect():
 @socketio.on("chat_message")
 def handle_message(data):
     room_name = data["room_name"]
+    existing = Room.query.filter_by(name=room_name).first()
+    if room_access_denied(existing, auth.get_current_user()):
+        return
     room = get_room(room_name)
-    username = data["username"]
+    username = resolve_username(data.get("username"))
     message = data["message"].strip()
     model = data.get("model", "None")
 
@@ -2000,27 +2042,39 @@ def handle_message(data):
             )
 
 
+def message_in_room(message_id, room_name):
+    """(message, room) when `message_id` lives in `room_name` & the caller
+    may use that room, else (None, None). Edits & deletes act on one room's
+    messages only; an ID from another room, or a private room the caller
+    does not own, is ignored."""
+    room = Room.query.filter_by(name=room_name).first()
+    if not room or room_access_denied(room, auth.get_current_user()):
+        return None, None
+    message = db.session.get(Message, message_id)
+    if not message or message.room_id != room.id:
+        return None, None
+    return message, room
+
+
 @socketio.on("delete_message")
 def handle_delete_message(data):
     msg_id = data["message_id"]
-    # Delete the message from the database
-    message = db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-    if message:
-        db.session.delete(message)
-        db.session.commit()
+    message, room = message_in_room(msg_id, data.get("room_name"))
+    if not message:
+        return
+    db.session.delete(message)
+    db.session.commit()
 
     # Notify all clients in the room to remove the message from their DOM
-    emit("message_deleted", {"message_id": msg_id}, room=data["room_name"])
+    emit("message_deleted", {"message_id": msg_id}, room=room.name)
 
 
 @socketio.on("update_message")
 def handle_update_message(data):
     message_id = data["message_id"]
     new_content = data["content"]
-    room_name = data["room_name"]
-
-    # Find the message by ID
-    message = Message.query.get(message_id)
+    message, room = message_in_room(message_id, data.get("room_name"))
+    room_name = room.name if room else None
     if message:
         # Update the message content
         message.content = new_content

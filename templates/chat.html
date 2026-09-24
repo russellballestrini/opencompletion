@@ -536,6 +536,22 @@ socket.on("connect", () => {
     socket.emit("join", {"username": sanitizedUsername, "room_name": room_name});
 });
 
+// The server decides our posting name: a signed-in display name, or a
+// guest name that does not impersonate an account or a model.
+socket.on("your_username", (data) => {
+    if (data.username && data.username !== username) {
+        username = data.username;
+        if (!{{ 'true' if username else 'false' }}) {
+            localStorage.setItem(GUEST_USERNAME_KEY, username);
+        }
+    }
+});
+
+socket.on("access_denied", () => {
+    const chat = document.getElementById("chat");
+    chat.textContent = "This room is private. Sign in as its owner to open it.";
+});
+
 // Function to update the active and inactive user lists in the DOM
 function updateUserLists(activeUsers, inactiveUsers) {
     const activeUserListElement = document.getElementById("active-users");
