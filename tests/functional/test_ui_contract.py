@@ -450,3 +450,34 @@ def test_chat_renders_sanitizes_streams_and_sends(client, tmp_path):
     html = client.get("/chat/lobby").get_data(as_text=True)
     out = run_probe(html, MESSAGE_PROBE, tmp_path, 1280)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+MENU_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const header = document.querySelector('.site-header');
+    const toggle = header.querySelector('.nav-toggle');
+    const rooms = header.querySelector('.site-nav a[href="/browse"]');
+    const shown = el => el.getBoundingClientRect().height > 0;
+    if (innerWidth <= 768) {
+        check(shown(toggle) && !shown(rooms), 'links folded behind the menu');
+        check(header.getBoundingClientRect().height <= 120, 'header is compact: ' + header.getBoundingClientRect().height);
+        toggle.click();
+        check(toggle.getAttribute('aria-expanded') === 'true', 'menu reports open');
+        check(shown(rooms) && rooms.getBoundingClientRect().right <= innerWidth, 'links show on screen');
+    } else {
+        check(!shown(toggle) && shown(rooms), 'desktop shows links, no menu button');
+    }
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", WIDTHS)
+def test_header_menu_on_phones(client, tmp_path, width):
+    html = client.get("/browse").get_data(as_text=True)
+    out = run_probe(html, MENU_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

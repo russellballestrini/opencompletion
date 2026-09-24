@@ -7,7 +7,10 @@
     <input id="site-search-input" type="search" name="keywords" placeholder="Search messages" value="{{ keywords|default('') }}">
 </form>
 {% endif %}
-<nav aria-label="Site">
+{% if show_search|default(true) %}
+<button type="button" class="icon-btn nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Menu" onclick="toggleSiteNav(this)">☰</button>
+{% endif %}
+<nav aria-label="Site" id="{{ 'site-nav' if show_search|default(true) else 'sidebar-nav' }}">
     <ul class="site-nav">
         <li><a href="/browse"{% if active_nav == 'browse' %} aria-current="page"{% endif %}>Rooms</a></li>
         {% if user %}

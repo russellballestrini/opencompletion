@@ -751,6 +751,10 @@ textarea:focus {
     margin-right: var(--space-1);
 }
 
+.site-header .nav-toggle {
+    display: none;
+}
+
 .site-nav a[aria-current="page"] {
     color: var(--text-primary);
     background-color: var(--bg-tertiary);
@@ -1212,29 +1216,44 @@ textarea:focus {
         padding: var(--space-3);
     }
 
+    /* Phone header: brand & menu button, search below, links on demand */
     .site-header {
         position: static;
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) auto;
     }
 
-    /* The header's theme toggle shrinks to its icon; the label stays for
-       screen readers. The chat sidebar keeps the words. */
-    .site-header .theme-label {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
+    .site-header .nav-toggle {
+        display: inline-grid;
     }
+
+    .site-header nav {
+        display: none;
+        grid-column: 1 / -1;
+        grid-row: 3;
+    }
+
+    .site-header.nav-open nav {
+        display: block;
+    }
+
+    .site-header .site-nav {
+        display: grid;
+        gap: 0;
+    }
+
+    .site-header .site-nav a,
+    .site-header .site-nav button {
+        justify-content: flex-start;
+        width: 100%;
+        min-height: 44px;
+    }
+
 
     .site-header .site-search {
         grid-column: 1 / -1;
         grid-row: 2;
     }
 
-    .site-header .site-nav {
-        justify-content: end;
-    }
 
     .page {
         padding: var(--space-4) var(--space-4) var(--space-10);

@@ -60,6 +60,8 @@ are 16px on phones so iOS never zooms into them.
 - No horizontal scrolling at 320px or wider. Long names wrap
   (`overflow-wrap: anywhere`). **(tested)**
 - Tap targets are at least 40px tall on phones, 44px for buttons & fields. **(tested)**
+- Phone header: brand & a ☰ menu button on one row, search below; our
+  links open as a full-width list. **(tested)**
 - Breakpoints: 1024px narrows chat's sidebars; 768px is phone. On a phone,
   chat's rooms sidebar & room controls become drawers opened from its top
   bar (☰ & ⚙): our real panels, never copies, closed by ×, the backdrop or
