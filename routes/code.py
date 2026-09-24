@@ -133,16 +133,16 @@ MAX_TRACKED_JOBS = 50
 def code_exec_refused():
     """A (response, status) when this caller may not run code, else None.
 
-    Running code spends this server's Unsandbox account, so it needs a
-    signed-in person unless OPENCOMPLETION_GUEST_CODE_EXEC=on opens it to
-    guests (a classroom server, say).
+    Guests run code by default (free code execution for anyone);
+    OPENCOMPLETION_GUEST_CODE_EXEC=off keeps runs to signed-in people, since
+    each run spends this server's Unsandbox account.
     """
     if auth.get_current_user():
         return None
-    if os.environ.get("OPENCOMPLETION_GUEST_CODE_EXEC", "").lower() in (
-        "1",
-        "on",
-        "true",
+    if os.environ.get("OPENCOMPLETION_GUEST_CODE_EXEC", "").lower() not in (
+        "0",
+        "off",
+        "false",
     ):
         return None
     return jsonify({"error": "Sign in to run code"}), 401

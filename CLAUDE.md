@@ -195,8 +195,9 @@ Returns: `{"job_id": "job-xxx"}`
 **Get Job Status** (GET `/api/code/jobs/<job_id>`):
 Returns job status and results when completed.
 
-**Who may run code**: `/api/code/execute` needs a signed-in person (it spends
-our Unsandbox account) unless `OPENCOMPLETION_GUEST_CODE_EXEC=on`. Status &
+**Who may run code**: anyone, guests included; `OPENCOMPLETION_GUEST_CODE_EXEC=off`
+keeps `/api/code/execute` to signed-in people (each run spends our Unsandbox
+account). Status &
 cancel answer only for job ids the same browser session started; any other
 id is a 404.
 

@@ -105,8 +105,8 @@ def test_job_status_and_cancel_pass_through(client, keys):
     cancel.assert_called_once_with("job-1")
 
 
-def test_guests_need_to_sign_in_to_run_code(guest, keys, monkeypatch):
-    monkeypatch.delenv("OPENCOMPLETION_GUEST_CODE_EXEC", raising=False)
+def test_a_server_can_keep_code_runs_to_signed_in_people(guest, keys, monkeypatch):
+    monkeypatch.setenv("OPENCOMPLETION_GUEST_CODE_EXEC", "off")
     with patch("un._make_request") as call:
         response = guest.post(
             "/api/code/execute", json={"language": "python", "code": "print(1)"}
@@ -116,8 +116,8 @@ def test_guests_need_to_sign_in_to_run_code(guest, keys, monkeypatch):
     call.assert_not_called()
 
 
-def test_a_server_can_open_code_runs_to_guests(guest, keys, monkeypatch):
-    monkeypatch.setenv("OPENCOMPLETION_GUEST_CODE_EXEC", "on")
+def test_guests_run_code_by_default(guest, keys, monkeypatch):
+    monkeypatch.delenv("OPENCOMPLETION_GUEST_CODE_EXEC", raising=False)
     start_job(guest, "job-guest")
     with patch("un.get_job", return_value={"status": "completed"}):
         assert guest.get("/api/code/jobs/job-guest").status_code == 200

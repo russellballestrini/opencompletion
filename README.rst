@@ -163,7 +163,7 @@ Code Execution
 
 Code blocks can be executed from chat with the "▶ Run" button. Supports 42+ programming languages with automatic language detection. Code runs in isolated, self-terminating Unsandbox containers, and compiled binaries can be downloaded from the interface.
 
-Set ``UNSANDBOX_PUBLIC_KEY`` & ``UNSANDBOX_SECRET_KEY`` to enable it. Running code spends that account, so it needs a signed-in person unless ``OPENCOMPLETION_GUEST_CODE_EXEC=on``.
+Set ``UNSANDBOX_PUBLIC_KEY`` & ``UNSANDBOX_SECRET_KEY`` to enable it. Anyone may run code, guests included; each run spends that account, so ``OPENCOMPLETION_GUEST_CODE_EXEC=off`` keeps runs to signed-in people.
 
 
 Structure
