@@ -18,6 +18,5 @@ include =
     auth.py
     init_db.py
     models.py
-    un.py
     research/guarded_ai.py
 show_missing = True

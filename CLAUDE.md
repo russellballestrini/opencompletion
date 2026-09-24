@@ -66,6 +66,7 @@ git remote -v
 - `make test-ui` - Page contract & mobile layouts in headless Chromium
 - `make lint` - black --check & flake8 (syntax, undefined names)
 - `make ci` - lint + test, exactly what GitHub Actions runs
+- `make coverage-check` - Fail below our 55% coverage floor (CI job `coverage`); raise it as tests land, never lower it
 
 ### Network Infrastructure
 
