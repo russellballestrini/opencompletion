@@ -12,6 +12,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -46,37 +47,73 @@ window.io = () => {
 </script>"""
 
 
+# CI-safe launch: a hosted runner has no D-Bus session, no keyring & a
+# first-run flow; without these Chromium 152 sat on --dump-dom until the
+# 30 s timeout on every GitHub Actions run (2026-09-18). Our availability
+# probe & every page load share this one list.
+CHROME_FLAGS = [
+    "--headless",
+    "--disable-gpu",
+    "--no-sandbox",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-dev-shm-usage",
+    "--disable-extensions",
+    "--disable-crash-reporter",
+    "--disable-breakpad",
+    "--disable-sync",
+    "--metrics-recording-only",
+    "--password-store=basic",
+    "--use-mock-keychain",
+    "--no-proxy-server",
+    "--disable-background-networking",
+    "--hide-scrollbars",
+]
+_CHROME_ENV = dict(os.environ, DBUS_SESSION_BUS_ADDRESS="/dev/null")
+_probe_failures = []
+
+
+def _launches(path):
+    """True when `path` dumps about:blank with our flags. A cold first
+    launch on a hosted runner can take well over ten seconds (a 10 s probe
+    failed every browser test on one Python 3.11 job, 2026-09-24), so each
+    candidate gets two tries of 30 s in a throwaway profile."""
+    for attempt in (1, 2):
+        with tempfile.TemporaryDirectory() as profile:
+            try:
+                probe = subprocess.run(
+                    [path, *CHROME_FLAGS, f"--user-data-dir={profile}"]
+                    + ["--dump-dom", "about:blank"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    env=_CHROME_ENV,
+                )
+            except subprocess.TimeoutExpired:
+                _probe_failures.append(f"{path} try {attempt}: timed out after 30 s")
+                continue
+            except OSError as error:
+                _probe_failures.append(f"{path}: {error}")
+                return False
+        if probe.returncode == 0 and "<html" in probe.stdout.lower():
+            return True
+        _probe_failures.append(
+            f"{path} try {attempt}: exit {probe.returncode}: {probe.stderr[-300:]}"
+        )
+    return False
+
+
 def working_browser():
-    """The first Chromium-family binary that can dump about:blank headlessly
-    within ten seconds, or None. Probed once per session: on GitHub Actions
-    /usr/bin/chromium (a snapshot build) hangs before it loads any page
-    (2026-09-18), while the runner's Google Chrome works, so presence on
-    PATH is not enough."""
+    """The first Chromium-family binary that launches headlessly, or None.
+    Probed once per session: on GitHub Actions /usr/bin/chromium (a snapshot
+    build) hangs before it loads any page (2026-09-18), while the runner's
+    Google Chrome works, so presence on PATH is not enough."""
     if "browser" in _browser_cache:
         return _browser_cache["browser"]
     found = None
     for name in _BROWSER_CANDIDATES:
         path = shutil.which(name) or (name if os.path.isfile(name) else None)
-        if not path:
-            continue
-        try:
-            probe = subprocess.run(
-                [
-                    path,
-                    "--headless",
-                    "--no-sandbox",
-                    "--disable-gpu",
-                    "--dump-dom",
-                    "about:blank",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                env=dict(os.environ, DBUS_SESSION_BUS_ADDRESS="/dev/null"),
-            )
-        except (subprocess.TimeoutExpired, OSError):
-            continue
-        if probe.returncode == 0 and "<html" in probe.stdout.lower():
+        if path and _launches(path):
             found = path
             break
     _browser_cache["browser"] = found
@@ -88,8 +125,11 @@ def require_browser():
     if not browser:
         if os.environ.get("GITHUB_ACTIONS"):
             # The hosted runner ships Chrome; a skip there would let a
-            # green job pass for checks that never ran.
-            pytest.fail("no headless Chromium/Chrome launches on this runner")
+            # green job pass for checks that never ran. Say why it failed.
+            pytest.fail(
+                "no headless Chromium/Chrome launches on this runner: "
+                + ("; ".join(_probe_failures) or "none found on PATH")
+            )
         pytest.skip("A headless Chromium/Chrome that launches is required")
     return browser
 
@@ -148,27 +188,9 @@ def run_probe(html, probe, tmp_path, width, height=900, extra_flags=()):
     html = offline_page(html).replace("<head>", "<head>" + DIALOG_STUBS, 1)
     html = html.replace("</body>", probe + "</body>")
     page.write_text(framed(html, width, height))
-    # CI-safe launch: a hosted runner has no D-Bus session, no keyring & a
-    # first-run flow; without these Chromium 152 sat on --dump-dom until the
-    # 30 s timeout on every GitHub Actions run (2026-09-18).
     command = [
         browser,
-        "--headless",
-        "--disable-gpu",
-        "--no-sandbox",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--disable-dev-shm-usage",
-        "--disable-extensions",
-        "--disable-crash-reporter",
-        "--disable-breakpad",
-        "--disable-sync",
-        "--metrics-recording-only",
-        "--password-store=basic",
-        "--use-mock-keychain",
-        "--no-proxy-server",
-        "--disable-background-networking",
-        "--hide-scrollbars",
+        *CHROME_FLAGS,
         *extra_flags,
         f"--window-size={max(width, 1280) + 40},{height + 40}",
         f"--user-data-dir={tmp_path / f'browser-{width}'}",
@@ -177,9 +199,8 @@ def run_probe(html, probe, tmp_path, width, height=900, extra_flags=()):
         "--dump-dom",
         page.as_uri(),
     ]
-    env = dict(os.environ, DBUS_SESSION_BUS_ADDRESS="/dev/null")
     result = subprocess.run(
-        command, capture_output=True, text=True, timeout=30, env=env
+        command, capture_output=True, text=True, timeout=60, env=_CHROME_ENV
     )
     assert result.returncode == 0, result.stderr
     # The page really was laid out at `width`, not a wider fallback.

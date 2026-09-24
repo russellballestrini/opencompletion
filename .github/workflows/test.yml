@@ -63,6 +63,14 @@ jobs:
     - name: Integration tests
       run: make test-integration
 
+    # A cold first launch of the runner's Chrome can take tens of seconds;
+    # pay it here, not inside a browser test (tests/functional/browser.py).
+    - name: Warm up Chrome
+      run: |
+        google-chrome --version
+        timeout 90 google-chrome --headless --no-sandbox --disable-gpu \
+          --no-first-run --disable-dev-shm-usage --dump-dom about:blank > /dev/null || true
+
     - name: Functional tests
       run: make test-functional
 
