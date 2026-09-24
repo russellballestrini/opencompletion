@@ -95,37 +95,37 @@ socket.on("chat_message", (data) => {
         // Auto-run our own posted fix, and only that: in a busy room another
         // person's message can arrive first, and its code must never run
         // unasked. A message that is not our fix leaves the pending run alone.
+        // The fix we posted carries a random marker (an HTML comment
+        // DOMPurify removes from display) & we run only the block whose
+        // text is exactly the fixed code. Anything else leaves it pending.
         const pendingFix = window.pendingAutoExec;
-        if (pendingFix && data.username === username
-                && data.content.includes(pendingFix.code.trim())) {
+        const fixedBlock = pendingFix && data.username === username
+            && data.content.includes(pendingFix.marker)
+            ? Array.from(newMessage.querySelectorAll("pre code")).find(
+                (block) => block.textContent.trim() === pendingFix.code.trim())
+            : null;
+        if (fixedBlock) {
             const autoExecData = pendingFix;
             window.pendingAutoExec = null; // Clear it so we don't re-execute
+            const codeBlock = fixedBlock;
+            // Find the Run button for this code block
+            setTimeout(() => {
+                // The Run button is in a sibling container after the <pre> element
+                const preElement = codeBlock.parentNode;
+                const buttonContainer = preElement.nextSibling;
+                const runButton = buttonContainer?.querySelector('.play-button');
 
-            // Find the code block that was just added
-            const codeBlocks = newMessage.querySelectorAll("pre code");
-            if (codeBlocks.length > 0) {
-                // Get the first code block (should be the fixed code)
-                const codeBlock = codeBlocks[0];
+                if (runButton) {
+                    console.log(`Auto-executing fixed code (attempt ${autoExecData.attempt}/3)...`);
 
-                // Find the Run button for this code block
-                setTimeout(() => {
-                    // The Run button is in a sibling container after the <pre> element
-                    const preElement = codeBlock.parentNode;
-                    const buttonContainer = preElement.nextSibling;
-                    const runButton = buttonContainer?.querySelector('.play-button');
+                    // Store the attempt count so executeCodeBlock can pick it up
+                    // We'll use a data attribute on the code block itself
+                    codeBlock.dataset.autoExecAttempt = autoExecData.attempt.toString();
 
-                    if (runButton) {
-                        console.log(`Auto-executing fixed code (attempt ${autoExecData.attempt}/3)...`);
-
-                        // Store the attempt count so executeCodeBlock can pick it up
-                        // We'll use a data attribute on the code block itself
-                        codeBlock.dataset.autoExecAttempt = autoExecData.attempt.toString();
-
-                        // Trigger execution - it will create its own results container
-                        runButton.click();
-                    }
-                }, 100); // Delay to ensure buttons are fully rendered
-            }
+                    // Trigger execution - it will create its own results container
+                    runButton.click();
+                }
+            }, 100); // Delay to ensure buttons are fully rendered
         }
 
         // Auto-play TTS if enabled and message has content - AFTER buttons are created

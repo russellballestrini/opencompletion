@@ -455,11 +455,38 @@ window.addEventListener('load', () => {
     check(sent && sent[1].message === 'from the probe' && sent[1].room_name === 'lobby', 'send emits chat_message');
     check(box.value === '', 'box clears after send');
 
-    setTimeout(() => {
+    // Auto-fix runs only our marked post's exact block, never a same-named
+    // guest's other code (guest names are not unique)
+    const executed = [];
+    const realFetch = window.fetch;
+    window.fetch = (url, options) => {
+        if (String(url).includes('/api/code/execute')) {
+            executed.push(JSON.parse(options.body).code.trim());
+            return Promise.reject(new Error('offline'));
+        }
+        return realFetch(url, options);
+    };
+    window.pendingAutoExec = {marker: '<!-- autofix:probe-7 -->', code: 'print(2)', attempt: 1};
+    const twoBlocks = '```python\nprint(1)\n```\n\n```python\nprint(2)\n```';
+    deliver('chat_message', {id: 50, username, content: twoBlocks});
+    check(window.pendingAutoExec, 'unmarked look-alike leaves the fix pending');
+    deliver('chat_message', {id: 51, username, content: '**Auto-fixed code:** <!-- autofix:probe-7 -->\n\n' + twoBlocks});
+    check(!window.pendingAutoExec, 'our marked post consumes the fix');
+
+    // Async effects (clipboard promise, the auto-run's fetch) settle at their
+    // own pace: poll until both have or 1.5 s pass, never a fixed sleep.
+    const started = Date.now();
+    const settle = () => {
+        if ((executed.length === 0 || copyButton.textContent !== 'Copied!') && Date.now() - started < 1500) {
+            setTimeout(settle, 50);
+            return;
+        }
+        check(executed.length === 1 && executed[0] === 'print(2)', 'only the fixed block ran: ' + JSON.stringify(executed));
         check(copyButton.textContent === 'Copied!', 'copy shows Copied!: ' + copyButton.textContent);
         check(!window.pwned, 'no injected script ran (' + window.pwned + ')');
         document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
-    }, 300);
+    };
+    setTimeout(settle, 50);
 });
 </script>
 """

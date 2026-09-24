@@ -285,7 +285,10 @@ async function executeCodeBlock(code, blockElement, playButton) {
                                     autoFixDiv.textContent = `Code fixed! Posting and re-executing (attempt ${currentAttempts + 1}/3)...`;
 
                                     // Store fixed code and attempt count for auto-execution after message is posted
+                                    // A random marker ties the auto-run to this exact post
+                                    const marker = `<!-- autofix:${crypto.getRandomValues(new Uint32Array(4)).join("-")} -->`;
                                     const autoExecData = {
+                                        marker: marker,
                                         code: fixData.fixed_code,
                                         language: language,
                                         attempt: currentAttempts + 1
@@ -297,7 +300,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
                                     // Post the fixed code as a new message in the chat
                                     socket.emit("chat_message", {
                                         "username": username,
-                                        "message": `**Auto-fixed code (attempt ${currentAttempts + 1}/3):**\n\n\`\`\`${language}\n${fixData.fixed_code}\n\`\`\``,
+                                        "message": `**Auto-fixed code (attempt ${currentAttempts + 1}/3):** ${marker}\n\n\`\`\`${language}\n${fixData.fixed_code}\n\`\`\``,
                                         "model": "None",
                                         "room_name": room_name
                                     });
