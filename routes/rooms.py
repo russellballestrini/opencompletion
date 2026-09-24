@@ -3,6 +3,7 @@ downloads, and our one rule for who may open a private room."""
 
 import json
 import os
+import re
 
 from flask import (
     Blueprint,
@@ -140,6 +141,16 @@ def create_room_api():
 
     if not room_name:
         return jsonify({"error": "Room name is required"}), 400
+    if not valid_room_name(room_name):
+        return (
+            jsonify(
+                {
+                    "error": "Room names use lower case letters, digits, "
+                    "- and _ (64 at most)"
+                }
+            ),
+            400,
+        )
 
     # Private rooms require authentication
     if is_private and not user:
@@ -463,6 +474,18 @@ def search_messages(keywords, user=None):
         result["score"] += score
 
     return sorted(search_results.values(), key=lambda r: r["score"], reverse=True)
+
+
+# What a new room may be called: what our slugify() makes of a typed name,
+# lower case letters, digits, "-" & "_", at most 64 of them. Rooms that
+# already exist keep opening whatever they are called; only creating one
+# checks, so a scanner walking /chat/<payload> can't fill every sidebar.
+ROOM_NAME_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
+
+
+def valid_room_name(name):
+    """True when `name` may become a new room."""
+    return isinstance(name, str) and ROOM_NAME_RE.fullmatch(name) is not None
 
 
 def room_access_denied(room, user):

@@ -655,6 +655,7 @@ from routes.rooms import (  # noqa: E402,F401
     emit_room_list_update,
     room_access_denied,
     search_messages,
+    valid_room_name,
 )
 
 routes.register(
@@ -742,8 +743,12 @@ def chat(room_name):
     # Get or create the room
     room = Room.query.filter_by(name=room_name).first()
 
-    # If room doesn't exist yet, it will be created in get_room() when user joins
-    # But check if they're trying to access a private room they don't own
+    # A room that doesn't exist yet is created in get_room() when someone
+    # joins, so only a name that may become a room gets a chat page.
+    if room is None and not valid_room_name(room_name):
+        return "No such room", 404
+
+    # Check if they're trying to access a private room they don't own
     if room_access_denied(room, user):
         return "Access denied: This is a private room", 403
 
@@ -818,6 +823,8 @@ def on_join(data):
     room_name = data["room_name"]
     user = auth.get_current_user()
     existing = Room.query.filter_by(name=room_name).first()
+    if existing is None and not valid_room_name(room_name):
+        return
     if room_access_denied(existing, user):
         emit("access_denied", {"room_name": room_name}, room=request.sid)
         return
@@ -958,6 +965,8 @@ def on_disconnect():
 def handle_message(data):
     room_name = data["room_name"]
     existing = Room.query.filter_by(name=room_name).first()
+    if existing is None and not valid_room_name(room_name):
+        return
     if room_access_denied(existing, auth.get_current_user()):
         return
     room = get_room(room_name)

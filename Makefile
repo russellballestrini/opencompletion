@@ -12,6 +12,7 @@ help:
 	@echo "Setup:"
 	@echo "  venv                 - Create venv/ & install app + test dependencies"
 	@echo "  init-db              - Create database tables (needs vars.sh)"
+	@echo "  prune-rooms          - List rooms with names a new room may not take (scanner junk)"
 	@echo ""
 	@echo "Tests (no network, no API keys):"
 	@echo "  test                 - Unit, integration, functional & YAML validation"
@@ -78,6 +79,12 @@ init-db: venv
 		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \
 		exit 1; \
 	fi
+
+# Lists rooms a scanner left behind (names our room-name rule refuses);
+# `venv/bin/python prune_rooms.py --delete` removes the empty ones.
+.PHONY: prune-rooms
+prune-rooms: venv
+	. ./vars.sh && venv/bin/python prune_rooms.py
 
 # ============================================================================
 # TESTS

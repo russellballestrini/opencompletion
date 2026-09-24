@@ -8,5 +8,7 @@
  * @returns {string} - The slugified string
  */
 function slugify(str) {
-    return str.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+    // Our server's rule for a new room name: [a-z0-9][a-z0-9_-]{0,63}
+    return str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9_-]+/g, '')
+        .replace(/^[-_]+/, '').slice(0, 64);
 }
