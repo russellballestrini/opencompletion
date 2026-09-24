@@ -66,6 +66,17 @@ import tempfile
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
+# Load our SQLAlchemy stack once, before any test module does. Several tests
+# import app inside `patch.dict("sys.modules", {...mocks})`, which drops every
+# module first imported in that block on exit; SQLAlchemy's compiled (Cython)
+# parts can't be dropped, so the next import paired fresh Python modules with
+# the old compiled ones & SQLAlchemy 2.1 fails every later query with
+# "'InternalTraversal' object is not callable".
+import flask_migrate  # noqa: E402,F401
+import flask_sqlalchemy  # noqa: E402,F401
+import sqlalchemy.dialects.sqlite  # noqa: E402,F401
+import sqlalchemy.orm  # noqa: E402,F401
+
 # Set up test environment variables immediately at import time
 TEST_ENV_VARS = {
     "MODEL_ENDPOINT_1": "https://test.api",
