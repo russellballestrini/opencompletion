@@ -81,6 +81,8 @@ git remote -v
 - `routes/`: HTTP blueprints registered by `routes.register(app, ...)`: `pages.py` (home, sign in, profile, style guide), `accounts.py` (email-code sign in, names), `rooms.py` (browse, rooms API, search, downloads, `room_access_denied`), `code.py` (Unsandbox proxy, fix-code, artifact names)
 - Blueprints never `import app` (a server started as `python app.py` runs as `__main__`); shared helpers arrive via `routes.DEPS`, Socket.IO via `current_app.extensions["socketio"]`
 - `SQLALCHEMY_DATABASE_URI` overrides our default `instance/chat.db`
+- `SECRET_KEY` signs session cookies; unset, `auth.load_secret_key` keeps a random one in `instance/secret_key` (never a built-in default)
+- CI tests CPython 3.11, 3.12, 3.13 & 3.14 (every release still receiving fixes)
 
 ### Frontend Structure
 - **Read `docs/STYLEGUIDE.md` before touching a template or style.css**; `/styleguide` renders every component

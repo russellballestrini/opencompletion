@@ -90,3 +90,25 @@ def test_otp_is_six_digits_from_a_cryptographic_source():
     codes = {auth.generate_otp() for _ in range(50)}
     assert all(len(code) == 6 and code.isdigit() for code in codes)
     assert len(codes) > 40
+
+
+def test_secret_key_comes_from_env_or_a_private_file(tmp_path):
+    import os
+    import stat
+
+    assert auth.load_secret_key(str(tmp_path), {"SECRET_KEY": "from-env"}) == "from-env"
+
+    first = auth.load_secret_key(str(tmp_path), {})
+    assert len(first) == 64
+    key_file = tmp_path / "secret_key"
+    assert stat.S_IMODE(os.stat(key_file).st_mode) == 0o600
+    # Reused, so sign-ins survive a restart.
+    assert auth.load_secret_key(str(tmp_path), {}) == first
+
+
+def test_no_published_default_secret_key():
+    """A default anyone can read lets anyone forge a session cookie."""
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[2] / "app.py").read_text()
+    assert "dev-key-change-in-production" not in source

@@ -19,7 +19,6 @@ from models import db, Room, UserSession, Message, ActivityState, User
 
 app = Flask(__name__, instance_relative_config=True)
 
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-in-production")
 # SQLALCHEMY_DATABASE_URI picks another database (pytest.ini & CI use
 # sqlite:///:memory:); by default a SQLite file lives in instance/.
 os.makedirs(app.instance_path, exist_ok=True)
@@ -45,6 +44,11 @@ cancellation_requests = {}
 from openai import OpenAI
 import activity
 import auth
+
+# Session cookies are signed with SECRET_KEY, else a random key kept in
+# instance/secret_key (auth.load_secret_key); never a published default.
+app.config["SECRET_KEY"] = auth.load_secret_key(app.instance_path)
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 from activity_utils import create_completion_skip_thinking, strip_reasoning
 
 # Build a list of endpoints dynamically.
@@ -968,10 +972,10 @@ def handle_message(data):
     )
     db.session.add(new_message)
 
-    # Update room's updated_at timestamp (Unix epoch)
-    from datetime import datetime
-
-    room.updated_at = int(datetime.utcnow().timestamp())
+    # Update room's updated_at timestamp (Unix epoch). time.time() is the
+    # real epoch; the old utcnow().timestamp() read a UTC clock as local
+    # time & skewed rooms by the server's UTC offset.
+    room.updated_at = int(time.time())
     db.session.add(room)
 
     db.session.commit()
@@ -1107,7 +1111,16 @@ def handle_update_message(data):
 
 @socketio.on("get_activity_status")
 def handle_get_activity_status(data):
-    """Get the current activity status for a room."""
+    """Get the current activity status for a room.
+
+    A room that does not exist, or someone else's private room, answers
+    "no activity": asking must neither create a room nor reveal what
+    runs in a private one.
+    """
+    room = Room.query.filter_by(name=data.get("room_name")).first()
+    if not room or room_access_denied(room, auth.get_current_user()):
+        emit("activity_status", {"active": False}, room=request.sid)
+        return
     activity.handle_get_activity_status(data)
 
 

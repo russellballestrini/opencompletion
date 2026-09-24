@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import time
 
 import os
 
@@ -13,6 +14,21 @@ except Exception:
 
 import json
 
+
+def utcnow():
+    """Now in UTC as a naive datetime, the form our DateTime columns hold.
+
+    datetime.utcnow() is deprecated (removal scheduled); this is its exact
+    replacement, so stored values & comparisons are unchanged.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def epoch_now():
+    """Now as integer Unix seconds (Room.updated_at)."""
+    return int(time.time())
+
+
 db = SQLAlchemy()
 
 
@@ -22,8 +38,8 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     display_name = db.Column(db.String(50), unique=True, nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    last_login = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    last_login = db.Column(db.DateTime, default=utcnow, nullable=False)
 
     # Relationships
     owned_rooms = db.relationship(
@@ -40,20 +56,20 @@ class OTPToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), nullable=False, index=True)
     otp_code = db.Column(db.String(6), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
     used = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self, email, otp_code, expiration_minutes=10):
         self.email = email
         self.otp_code = otp_code
-        self.created_at = datetime.utcnow()
+        self.created_at = utcnow()
         self.expires_at = self.created_at + timedelta(minutes=expiration_minutes)
         self.used = False
 
     def is_valid(self):
         """Check if the OTP is still valid (not used and not expired)"""
-        return not self.used and datetime.utcnow() < self.expires_at
+        return not self.used and utcnow() < self.expires_at
 
     def __repr__(self):
         return f"<OTPToken {self.email} expires_at={self.expires_at}>"
@@ -70,10 +86,8 @@ class Room(db.Model):
     owner_id = db.Column(
         db.Integer, db.ForeignKey("user.id"), nullable=True, index=True
     )
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(
-        db.Integer, default=lambda: int(datetime.utcnow().timestamp()), nullable=False
-    )
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.Integer, default=epoch_now, nullable=False)
     forked_from_id = db.Column(db.Integer, db.ForeignKey("room.id"), nullable=True)
 
     def add_user(self, username):

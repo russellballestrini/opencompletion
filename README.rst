@@ -26,7 +26,7 @@ Features
 Requirements
 ------------
 
-- Python 3.11 or newer (CI runs 3.11 & 3.13)
+- Python 3.11 or newer (CI runs 3.11, 3.12, 3.13 & 3.14)
 - ``make``; everything else installs into ``venv/`` from ``requirements.txt``
 - At least one OpenAI-compatible model endpoint (vLLM, Ollama, llama.cpp, ...)
 

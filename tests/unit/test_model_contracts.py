@@ -1,6 +1,6 @@
 """Model edge cases without application startup or external services."""
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 import pytest
@@ -13,7 +13,7 @@ import models
 def test_token_validity(used, delta, expected):
     token = models.OTPToken("a@example.test", "012345")
     token.used = used
-    token.expires_at = datetime.utcnow() + timedelta(seconds=delta)
+    token.expires_at = models.utcnow() + timedelta(seconds=delta)
     assert token.is_valid() is expected
     assert "a@example.test" in repr(token)
 

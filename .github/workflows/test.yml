@@ -42,8 +42,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.11 is our Dockerfile's Python, 3.13 our newest supported.
-        python-version: [ '3.11', '3.13' ]
+        # Every CPython still receiving fixes (none is an LTS: each gets ~5
+        # years, https://devguide.python.org/versions/). Add 3.15 when it
+        # ships (Oct 2026); drop 3.11 at its end of life (Oct 2027).
+        python-version: [ '3.11', '3.12', '3.13', '3.14' ]
 
     steps:
     - uses: actions/checkout@v4

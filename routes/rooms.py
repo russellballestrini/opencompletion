@@ -192,7 +192,7 @@ def fork_room(room_id):
     make_private = data.get("private", False)
 
     # Get source room
-    source_room = Room.query.get(room_id)
+    source_room = db.session.get(Room, room_id)
     if not source_room:
         return jsonify({"error": "Room not found"}), 404
 
@@ -255,7 +255,7 @@ def fork_room(room_id):
 def archive_room(room_id):
     """Archive a room (owner only)"""
     user = auth.get_current_user()
-    room = Room.query.get(room_id)
+    room = db.session.get(Room, room_id)
 
     if not room:
         return jsonify({"error": "Room not found"}), 404
@@ -274,7 +274,7 @@ def archive_room(room_id):
 def delete_room(room_id):
     """Delete a room (owner only)"""
     user = auth.get_current_user()
-    room = Room.query.get(room_id)
+    room = db.session.get(Room, room_id)
 
     if not room:
         return jsonify({"error": "Room not found"}), 404

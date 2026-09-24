@@ -169,7 +169,7 @@ def test_guest_cannot_take_a_model_name(test_app, app_module, monkeypatch):
 
 
 def test_edit_and_delete_stay_inside_their_room(test_app, app_module):
-    from models import Message
+    from models import Message, db
 
     make_room("lobby")
     other = make_room("other")
@@ -182,20 +182,20 @@ def test_edit_and_delete_stay_inside_their_room(test_app, app_module):
         {"message_id": target.id, "content": "vandalised", "room_name": "lobby"},
     )
     client.emit("delete_message", {"message_id": target.id, "room_name": "lobby"})
-    assert Message.query.get(target.id).content == "original"
+    assert db.session.get(Message, target.id).content == "original"
 
     # In its own public room, our collaborative edit still works.
     client.emit(
         "update_message",
         {"message_id": target.id, "content": "edited", "room_name": "other"},
     )
-    assert Message.query.get(target.id).content == "edited"
+    assert db.session.get(Message, target.id).content == "edited"
     client.emit("delete_message", {"message_id": target.id, "room_name": "other"})
-    assert Message.query.get(target.id) is None
+    assert db.session.get(Message, target.id) is None
 
 
 def test_private_room_messages_are_owner_only(test_app, app_module):
-    from models import Message
+    from models import Message, db
 
     owner = make_user("owner@example.test", "owner")
     room = make_room("secret", owner=owner, private=True)
@@ -203,10 +203,44 @@ def test_private_room_messages_are_owner_only(test_app, app_module):
 
     guest = socket_client(app_module, http_client(test_app))
     guest.emit("delete_message", {"message_id": target.id, "room_name": "secret"})
-    assert Message.query.get(target.id) is not None
+    assert db.session.get(Message, target.id) is not None
 
     owner_socket = socket_client(app_module, http_client(test_app, owner))
     owner_socket.emit(
         "delete_message", {"message_id": target.id, "room_name": "secret"}
     )
-    assert Message.query.get(target.id) is None
+    assert db.session.get(Message, target.id) is None
+
+
+def test_activity_status_reveals_nothing_about_private_rooms(test_app, app_module):
+    from models import ActivityState, Room, db
+
+    owner = make_user("owner@example.test", "owner")
+    room = make_room("secret", owner=owner, private=True)
+    db.session.add(
+        ActivityState(
+            room_id=room.id,
+            section_id="s",
+            step_id="t",
+            s3_file_path="research/activity29-battleship.yaml",
+        )
+    )
+    db.session.commit()
+
+    guest = socket_client(app_module, http_client(test_app))
+    guest.emit("get_activity_status", {"room_name": "secret"})
+    assert received(guest, "activity_status") == [{"active": False}]
+
+    guest.emit("get_activity_status", {"room_name": "never-made"})
+    assert Room.query.filter_by(name="never-made").first() is None
+
+    # The owner is handed on to activity.handle_get_activity_status (other
+    # tests replace activity's socketio, so assert the hand-off itself).
+    from unittest.mock import patch
+
+    owner_socket = socket_client(app_module, http_client(test_app, owner))
+    with patch("activity.handle_get_activity_status") as handler:
+        owner_socket.emit("get_activity_status", {"room_name": "secret"})
+        guest.emit("get_activity_status", {"room_name": "secret"})
+    assert handler.call_count == 1
+    assert handler.call_args.args[0] == {"room_name": "secret"}

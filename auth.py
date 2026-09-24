@@ -6,11 +6,35 @@ import smtplib
 import socket
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime
 from functools import wraps
 
 from flask import session, jsonify, request
-from models import db, User, OTPToken
+from models import db, User, OTPToken, utcnow
+
+
+def load_secret_key(instance_path, environ=os.environ):
+    """The key Flask signs session cookies with.
+
+    SECRET_KEY from the environment wins. Otherwise we keep a random key in
+    instance/secret_key, created once (owner-only) & reused, so sign-ins
+    survive restarts. There is no built-in default: a published default
+    would let anyone forge a session cookie for any user_id.
+    """
+    if environ.get("SECRET_KEY"):
+        return environ["SECRET_KEY"]
+    path = os.path.join(instance_path, "secret_key")
+    try:
+        with open(path) as handle:
+            key = handle.read().strip()
+        if key:
+            return key
+    except FileNotFoundError:
+        pass
+    key = secrets.token_hex(32)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as handle:
+        handle.write(key)
+    return key
 
 
 def generate_otp():
@@ -243,7 +267,7 @@ def login_user(user):
     session.permanent = True  # Use permanent session
 
     # Update last login
-    user.last_login = datetime.utcnow()
+    user.last_login = utcnow()
     db.session.commit()
 
 
@@ -258,7 +282,7 @@ def get_current_user():
     """Get currently authenticated user from session"""
     user_id = session.get("user_id")
     if user_id:
-        return User.query.get(user_id)
+        return db.session.get(User, user_id)
     return None
 
 

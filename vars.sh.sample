@@ -67,3 +67,7 @@ export ENABLE_CODE_GEN_FILENAMES="true"
 #export UNSANDBOX_PUBLIC_KEY=unsb-pk-xxxx
 #export UNSANDBOX_SECRET_KEY=unsb-sk-xxxx
 #export OPENCOMPLETION_GUEST_CODE_EXEC=on
+
+# Signs session cookies. Unset, our server makes a random key once & keeps
+# it in instance/secret_key; set it to share one key across servers.
+#export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
