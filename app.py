@@ -66,7 +66,6 @@ import activity
 import auth
 from activity_utils import create_completion_skip_thinking, strip_reasoning
 
-
 # Build a list of endpoints dynamically.
 ENDPOINTS = []
 CONFIGURED_MODEL_NUMS = []
@@ -122,7 +121,6 @@ def endpoint_is_healthy(client, base_url):
         healthy = False
     _endpoint_health[base_url] = (healthy, time.time())
     return healthy
-
 
 
 def is_vision_model(model_name: str) -> bool:
@@ -185,6 +183,7 @@ def extract_base64_from_img_tag(content: str) -> tuple[str, str] | None:
     Returns (media_type, base64_data) or None if not found.
     """
     import re
+
     # Match data:image/TYPE;base64,DATA patterns in img src
     pattern = r'<img[^>]*src="data:image/(jpeg|png|gif|webp);base64,([^"]+)"'
     match = re.search(pattern, content)
@@ -201,6 +200,7 @@ def extract_external_image_url(content: str) -> str | None:
     Returns the URL or None if not found.
     """
     import re
+
     # Match external URLs in img src (http/https)
     pattern = r'<img[^>]*src="(https?://[^"]+)"'
     match = re.search(pattern, content)
@@ -219,7 +219,7 @@ CORS_PROXY_URL = "https://cors-proxy.uncloseai.com/api/fetch"
 def escape_like_pattern(s: str) -> str:
     """Escape special characters for SQL LIKE patterns."""
     # Escape %, _, and \ which have special meaning in LIKE
-    return s.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def find_saved_base64_for_url(external_url: str, room_id: int) -> str | None:
@@ -238,7 +238,7 @@ def find_saved_base64_for_url(external_url: str, room_id: int) -> str | None:
         # Search for messages containing "Fetched from {external_url}"
         saved_msg = Message.query.filter(
             Message.room_id == room_id,
-            Message.content.like(f'%alt="Fetched from {escaped_url}"%', escape='\\')
+            Message.content.like(f'%alt="Fetched from {escaped_url}"%', escape="\\"),
         ).first()
 
         if saved_msg:
@@ -249,7 +249,9 @@ def find_saved_base64_for_url(external_url: str, room_id: int) -> str | None:
                 data_url = f"data:{media_type};base64,{base64_data}"
                 # Add to memory cache for faster lookups
                 _external_image_cache[external_url] = data_url
-                print(f"Found saved base64 for {external_url} in message {saved_msg.id}")
+                print(
+                    f"Found saved base64 for {external_url} in message {saved_msg.id}"
+                )
                 return data_url
     except Exception as e:
         print(f"Error looking up saved base64: {e}")
@@ -300,20 +302,24 @@ def fetch_external_image_as_base64(image_url: str) -> str | None:
         return None
 
 
-def save_fetched_image_as_message(external_url: str, data_url: str, room_id: int) -> None:
+def save_fetched_image_as_message(
+    external_url: str, data_url: str, room_id: int
+) -> None:
     """Save a fetched external image as a new message in the database.
 
     This persists the base64 version so we don't need to fetch again.
     Only saves if no saved version exists for this URL in this room.
     """
-    print(f"[Vision Save] Attempting to save base64 for room {room_id}: {external_url[:60]}...")
+    print(
+        f"[Vision Save] Attempting to save base64 for room {room_id}: {external_url[:60]}..."
+    )
     try:
         # Check if already saved for this URL in this room
         # Escape special LIKE characters in URL (%, _, \)
         escaped_url = escape_like_pattern(external_url)
         existing = Message.query.filter(
             Message.room_id == room_id,
-            Message.content.like(f'%alt="Fetched from {escaped_url}"%', escape='\\')
+            Message.content.like(f'%alt="Fetched from {escaped_url}"%', escape="\\"),
         ).first()
 
         if existing:
@@ -325,7 +331,7 @@ def save_fetched_image_as_message(external_url: str, data_url: str, room_id: int
         new_message = Message(
             username="system",  # Mark as system message
             content=img_content,
-            room_id=room_id
+            room_id=room_id,
         )
         db.session.add(new_message)
         db.session.commit()
@@ -336,6 +342,7 @@ def save_fetched_image_as_message(external_url: str, data_url: str, room_id: int
     except Exception as e:
         print(f"[Vision Save] FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         db.session.rollback()
 
@@ -358,22 +365,25 @@ def build_message_content(msg, is_vision: bool, room_id: int = None) -> dict | s
         media_type, base64_data = img_data
         # Return multimodal content with image
         return [
-            {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{base64_data}"}}
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:{media_type};base64,{base64_data}"},
+            }
         ]
 
     # Check for external image URL
     external_url = extract_external_image_url(msg.content)
     if external_url:
-        print(f"[Vision] Found external URL in message {msg.id}: {external_url[:80]}...")
+        print(
+            f"[Vision] Found external URL in message {msg.id}: {external_url[:80]}..."
+        )
 
         # First check if we already have a saved base64 version
         if room_id is not None:
             saved_data_url = find_saved_base64_for_url(external_url, room_id)
             if saved_data_url:
                 print(f"[Vision] Using saved base64 for {external_url[:50]}...")
-                return [
-                    {"type": "image_url", "image_url": {"url": saved_data_url}}
-                ]
+                return [{"type": "image_url", "image_url": {"url": saved_data_url}}]
 
         # Not saved yet - fetch and save
         print(f"[Vision] Fetching external image: {external_url[:80]}...")
@@ -383,9 +393,7 @@ def build_message_content(msg, is_vision: bool, room_id: int = None) -> dict | s
             # Save the fetched image as a new message for persistence
             if room_id is not None:
                 save_fetched_image_as_message(external_url, data_url, room_id)
-            return [
-                {"type": "image_url", "image_url": {"url": data_url}}
-            ]
+            return [{"type": "image_url", "image_url": {"url": data_url}}]
         else:
             print(f"[Vision] Failed to fetch external image")
 
@@ -405,7 +413,12 @@ def extract_first_image_for_og(room_id: int) -> str | None:
     """
     import re
 
-    messages = Message.query.filter_by(room_id=room_id).order_by(Message.id.asc()).limit(50).all()
+    messages = (
+        Message.query.filter_by(room_id=room_id)
+        .order_by(Message.id.asc())
+        .limit(50)
+        .all()
+    )
 
     for msg in messages:
         if not msg.content:
@@ -419,17 +432,17 @@ def extract_first_image_for_og(room_id: int) -> str | None:
                 return f"data:{media_type};base64,{base64_data}"
 
         # Check for markdown image ![alt](url)
-        md_img_match = re.search(r'!\[[^\]]*\]\(([^)]+)\)', msg.content)
+        md_img_match = re.search(r"!\[[^\]]*\]\(([^)]+)\)", msg.content)
         if md_img_match:
             url = md_img_match.group(1)
-            if url.startswith(('http://', 'https://')):
+            if url.startswith(("http://", "https://")):
                 return url
 
         # Check for img tag with src
         img_src_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', msg.content)
         if img_src_match:
             url = img_src_match.group(1)
-            if url.startswith(('http://', 'https://')):
+            if url.startswith(("http://", "https://")):
                 return url
 
     return None
@@ -451,7 +464,12 @@ def generate_og_description(room, max_chars: int = 500) -> str:
 
     # Get first few messages for description
     if room:
-        messages = Message.query.filter_by(room_id=room.id).order_by(Message.id.asc()).limit(10).all()
+        messages = (
+            Message.query.filter_by(room_id=room.id)
+            .order_by(Message.id.asc())
+            .limit(10)
+            .all()
+        )
 
         for msg in messages:
             if not msg.content:
@@ -464,40 +482,40 @@ def generate_og_description(room, max_chars: int = 500) -> str:
             text = msg.content
 
             # Remove code blocks
-            text = re.sub(r'```[\s\S]*?```', '', text)
-            text = re.sub(r'`[^`]+`', '', text)
+            text = re.sub(r"```[\s\S]*?```", "", text)
+            text = re.sub(r"`[^`]+`", "", text)
 
             # Remove markdown images
-            text = re.sub(r'!\[[^\]]*\]\([^)]+\)', '', text)
+            text = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", text)
 
             # Remove HTML tags
-            text = re.sub(r'<[^>]+>', '', text)
+            text = re.sub(r"<[^>]+>", "", text)
 
             # Remove markdown links but keep text
-            text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+            text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
 
             # Remove markdown headers
-            text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+            text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
 
             # Remove bold/italic markers
-            text = re.sub(r'\*{1,2}([^*]+)\*{1,2}', r'\1', text)
-            text = re.sub(r'_{1,2}([^_]+)_{1,2}', r'\1', text)
+            text = re.sub(r"\*{1,2}([^*]+)\*{1,2}", r"\1", text)
+            text = re.sub(r"_{1,2}([^_]+)_{1,2}", r"\1", text)
 
             # Clean up whitespace
-            text = re.sub(r'\s+', ' ', text).strip()
+            text = re.sub(r"\s+", " ", text).strip()
 
             if text:
                 parts.append(text)
 
             # Stop if we have enough content
-            if len(' '.join(parts)) > max_chars:
+            if len(" ".join(parts)) > max_chars:
                 break
 
-    description = ' '.join(parts)
+    description = " ".join(parts)
 
     # Truncate to max_chars
     if len(description) > max_chars:
-        description = description[:max_chars - 3].rsplit(' ', 1)[0] + '...'
+        description = description[: max_chars - 3].rsplit(" ", 1)[0] + "..."
 
     return description if description else "AI-powered chat room on OpenCompletion"
 
@@ -551,9 +569,7 @@ def get_openai_client_and_model(model_name=None):
 
     if model_name.startswith("MODEL_"):
         requested = model_name.split("_")[1]
-        candidates = [requested] + [
-            n for n in CONFIGURED_MODEL_NUMS if n != requested
-        ]
+        candidates = [requested] + [n for n in CONFIGURED_MODEL_NUMS if n != requested]
         for num in candidates:
             resolved = _resolve_model_num(num)
             if resolved:
@@ -695,15 +711,19 @@ def favicon():
 
 @app.route("/")
 def index():
-    total_public_rooms = Room.query.filter_by(is_private=False, is_archived=False).count()
+    total_public_rooms = Room.query.filter_by(
+        is_private=False, is_archived=False
+    ).count()
     total_private_rooms = 0
     user = auth.get_current_user()
     if user:
-        total_private_rooms = Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id).count()
+        total_private_rooms = Room.query.filter_by(
+            is_private=True, is_archived=False, owner_id=user.id
+        ).count()
 
     stats = {
-        'total_public_rooms': total_public_rooms,
-        'total_private_rooms': total_private_rooms,
+        "total_public_rooms": total_public_rooms,
+        "total_private_rooms": total_private_rooms,
     }
 
     return render_template("index.html", stats=stats, user=user)
@@ -721,25 +741,23 @@ def browse_rooms():
     user = auth.get_current_user()
 
     # Get public rooms ordered by last updated
-    public_rooms = Room.query.filter_by(
-        is_private=False,
-        is_archived=False
-    ).order_by(Room.updated_at.desc()).all()
+    public_rooms = (
+        Room.query.filter_by(is_private=False, is_archived=False)
+        .order_by(Room.updated_at.desc())
+        .all()
+    )
 
     # Get user's private rooms if authenticated
     private_rooms = []
     if user:
-        private_rooms = Room.query.filter_by(
-            is_private=True,
-            is_archived=False,
-            owner_id=user.id
-        ).order_by(Room.updated_at.desc()).all()
+        private_rooms = (
+            Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id)
+            .order_by(Room.updated_at.desc())
+            .all()
+        )
 
     return render_template(
-        "browse.html",
-        public_rooms=public_rooms,
-        private_rooms=private_rooms,
-        user=user
+        "browse.html", public_rooms=public_rooms, private_rooms=private_rooms, user=user
     )
 
 
@@ -764,11 +782,13 @@ def get_models():
 def get_vision_status():
     """Return vision model availability status."""
     vision_models = [m for m in MODEL_CLIENT_MAP.keys() if is_vision_model(m)]
-    return jsonify({
-        "available": len(vision_models) > 0,
-        "models": vision_models,
-        "default": vision_models[0] if vision_models else None
-    })
+    return jsonify(
+        {
+            "available": len(vision_models) > 0,
+            "models": vision_models,
+            "default": vision_models[0] if vision_models else None,
+        }
+    )
 
 
 @app.route("/vision/describe", methods=["POST"])
@@ -780,7 +800,9 @@ def describe_image():
         return jsonify({"error": "Missing 'image' field (base64 data URL)"}), 400
 
     image_url = data["image"]  # Expected format: data:image/jpeg;base64,...
-    prompt = data.get("prompt", "Describe this image in one brief sentence for use as alt text.")
+    prompt = data.get(
+        "prompt", "Describe this image in one brief sentence for use as alt text."
+    )
     vision_models = [m for m in MODEL_CLIENT_MAP.keys() if is_vision_model(m)]
     model_name = data.get("model", vision_models[0] if vision_models else None)
 
@@ -792,15 +814,17 @@ def describe_image():
         response = create_completion_skip_thinking(
             client,
             model=model_name,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": image_url}}
-                ]
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": image_url}},
+                    ],
+                }
+            ],
             max_tokens=150,
-            temperature=0.3
+            temperature=0.3,
         )
         description = strip_reasoning(response.choices[0].message.content.strip())
         return jsonify({"description": description, "model": model_name})
@@ -813,43 +837,41 @@ def describe_image():
 def send_otp():
     """Send OTP to user's email"""
     data = request.get_json()
-    email = data.get('email', '').strip().lower()
+    email = data.get("email", "").strip().lower()
 
     if not email:
-        return jsonify({'error': 'Email is required'}), 400
+        return jsonify({"error": "Email is required"}), 400
 
     # Basic email validation
-    if '@' not in email or '.' not in email.split('@')[1]:
-        return jsonify({'error': 'Invalid email address'}), 400
+    if "@" not in email or "." not in email.split("@")[1]:
+        return jsonify({"error": "Invalid email address"}), 400
 
     # Create OTP token
     otp_token = auth.create_otp_token(email)
 
     # Send OTP via email
     if auth.send_otp_email(email, otp_token.otp_code):
-        return jsonify({
-            'success': True,
-            'message': 'OTP sent to your email',
-            'email': email
-        })
+        return jsonify(
+            {"success": True, "message": "OTP sent to your email", "email": email}
+        )
     else:
-        return jsonify({'error': 'Failed to send OTP email'}), 500
+        return jsonify({"error": "Failed to send OTP email"}), 500
 
 
 @app.route("/auth/verify-otp", methods=["POST"])
 def verify_otp():
     """Verify OTP code and check if user exists"""
     data = request.get_json()
-    email = data.get('email', '').strip().lower()
-    otp_code = data.get('otp_code', '').strip()
+    email = data.get("email", "").strip().lower()
+    otp_code = data.get("otp_code", "").strip()
 
     if not email or not otp_code:
-        return jsonify({'error': 'Email and OTP code are required'}), 400
+        return jsonify({"error": "Email and OTP code are required"}), 400
 
     # Verify OTP
     otp_token = auth.verify_otp(email, otp_code)
     if not otp_token:
-        return jsonify({'error': 'Invalid or expired OTP code'}), 400
+        return jsonify({"error": "Invalid or expired OTP code"}), 400
 
     # Check if user exists
     user = auth.get_or_create_user(email)
@@ -857,63 +879,63 @@ def verify_otp():
     if user:
         # Existing user - log them in
         auth.login_user(user)
-        return jsonify({
-            'success': True,
-            'needs_display_name': False,
-            'user': {
-                'email': user.email,
-                'display_name': user.display_name
+        return jsonify(
+            {
+                "success": True,
+                "needs_display_name": False,
+                "user": {"email": user.email, "display_name": user.display_name},
             }
-        })
+        )
     else:
         # New user - needs to claim display name
         # Store email in session temporarily
-        session['pending_email'] = email
-        return jsonify({
-            'success': True,
-            'needs_display_name': True,
-            'email': email
-        })
+        session["pending_email"] = email
+        return jsonify({"success": True, "needs_display_name": True, "email": email})
 
 
 @app.route("/auth/claim-name", methods=["POST"])
 def claim_name():
     """Claim display name for new user (after OTP verification)"""
     data = request.get_json()
-    display_name = data.get('display_name', '').strip()
-    email = session.get('pending_email')
+    display_name = data.get("display_name", "").strip()
+    email = session.get("pending_email")
 
     if not email:
-        return jsonify({'error': 'No pending email verification'}), 400
+        return jsonify({"error": "No pending email verification"}), 400
 
     if not display_name:
-        return jsonify({'error': 'Display name is required'}), 400
+        return jsonify({"error": "Display name is required"}), 400
 
     # Validate display name (alphanumeric, underscores, hyphens only, 3-50 chars)
     import re
-    if not re.match(r'^[a-zA-Z0-9_-]{3,50}$', display_name):
-        return jsonify({
-            'error': 'Display name must be 3-50 characters (letters, numbers, underscores, hyphens only)'
-        }), 400
+
+    if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", display_name):
+        return (
+            jsonify(
+                {
+                    "error": "Display name must be 3-50 characters (letters, numbers, underscores, hyphens only)"
+                }
+            ),
+            400,
+        )
 
     # Create user
     user, error = auth.create_user(email, display_name)
     if error:
-        return jsonify({'error': error}), 400
+        return jsonify({"error": error}), 400
 
     # Log in user
     auth.login_user(user)
 
     # Clear pending email
-    session.pop('pending_email', None)
+    session.pop("pending_email", None)
 
-    return jsonify({
-        'success': True,
-        'user': {
-            'email': user.email,
-            'display_name': user.display_name
+    return jsonify(
+        {
+            "success": True,
+            "user": {"email": user.email, "display_name": user.display_name},
         }
-    })
+    )
 
 
 @app.route("/auth/status", methods=["GET"])
@@ -921,22 +943,21 @@ def auth_status():
     """Get current authentication status"""
     user = auth.get_current_user()
     if user:
-        return jsonify({
-            'authenticated': True,
-            'user': {
-                'email': user.email,
-                'display_name': user.display_name
+        return jsonify(
+            {
+                "authenticated": True,
+                "user": {"email": user.email, "display_name": user.display_name},
             }
-        })
+        )
     else:
-        return jsonify({'authenticated': False})
+        return jsonify({"authenticated": False})
 
 
 @app.route("/auth/logout", methods=["POST"])
 def logout():
     """Log out current user"""
     auth.logout_user()
-    return jsonify({'success': True})
+    return jsonify({"success": True})
 
 
 @app.route("/profile")
@@ -949,20 +970,21 @@ def profile_page():
 @app.route("/api/check-username", methods=["GET"])
 def check_username():
     """Check if username is available"""
-    username = request.args.get('username', '').strip()
+    username = request.args.get("username", "").strip()
 
     if not username:
-        return jsonify({'available': False, 'error': 'Username is required'}), 400
+        return jsonify({"available": False, "error": "Username is required"}), 400
 
     # Validate format
     import re
-    if not re.match(r'^[a-zA-Z0-9_-]{3,50}$', username):
-        return jsonify({'available': False, 'error': 'Invalid format'}), 400
+
+    if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", username):
+        return jsonify({"available": False, "error": "Invalid format"}), 400
 
     # Check if username exists
     existing_user = User.query.filter_by(display_name=username).first()
 
-    return jsonify({'available': existing_user is None})
+    return jsonify({"available": existing_user is None})
 
 
 @app.route("/api/update-username", methods=["POST"])
@@ -971,34 +993,39 @@ def update_username():
     """Update user's display name"""
     user = auth.get_current_user()
     data = request.get_json()
-    new_username = data.get('new_username', '').strip()
+    new_username = data.get("new_username", "").strip()
 
     if not new_username:
-        return jsonify({'error': 'Username is required'}), 400
+        return jsonify({"error": "Username is required"}), 400
 
     # Validate format
     import re
-    if not re.match(r'^[a-zA-Z0-9_-]{3,50}$', new_username):
-        return jsonify({
-            'error': 'Username must be 3-50 characters (letters, numbers, underscores, hyphens only)'
-        }), 400
+
+    if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", new_username):
+        return (
+            jsonify(
+                {
+                    "error": "Username must be 3-50 characters (letters, numbers, underscores, hyphens only)"
+                }
+            ),
+            400,
+        )
 
     # Check if username is already taken
     existing_user = User.query.filter_by(display_name=new_username).first()
     if existing_user and existing_user.id != user.id:
-        return jsonify({'error': 'Username is already taken'}), 400
+        return jsonify({"error": "Username is already taken"}), 400
 
     # Update username
     user.display_name = new_username
     db.session.commit()
 
-    return jsonify({
-        'success': True,
-        'user': {
-            'email': user.email,
-            'display_name': user.display_name
+    return jsonify(
+        {
+            "success": True,
+            "user": {"email": user.email, "display_name": user.display_name},
         }
-    })
+    )
 
 
 @app.route("/api/activities", methods=["GET"])
@@ -1029,27 +1056,43 @@ def get_rooms_api():
     user = auth.get_current_user()
 
     # Get public rooms
-    public_rooms = Room.query.filter_by(is_private=False, is_archived=False).order_by(Room.id.desc()).all()
+    public_rooms = (
+        Room.query.filter_by(is_private=False, is_archived=False)
+        .order_by(Room.id.desc())
+        .all()
+    )
 
     # Get private rooms if authenticated
     private_rooms = []
     if user:
-        private_rooms = Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id).order_by(Room.id.desc()).all()
+        private_rooms = (
+            Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id)
+            .order_by(Room.id.desc())
+            .all()
+        )
 
-    return jsonify({
-        'public_rooms': [{
-            'id': r.id,
-            'name': r.name,
-            'title': r.title,
-            'active_users_count': len(r.get_active_users())
-        } for r in public_rooms],
-        'private_rooms': [{
-            'id': r.id,
-            'name': r.name,
-            'title': r.title,
-            'active_users_count': len(r.get_active_users())
-        } for r in private_rooms]
-    })
+    return jsonify(
+        {
+            "public_rooms": [
+                {
+                    "id": r.id,
+                    "name": r.name,
+                    "title": r.title,
+                    "active_users_count": len(r.get_active_users()),
+                }
+                for r in public_rooms
+            ],
+            "private_rooms": [
+                {
+                    "id": r.id,
+                    "name": r.name,
+                    "title": r.title,
+                    "active_users_count": len(r.get_active_users()),
+                }
+                for r in private_rooms
+            ],
+        }
+    )
 
 
 @app.route("/api/rooms/create", methods=["POST"])
@@ -1057,20 +1100,23 @@ def create_room_api():
     """Create a new room"""
     user = auth.get_current_user()
     data = request.get_json() or {}
-    room_name = data.get('name', '').strip()
-    is_private = data.get('is_private', False)
+    room_name = data.get("name", "").strip()
+    is_private = data.get("is_private", False)
 
     if not room_name:
-        return jsonify({'error': 'Room name is required'}), 400
+        return jsonify({"error": "Room name is required"}), 400
 
     # Private rooms require authentication
     if is_private and not user:
-        return jsonify({'error': 'Authentication required to create private rooms'}), 401
+        return (
+            jsonify({"error": "Authentication required to create private rooms"}),
+            401,
+        )
 
     # Check if room already exists
     existing_room = Room.query.filter_by(name=room_name).first()
     if existing_room:
-        return jsonify({'error': 'Room name already exists'}), 400
+        return jsonify({"error": "Room name already exists"}), 400
 
     # Create room
     new_room = Room()
@@ -1083,22 +1129,24 @@ def create_room_api():
 
     # Broadcast new room to all users so it appears in sidebar
     new_room_data = {
-        'id': new_room.id,
-        'name': new_room.name,
-        'title': new_room.title,
-        'is_private': new_room.is_private,
-        'is_new': True  # Flag to indicate this is a new room, not an update
+        "id": new_room.id,
+        "name": new_room.name,
+        "title": new_room.title,
+        "is_private": new_room.is_private,
+        "is_new": True,  # Flag to indicate this is a new room, not an update
     }
     socketio.emit("update_room_list", new_room_data, room=None)
 
-    return jsonify({
-        'success': True,
-        'room': {
-            'id': new_room.id,
-            'name': new_room.name,
-            'is_private': new_room.is_private
+    return jsonify(
+        {
+            "success": True,
+            "room": {
+                "id": new_room.id,
+                "name": new_room.name,
+                "is_private": new_room.is_private,
+            },
         }
-    })
+    )
 
 
 @app.route("/api/rooms/<int:room_id>/fork", methods=["POST"])
@@ -1106,21 +1154,24 @@ def fork_room(room_id):
     """Fork a room (authenticated users can fork to private or public)"""
     user = auth.get_current_user()
     data = request.get_json() or {}
-    make_private = data.get('private', False)
+    make_private = data.get("private", False)
 
     # Get source room
     source_room = Room.query.get(room_id)
     if not source_room:
-        return jsonify({'error': 'Room not found'}), 404
+        return jsonify({"error": "Room not found"}), 404
 
     # Private rooms can only be forked by their owner
     if source_room.is_private:
         if not user or source_room.owner_id != user.id:
-            return jsonify({'error': 'Cannot fork private rooms you do not own'}), 403
+            return jsonify({"error": "Cannot fork private rooms you do not own"}), 403
 
     # Private rooms require authentication
     if make_private and not user:
-        return jsonify({'error': 'Authentication required to create private rooms'}), 401
+        return (
+            jsonify({"error": "Authentication required to create private rooms"}),
+            401,
+        )
 
     # Generate new room name
     base_name = f"{source_room.name}_fork"
@@ -1145,23 +1196,23 @@ def fork_room(room_id):
     source_messages = Message.query.filter_by(room_id=source_room.id).all()
     for msg in source_messages:
         new_msg = Message(
-            username=msg.username,
-            content=msg.content,
-            room_id=new_room.id
+            username=msg.username, content=msg.content, room_id=new_room.id
         )
         db.session.add(new_msg)
 
     db.session.commit()
 
-    return jsonify({
-        'success': True,
-        'room': {
-            'id': new_room.id,
-            'name': new_room.name,
-            'title': new_room.title,
-            'is_private': new_room.is_private
+    return jsonify(
+        {
+            "success": True,
+            "room": {
+                "id": new_room.id,
+                "name": new_room.name,
+                "title": new_room.title,
+                "is_private": new_room.is_private,
+            },
         }
-    })
+    )
 
 
 @app.route("/api/rooms/<int:room_id>/archive", methods=["POST"])
@@ -1172,15 +1223,15 @@ def archive_room(room_id):
     room = Room.query.get(room_id)
 
     if not room:
-        return jsonify({'error': 'Room not found'}), 404
+        return jsonify({"error": "Room not found"}), 404
 
     if room.owner_id != user.id:
-        return jsonify({'error': 'Only room owner can archive rooms'}), 403
+        return jsonify({"error": "Only room owner can archive rooms"}), 403
 
     room.is_archived = True
     db.session.commit()
 
-    return jsonify({'success': True})
+    return jsonify({"success": True})
 
 
 @app.route("/api/rooms/<int:room_id>/delete", methods=["DELETE"])
@@ -1191,10 +1242,10 @@ def delete_room(room_id):
     room = Room.query.get(room_id)
 
     if not room:
-        return jsonify({'error': 'Room not found'}), 404
+        return jsonify({"error": "Room not found"}), 404
 
     if room.owner_id != user.id:
-        return jsonify({'error': 'Only room owner can delete rooms'}), 403
+        return jsonify({"error": "Only room owner can delete rooms"}), 403
 
     # Delete all messages in the room
     Message.query.filter_by(room_id=room.id).delete()
@@ -1209,7 +1260,7 @@ def delete_room(room_id):
     db.session.delete(room)
     db.session.commit()
 
-    return jsonify({'success': True})
+    return jsonify({"success": True})
 
 
 @app.route("/api/generate-artifact-name", methods=["POST"])
@@ -1260,23 +1311,24 @@ Examples:
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             temperature=0.3,
-            max_tokens=20
+            max_tokens=20,
         )
 
         filename = strip_reasoning(response.choices[0].message.content.strip())
 
         # Clean up the filename (remove quotes, extensions, whitespace)
-        filename = filename.strip('"\'')
-        filename = filename.split('.')[0]  # Remove any extension
-        filename = filename.replace(' ', '_')
+        filename = filename.strip("\"'")
+        filename = filename.split(".")[0]  # Remove any extension
+        filename = filename.replace(" ", "_")
         filename = filename.lower()
 
         # Validate filename (alphanumeric and underscores only)
         import re
-        if not re.match(r'^[a-z0-9_]+$', filename):
+
+        if not re.match(r"^[a-z0-9_]+$", filename):
             filename = "compiled_binary"
 
         # Ensure it's not too long (max 50 chars)
@@ -1358,11 +1410,7 @@ def proxy_code_execute():
 
         # Use SDK's internal _make_request for full parameter support
         result = un._make_request(
-            "POST",
-            "/execute",
-            public_key,
-            secret_key,
-            request_body
+            "POST", "/execute", public_key, secret_key, request_body
         )
 
         # Return job_id from response
@@ -1377,7 +1425,9 @@ def proxy_job_status(job_id):
     """Proxy job status requests to Unsandbox API using SDK."""
     try:
         # Check if credentials are configured
-        if not os.environ.get("UNSANDBOX_PUBLIC_KEY") or not os.environ.get("UNSANDBOX_SECRET_KEY"):
+        if not os.environ.get("UNSANDBOX_PUBLIC_KEY") or not os.environ.get(
+            "UNSANDBOX_SECRET_KEY"
+        ):
             return jsonify({"error": "Code execution not configured"}), 503
 
         # Use SDK's get_job method
@@ -1395,7 +1445,9 @@ def proxy_job_cancel(job_id):
     """Proxy job cancellation requests to Unsandbox API using SDK."""
     try:
         # Check if credentials are configured
-        if not os.environ.get("UNSANDBOX_PUBLIC_KEY") or not os.environ.get("UNSANDBOX_SECRET_KEY"):
+        if not os.environ.get("UNSANDBOX_PUBLIC_KEY") or not os.environ.get(
+            "UNSANDBOX_SECRET_KEY"
+        ):
             return jsonify({"error": "Code execution not configured"}), 503
 
         # Use SDK's cancel_job method
@@ -1467,10 +1519,10 @@ Fix the code (output ONLY the corrected code, no explanations):"""
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             temperature=0.2,  # Low temperature for consistent fixes
-            max_tokens=2000
+            max_tokens=2000,
         )
 
         fixed_code = strip_reasoning(response.choices[0].message.content.strip())
@@ -1486,11 +1538,7 @@ Fix the code (output ONLY the corrected code, no explanations):"""
                 lines = lines[:-1]
             fixed_code = "\n".join(lines)
 
-        return jsonify({
-            "success": True,
-            "fixed_code": fixed_code,
-            "attempt": attempt
-        })
+        return jsonify({"success": True, "fixed_code": fixed_code, "attempt": attempt})
 
     except Exception as e:
         print(f"Error fixing code: {e}")
@@ -1511,10 +1559,18 @@ def chat(room_name):
             return "Access denied: This is a private room", 403
 
     # Query public rooms and user's private rooms for sidebar
-    public_rooms = Room.query.filter_by(is_private=False, is_archived=False).order_by(Room.id.desc()).all()
+    public_rooms = (
+        Room.query.filter_by(is_private=False, is_archived=False)
+        .order_by(Room.id.desc())
+        .all()
+    )
     private_rooms = []
     if user:
-        private_rooms = Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id).order_by(Room.id.desc()).all()
+        private_rooms = (
+            Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id)
+            .order_by(Room.id.desc())
+            .all()
+        )
 
     # Use authenticated user's display name, or None (will prompt on client side)
     username = user.display_name if user else None
@@ -1542,7 +1598,7 @@ def chat(room_name):
         user=user,
         og_title=og_title,
         og_description=og_description,
-        og_image=og_image
+        og_image=og_image,
     )
 
 
@@ -1872,6 +1928,7 @@ def handle_message(data):
 
     # Update room's updated_at timestamp (Unix epoch)
     from datetime import datetime
+
     room.updated_at = int(datetime.utcnow().timestamp())
     db.session.add(room)
 
@@ -2207,15 +2264,21 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         most_recent_image_id = None
         if vision_enabled:
             for msg in last_messages:  # newest first
-                is_image_msg = msg.is_base64_image() or extract_external_image_url(msg.content)
+                is_image_msg = msg.is_base64_image() or extract_external_image_url(
+                    msg.content
+                )
                 if is_image_msg:
                     most_recent_image_id = msg.id
-                    print(f"Vision: will include base64 for most recent image (msg {msg.id})")
+                    print(
+                        f"Vision: will include base64 for most recent image (msg {msg.id})"
+                    )
                     break
 
         # Build chat history (oldest first) - include all text, only most recent image
         for msg in reversed(last_messages):
-            is_image_msg = msg.is_base64_image() or extract_external_image_url(msg.content)
+            is_image_msg = msg.is_base64_image() or extract_external_image_url(
+                msg.content
+            )
 
             # Skip ALL images for non-vision models
             if is_image_msg and not vision_enabled:
@@ -2227,7 +2290,9 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
             # Older images are skipped entirely (they're just base64, no useful text)
             if vision_enabled and is_image_msg:
                 if msg.id == most_recent_image_id:
-                    content = build_message_content(msg, vision_enabled, room_id=room_id)
+                    content = build_message_content(
+                        msg, vision_enabled, room_id=room_id
+                    )
                     chat_history.append({"role": role, "content": content})
                 # Skip older image messages - they have no text context
                 continue

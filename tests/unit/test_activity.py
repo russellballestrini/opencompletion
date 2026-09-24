@@ -348,9 +348,7 @@ class TestCategorizeResponse(unittest.TestCase):
             "ANALYSIS: close\nBUCKET: Partial Understanding."
         )
         self.assertEqual(
-            categorize_response(
-                "Q", "A", buckets, "ANALYSIS: ... BUCKET: ..."
-            ),
+            categorize_response("Q", "A", buckets, "ANALYSIS: ... BUCKET: ..."),
             "partial_understanding",
         )
         self.assertNotIn("logprobs", mock_client.chat.completions.create.call_args[1])

@@ -2,8 +2,10 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 
 import os
+
 try:
     import tiktoken
+
     TIKTOKEN_AVAILABLE = True
 except Exception:
     TIKTOKEN_AVAILABLE = False
@@ -16,6 +18,7 @@ db = SQLAlchemy()
 
 class User(db.Model):
     """User model for authentication and ownership"""
+
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     display_name = db.Column(db.String(50), unique=True, nullable=False, index=True)
@@ -23,14 +26,17 @@ class User(db.Model):
     last_login = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
-    owned_rooms = db.relationship('Room', backref='owner', lazy='dynamic', foreign_keys='Room.owner_id')
+    owned_rooms = db.relationship(
+        "Room", backref="owner", lazy="dynamic", foreign_keys="Room.owner_id"
+    )
 
     def __repr__(self):
-        return f'<User {self.display_name} ({self.email})>'
+        return f"<User {self.display_name} ({self.email})>"
 
 
 class OTPToken(db.Model):
     """One-Time Password tokens for email authentication"""
+
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), nullable=False, index=True)
     otp_code = db.Column(db.String(6), nullable=False)
@@ -50,7 +56,7 @@ class OTPToken(db.Model):
         return not self.used and datetime.utcnow() < self.expires_at
 
     def __repr__(self):
-        return f'<OTPToken {self.email} expires_at={self.expires_at}>'
+        return f"<OTPToken {self.email} expires_at={self.expires_at}>"
 
 
 class Room(db.Model):
@@ -61,10 +67,14 @@ class Room(db.Model):
     inactive_users = db.Column(db.Text, default="")  # Store as a comma-separated string
     is_private = db.Column(db.Boolean, default=False, nullable=False, index=True)
     is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    owner_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=True, index=True
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.Integer, default=lambda: int(datetime.utcnow().timestamp()), nullable=False)
-    forked_from_id = db.Column(db.Integer, db.ForeignKey('room.id'), nullable=True)
+    updated_at = db.Column(
+        db.Integer, default=lambda: int(datetime.utcnow().timestamp()), nullable=False
+    )
+    forked_from_id = db.Column(db.Integer, db.ForeignKey("room.id"), nullable=True)
 
     def add_user(self, username):
         active_users = set(self.active_users.split(",")) if self.active_users else set()
@@ -142,7 +152,11 @@ class Message(db.Model):
         if not self.content:
             return False
         # Check for any base64 image (jpeg, png, gif, webp, etc.)
-        return '<img' in self.content and 'data:image/' in self.content and ';base64,' in self.content
+        return (
+            "<img" in self.content
+            and "data:image/" in self.content
+            and ";base64," in self.content
+        )
 
 
 class ActivityState(db.Model):

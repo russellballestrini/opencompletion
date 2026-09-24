@@ -6,12 +6,16 @@ from activity_utils import evaluate_condition
 
 
 @pytest.mark.parametrize("suffix", ["gt", "gte", "lt", "lte"])
-@pytest.mark.parametrize("actual, expected", [(None, 1), ("bad", 1), (1, None), (1, "bad")])
+@pytest.mark.parametrize(
+    "actual, expected", [(None, 1), ("bad", 1), (1, None), (1, "bad")]
+)
 def test_invalid_numeric_operands(suffix, actual, expected):
     assert evaluate_condition({"x": actual}, "x_" + suffix, expected) is False
 
 
-@pytest.mark.parametrize("suffix, expected", [("gt", False), ("gte", True), ("lt", False), ("lte", True)])
+@pytest.mark.parametrize(
+    "suffix, expected", [("gt", False), ("gte", True), ("lt", False), ("lte", True)]
+)
 def test_missing_numeric_value_defaults_to_zero(suffix, expected):
     assert evaluate_condition({}, "x_" + suffix, "0") is expected
 
@@ -46,14 +50,17 @@ def test_existence_uses_truthiness_and_presence(metadata, suffix, value):
     assert evaluate_condition(metadata, "x_" + suffix, value) is expected
 
 
-@pytest.mark.parametrize("metadata, value, expected", [
-    ({"x": " a, , b ,, "}, "a", True),
-    ({"x": " a, , b ,, "}, " a", False),
-    ({"x": " , "}, "", False),
-    ({}, "", False),
-    ({"x": None}, None, True),
-    ({"x": 12}, 12, True),
-])
+@pytest.mark.parametrize(
+    "metadata, value, expected",
+    [
+        ({"x": " a, , b ,, "}, "a", True),
+        ({"x": " a, , b ,, "}, " a", False),
+        ({"x": " , "}, "", False),
+        ({}, "", False),
+        ({"x": None}, None, True),
+        ({"x": 12}, 12, True),
+    ],
+)
 def test_contains_stringification_and_whitespace(metadata, value, expected):
     assert evaluate_condition(metadata, "x_contains", value) is expected
     assert evaluate_condition(metadata, "x_not_contains", value) is not expected
@@ -67,6 +74,14 @@ def test_suffix_dispatch_and_equality_defaults():
     assert evaluate_condition({"": 3}, "_gte", 3) is True
 
 
-@pytest.mark.parametrize("metadata, pattern, expected", [({}, "^$", True), ({"x": None}, "None", True), ({"x": 123}, 2, True), ({"x": "abc"}, "[", False)])
+@pytest.mark.parametrize(
+    "metadata, pattern, expected",
+    [
+        ({}, "^$", True),
+        ({"x": None}, "None", True),
+        ({"x": 123}, 2, True),
+        ({"x": "abc"}, "[", False),
+    ],
+)
 def test_regex_stringifies_and_searches(metadata, pattern, expected):
     assert evaluate_condition(metadata, "x_matches", pattern) is expected

@@ -15,7 +15,7 @@ from models import db, User, OTPToken
 
 def generate_otp():
     """Generate a 6-digit OTP code"""
-    return ''.join([str(random.randint(0, 9)) for _ in range(6)])
+    return "".join([str(random.randint(0, 9)) for _ in range(6)])
 
 
 def send_otp_email(email, otp_code):
@@ -32,10 +32,10 @@ def send_otp_email(email, otp_code):
     - SMTP_FROM_EMAIL: Email address to send from (auto-detected if not set)
     - SMTP_FROM_NAME: Display name for sender
     """
-    smtp_host = os.environ.get('SMTP_HOST')
-    smtp_port = int(os.environ.get('SMTP_PORT', '587')) if smtp_host else 587
-    smtp_user = os.environ.get('SMTP_USER')
-    smtp_password = os.environ.get('SMTP_PASSWORD')
+    smtp_host = os.environ.get("SMTP_HOST")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587")) if smtp_host else 587
+    smtp_user = os.environ.get("SMTP_USER")
+    smtp_password = os.environ.get("SMTP_PASSWORD")
 
     # Auto-detect sender email domain from request or hostname
     def get_default_from_email():
@@ -43,10 +43,14 @@ def send_otp_email(email, otp_code):
         try:
             host = request.host
             # Skip localhost/127.0.0.1
-            if host and not host.startswith('localhost') and not host.startswith('127.0.0.1'):
+            if (
+                host
+                and not host.startswith("localhost")
+                and not host.startswith("127.0.0.1")
+            ):
                 # Remove port if present
-                domain = host.split(':')[0]
-                return f'noreply@{domain}'
+                domain = host.split(":")[0]
+                return f"noreply@{domain}"
         except RuntimeError:
             # No request context available
             pass
@@ -54,22 +58,22 @@ def send_otp_email(email, otp_code):
         # Fall back to system hostname
         try:
             hostname = socket.getfqdn()
-            if hostname and hostname != 'localhost':
-                return f'noreply@{hostname}'
+            if hostname and hostname != "localhost":
+                return f"noreply@{hostname}"
         except Exception:
             pass
 
         # Final fallback
-        return smtp_user or 'noreply@opencompletion.local'
+        return smtp_user or "noreply@opencompletion.local"
 
-    from_email = os.environ.get('SMTP_FROM_EMAIL', get_default_from_email())
-    from_name = os.environ.get('SMTP_FROM_NAME', 'OpenCompletion')
+    from_email = os.environ.get("SMTP_FROM_EMAIL", get_default_from_email())
+    from_name = os.environ.get("SMTP_FROM_NAME", "OpenCompletion")
 
     # Create message
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = f'Your OpenCompletion verification code: {otp_code}'
-    msg['From'] = f'{from_name} <{from_email}>'
-    msg['To'] = email
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Your OpenCompletion verification code: {otp_code}"
+    msg["From"] = f"{from_name} <{from_email}>"
+    msg["To"] = email
 
     # Plain text version
     text = f"""
@@ -98,12 +102,12 @@ If you didn't request this code, you can safely ignore this email.
 """
 
     # Attach both versions
-    msg.attach(MIMEText(text, 'plain'))
-    msg.attach(MIMEText(html, 'html'))
+    msg.attach(MIMEText(text, "plain"))
+    msg.attach(MIMEText(html, "html"))
 
     # Try localhost:25 first (common for development with local mail server)
     try:
-        with smtplib.SMTP('localhost', 25, timeout=2) as server:
+        with smtplib.SMTP("localhost", 25, timeout=2) as server:
             server.send_message(msg)
         print(f"[INFO] OTP sent via localhost:25 to {email}")
         return True
@@ -158,9 +162,7 @@ def verify_otp(email, otp_code):
         - None if invalid
     """
     otp_token = OTPToken.query.filter_by(
-        email=email,
-        otp_code=otp_code,
-        used=False
+        email=email, otp_code=otp_code, used=False
     ).first()
 
     if otp_token and otp_token.is_valid():
@@ -198,9 +200,9 @@ def create_user(email, display_name):
 
 def login_user(user):
     """Create session for authenticated user"""
-    session['user_id'] = user.id
-    session['user_email'] = user.email
-    session['display_name'] = user.display_name
+    session["user_id"] = user.id
+    session["user_email"] = user.email
+    session["display_name"] = user.display_name
     session.permanent = True  # Use permanent session
 
     # Update last login
@@ -210,14 +212,14 @@ def login_user(user):
 
 def logout_user():
     """Clear user session"""
-    session.pop('user_id', None)
-    session.pop('user_email', None)
-    session.pop('display_name', None)
+    session.pop("user_id", None)
+    session.pop("user_email", None)
+    session.pop("display_name", None)
 
 
 def get_current_user():
     """Get currently authenticated user from session"""
-    user_id = session.get('user_id')
+    user_id = session.get("user_id")
     if user_id:
         return User.query.get(user_id)
     return None
@@ -225,15 +227,17 @@ def get_current_user():
 
 def require_auth(f):
     """Decorator to require authentication for a route"""
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         user = get_current_user()
         if not user:
-            return jsonify({'error': 'Authentication required'}), 401
+            return jsonify({"error": "Authentication required"}), 401
         return f(*args, **kwargs)
+
     return decorated_function
 
 
 def is_authenticated():
     """Check if current request is authenticated"""
-    return 'user_id' in session
+    return "user_id" in session

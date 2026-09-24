@@ -1,4 +1,5 @@
 """Regression coverage for utility boundary inputs."""
+
 import pytest
 
 from activity_utils import (
@@ -9,8 +10,9 @@ from activity_utils import (
 
 
 def test_content_blocks_ignore_unsupported_values():
-    assert filter_content_blocks([None, 42, [], "hello {{username}}", {}], {},
-                                 {"username": "Ada"}) == ["hello Ada", ""]
+    assert filter_content_blocks(
+        [None, 42, [], "hello {{username}}", {}], {}, {"username": "Ada"}
+    ) == ["hello Ada", ""]
 
 
 @pytest.mark.parametrize("value", [None, 42, {}, ()])

@@ -24,14 +24,10 @@ class TestStripReasoning(unittest.TestCase):
     def test_template_preopened_orphan_close(self):
         # Chat template pre-opens the think block: output has only a closing
         # tag, everything before it is reasoning.
-        self.assertEqual(
-            strip_reasoning("step 1... step 2...</think>\nfinal"), "final"
-        )
+        self.assertEqual(strip_reasoning("step 1... step 2...</think>\nfinal"), "final")
 
     def test_multiple_orphan_closes_keeps_after_last(self):
-        self.assertEqual(
-            strip_reasoning("a</think>b</reasoning>final"), "final"
-        )
+        self.assertEqual(strip_reasoning("a</think>b</reasoning>final"), "final")
 
     def test_salvage_all_think(self):
         # Model spent every token inside the block; return de-tagged trace
@@ -56,9 +52,7 @@ class TestStripReasoning(unittest.TestCase):
 class TestCreateCompletionSkipThinking(unittest.TestCase):
     def test_injects_chat_template_kwargs(self):
         client = MagicMock()
-        create_completion_skip_thinking(
-            client, model="m", messages=[], max_tokens=5
-        )
+        create_completion_skip_thinking(client, model="m", messages=[], max_tokens=5)
         _, kwargs = client.chat.completions.create.call_args
         self.assertEqual(
             kwargs["extra_body"],
@@ -70,16 +64,12 @@ class TestCreateCompletionSkipThinking(unittest.TestCase):
         # Hosted providers (Groq, Mistral, Gemini) reject the param with a
         # 4xx naming it; the helper retries the call without extra_body.
         client = MagicMock()
-        rejection = Exception(
-            "property 'chat_template_kwargs' is unsupported"
-        )
+        rejection = Exception("property 'chat_template_kwargs' is unsupported")
         rejection.status_code = 400
         ok = MagicMock()
         client.chat.completions.create.side_effect = [rejection, ok]
 
-        result = create_completion_skip_thinking(
-            client, model="m", messages=[]
-        )
+        result = create_completion_skip_thinking(client, model="m", messages=[])
 
         self.assertIs(result, ok)
         self.assertEqual(client.chat.completions.create.call_count, 2)

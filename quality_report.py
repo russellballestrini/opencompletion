@@ -1,4 +1,5 @@
 """Function-level CC and CRAP reports (statement coverage, not branch coverage)."""
+
 import argparse
 import json
 from pathlib import Path
@@ -10,7 +11,7 @@ def crap_score(complexity, coverage):
     """CRAP = CC² × (1 - covered fraction)³ + CC."""
     if not 0 <= coverage <= 1:
         raise ValueError("coverage must be a fraction between zero and one")
-    return complexity ** 2 * (1 - coverage) ** 3 + complexity
+    return complexity**2 * (1 - coverage) ** 3 + complexity
 
 
 def functions(blocks):
@@ -34,13 +35,16 @@ def report(sources, coverage_files=None):
                 lines.difference_update(range(child.lineno + 1, child.endline + 1))
             relevant = statements & lines
             covered = len(executed & relevant) / len(relevant) if relevant else 0.0
-            row = dict(file=source, name=block.fullname, line=block.lineno,
-                       cc=block.complexity)
+            row = dict(
+                file=source, name=block.fullname, line=block.lineno, cc=block.complexity
+            )
             if coverage_files is not None:
                 if source not in coverage_files:
                     raise ValueError(f"Missing coverage for {source}")
-                row.update(coverage=round(100 * covered, 2),
-                           crap=round(crap_score(block.complexity, covered), 2))
+                row.update(
+                    coverage=round(100 * covered, 2),
+                    crap=round(crap_score(block.complexity, covered), 2),
+                )
             rows.append(row)
     return sorted(rows, key=lambda row: row.get("crap", row["cc"]), reverse=True)
 
@@ -58,10 +62,15 @@ def main():
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.with_suffix(".json").write_text(json.dumps(rows, indent=2) + "\n")
-    text = "CC   Coverage%  CRAP       Function\n" + "\n".join(
-        f"{r['cc']:4} {str(r.get('coverage', '-')):>9}  {str(r.get('crap', '-')):>9}  "
-        f"{r['file']}:{r['line']} {r['name']}" for r in rows
-    ) + "\n"
+    text = (
+        "CC   Coverage%  CRAP       Function\n"
+        + "\n".join(
+            f"{r['cc']:4} {str(r.get('coverage', '-')):>9}  {str(r.get('crap', '-')):>9}  "
+            f"{r['file']}:{r['line']} {r['name']}"
+            for r in rows
+        )
+        + "\n"
+    )
     output.with_suffix(".txt").write_text(text)
     print(text, end="")
 
