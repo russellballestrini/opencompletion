@@ -1,21 +1,45 @@
 """Authentication module for email OTP-based authentication"""
 
 import os
-import random
+import secrets
 import smtplib
 import socket
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime
 from functools import wraps
 
 from flask import session, jsonify, request
-from models import db, User, OTPToken
+from models import db, User, OTPToken, utcnow
+
+
+def load_secret_key(instance_path, environ=os.environ):
+    """The key Flask signs session cookies with.
+
+    SECRET_KEY from the environment wins. Otherwise we keep a random key in
+    instance/secret_key, created once (owner-only) & reused, so sign-ins
+    survive restarts. There is no built-in default: a published default
+    would let anyone forge a session cookie for any user_id.
+    """
+    if environ.get("SECRET_KEY"):
+        return environ["SECRET_KEY"]
+    path = os.path.join(instance_path, "secret_key")
+    try:
+        with open(path) as handle:
+            key = handle.read().strip()
+        if key:
+            return key
+    except FileNotFoundError:
+        pass
+    key = secrets.token_hex(32)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as handle:
+        handle.write(key)
+    return key
 
 
 def generate_otp():
-    """Generate a 6-digit OTP code"""
-    return ''.join([str(random.randint(0, 9)) for _ in range(6)])
+    """Generate a 6-digit OTP code from a cryptographic source."""
+    return "".join(secrets.choice("0123456789") for _ in range(6))
 
 
 def send_otp_email(email, otp_code):
@@ -23,6 +47,11 @@ def send_otp_email(email, otp_code):
 
     Attempts to send via localhost:25 first. If that fails, tries configured SMTP.
     Falls back to console output if all methods fail.
+
+    Returns where the code went: "email" when a mail server accepted it,
+    "console" when it was only printed to this server's log. Both are
+    truthy so sign in still works in development, but the page says which
+    one happened rather than claiming an email was sent.
 
     Optional environment variables (only needed if localhost SMTP unavailable):
     - SMTP_HOST: SMTP server hostname (e.g., smtp.gmail.com)
@@ -32,10 +61,10 @@ def send_otp_email(email, otp_code):
     - SMTP_FROM_EMAIL: Email address to send from (auto-detected if not set)
     - SMTP_FROM_NAME: Display name for sender
     """
-    smtp_host = os.environ.get('SMTP_HOST')
-    smtp_port = int(os.environ.get('SMTP_PORT', '587')) if smtp_host else 587
-    smtp_user = os.environ.get('SMTP_USER')
-    smtp_password = os.environ.get('SMTP_PASSWORD')
+    smtp_host = os.environ.get("SMTP_HOST")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587")) if smtp_host else 587
+    smtp_user = os.environ.get("SMTP_USER")
+    smtp_password = os.environ.get("SMTP_PASSWORD")
 
     # Auto-detect sender email domain from request or hostname
     def get_default_from_email():
@@ -43,10 +72,14 @@ def send_otp_email(email, otp_code):
         try:
             host = request.host
             # Skip localhost/127.0.0.1
-            if host and not host.startswith('localhost') and not host.startswith('127.0.0.1'):
+            if (
+                host
+                and not host.startswith("localhost")
+                and not host.startswith("127.0.0.1")
+            ):
                 # Remove port if present
-                domain = host.split(':')[0]
-                return f'noreply@{domain}'
+                domain = host.split(":")[0]
+                return f"noreply@{domain}"
         except RuntimeError:
             # No request context available
             pass
@@ -54,22 +87,22 @@ def send_otp_email(email, otp_code):
         # Fall back to system hostname
         try:
             hostname = socket.getfqdn()
-            if hostname and hostname != 'localhost':
-                return f'noreply@{hostname}'
+            if hostname and hostname != "localhost":
+                return f"noreply@{hostname}"
         except Exception:
             pass
 
         # Final fallback
-        return smtp_user or 'noreply@opencompletion.local'
+        return smtp_user or "noreply@opencompletion.local"
 
-    from_email = os.environ.get('SMTP_FROM_EMAIL', get_default_from_email())
-    from_name = os.environ.get('SMTP_FROM_NAME', 'OpenCompletion')
+    from_email = os.environ.get("SMTP_FROM_EMAIL", get_default_from_email())
+    from_name = os.environ.get("SMTP_FROM_NAME", "OpenCompletion")
 
     # Create message
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = f'Your OpenCompletion verification code: {otp_code}'
-    msg['From'] = f'{from_name} <{from_email}>'
-    msg['To'] = email
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Your OpenCompletion verification code: {otp_code}"
+    msg["From"] = f"{from_name} <{from_email}>"
+    msg["To"] = email
 
     # Plain text version
     text = f"""
@@ -98,15 +131,15 @@ If you didn't request this code, you can safely ignore this email.
 """
 
     # Attach both versions
-    msg.attach(MIMEText(text, 'plain'))
-    msg.attach(MIMEText(html, 'html'))
+    msg.attach(MIMEText(text, "plain"))
+    msg.attach(MIMEText(html, "html"))
 
     # Try localhost:25 first (common for development with local mail server)
     try:
-        with smtplib.SMTP('localhost', 25, timeout=2) as server:
+        with smtplib.SMTP("localhost", 25, timeout=2) as server:
             server.send_message(msg)
         print(f"[INFO] OTP sent via localhost:25 to {email}")
-        return True
+        return "email"
     except (ConnectionRefusedError, OSError, smtplib.SMTPException) as e:
         # Localhost not available, try configured SMTP if available
         if smtp_host and smtp_user and smtp_password:
@@ -116,7 +149,7 @@ If you didn't request this code, you can safely ignore this email.
                     server.login(smtp_user, smtp_password)
                     server.send_message(msg)
                 print(f"[INFO] OTP sent via {smtp_host} to {email}")
-                return True
+                return "email"
             except Exception as smtp_error:
                 print(f"[ERROR] Failed to send OTP via {smtp_host}: {smtp_error}")
 
@@ -129,8 +162,8 @@ If you didn't request this code, you can safely ignore this email.
         print(f"\nOTP CODE: {otp_code}")
         print(f"\nThis code expires in 10 minutes.")
         print(f"{'='*60}\n")
-        # Return True to allow development workflow
-        return True
+        # Truthy so the development workflow still signs in.
+        return "console"
 
 
 def create_otp_token(email):
@@ -139,6 +172,9 @@ def create_otp_token(email):
     existing_tokens = OTPToken.query.filter_by(email=email, used=False).all()
     for token in existing_tokens:
         token.used = True
+
+    # A fresh code gets a fresh budget of guesses
+    _otp_failures.pop(email, None)
 
     # Generate new OTP
     otp_code = generate_otp()
@@ -150,25 +186,52 @@ def create_otp_token(email):
     return otp_token
 
 
+# Wrong guesses allowed per email before every live code for it is burned.
+# A 6-digit code would otherwise fall to brute force inside its 10 minutes;
+# burning forces a fresh code, which emails its owner. The counter lives in
+# memory (a restart only resets counts; burned codes stay burned in the
+# database), so no schema change is needed.
+MAX_OTP_FAILURES = 5
+_otp_failures = {}
+
+
 def verify_otp(email, otp_code):
     """Verify an OTP code for the given email
 
     Returns:
         - OTPToken object if valid
-        - None if invalid
+        - None if invalid (the MAX_OTP_FAILURES-th miss burns every live
+          code for this email)
     """
     otp_token = OTPToken.query.filter_by(
-        email=email,
-        otp_code=otp_code,
-        used=False
+        email=email, otp_code=otp_code, used=False
     ).first()
 
     if otp_token and otp_token.is_valid():
         # Mark as used
         otp_token.used = True
         db.session.commit()
+        _otp_failures.pop(email, None)
         return otp_token
 
+    # Only a live code can be guessed, so only it gets a counter; random
+    # emails with no code never grow our in-memory table.
+    live = [
+        token
+        for token in OTPToken.query.filter_by(email=email, used=False).all()
+        if token.is_valid()
+    ]
+    if not live:
+        _otp_failures.pop(email, None)
+        return None
+    failures = _otp_failures.get(email, 0) + 1
+    if failures >= MAX_OTP_FAILURES:
+        for token in live:
+            token.used = True
+        db.session.commit()
+        _otp_failures.pop(email, None)
+    else:
+        _otp_failures[email] = failures
     return None
 
 
@@ -198,42 +261,44 @@ def create_user(email, display_name):
 
 def login_user(user):
     """Create session for authenticated user"""
-    session['user_id'] = user.id
-    session['user_email'] = user.email
-    session['display_name'] = user.display_name
+    session["user_id"] = user.id
+    session["user_email"] = user.email
+    session["display_name"] = user.display_name
     session.permanent = True  # Use permanent session
 
     # Update last login
-    user.last_login = datetime.utcnow()
+    user.last_login = utcnow()
     db.session.commit()
 
 
 def logout_user():
     """Clear user session"""
-    session.pop('user_id', None)
-    session.pop('user_email', None)
-    session.pop('display_name', None)
+    session.pop("user_id", None)
+    session.pop("user_email", None)
+    session.pop("display_name", None)
 
 
 def get_current_user():
     """Get currently authenticated user from session"""
-    user_id = session.get('user_id')
+    user_id = session.get("user_id")
     if user_id:
-        return User.query.get(user_id)
+        return db.session.get(User, user_id)
     return None
 
 
 def require_auth(f):
     """Decorator to require authentication for a route"""
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         user = get_current_user()
         if not user:
-            return jsonify({'error': 'Authentication required'}), 401
+            return jsonify({"error": "Authentication required"}), 401
         return f(*args, **kwargs)
+
     return decorated_function
 
 
 def is_authenticated():
     """Check if current request is authenticated"""
-    return 'user_id' in session
+    return "user_id" in session

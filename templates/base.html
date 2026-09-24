@@ -1,596 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Chatroom{% endblock %}</title>
+    {% include "_head.html" %}
+    <title>{% block title %}Chat - OpenCompletion{% endblock %}</title>
 
-    <!-- Meta description for SEO -->
-    <meta name="description" content="{{ og_description|default('OpenCompletion - AI-powered collaborative chat rooms for machine learning') }}">
-
-    <!-- Open Graph meta tags for social sharing (Facebook, Discord, LinkedIn, etc.) -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="{{ og_title|default('OpenCompletion - AI-Powered Chat Rooms') }}">
-    <meta property="og:description" content="{{ og_description|default('OpenCompletion - AI-powered collaborative chat rooms for machine learning') }}">
-    <meta property="og:site_name" content="OpenCompletion">
-    {% if og_image %}
-    <meta property="og:image" content="{{ og_image }}">
-    <meta property="og:image:alt" content="Preview image for {{ og_title|default('OpenCompletion') }}">
-    {% else %}
-    <meta property="og:image" content="{{ url_for('static', filename='images/og-default.png', _external=True) }}">
-    <meta property="og:image:alt" content="OpenCompletion logo">
-    {% endif %}
-
-    <!-- Twitter Card meta tags -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{{ og_title|default('OpenCompletion - AI-Powered Chat Rooms') }}">
-    <meta name="twitter:description" content="{{ og_description|default('OpenCompletion - AI-powered collaborative chat rooms for machine learning') }}">
-    {% if og_image %}
-    <meta name="twitter:image" content="{{ og_image }}">
-    {% else %}
-    <meta name="twitter:image" content="{{ url_for('static', filename='images/og-default.png', _external=True) }}">
-    {% endif %}
-
-    <script>
-        // Set theme immediately to prevent flash
-        (function() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-        })();
-    </script>
-
-    <!-- Include highlight.js library for syntax highlighting -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script>
-    <!-- Include highlight.js themes for light and dark modes -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/github.min.css" id="highlight-theme-light">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/github-dark.min.css" id="highlight-theme-dark" disabled>
-
-    <!-- Include socket.io for real-time bidirectional event-based communication -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
-    <!-- Include marked.js for markdown parsing -->
-    <script 
-      src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js" 
-      integrity="sha512-rfX4p3RNnxdwLT3wWP1K0NR3ztTobn+sISlT9WhxDDK00zNYbQ6MCHA5OHm0hqKAzEMXYCgFrp8iY/ER5MkXqA==" 
-      crossorigin="anonymous" 
-      referrerpolicy="no-referrer">
-    </script>
-
-    <!-- Include DOMPurify to sanitize HTML and prevent XSS attacks -->
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@2/dist/purify.min.js"></script>
-    
-    <!-- Include utility functions -->
+    <!-- Browser libraries, vendored in static/vendor/ (see its README):
+         highlight.js for code blocks (one theme per colour scheme),
+         socket.io for realtime messages, marked.js renders markdown &
+         DOMPurify sanitizes it (XSS). -->
+    <script src="{{ url_for('static', filename='vendor/highlight-11.6.0.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/highlight-github-11.6.0.min.css') }}" id="highlight-theme-light">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/highlight-github-dark-11.6.0.min.css') }}" id="highlight-theme-dark" disabled>
+    <script src="{{ url_for('static', filename='vendor/socket.io-4.0.1.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/marked-9.1.2.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/purify-2.5.9.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
-
     <script>
       // Connect to the server using socket.io
       const socket = io();
     </script>
-
-    <!-- Link to the favicon -->
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-
-    <!-- Link to external stylesheet -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
-  <!-- Hamburger button for mobile -->
-  <button id="hamburger-button">☰</button>
+<body class="chat-page">
 
-<!-- Modal for room list and utility belt -->
-<div id="room-list-modal">
-    <div id="room-list-modal-content">
-        <button id="close-modal-button" onclick="closeModal()">×</button>
-        <div id="utility-belt-mobile" class="utility-belt">
-            <div id="model-chooser-mobile">
-                <label for="model-select-mobile">Choose Model:</label>
-                <select id="model-select-mobile">
-                    <option value="None">None</option>
-                </select>
-            </div>
-            <div id="voice-chooser-mobile">
-                <label for="voice-select-mobile">Choose Voice:</label>
-                <select id="voice-select-mobile">
-                    <option value="onyx">Onyx</option>
-                    <option value="alloy">Alloy</option>
-                    <option value="echo">Echo</option>
-                    <option value="fable">Fable</option>
-                    <option value="nova">Nova</option>
-                    <option value="shimmer">Shimmer</option>
-                </select>
-            </div>
-            <div id="theme-toggle-mobile">
-                <button id="theme-toggle-btn-mobile" onclick="toggleTheme()" style="width: 100%; margin-top: 10px; background-color: #555; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
-                    Dark Mode
-                </button>
-            </div>
-            <div id="auto-play-tts-mobile">
-                <button id="auto-play-tts-btn-mobile" onclick="toggleAutoPlayTTS()" style="width: 100%; margin-top: 10px; background-color: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
-                    Auto-Play TTS: OFF
-                </button>
-            </div>
-            <div id="show-thinking-mobile">
-                <button id="show-thinking-btn-mobile" onclick="toggleShowThinking()" style="width: 100%; margin-top: 10px; background-color: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
-                    Thinking: ON
-                </button>
-            </div>
-            <div id="activity-controls-mobile">
-                <h3>Activities</h3>
-                <div id="current-activity-info-mobile" style="display: none;">
-                    <p>Current Activity: <span id="current-activity-name-mobile"></span></p>
-                    <button id="cancel-activity-btn-mobile" onclick="cancelActivity()">Cancel Activity</button>
-                </div>
-                <div id="activity-list-section-mobile">
-                    <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 5px; margin-bottom: 5px;">
-                        <select id="activity-select-mobile" style="width: 100%; max-width: 100%; box-sizing: border-box;">
-                            <option value="">-- Select an Activity --</option>
-                        </select>
-                        <button id="refresh-activities-btn-mobile" onclick="refreshActivityList()">🔄</button>
-                    </div>
-                    <button id="load-activity-btn-mobile" onclick="loadSelectedActivityMobile()" style="margin-top: 5px;">Load Activity</button>
-                </div>
-            </div>
-
-            <div id="user-lists-mobile">
-                <div id="active-users-list">
-                    <h3>Active Users</h3>
-                    <ul id="active-users-mobile">
-                        <!-- Active users will be dynamically populated here -->
-                    </ul>
-                </div>
-                <div id="inactive-users-list">
-                    <h3>Inactive Users</h3>
-                    <ul id="inactive-users-mobile">
-                        <!-- Inactive users will be dynamically populated here -->
-                    </ul>
-                </div>
-            </div>
-
-        </div>
-        <div id="rooms-list-modal-content">
-            <!-- Room list will be cloned here for mobile view -->
-        </div>
-    </div>
-</div>
-
-<!-- Chatroom list -->
 <div class="main-container">
-  <div id="rooms-list">
-      <!-- Create Room button with grid layout -->
-      <div id="create-room-section" style="display: grid; gap: 10px; margin-bottom: 15px;">
-          <a href="/">
-              <button id="create-room-btn">Create Room</button>
-          </a>
+  <!-- Rooms sidebar: a drawer on phones (see .chat-topbar) -->
+  <aside id="rooms-list" aria-label="Rooms">
+      <button type="button" class="icon-btn drawer-close" onclick="closeDrawer()" aria-label="Close rooms">×</button>
+      {% set show_search = false %}
+      {% include "_site_nav.html" %}
+
+      <a class="btn btn-block" href="/">New room</a>
+
+      <div id="room-tabs" role="tablist">
+          {% set private_active = current_room and current_room.is_private %}
+          <button type="button" class="room-tab {% if not private_active %}active{% endif %}" id="public-rooms-tab" role="tab" aria-controls="public-rooms-section" aria-selected="{{ 'false' if private_active else 'true' }}" onclick="switchRoomTab('public')">Public</button>
+          <button type="button" class="room-tab {% if private_active %}active{% endif %}" id="private-rooms-tab" role="tab" aria-controls="private-rooms-section" aria-selected="{{ 'true' if private_active else 'false' }}" onclick="switchRoomTab('private')">Private</button>
       </div>
 
-      <!-- Room tabs with dynamic active state based on current room -->
-      <div id="room-tabs">
-          <div class="room-tab {% if not current_room or not current_room.is_private %}active{% endif %}" id="public-rooms-tab" onclick="switchRoomTab('public')">
-              🌍 Public
-          </div>
-          <div class="room-tab {% if current_room and current_room.is_private %}active{% endif %}" id="private-rooms-tab" onclick="switchRoomTab('private')">
-              🔐 Private
-          </div>
-      </div>
-
-      <!-- Private rooms section (show if viewing a private room) -->
-      <div id="private-rooms-section" class="room-section" style="display: {% if current_room and current_room.is_private %}block{% else %}none{% endif %};">
-          <div id="private-rooms-content">
-              {% if user %}
-                  {% if private_rooms %}
-                      <ul class="rooms-list">
-                          {% for room in private_rooms %}
+      <div id="private-rooms-section" class="room-section" {% if not (current_room and current_room.is_private) %}hidden{% endif %}>
+          {% if user %}
+              {% if private_rooms %}
+                  <ul class="rooms-list">
+                      {% for room in private_rooms %}
+                      <li data-room-id="{{ room.id }}" class="private-room">
                           <a href="{{ url_for('chat', room_name=room.name) }}">
-                          <li data-room-id="{{ room.id }}" class="private-room">
                               <b>{{ room.name }}</b>
-                              {% if room.title %}
-                              <br />{{ room.title }}
-                              {% endif %}
-                              {% if room.get_active_users()|length %}
-                              <br /> {{ room.get_active_users()|length }} users
-                              {% endif %}
-                          </li>
+                              {% if room.title %}<br>{{ room.title }}{% endif %}
+                              {% if room.get_active_users()|length %}<br>{{ room.get_active_users()|length }} users{% endif %}
                           </a>
-                          {% endfor %}
-                      </ul>
-                  {% else %}
-                      <p class="empty-state">No private rooms yet. Create one to get started!</p>
-                  {% endif %}
+                      </li>
+                      {% endfor %}
+                  </ul>
               {% else %}
-                  <div class="auth-prompt">
-                      <p>🔒 Private rooms are only visible to you</p>
-                      <p>Sign in to create and access private rooms</p>
-                      <button class="auth-btn" onclick="showAuthModal()">Sign In / Sign Up</button>
-                  </div>
+                  <p class="empty-state">No private rooms yet.</p>
               {% endif %}
-          </div>
+          {% else %}
+              <div class="auth-prompt">
+                  <p>Private rooms are only visible to their owner.</p>
+                  <button type="button" class="btn btn-secondary btn-block" onclick="showAuthModal()">Sign in</button>
+              </div>
+          {% endif %}
       </div>
 
-      <!-- Public rooms section (show if viewing a public room or no room) -->
-      <div id="public-rooms-section" class="room-section" style="display: {% if not current_room or not current_room.is_private %}block{% else %}none{% endif %};">
+      <div id="public-rooms-section" class="room-section" {% if current_room and current_room.is_private %}hidden{% endif %}>
           <ul id="rooms-list-ul" class="rooms-list">
-              <!-- Loop through public rooms and create list items for each room -->
               {% for room in public_rooms %}
-              <a href="{{ url_for('chat', room_name=room.name) }}">
               <li data-room-id="{{ room.id }}" class="public-room">
-                  <!-- Display the room title if available, otherwise the room name -->
-                  <b>{{ room.name }}</b>
-                  {% if room.title %}
-                  <br />{{ room.title }}
-                  {% endif %}
-                  {% if room.get_active_users()|length %}
-                  <br /> {{ room.get_active_users()|length }} users
-                  {% endif %}
-                  {% if user and room.owner_id == user.id %}
-                  <span class="owner-badge">👑 Owner</span>
-                  {% endif %}
+                  <a href="{{ url_for('chat', room_name=room.name) }}">
+                      <b>{{ room.name }}</b>
+                      {% if room.title %}<br>{{ room.title }}{% endif %}
+                      {% if room.get_active_users()|length %}<br>{{ room.get_active_users()|length }} users{% endif %}
+                  </a>
+                  {% if user and room.owner_id == user.id %}<span class="badge">Yours</span>{% endif %}
               </li>
-              </a>
               {% endfor %}
           </ul>
       </div>
-  </div>
+  </aside>
 
   {% block content %}{% endblock %}
 </div>
+<div class="drawer-backdrop" onclick="closeDrawer()"></div>
 
-<!-- Authentication Modal -->
-<div id="auth-modal" class="modal" style="display: none;">
-    <div class="modal-content-auth">
-        <button class="close-btn" onclick="closeAuthModal()">×</button>
-
-        <!-- Step 1: Enter email -->
-        <div id="auth-step-email" class="auth-step">
-            <h2>Sign In / Sign Up</h2>
-            <p>Enter your email to receive a verification code</p>
-            <input type="email" id="auth-email" placeholder="your@email.com" />
-            <button onclick="sendOTP()">Send Code</button>
-            <div id="auth-email-error" class="error-message"></div>
-        </div>
-
-        <!-- Step 2: Enter OTP -->
-        <div id="auth-step-otp" class="auth-step" style="display: none;">
-            <h2>Enter Verification Code</h2>
-            <p>We sent a 6-digit code to <span id="auth-email-display"></span></p>
-            <input type="text" id="auth-otp" placeholder="123456" maxlength="6" />
-            <button onclick="verifyOTP()">Verify</button>
-            <button class="secondary-btn" onclick="backToEmailStep()">Back</button>
-            <div id="auth-otp-error" class="error-message"></div>
-        </div>
-
-        <!-- Step 3: Claim display name (new users only) -->
-        <div id="auth-step-name" class="auth-step" style="display: none;">
-            <h2>Choose Display Name</h2>
-            <p>Pick a unique display name (3-50 characters)</p>
-            <input type="text" id="auth-display-name" placeholder="username" maxlength="50" />
-            <button onclick="claimName()">Complete Sign Up</button>
-            <div id="auth-name-error" class="error-message"></div>
-        </div>
-
-        <!-- Success -->
-        <div id="auth-step-success" class="auth-step" style="display: none;">
-            <h2>✅ Success!</h2>
-            <p>Welcome, <span id="auth-success-name"></span>!</p>
-            <button onclick="closeAuthModalAndReload()">Continue</button>
-        </div>
+<!-- Sign-in dialog, the same steps as /auth -->
+<div id="auth-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" hidden>
+    <div id="auth-flow" class="modal-card auth-container" data-after="reload">
+        <button type="button" class="icon-btn close-btn" onclick="closeAuthModal()" aria-label="Close">×</button>
+        <span id="auth-modal-title" class="visually-hidden">Sign in</span>
+        {% include "_auth_steps.html" %}
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/site.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 <script>
-    // Function to perform the search
-    function performSearch() {
-        const keywords = document.getElementById("search-keywords").value;
-        if (!keywords) {
-            alert("Please enter keywords to search.");
-            return;
-        }
-
-        // Navigate to the search results page with the keywords as a query parameter
-        window.location.href = `/search?keywords=${encodeURIComponent(keywords)}`;
+    // Phones: the rooms sidebar & our controls open as drawers.
+    function openDrawer(which) {
+        document.body.dataset.drawer = which;
     }
 
-    // Add event listener for keyword search the "Enter" key
-    document.getElementById("search-keywords").addEventListener("keydown", function(event) {
-        if (event.key === "Enter") {
-            event.preventDefault();
-            performSearch();
-        }
+    function closeDrawer() {
+        delete document.body.dataset.drawer;
+    }
+
+    document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        closeDrawer();
+        closeAuthModal();
     });
 
-    // Function to open the modal
-    function openModal() {
-        const modal = document.getElementById("room-list-modal");
-        const modalContent = document.getElementById("room-list-modal-content");
-        const closeButton = document.getElementById("close-modal-button");
-
-        // Clone the create room section and rooms list
-        const createRoomSection = document.getElementById("create-room-section").cloneNode(true);
-        const roomsList = document.getElementById("rooms-list-ul").cloneNode(true);
-
-        // Clear previous content and add all sections
-        document.getElementById("rooms-list-modal-content").innerHTML = '';
-        document.getElementById("rooms-list-modal-content").appendChild(createRoomSection);
-        document.getElementById("rooms-list-modal-content").appendChild(roomsList);
-
-        modal.style.display = "flex";
-        modalContent.style.display = "block";
-        closeButton.style.display = "block";
-    }
-
-    // Function to close the modal
-    function closeModal() {
-        const modal = document.getElementById("room-list-modal");
-        const modalContent = document.getElementById("room-list-modal-content");
-        const closeButton = document.getElementById("close-modal-button");
-        modal.style.display = "none";
-        modalContent.style.display = "none";
-        closeButton.style.display = "none";
-    }
-    
-    // Function to update all room links (no query parameters needed)
-    function updateRoomLinksWithCurrentParams() {
-        // No longer needed - links don't use username in query string
-        // Keeping function for compatibility
-    }
-
-    // Add event listener to the hamburger button
-    document.getElementById("hamburger-button").addEventListener("click", openModal);
-
-    // Theme switching functionality
-    function toggleTheme() {
-        const html = document.documentElement;
-        const currentTheme = html.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-        // Update the data-theme attribute
-        html.setAttribute('data-theme', newTheme);
-
-        // Save to localStorage
-        localStorage.setItem('theme', newTheme);
-
-        // Update button text for both desktop and mobile
-        updateThemeButtonText(newTheme);
-
-        // Switch highlight.js theme
-        updateHighlightTheme(newTheme);
-    }
-
+    // highlight.js follows our theme.
     function updateHighlightTheme(theme) {
-        const lightTheme = document.getElementById('highlight-theme-light');
-        const darkTheme = document.getElementById('highlight-theme-dark');
-
-        if (theme === 'dark') {
-            lightTheme.disabled = true;
-            darkTheme.disabled = false;
-        } else {
-            lightTheme.disabled = false;
-            darkTheme.disabled = true;
-        }
+        document.getElementById('highlight-theme-light').disabled = theme === 'dark';
+        document.getElementById('highlight-theme-dark').disabled = theme !== 'dark';
     }
+    updateHighlightTheme(currentTheme());
+    document.addEventListener('themechange', event => updateHighlightTheme(event.detail.theme));
 
-    function updateThemeButtonText(theme) {
-        // Label shows the mode a click switches to.
-        const label = theme === 'dark' ? 'Light Mode' : 'Dark Mode';
-        const btn = document.getElementById('theme-toggle-btn');
-        const btnMobile = document.getElementById('theme-toggle-btn-mobile');
-        if (btn) btn.textContent = label;
-        if (btnMobile) btnMobile.textContent = label;
-    }
-
-    // Apply saved theme on page load
-    function applySavedTheme() {
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        updateThemeButtonText(savedTheme);
-        updateHighlightTheme(savedTheme);
-    }
-
-    // Apply theme immediately (before DOMContentLoaded to prevent flash)
-    applySavedTheme();
-
-    // Populate the mobile model dropdown dynamically
-    document.addEventListener('DOMContentLoaded', (event) => {
-        const modelSelectMobile = document.getElementById("model-select-mobile");
-
-        // Ensure theme button text is correct on page load
-        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-        updateThemeButtonText(currentTheme);
-
-        // Function to populate the dropdown
-        function populateModelDropdown(models) {
-            while (modelSelectMobile.options.length > 1) {
-                modelSelectMobile.remove(1);
-            }
-            models.forEach(modelId => {
-                const option = document.createElement('option');
-                option.value = modelId;
-                option.textContent = modelId;
-                modelSelectMobile.appendChild(option);
-            });
-        }
-
-        // Memoization with localStorage (1-minute cache)
-        const cacheKey = 'modelList';
-        const cacheExpirationKey = 'modelListExpiration';
-        const cacheDuration = 60 * 1000; // 1 minute in milliseconds
-
-        const cachedData = localStorage.getItem(cacheKey);
-        const cachedExpiration = localStorage.getItem(cacheExpirationKey);
-
-        if (cachedData && cachedExpiration && Date.now() < parseInt(cachedExpiration)) {
-            const models = JSON.parse(cachedData);
-            populateModelDropdown(models);
-        } else {
-            fetch('/models')
-                .then(response => response.json())
-                .then(data => {
-                    const models = data.models;
-                    populateModelDropdown(models);
-                    localStorage.setItem(cacheKey, JSON.stringify(models));
-                    localStorage.setItem(cacheExpirationKey, Date.now() + cacheDuration);
-                })
-                .catch(error => console.error("Error fetching models:", error));
-        }
-    });
-
-    // Room tab switching
     function switchRoomTab(tab) {
-        const publicTab = document.getElementById('public-rooms-tab');
-        const privateTab = document.getElementById('private-rooms-tab');
-        const publicSection = document.getElementById('public-rooms-section');
-        const privateSection = document.getElementById('private-rooms-section');
-
-        if (tab === 'public') {
-            publicTab.classList.add('active');
-            privateTab.classList.remove('active');
-            publicSection.style.display = 'block';
-            privateSection.style.display = 'none';
-        } else {
-            privateTab.classList.add('active');
-            publicTab.classList.remove('active');
-            privateSection.style.display = 'block';
-            publicSection.style.display = 'none';
-        }
+        const isPublic = tab === 'public';
+        document.getElementById('public-rooms-tab').classList.toggle('active', isPublic);
+        document.getElementById('private-rooms-tab').classList.toggle('active', !isPublic);
+        document.getElementById('public-rooms-tab').setAttribute('aria-selected', String(isPublic));
+        document.getElementById('private-rooms-tab').setAttribute('aria-selected', String(!isPublic));
+        document.getElementById('public-rooms-section').hidden = !isPublic;
+        document.getElementById('private-rooms-section').hidden = isPublic;
     }
-
-    // Authentication modal functions
-    let pendingEmail = '';
 
     function showAuthModal() {
-        document.getElementById('auth-modal').style.display = 'flex';
+        closeDrawer();
+        document.getElementById('auth-modal').hidden = false;
         showAuthStep('email');
     }
 
     function closeAuthModal() {
-        document.getElementById('auth-modal').style.display = 'none';
+        document.getElementById('auth-modal').hidden = true;
         clearAuthErrors();
     }
 
-    function closeAuthModalAndReload() {
-        closeAuthModal();
-        window.location.reload();
+    // Room management
+    async function roomRequest(url, method, body) {
+        const response = await fetch(url, {
+            method,
+            headers: {'Content-Type': 'application/json'},
+            body: body === undefined ? undefined : JSON.stringify(body)
+        });
+        return [response, await response.json()];
     }
 
-    function showAuthStep(step) {
-        document.querySelectorAll('.auth-step').forEach(el => el.style.display = 'none');
-        document.getElementById('auth-step-' + step).style.display = 'block';
-        clearAuthErrors();
-    }
-
-    function clearAuthErrors() {
-        document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
-    }
-
-    function backToEmailStep() {
-        showAuthStep('email');
-    }
-
-    async function sendOTP() {
-        const email = document.getElementById('auth-email').value.trim();
-        const errorEl = document.getElementById('auth-email-error');
-
-        if (!email) {
-            errorEl.textContent = 'Please enter your email';
+    async function forkRoom(roomId, signedIn) {
+        if (!confirm('Fork this room? You get a new room holding a copy of every message so far.')) {
             return;
         }
-
+        // Only a signed-in owner can hold a private room.
+        const makePrivate = signedIn && confirm('Make the copy private (only you)? OK = private, Cancel = public.');
         try {
-            const response = await fetch('/auth/send-otp', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({email})
-            });
-
-            const data = await response.json();
-
+            const [response, data] = await roomRequest(`/api/rooms/${roomId}/fork`, 'POST', {private: makePrivate});
             if (response.ok) {
-                pendingEmail = email;
-                document.getElementById('auth-email-display').textContent = email;
-                showAuthStep('otp');
-            } else {
-                errorEl.textContent = data.error || 'Failed to send code';
-            }
-        } catch (error) {
-            errorEl.textContent = 'Network error. Please try again.';
-        }
-    }
-
-    async function verifyOTP() {
-        const otpCode = document.getElementById('auth-otp').value.trim();
-        const errorEl = document.getElementById('auth-otp-error');
-
-        if (!otpCode) {
-            errorEl.textContent = 'Please enter the code';
-            return;
-        }
-
-        try {
-            const response = await fetch('/auth/verify-otp', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({email: pendingEmail, otp_code: otpCode})
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                if (data.needs_display_name) {
-                    showAuthStep('name');
-                } else {
-                    document.getElementById('auth-success-name').textContent = data.user.display_name;
-                    showAuthStep('success');
-                }
-            } else {
-                errorEl.textContent = data.error || 'Invalid code';
-            }
-        } catch (error) {
-            errorEl.textContent = 'Network error. Please try again.';
-        }
-    }
-
-    async function claimName() {
-        const displayName = document.getElementById('auth-display-name').value.trim();
-        const errorEl = document.getElementById('auth-name-error');
-
-        if (!displayName) {
-            errorEl.textContent = 'Please enter a display name';
-            return;
-        }
-
-        try {
-            const response = await fetch('/auth/claim-name', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({display_name: displayName})
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                document.getElementById('auth-success-name').textContent = data.user.display_name;
-                showAuthStep('success');
-            } else {
-                errorEl.textContent = data.error || 'Failed to claim name';
-            }
-        } catch (error) {
-            errorEl.textContent = 'Network error. Please try again.';
-        }
-    }
-
-    // Room management functions
-    async function forkRoom(roomId) {
-        const makePrivate = confirm('Fork as private room? (Cancel for public)');
-
-        try {
-            const response = await fetch(`/api/rooms/${roomId}/fork`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({private: makePrivate})
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                window.location.href = `/chat/${data.room.name}`;
+                window.location.href = `/chat/${encodeURIComponent(data.room.name)}`;
             } else {
                 alert(data.error || 'Failed to fork room');
             }
@@ -600,21 +167,13 @@
     }
 
     async function archiveRoom(roomId) {
-        if (!confirm('Archive this room? It will be hidden but not deleted.')) {
+        if (!confirm('Archive this room? It leaves every room list & search, but nothing is deleted.')) {
             return;
         }
-
         try {
-            const response = await fetch(`/api/rooms/${roomId}/archive`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'}
-            });
-
-            const data = await response.json();
-
+            const [response, data] = await roomRequest(`/api/rooms/${roomId}/archive`, 'POST');
             if (response.ok) {
-                alert('Room archived successfully!');
-                window.location.reload();
+                window.location.href = '/browse';
             } else {
                 alert(data.error || 'Failed to archive room');
             }
@@ -624,49 +183,13 @@
     }
 
     async function deleteRoom(roomId) {
-        if (!confirm('Delete this room permanently? This cannot be undone!')) {
+        if (!confirm('Delete this room & every message in it? This cannot be undone.')) {
             return;
         }
-
-        // Determine if current room is private by checking if we're in private section
-        const currentRoomElement = document.querySelector(`[data-room-id="${roomId}"]`);
-        const isPrivate = currentRoomElement ? currentRoomElement.classList.contains('private-room') : false;
-
         try {
-            const response = await fetch(`/api/rooms/${roomId}/delete`, {
-                method: 'DELETE',
-                headers: {'Content-Type': 'application/json'}
-            });
-
-            const data = await response.json();
-
+            const [response, data] = await roomRequest(`/api/rooms/${roomId}/delete`, 'DELETE');
             if (response.ok) {
-                // Navigate to the top room of the appropriate list (public or private)
-                const roomList = isPrivate
-                    ? document.querySelectorAll('#private-rooms-section .rooms-list li')
-                    : document.querySelectorAll('#public-rooms-section .rooms-list li');
-
-                // Find first room that isn't the deleted one
-                let targetRoom = null;
-                for (let room of roomList) {
-                    if (room.getAttribute('data-room-id') != roomId) {
-                        targetRoom = room;
-                        break;
-                    }
-                }
-
-                if (targetRoom) {
-                    // Navigate to the first available room in the list
-                    const link = targetRoom.closest('a');
-                    if (link) {
-                        window.location.href = link.href;
-                    } else {
-                        window.location.href = '/';
-                    }
-                } else {
-                    // No other rooms available, go to home
-                    window.location.href = '/';
-                }
+                window.location.href = '/browse';
             } else {
                 alert(data.error || 'Failed to delete room');
             }

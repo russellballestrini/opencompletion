@@ -92,6 +92,21 @@ def setup_test_environment():
         yield
 
 
+@pytest.fixture(scope="session", autouse=True)
+def sweep_research_tmp_yaml():
+    """Remove research/tmp*.yaml files the suite wrote.
+
+    Activity loaders only read from research/, so some tests write their
+    YAML there with delete=False; without this sweep each run leaves files
+    behind that `make validate-yaml` & the activity picker then find.
+    """
+    research = Path(__file__).resolve().parent.parent / "research"
+    before = set(research.glob("tmp*.yaml"))
+    yield
+    for leftover in set(research.glob("tmp*.yaml")) - before:
+        leftover.unlink(missing_ok=True)
+
+
 @pytest.fixture
 def mock_openai_client():
     """Mock OpenAI client for testing"""

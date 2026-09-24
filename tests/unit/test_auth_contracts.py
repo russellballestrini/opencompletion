@@ -1,13 +1,17 @@
 """Authentication contracts using an isolated in-memory database."""
+
 import pytest
 from flask import Flask, session
 import auth
 from models import db, OTPToken
 
+
 @pytest.fixture
 def context():
     app = Flask(__name__)
-    app.config.update(SECRET_KEY="test-only", SQLALCHEMY_DATABASE_URI="sqlite:///:memory:")
+    app.config.update(
+        SECRET_KEY="test-only", SQLALCHEMY_DATABASE_URI="sqlite:///:memory:"
+    )
     db.init_app(app)
     with app.app_context():
         db.create_all()
@@ -15,6 +19,7 @@ def context():
             yield app
         db.session.remove()
         db.drop_all()
+
 
 def test_token_replacement_and_single_use(context, monkeypatch):
     monkeypatch.setattr(auth, "generate_otp", lambda: "012345")
@@ -26,6 +31,7 @@ def test_token_replacement_and_single_use(context, monkeypatch):
     assert auth.verify_otp("a@example.test", "012345") is new
     assert auth.verify_otp("a@example.test", "012345") is None
 
+
 def test_expired_token(context):
     token = OTPToken("a@example.test", "123456", expiration_minutes=-1)
     db.session.add(token)
@@ -33,14 +39,21 @@ def test_expired_token(context):
     assert auth.verify_otp(token.email, token.otp_code) is None
     assert not token.used
 
+
 def test_user_uniqueness_and_session(context):
     assert auth.get_current_user() is None
     assert not auth.is_authenticated()
     assert auth.get_or_create_user("a@example.test") is None
     user, error = auth.create_user("a@example.test", "Alice")
     assert error is None
-    assert auth.create_user("b@example.test", "Alice") == (None, "Display name already taken")
-    assert auth.create_user("a@example.test", "Other") == (None, "Email already registered")
+    assert auth.create_user("b@example.test", "Alice") == (
+        None,
+        "Display name already taken",
+    )
+    assert auth.create_user("a@example.test", "Other") == (
+        None,
+        "Email already registered",
+    )
     assert auth.get_or_create_user(user.email) is user
     auth.login_user(user)
     assert auth.get_current_user() is user
@@ -52,10 +65,12 @@ def test_user_uniqueness_and_session(context):
     assert not auth.is_authenticated()
     assert session["unrelated"] == 1
 
+
 def test_auth_decorator(context):
     @auth.require_auth
     def protected(value):
         return value
+
     response, status = protected("ok")
     assert status == 401
     assert response.json == {"error": "Authentication required"}
@@ -64,7 +79,36 @@ def test_auth_decorator(context):
     assert protected("ok") == "ok"
     assert protected.__name__ == "protected"
 
+
 def test_otp_leading_zero(monkeypatch):
-    digits = iter([0, 1, 2, 3, 4, 5])
-    monkeypatch.setattr(auth.random, "randint", lambda a, b: next(digits))
+    digits = iter("012345")
+    monkeypatch.setattr(auth.secrets, "choice", lambda alphabet: next(digits))
     assert auth.generate_otp() == "012345"
+
+
+def test_otp_is_six_digits_from_a_cryptographic_source():
+    codes = {auth.generate_otp() for _ in range(50)}
+    assert all(len(code) == 6 and code.isdigit() for code in codes)
+    assert len(codes) > 40
+
+
+def test_secret_key_comes_from_env_or_a_private_file(tmp_path):
+    import os
+    import stat
+
+    assert auth.load_secret_key(str(tmp_path), {"SECRET_KEY": "from-env"}) == "from-env"
+
+    first = auth.load_secret_key(str(tmp_path), {})
+    assert len(first) == 64
+    key_file = tmp_path / "secret_key"
+    assert stat.S_IMODE(os.stat(key_file).st_mode) == 0o600
+    # Reused, so sign-ins survive a restart.
+    assert auth.load_secret_key(str(tmp_path), {}) == first
+
+
+def test_no_published_default_secret_key():
+    """A default anyone can read lets anyone forge a session cookie."""
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[2] / "app.py").read_text()
+    assert "dev-key-change-in-production" not in source

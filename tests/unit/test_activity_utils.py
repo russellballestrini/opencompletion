@@ -608,7 +608,9 @@ class TestBucketResolutionAndFold:
         buckets = ["correct", "incorrect", "partial_understanding", 3, True]
         assert resolve_bucket("Incorrect.", buckets) == "incorrect"
         assert resolve_bucket("correct", buckets) == "correct"
-        assert resolve_bucket("Partial Understanding", buckets) == "partial_understanding"
+        assert (
+            resolve_bucket("Partial Understanding", buckets) == "partial_understanding"
+        )
         assert resolve_bucket("3", buckets) == 3
         assert resolve_bucket("true", buckets) is True
         assert resolve_bucket("no idea", buckets) is None
@@ -633,8 +635,10 @@ class TestBucketResolutionAndFold:
         assert dist["off_topic"] == 0.0
         # A token prefixing two buckets is dropped, never split.
         dist, mass = fold_first_token_logprobs(
-            [{"token": "correct", "logprob": math.log(0.9)},
-             {"token": "off", "logprob": math.log(0.1)}],
+            [
+                {"token": "correct", "logprob": math.log(0.9)},
+                {"token": "off", "logprob": math.log(0.1)},
+            ],
             ["correct", "correct_no_work", "off_topic"],
         )
         assert abs(mass - 0.1) < 1e-6 and dist["off_topic"] == 1.0

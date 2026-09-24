@@ -1,0 +1,10 @@
+{# One room in a grid: browse & search. `room` is a Room or a search
+   result (both carry name, title & is_private); `meta` is optional. #}
+<a href="{{ url_for('chat', room_name=room.name) }}" class="room-card">
+    <div class="room-card-header">
+        <h3 class="room-card-name">{{ room.name }}</h3>
+        {% if room.is_private %}<span class="badge badge-private">Private</span>{% endif %}
+    </div>
+    {% if room.title %}<p class="room-card-title">{{ room.title }}</p>{% endif %}
+    {% if meta %}<p class="room-card-meta">{{ meta }}</p>{% endif %}
+</a>

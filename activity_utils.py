@@ -95,9 +95,8 @@ def evaluate_condition(
     """
     for suffix, evaluate in _CONDITION_OPERATORS:
         if condition_key.endswith(suffix):
-            return evaluate(metadata, condition_key[:-len(suffix)], condition_value)
+            return evaluate(metadata, condition_key[: -len(suffix)], condition_value)
     return metadata.get(condition_key) == condition_value
-
 
 
 def _compare_numeric(metadata, key, expected, compare):
@@ -343,8 +342,7 @@ def create_template_context(
 # Reasoning-block tag variants, case-insensitive. Closed pairs are stripped
 # anywhere; an unterminated open tag (model truncated mid-reasoning) strips to
 # end-of-string. Ported from uncloseai-cli / hermes-agent think_scrubber.
-_THINK_TAG_NAMES = ("think", "thinking", "reasoning", "thought",
-                    "REASONING_SCRATCHPAD")
+_THINK_TAG_NAMES = ("think", "thinking", "reasoning", "thought", "REASONING_SCRATCHPAD")
 _THINK_TAG_ALT = "|".join(_THINK_TAG_NAMES)
 _THINK_PAIR_RE = re.compile(
     r"<(?:" + _THINK_TAG_ALT + r")>.*?</(?:" + _THINK_TAG_ALT + r")>",
@@ -353,12 +351,8 @@ _THINK_PAIR_RE = re.compile(
 _THINK_UNTERMINATED_RE = re.compile(
     r"<(?:" + _THINK_TAG_ALT + r")>.*$", re.DOTALL | re.IGNORECASE
 )
-_THINK_ORPHAN_CLOSE_RE = re.compile(
-    r"</(?:" + _THINK_TAG_ALT + r")>", re.IGNORECASE
-)
-_THINK_ANY_TAG_RE = re.compile(
-    r"</?(?:" + _THINK_TAG_ALT + r")[^>]*>", re.IGNORECASE
-)
+_THINK_ORPHAN_CLOSE_RE = re.compile(r"</(?:" + _THINK_TAG_ALT + r")>", re.IGNORECASE)
+_THINK_ANY_TAG_RE = re.compile(r"</?(?:" + _THINK_TAG_ALT + r")[^>]*>", re.IGNORECASE)
 
 
 def strip_reasoning(text: Optional[str]) -> Optional[str]:
@@ -386,7 +380,7 @@ def strip_reasoning(text: Optional[str]) -> Optional[str]:
     for match in _THINK_ORPHAN_CLOSE_RE.finditer(text):
         pass
     if match:
-        text = text[match.end():]
+        text = text[match.end() :]
     stripped = text.strip()
     if not stripped and original.strip():
         salvaged = _THINK_ANY_TAG_RE.sub("", original).strip()
@@ -481,7 +475,9 @@ def fold_first_token_logprobs(top, buckets):
         nt = re.sub(r"[^a-z0-9]", "", token.lower())
         if not nt:
             continue
-        hits = [n for n, k in keys.items() if k and (k.startswith(nt) or nt.startswith(k))]
+        hits = [
+            n for n, k in keys.items() if k and (k.startswith(nt) or nt.startswith(k))
+        ]
         if len(hits) == 1:
             got[hits[0]] += pr
             assigned += pr
@@ -506,6 +502,10 @@ def first_token_top_logprobs(completion):
         if isinstance(t, dict):
             out.append({"token": t.get("token"), "logprob": t.get("logprob")})
         else:
-            out.append({"token": getattr(t, "token", None),
-                        "logprob": getattr(t, "logprob", None)})
+            out.append(
+                {
+                    "token": getattr(t, "token", None),
+                    "logprob": getattr(t, "logprob", None),
+                }
+            )
     return out

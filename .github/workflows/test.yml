@@ -11,88 +11,119 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Every step calls a Makefile target, so `make ci` locally is this workflow.
+# No test needs the network: conftest.py mocks tiktoken, pins our
+# classifier off & points MODEL_1 at a placeholder; model calls are patched.
+# Page layout tests drive the runner's preinstalled Google Chrome.
+env:
+  SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
+  TESTING: "1"
+
 jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python 3.13
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-        cache: 'pip'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-test.txt
-
-    - name: Run unit tests
-      run: |
-        pytest tests/unit/ -v --tb=short --cov=. --cov-report=term-missing
-      env:
-        SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
-        TESTING: "1"
-        MODEL_ENDPOINT_0: "https://hermes.ai.unturf.com/v1"
-        MODEL_API_KEY_0: "dummy"
-
-    - name: Run functional tests
-      run: |
-        pytest tests/functional/ -v --tb=short
-      env:
-        SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
-        TESTING: "1"
-        MODEL_ENDPOINT_0: "https://hermes.ai.unturf.com/v1"
-        MODEL_API_KEY_0: "dummy"
-
-    - name: Run integration tests
-      run: |
-        pytest tests/integration/ -v --tb=short
-      env:
-        SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
-        TESTING: "1"
-        MODEL_ENDPOINT_0: "https://hermes.ai.unturf.com/v1"
-        MODEL_API_KEY_0: "dummy"
-
-    - name: Validate activity YAML files
-      run: |
-        python activity_yaml_validator.py research/SPEC.yaml
-        python activity_yaml_validator.py research/activity*.yaml
-
   lint:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    - name: Set up Python 3.13
-      uses: actions/setup-python@v5
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.13'
         cache: 'pip'
+        cache-dependency-path: requirements*.txt
 
-    - name: Install linting dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install black flake8
+    - name: Install
+      run: make venv
 
-    - name: Check code formatting with black
-      run: |
-        black --check --diff --exclude=venv .
-      continue-on-error: true
+    - name: Lint (black, flake8)
+      run: make lint
 
-    - name: Lint with flake8 (syntax errors)
-      run: |
-        # Stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=venv
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every CPython still receiving fixes (none is an LTS: each gets ~5
+        # years, https://devguide.python.org/versions/). Add 3.15 when it
+        # ships (Oct 2026); drop 3.11 at its end of life (Oct 2027).
+        python-version: [ '3.11', '3.12', '3.13', '3.14' ]
 
-    - name: Lint with flake8 (style warnings)
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+        cache-dependency-path: requirements*.txt
+
+    - name: Install
+      run: make venv
+
+    - name: Unit tests
+      run: make test-unit
+
+    - name: Integration tests
+      run: make test-integration
+
+    # A cold first launch of the runner's Chrome can take tens of seconds;
+    # pay it here, not inside a browser test (tests/functional/browser.py).
+    - name: Warm up Chrome
       run: |
-        # Exit-zero treats all errors as warnings
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=venv
-      continue-on-error: true
+        google-chrome --version
+        timeout 90 google-chrome --headless --no-sandbox --disable-gpu \
+          --no-first-run --disable-dev-shm-usage --dump-dom about:blank > /dev/null || true
+
+    - name: Functional tests
+      run: make test-functional
+
+    - name: Validate activity YAML
+      run: make validate-yaml
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+        cache-dependency-path: requirements*.txt
+
+    - name: Install
+      run: make venv
+
+    # Same warm-up as the test jobs: coverage runs our browser tests too.
+    - name: Warm up Chrome
+      run: |
+        google-chrome --version
+        timeout 90 google-chrome --headless --no-sandbox --disable-gpu \
+          --no-first-run --disable-dev-shm-usage --dump-dom about:blank > /dev/null || true
+
+    - name: Coverage floor
+      run: make coverage-check
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build image
+      run: docker build -t opencompletion .
+
+    - name: Start & serve pages
+      run: |
+        docker run -d --name oc -p 5001:5001 \
+          -e MODEL_ENDPOINT_1=http://127.0.0.1:9/v1 -e MODEL_API_KEY_1=none \
+          opencompletion
+        for i in $(seq 1 30); do
+          curl -fsS -o /dev/null http://127.0.0.1:5001/ && break
+          sleep 2
+        done
+        for path in / /browse /styleguide /auth /chat/lobby; do
+          curl -fsS -o /dev/null -w "$path %{http_code}\n" "http://127.0.0.1:5001$path"
+        done
+
+    - name: Container log
+      if: always()
+      run: docker logs oc

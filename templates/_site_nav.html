@@ -1,0 +1,24 @@
+{# Our one set of site links. Pages show it in .site-header, chat stacks
+   it in its rooms sidebar. `active_nav` names the current page. #}
+<a class="brand" href="/">OpenCompletion</a>
+{% if show_search|default(true) %}
+<form class="site-search" action="/search" method="get" role="search">
+    <label class="visually-hidden" for="site-search-input">Search messages</label>
+    <input id="site-search-input" type="search" name="keywords" placeholder="Search messages" value="{{ keywords|default('') }}">
+</form>
+{% endif %}
+{% if show_search|default(true) %}
+<button type="button" class="icon-btn nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Menu" onclick="toggleSiteNav(this)">☰</button>
+{% endif %}
+<nav aria-label="Site" id="{{ 'site-nav' if show_search|default(true) else 'sidebar-nav' }}">
+    <ul class="site-nav">
+        <li><a href="/browse"{% if active_nav == 'browse' %} aria-current="page"{% endif %}>Rooms</a></li>
+        {% if user %}
+        <li><a href="/profile"{% if active_nav == 'profile' %} aria-current="page"{% endif %}>{{ user.display_name }}</a></li>
+        {% else %}
+        <li><a href="/profile"{% if active_nav == 'profile' %} aria-current="page"{% endif %}>Settings</a></li>
+        <li><a href="/auth"{% if active_nav == 'auth' %} aria-current="page"{% endif %}>Sign in</a></li>
+        {% endif %}
+        <li><button type="button" data-theme-toggle onclick="toggleTheme()"><span class="theme-icon" aria-hidden="true">☾</span><span class="theme-label">Dark mode</span></button></li>
+    </ul>
+</nav>

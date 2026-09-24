@@ -3,7 +3,7 @@ pytest-cov
 pytest-mock
 pytest-flask
 pytest-asyncio
-black
+black>=26,<27
 flake8
 radon>=6,<7
 pytest-github-actions-annotate-failures

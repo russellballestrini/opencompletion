@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include "_head.html" %}
+    <title>{% block title %}OpenCompletion{% endblock %}</title>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+        {% include "_site_nav.html" %}
+    </header>
+    <main id="main" class="page {% block page_class %}{% endblock %}">
+        {% block content %}{% endblock %}
+    </main>
+    <script src="{{ url_for('static', filename='js/site.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

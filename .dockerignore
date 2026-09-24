@@ -1,1 +1,12 @@
+# Never bake secrets or local state into an image
+vars.sh
+.flaskenv*
 instance/
+venv/
+env/
+.git/
+reports/
+.coverage
+**/__pycache__/
+.pytest_cache/
+arena_results.json
