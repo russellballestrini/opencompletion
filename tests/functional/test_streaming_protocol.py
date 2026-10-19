@@ -70,6 +70,7 @@ class StreamingProtocolTest(unittest.TestCase):
             chunk.choices[0].delta.content = content
             # A MagicMock fabricates a truthy reasoning_content; a plain chunk has none.
             chunk.choices[0].delta.reasoning_content = None
+            chunk.choices[0].delta.reasoning = None
             mock_chunks.append(chunk)
 
         mock_client = MagicMock()
@@ -161,6 +162,73 @@ class StreamingProtocolTest(unittest.TestCase):
         self.assertEqual(completion_chunk["data"]["content"], "")
         self.assertTrue(completion_chunk["data"]["is_complete"])
         self.assertEqual(completion_chunk["data"]["id"], 123)
+
+    def test_openai_streaming_forwards_vllm_reasoning_field(self):
+        """vLLM >= 0.31 streams thinking as delta.reasoning (not reasoning_content);
+        it must still reach the client as a reasoning_content chunk."""
+        chunks = []
+        for reasoning, content in (("thinking...", None), (None, "4")):
+            chunk = MagicMock()
+            chunk.choices = [MagicMock()]
+            chunk.choices[0].delta.content = content
+            chunk.choices[0].delta.reasoning_content = None
+            chunk.choices[0].delta.reasoning = reasoning
+            chunks.append(chunk)
+
+        mock_client = MagicMock()
+        mock_completion = MagicMock()
+        mock_completion.__iter__.return_value = iter(chunks)
+        mock_client.chat.completions.create.return_value = mock_completion
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "gevent": MagicMock(),
+                "flask_socketio": self.mock_socketio,
+                "boto3": MagicMock(),
+                "openai": MagicMock(),
+                "together": MagicMock(),
+                "models": MagicMock(),
+            },
+        ):
+            with patch.dict(
+                "os.environ",
+                {
+                    "MODEL_ENDPOINT_0": "https://test.api.com",
+                    "MODEL_API_KEY_0": "test-key",
+                },
+            ):
+                import app
+
+                mock_message = MagicMock()
+                mock_message.id = 123
+                mock_message.content = ""
+                with patch.object(app.db.session, "add"), patch.object(
+                    app.db.session, "commit"
+                ), patch.object(app.db.session, "query") as mock_query, patch.object(
+                    app, "get_room", return_value=self.mock_room
+                ), patch.object(
+                    app,
+                    "get_openai_client_and_model",
+                    return_value=(mock_client, self.model_name),
+                ), patch.object(
+                    app, "socketio", self.mock_socketio
+                ), patch(
+                    "app.Message", return_value=mock_message
+                ):
+                    mock_query.return_value.filter.return_value.one_or_none.return_value = (
+                        mock_message
+                    )
+                    app.chat_gpt(self.username, self.room_name, self.model_name)
+
+        reasoning_chunks = [
+            m["data"]
+            for m in self.emitted_messages
+            if m["event"] == "message_chunk" and "reasoning_content" in m["data"]
+        ]
+        self.assertEqual(
+            [c["reasoning_content"] for c in reasoning_chunks], ["thinking..."]
+        )
 
     def test_bedrock_streaming_protocol(self):
         """Test AWS Bedrock/Claude streaming with new protocol"""
@@ -348,6 +416,7 @@ class StreamingProtocolTest(unittest.TestCase):
             chunk.choices[0].delta.content = content
             # A MagicMock fabricates a truthy reasoning_content; a plain chunk has none.
             chunk.choices[0].delta.reasoning_content = None
+            chunk.choices[0].delta.reasoning = None
             mock_chunks.append(chunk)
 
         mock_client = MagicMock()
@@ -456,6 +525,7 @@ class StreamingProtocolTest(unittest.TestCase):
             chunk.choices[0].delta.content = content
             # A MagicMock fabricates a truthy reasoning_content; a plain chunk has none.
             chunk.choices[0].delta.reasoning_content = None
+            chunk.choices[0].delta.reasoning = None
             mock_chunks.append(chunk)
 
         mock_client = MagicMock()
