@@ -157,8 +157,9 @@ sections:
             mode="w", suffix=".yaml", dir="research", delete=False
         ) as f:
             f.write(activity_content)
-            # Return just the filename (not the full path)
-            return os.path.basename(f.name), room
+        self.addCleanup(os.unlink, f.name)
+        # Return just the filename (not the full path)
+        return os.path.basename(f.name), room
 
     @patch("activity.socketio")
     @patch("activity.get_openai_client_and_model")
@@ -400,6 +401,7 @@ sections:
         ) as f:
             f.write(activity_content)
             filename = os.path.basename(f.name)
+        self.addCleanup(os.unlink, f.name)
 
         # Create room
         from models import Room
