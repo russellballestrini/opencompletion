@@ -1,0 +1,5 @@
+# Bootstrap tools, hash-locked in requirements-pip.lock (make lock).
+# pip >= 26.2.2: vendored certifi without emSign ECC Root CA - G3 (ticket #117).
+pip>=26.2.2
+setuptools
+wheel

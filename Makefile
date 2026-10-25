@@ -61,12 +61,25 @@ help:
 venv: venv/.installed
 dev-setup: venv/.installed
 
-venv/.installed: requirements.txt requirements-test.txt
+# Supply chain (ticket #121): installs run from hash-locked files
+# (--require-hashes). requirements*.txt hold loose specs; `make lock`
+# regenerates the *.lock files. requirements-test.lock covers app + test deps.
+venv/.installed: requirements-pip.lock requirements-test.lock
 	@echo "🚀 Preparing venv/..."
 	test -d venv || python3 -m venv venv
-	venv/bin/pip install --upgrade pip
-	venv/bin/pip install -r requirements.txt -r requirements-test.txt
+	venv/bin/pip install --require-hashes -r requirements-pip.lock
+	venv/bin/pip install --require-hashes -r requirements-test.lock
 	touch venv/.installed
+
+PY_MIN ?= 3.11
+UV_COMPILE = UV_SYSTEM_CERTS=true uv pip compile --universal --generate-hashes --upgrade --python-version $(PY_MIN)
+
+.PHONY: lock
+lock:
+	$(UV_COMPILE) -o requirements-pip.lock requirements-pip.txt
+	$(UV_COMPILE) -o requirements-test.lock requirements.txt requirements-test.txt
+	$(UV_COMPILE) -o requirements.lock -c requirements-test.lock requirements.txt
+	$(UV_COMPILE) -o requirements-lint.lock requirements-lint.txt
 
 .PHONY: init-db
 init-db: venv

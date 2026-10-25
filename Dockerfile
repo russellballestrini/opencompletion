@@ -9,8 +9,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /opt/server
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# Hash-locked (ticket #121): pip itself first, then our app deps.
+COPY requirements-pip.lock requirements.lock ./
+RUN pip install --require-hashes -r requirements-pip.lock \
+    && pip install --require-hashes -r requirements.lock
 
 COPY . .
 
