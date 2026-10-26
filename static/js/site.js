@@ -48,6 +48,7 @@ async function signOut() {
     try {
         const response = await fetch('/auth/logout', {method: 'POST'});
         if (!response.ok) throw new Error(response.statusText);
+        forgetRecentChats();
         window.location.href = '/';
     } catch (error) {
         alert('Sign out failed. Please try again.');

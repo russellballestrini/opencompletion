@@ -1689,7 +1689,13 @@ def title_untitled_room(room_name):
             .limit(TITLE_CONTEXT_MESSAGES)
             .all()
         )
-        title = (gpt_generate_room_title(recent) or "").strip()[:100]
+        try:
+            title = (gpt_generate_room_title(recent) or "").strip()[:100]
+        except Exception as e:
+            # Best effort: a reply with no content (a model that only
+            # reasoned) or no choices never breaks the reply it follows.
+            print(f"[WARN] Room title generation failed: {e}")
+            return
         if not title:
             return
         room.title = title

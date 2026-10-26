@@ -106,7 +106,8 @@
     window.CHAT_CONFIG = {
         roomName: {{ room_name|tojson }},
         username: {{ username|tojson if username else 'null' }},
-        signedIn: {{ 'true' if user else 'false' }}
+        signedIn: {{ 'true' if user else 'false' }},
+        isPrivate: {{ 'true' if current_room and current_room.is_private else 'false' }}
     };
 </script>
 <script src="{{ url_for('static', filename='js/chat/1-state.js') }}"></script>

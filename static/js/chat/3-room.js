@@ -207,7 +207,7 @@ socket.on("connect", () => {
 // We hear our room now: remember it for our home page's "Your chats" and
 // send the first message our home page handed over, if it was for here.
 socket.on("joined", () => {
-    rememberRecentChat(room_name);
+    if (!CHAT_CONFIG.isPrivate) rememberRecentChat(room_name);
     const pending = takePendingMessage(room_name);
     if (!pending || !pending.message) return;
     socket.emit("chat_message", {
@@ -337,17 +337,20 @@ document.getElementById("message").addEventListener("input", function() {
 socket.on("update_room_title", (data) => {
     document.title = data.title; // Update the window's title
     document.getElementById("chat-title").textContent = data.title;
-    rememberRecentChat(room_name, data.title);
+    if (!CHAT_CONFIG.isPrivate) rememberRecentChat(room_name, data.title);
 });
 
 // A new or retitled room, live in our sidebar (_app_sidebar.html). Rows
 // come from chatListItem() in utils.js, the same markup the server renders.
 socket.on('update_room_list', function(updatedRoom) {
-    const row = document.querySelector(`#app-sidebar li[data-room-id="${updatedRoom.id}"]`);
-    if (row) {
-        const name = row.querySelector('.chat-list-name');
-        name.textContent = updatedRoom.title || updatedRoom.name;
-        row.querySelector('a').title = name.textContent;
+    // A public room you own sits in both lists: rename every row of it.
+    const rows = document.querySelectorAll(`#app-sidebar li[data-room-id="${updatedRoom.id}"]`);
+    if (rows.length) {
+        const label = updatedRoom.title || updatedRoom.name;
+        rows.forEach(row => {
+            row.querySelector('.chat-list-name').textContent = label;
+            row.querySelector('a').title = label;
+        });
     } else if (updatedRoom.is_new) {
         const list = document.getElementById(updatedRoom.is_private ? 'your-chats' : 'public-chats');
         if (!list) return;

@@ -94,6 +94,8 @@ async function createRoom(message) {
 }
 
 async function startChat() {
+    // Enter can arrive again while a room is being made: one chat per send.
+    if (sendButton.disabled) return;
     const message = input.value.trim();
     errorEl.textContent = '';
     if (!message) {
@@ -103,11 +105,16 @@ async function startChat() {
     sendButton.disabled = true;
     try {
         const room = await createRoom(message);
+        // Without this handoff the new chat would open without our message.
         try {
             sessionStorage.setItem('pendingMessage', JSON.stringify({room, message, model: modelSelect.value}));
-            localStorage.setItem('selectedModel', modelSelect.value);
-        } catch (e) {}
-        rememberRecentChat(room);
+        } catch (e) {
+            errorEl.textContent = 'This browser would not keep your message (storage blocked or full), so the chat was not opened. Allow site storage & try again.';
+            sendButton.disabled = false;
+            return;
+        }
+        try { localStorage.setItem('selectedModel', modelSelect.value); } catch (e) {}
+        if (mode !== 'private') rememberRecentChat(room);
         // tests/functional/test_home.py records the address instead of leaving.
         const open = window.startChatNavigate || (url => { window.location.href = url; });
         open(`/chat/${encodeURIComponent(room)}`);

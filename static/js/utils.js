@@ -12,16 +12,20 @@ function slugify(str) {
     return str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9_-]+/g, '')
         .replace(/^[-_]+/, '').slice(0, 64);
 }
-// Chats this browser opened, newest first: a guest's "Your chats" on our
-// home page (signed-in people get theirs from the server). Names & titles
-// only, never message text.
+// Public chats this browser opened, newest first: a guest's "Your chats"
+// (signed-in people get theirs from the server). Names & titles only, never
+// message text, and never a private room: whoever uses this browser after
+// its owner signs out must not read one. Entries carry public: true; older
+// unmarked ones (which may be private) are never shown.
 const RECENT_CHATS_KEY = 'recentChats';
 const RECENT_CHATS_MAX = 30;
 
 function recentChats() {
     try {
         const list = JSON.parse(localStorage.getItem(RECENT_CHATS_KEY) || '[]');
-        return Array.isArray(list) ? list.filter(c => c && typeof c.name === 'string') : [];
+        return Array.isArray(list)
+            ? list.filter(c => c && typeof c.name === 'string' && c.public === true)
+            : [];
     } catch (e) {
         return [];
     }
@@ -29,9 +33,13 @@ function recentChats() {
 
 function rememberRecentChat(name, title) {
     const previous = recentChats().find(c => c.name === name);
-    const entry = {name, title: title || (previous && previous.title) || null};
+    const entry = {name, title: title || (previous && previous.title) || null, public: true};
     const list = [entry, ...recentChats().filter(c => c.name !== name)].slice(0, RECENT_CHATS_MAX);
     try { localStorage.setItem(RECENT_CHATS_KEY, JSON.stringify(list)); } catch (e) {}
+}
+
+function forgetRecentChats() {
+    try { localStorage.removeItem(RECENT_CHATS_KEY); } catch (e) {}
 }
 
 function forgetRecentChat(name) {

@@ -439,7 +439,11 @@ window.addEventListener('load', () => {
 
     // A retitled room renames itself in our sidebar & top bar
     const row = document.querySelector('#public-chats li[data-room-id]');
+    // An owned public room is listed twice (Your chats & Public chats).
+    const twin = row.cloneNode(true);
+    document.getElementById('your-chats').appendChild(twin);
     deliver('update_room_list', {id: Number(row.dataset.roomId), name: 'lobby', title: 'Weekend <b>plans</b>'});
+    check(twin.textContent.includes('Weekend'), 'every row of a room is renamed');
     deliver('update_room_title', {title: 'Weekend <b>plans</b>'});
     check(row.textContent.includes('Weekend <b>plans</b>') && !row.querySelector('b'), 'sidebar title is text, never markup');
     check(document.getElementById('chat-title').textContent === 'Weekend <b>plans</b>', 'top bar shows the title');

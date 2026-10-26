@@ -120,7 +120,13 @@ window.addEventListener('load', () => {
     check(/Sign in/.test(document.getElementById('mode-hint').textContent), 'hint says why');
 
     input.value = 'Hello there, General Kenobi!';
-    document.getElementById('composer-send').click();
+    // A legacy, unmarked entry (maybe a private room) is never shown.
+    localStorage.setItem('recentChats', JSON.stringify([{name: 'old-secret', title: 'Old secret'}]));
+    check(recentChats().length === 0, 'unmarked history hidden');
+    // Enter twice before the room exists still makes one chat.
+    const enter = () => input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
+    enter();
+    enter();
     const started = Date.now();
     const settle = () => {
         if (!opened && Date.now() - started < 1500) { setTimeout(settle, 20); return; }
@@ -131,6 +137,8 @@ window.addEventListener('load', () => {
         const pending = JSON.parse(sessionStorage.getItem('pendingMessage') || 'null');
         check(pending && pending.room === name && pending.message === 'Hello there, General Kenobi!', 'first message handed over');
         check(recentChats().some(c => c.name === name), 'remembered under Your chats');
+        forgetRecentChats();
+        check(recentChats().length === 0, 'signing out forgets this browser\'s chats');
         check(takePendingMessage('another-room') === null, 'another room never takes it');
         check(takePendingMessage(name) && !sessionStorage.getItem('pendingMessage'), 'taken once');
         document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
@@ -298,3 +306,31 @@ def test_title_prompt_puts_its_one_system_message_first(test_app, monkeypatch):
     assert roles == ["system", "user"]
     transcript = sent["messages"][1]["content"]
     assert transcript.index("ada:") < transcript.index("hermes:")
+
+
+def test_a_failing_title_never_breaks_the_reply(test_app, monkeypatch):
+    """Titling is best effort: a model reply with no content (only
+    reasoning) raises inside the title helper, never out of a reply."""
+    import app as app_module
+    from models import Room, db
+
+    room = make_room("no-title-room", message="hello")
+
+    def broken(messages):
+        raise AttributeError("'NoneType' object has no attribute 'replace'")
+
+    monkeypatch.setattr(app_module, "gpt_generate_room_title", broken)
+    app_module.title_untitled_room(room.name)
+    db.session.expire_all()
+    assert Room.query.filter_by(name="no-title-room").one().title is None
+
+
+def test_private_chats_stay_out_of_browser_history(client):
+    """A private room never enters localStorage history, so a guest who
+    uses this browser after its owner signs out cannot read one."""
+    me = make_user("me@example.test", "me")
+    make_room("my-secret", owner=me, private=True)
+    make_room("open-room")
+    sign_in(client, me)
+    assert "isPrivate: true" in client.get("/chat/my-secret").get_data(as_text=True)
+    assert "isPrivate: false" in client.get("/chat/open-room").get_data(as_text=True)
