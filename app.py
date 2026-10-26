@@ -1616,6 +1616,10 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
     socketio.emit("delete_processing_message", msg_id, room=room_name)
 
 
+# Characters of each message a title reads: enough for the gist.
+TITLE_MESSAGE_CHARS = 500
+
+
 def gpt_generate_room_title(messages):
     """
     Generate a title for the room based on a list of messages.
@@ -1627,21 +1631,26 @@ def gpt_generate_room_title(messages):
         print("[WARN] No model available for room title generation")
         return None
 
-    chat_history = [
-        {
-            "role": "system" if msg.username in SYSTEM_USERS else "user",
-            "content": f"{msg.username}: {msg.content}",
-        }
+    # One system instruction first, then the conversation as one user turn:
+    # chat templates such as Qwen's refuse a system message anywhere but
+    # first ("System message must be at the beginning"), and a transcript
+    # never asks the model to continue anyone's turn.
+    transcript = "\n\n".join(
+        f"{msg.username}: {msg.content[:TITLE_MESSAGE_CHARS]}"
         for msg in reversed(messages)
         if not msg.is_base64_image()
-    ]
-
-    chat_history.append(
+    )
+    if not transcript:
+        return None
+    chat_history = [
         {
             "role": "system",
-            "content": "return a short title for the title bar of this conversation.",
-        }
-    )
+            "content": "Reply with only a short title (at most 8 words) for "
+            "the conversation you are given. No quotes, no punctuation at "
+            "the end.",
+        },
+        {"role": "user", "content": transcript},
+    ]
 
     # Interaction with LLM to generate summary
     # For example, using OpenAI's GPT model

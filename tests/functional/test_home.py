@@ -7,6 +7,7 @@ Chromium (tests/functional/browser.py). Run: make test-ui
 """
 
 import re
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -257,3 +258,43 @@ def test_sidebar_shows_titles_over_names(client):
     db.session.commit()
     public = sidebar(client.get("/").get_data(as_text=True), "public-chats-heading")
     assert "Weekend plans" in public and ">lobby-abc123<" not in public
+
+
+def test_title_prompt_puts_its_one_system_message_first(test_app, monkeypatch):
+    """Qwen-style chat templates reject a system message anywhere but first
+    ("System message must be at the beginning"); a model's own replies in
+    our history must never become system turns."""
+    import app as app_module
+    from models import Message
+
+    room = make_room("titled-room")
+    from models import db
+
+    for who, text in [
+        ("ada", "How do lifetimes work?"),
+        ("hermes", "They bound refs."),
+    ]:
+        db.session.add(Message(username=who, content=text, room_id=room.id))
+    db.session.commit()
+    monkeypatch.setattr(app_module, "SYSTEM_USERS", ["hermes"])
+
+    sent = {}
+
+    def fake_completion(client, **kwargs):
+        sent.update(kwargs)
+        reply = MagicMock()
+        reply.choices[0].message.content = "Rust lifetimes"
+        return reply
+
+    monkeypatch.setattr(app_module, "create_completion_skip_thinking", fake_completion)
+    monkeypatch.setattr(
+        app_module, "get_openai_client_and_model", lambda: (object(), "model")
+    )
+    messages = (
+        Message.query.filter_by(room_id=room.id).order_by(Message.id.desc()).all()
+    )
+    assert app_module.gpt_generate_room_title(messages) == "Rust lifetimes"
+    roles = [m["role"] for m in sent["messages"]]
+    assert roles == ["system", "user"]
+    transcript = sent["messages"][1]["content"]
+    assert transcript.index("ada:") < transcript.index("hermes:")
