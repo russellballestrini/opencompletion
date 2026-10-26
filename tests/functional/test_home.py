@@ -33,7 +33,7 @@ def sidebar(html, list_id):
 def test_home_is_an_empty_chat(client):
     html = client.get("/").get_data(as_text=True)
     assert 'id="composer"' in html
-    assert "Where should we begin?" in html
+    assert "Tabula rasa, in a beginning, where do we start?" in html
     assert 'data-mode="private"' in html and 'data-mode="chatroom"' in html
     assert "/static/js/home.js" in html
 
