@@ -177,3 +177,35 @@ def test_home_sidebar_is_a_drawer_on_phones(client, tmp_path, width):
     html = client.get("/").get_data(as_text=True)
     out = run_probe(html, DRAWER_PROBE, tmp_path, width)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+PINNED_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    if (innerWidth <= 768) openDrawer('rooms');
+    const user = document.querySelector('.sidebar-user');
+    const brand = document.querySelector('.app-sidebar .brand');
+    const list = document.querySelector('.sidebar-scroll');
+    const onScreen = el => { const r = el.getBoundingClientRect(); return r.height > 0 && r.top >= 0 && r.bottom <= innerHeight + 1; };
+    check(list.scrollHeight > list.clientHeight, 'many chats overflow into their own scroll');
+    check(onScreen(user), 'you stay pinned bottom left: ' + user.getBoundingClientRect().bottom + ' > ' + innerHeight);
+    list.scrollTop = list.scrollHeight;
+    window.scrollTo(0, document.body.scrollHeight);
+    check(onScreen(user) && onScreen(brand), 'scrolling our chats moves neither you nor our name');
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [320, 1280])
+def test_you_stay_pinned_bottom_left_with_many_chats(client, tmp_path, width):
+    me = make_user("me@example.test", "me")
+    for n in range(40):
+        make_room(f"room-{n}", owner=me if n % 2 else None, private=n % 4 == 1)
+    sign_in(client, me)
+    html = client.get("/").get_data(as_text=True)
+    out = run_probe(html, PINNED_PROBE, tmp_path, width, height=700)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

@@ -1451,9 +1451,22 @@ a:hover {
     height: 100vh;
     height: 100dvh;
     padding: var(--space-3);
-    overflow-y: auto;
+    overflow: hidden;
     background-color: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
+}
+
+/* Our chat lists scroll on their own, so a long list never pushes you
+   (.sidebar-user) or Sign in off the bottom of the sidebar. */
+.sidebar-scroll {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-height: 0;
+    margin: 0 calc(-1 * var(--space-3));
+    padding: 0 var(--space-3);
+    overflow-y: auto;
 }
 
 .sidebar-top {
@@ -1560,8 +1573,8 @@ a:hover {
 .sidebar-user {
     display: flex;
     align-items: center;
+    flex: none;
     gap: var(--space-1);
-    margin-top: auto;
     padding-top: var(--space-3);
     border-top: 1px solid var(--border-color);
 }
