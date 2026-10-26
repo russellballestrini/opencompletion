@@ -24,6 +24,16 @@ function copyMessageContent(content, button) {
     });
 }
 
+// Our default voice is foxhop; option values are "model:voice".
+const DEFAULT_VOICE = 'foxhop';
+
+function defaultVoice(values) {
+    const voiceOf = value => value.split(':').pop().toLowerCase();
+    return values.find(v => voiceOf(v) === DEFAULT_VOICE)
+        || values.find(v => voiceOf(v).includes(DEFAULT_VOICE))
+        || values[0];
+}
+
 // Function to sync dropdowns and save to localStorage
 function syncDropdownsAndQueryString() {
     const modelSelectDesktop = document.getElementById("model-select");
@@ -104,8 +114,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         });
 
-        // Set initial value from localStorage or first available option (not URL)
-        const initialVoice = localStorage.getItem('selectedVoice') || voiceSelectDesktop.options[0]?.value;
+        // A voice you chose before, else our default voice, else the first.
+        const values = Array.from(voiceSelectDesktop.options).map(o => o.value);
+        const saved = localStorage.getItem('selectedVoice');
+        const initialVoice = values.includes(saved) ? saved : defaultVoice(values);
         if (initialVoice) {
             voiceSelectDesktop.value = initialVoice;
         }
@@ -187,6 +199,21 @@ socket.on("connect", () => {
     socket.emit("join", {"username": sanitizedUsername, "room_name": room_name});
 });
 
+// We hear our room now: remember it for our home page's "Your chats" and
+// send the first message our home page handed over, if it was for here.
+socket.on("joined", () => {
+    if (!CHAT_CONFIG.isPrivate) rememberRecentChat(room_name);
+    const pending = takePendingMessage(room_name);
+    if (!pending || !pending.message) return;
+    socket.emit("chat_message", {
+        "username": username,
+        "message": pending.message,
+        "model": pending.model || "None",
+        "room_name": room_name,
+        "enable_thinking": showThinking
+    });
+});
+
 // The server decides our posting name: a signed-in display name, or a
 // guest name that does not impersonate an account or a model.
 socket.on("your_username", (data) => {
@@ -199,6 +226,7 @@ socket.on("your_username", (data) => {
 });
 
 socket.on("access_denied", () => {
+    forgetRecentChat(room_name);
     const chat = document.getElementById("chat");
     chat.textContent = "This room is private. Sign in as its owner to open it.";
 });
@@ -303,47 +331,26 @@ document.getElementById("message").addEventListener("input", function() {
 // Socket event for updating the room title
 socket.on("update_room_title", (data) => {
     document.title = data.title; // Update the window's title
+    document.getElementById("chat-title").textContent = data.title;
+    if (!CHAT_CONFIG.isPrivate) rememberRecentChat(room_name, data.title);
 });
 
-// Socket event to update the room title in the sidebar or add new rooms.
-// Each item is <li data-room-id><a><b>name</b><br>title<br>N users</a></li>,
-// the same markup base.html renders, built with DOM methods (no innerHTML).
-function fillRoomLink(link, room, userCount) {
-    link.textContent = '';
-    const nameElement = document.createElement('b');
-    nameElement.textContent = room.name;
-    link.appendChild(nameElement);
-    if (room.title) {
-        link.appendChild(document.createElement('br'));
-        link.appendChild(document.createTextNode(room.title));
-    }
-    if (userCount) {
-        link.appendChild(document.createElement('br'));
-        link.appendChild(document.createTextNode(`${userCount} users`));
-    }
-}
-
+// A new or retitled room, live in our sidebar (_app_sidebar.html). Rows
+// come from chatListItem() in utils.js, the same markup the server renders.
 socket.on('update_room_list', function(updatedRoom) {
-    const roomListItem = document.querySelector(`#rooms-list li[data-room-id="${updatedRoom.id}"]`);
-
-    if (roomListItem) {
-        const link = roomListItem.querySelector('a');
-        const userCountText = link.textContent.match(/(\d+)\s*users/);
-        fillRoomLink(link, updatedRoom, userCountText ? userCountText[1] : null);
+    // A public room you own sits in both lists: rename every row of it.
+    const rows = document.querySelectorAll(`#app-sidebar li[data-room-id="${updatedRoom.id}"]`);
+    if (rows.length) {
+        const label = updatedRoom.title || updatedRoom.name;
+        rows.forEach(row => {
+            row.querySelector('.chat-list-name').textContent = label;
+            row.querySelector('a').title = label;
+        });
     } else if (updatedRoom.is_new) {
-        const targetList = updatedRoom.is_private
-            ? document.querySelector('#private-rooms-section .rooms-list')
-            : document.querySelector('#public-rooms-section .rooms-list');
-        if (!targetList) return;
-
-        const newLi = document.createElement('li');
-        newLi.setAttribute('data-room-id', updatedRoom.id);
-        newLi.classList.add(updatedRoom.is_private ? 'private-room' : 'public-room');
-        const newLink = document.createElement('a');
-        newLink.href = `/chat/${encodeURIComponent(updatedRoom.name)}`;
-        fillRoomLink(newLink, updatedRoom, null);
-        newLi.appendChild(newLink);
-        targetList.prepend(newLi);
+        const list = document.getElementById(updatedRoom.is_private ? 'your-chats' : 'public-chats');
+        if (!list) return;
+        list.prepend(chatListItem(updatedRoom, updatedRoom.is_private ? '🔒' : '', 'private'));
+        if (updatedRoom.is_private) document.getElementById('your-chats-empty').hidden = true;
     }
 });
 

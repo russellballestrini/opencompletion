@@ -1,11 +1,11 @@
 {% extends "layout.html" %}
 {% set active_nav = 'styleguide' %}
 
-{% block title %}Style guide - OpenCompletion{% endblock %}
+{% block title %}Style guide - {{ brand_name }}{% endblock %}
 
 {% block content %}
 <h1 class="page-title">Style guide</h1>
-<p class="page-subtitle">Every shared component, drawn by <code>static/css/style.css</code>. The rules behind it live in <code>docs/STYLEGUIDE.md</code>; toggle dark mode above to check both themes.</p>
+<p class="page-subtitle">Every shared component, drawn by <code>static/css/style.css</code>. The rules behind it live in <code>docs/STYLEGUIDE.md</code>; flip dark mode at the bottom of our sidebar to check both themes.</p>
 
 <section class="card" aria-labelledby="sg-colour">
     <h2 id="sg-colour">Colour tokens</h2>

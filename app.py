@@ -752,20 +752,6 @@ def chat(room_name):
     if room_access_denied(room, user):
         return "Access denied: This is a private room", 403
 
-    # Query public rooms and user's private rooms for sidebar
-    public_rooms = (
-        Room.query.filter_by(is_private=False, is_archived=False)
-        .order_by(Room.id.desc())
-        .all()
-    )
-    private_rooms = []
-    if user:
-        private_rooms = (
-            Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id)
-            .order_by(Room.id.desc())
-            .all()
-        )
-
     # Use authenticated user's display name, or None (will prompt on client side)
     username = user.display_name if user else None
 
@@ -786,8 +772,6 @@ def chat(room_name):
         "chat.html",
         room_name=room_name,
         current_room=room,
-        public_rooms=public_rooms,
-        private_rooms=private_rooms,
         username=username,
         user=user,
         og_title=og_title,
@@ -874,6 +858,9 @@ def on_join(data):
 
     # This makes the client start listening for new events for this room.
     join_room(room_name)
+    # From here on this client hears the room: our home page's first message
+    # waits for this before it is sent (static/js/chat/3-room.js).
+    emit("joined", {"room_name": room_name}, room=request.sid)
 
     # update the title bar with the proper room title, if it exists for just this new client.
     if room.title:
@@ -1303,6 +1290,7 @@ def chat_claude(
     )
 
     socketio.emit("delete_processing_message", msg_id, room=room_name)
+    title_untitled_room(room_name)
 
 
 def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True):
@@ -1497,6 +1485,7 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
     )
 
     socketio.emit("delete_processing_message", msg_id, room=room_name)
+    title_untitled_room(room_name)
 
 
 def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.gguf"):
@@ -1627,6 +1616,10 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
     socketio.emit("delete_processing_message", msg_id, room=room_name)
 
 
+# Characters of each message a title reads: enough for the gist.
+TITLE_MESSAGE_CHARS = 500
+
+
 def gpt_generate_room_title(messages):
     """
     Generate a title for the room based on a list of messages.
@@ -1638,21 +1631,26 @@ def gpt_generate_room_title(messages):
         print("[WARN] No model available for room title generation")
         return None
 
-    chat_history = [
-        {
-            "role": "system" if msg.username in SYSTEM_USERS else "user",
-            "content": f"{msg.username}: {msg.content}",
-        }
+    # One system instruction first, then the conversation as one user turn:
+    # chat templates such as Qwen's refuse a system message anywhere but
+    # first ("System message must be at the beginning"), and a transcript
+    # never asks the model to continue anyone's turn.
+    transcript = "\n\n".join(
+        f"{msg.username}: {msg.content[:TITLE_MESSAGE_CHARS]}"
         for msg in reversed(messages)
         if not msg.is_base64_image()
-    ]
-
-    chat_history.append(
+    )
+    if not transcript:
+        return None
+    chat_history = [
         {
             "role": "system",
-            "content": "return a short title for the title bar of this conversation.",
-        }
-    )
+            "content": "Reply with only a short title (at most 8 words) for "
+            "the conversation you are given. No quotes, no punctuation at "
+            "the end.",
+        },
+        {"role": "user", "content": transcript},
+    ]
 
     # Interaction with LLM to generate summary
     # For example, using OpenAI's GPT model
@@ -1670,6 +1668,41 @@ def gpt_generate_room_title(messages):
 
     title = strip_reasoning(response.choices[0].message.content)
     return title.replace('"', "")
+
+
+# Most recent messages a first title reads; a new chat has only a few.
+TITLE_CONTEXT_MESSAGES = 20
+
+
+def title_untitled_room(room_name):
+    """Name a room after its first model reply, as chat apps do, so our
+    sidebars show a title instead of a room's slug from the start. A room
+    that already has a title keeps it (/title new replaces one on demand).
+    """
+    with app.app_context():
+        room = Room.query.filter_by(name=room_name).first()
+        if room is None or room.title:
+            return
+        recent = (
+            Message.query.filter_by(room_id=room.id)
+            .order_by(Message.id.desc())
+            .limit(TITLE_CONTEXT_MESSAGES)
+            .all()
+        )
+        try:
+            title = (gpt_generate_room_title(recent) or "").strip()[:100]
+        except Exception as e:
+            # Best effort: a reply with no content (a model that only
+            # reasoned) or no choices never breaks the reply it follows.
+            print(f"[WARN] Room title generation failed: {e}")
+            return
+        if not title:
+            return
+        room.title = title
+        db.session.add(room)
+        db.session.commit()
+        socketio.emit("update_room_title", {"title": title}, room=room.name)
+        emit_room_list_update(room, {"id": room.id, "name": room.name, "title": title})
 
 
 def generate_new_title(room_name, username):

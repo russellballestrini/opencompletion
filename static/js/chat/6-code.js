@@ -30,9 +30,6 @@ function addCopyButtonToCodeBlock(block, wasTruncated = false) {
     // Create a container for the buttons
     const buttonContainer = document.createElement('div');
     buttonContainer.classList.add('code-block-button-container');
-    buttonContainer.style.display = 'flex';
-    buttonContainer.style.gap = '8px';
-    buttonContainer.style.marginTop = '8px';
 
     // If truncated, add a "Show More" button
     if (wasTruncated) {

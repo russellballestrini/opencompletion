@@ -24,24 +24,50 @@ def favicon():
     )
 
 
+@bp.app_context_processor
+def brand():
+    """Our name atop every page: OPENCOMPLETION_BRAND (say "uncloseai")
+    lets one deployment carry its own, OpenCompletion otherwise."""
+    return {"brand_name": os.environ.get("OPENCOMPLETION_BRAND") or "OpenCompletion"}
+
+
+@bp.app_context_processor
+def sidebar():
+    """Every page's sidebar (_app_sidebar.html) lists our chats; a route
+    that passes its own `user` still decides who that is."""
+    return sidebar_chats(auth.get_current_user())
+
+
+# How many chats each sidebar list shows; /browse has every room.
+SIDEBAR_CHATS = 30
+
+
+def sidebar_chats(user):
+    """What _app_sidebar.html lists, on our home & every chat: rooms you
+    own (private ones too), newest first, and public rooms. Never anyone
+    else's private room."""
+    your_chats = []
+    if user:
+        your_chats = (
+            Room.query.filter_by(is_archived=False, owner_id=user.id)
+            .order_by(Room.updated_at.desc(), Room.id.desc())
+            .limit(SIDEBAR_CHATS)
+            .all()
+        )
+    public_chats = (
+        Room.query.filter_by(is_private=False, is_archived=False)
+        .order_by(Room.updated_at.desc(), Room.id.desc())
+        .limit(SIDEBAR_CHATS)
+        .all()
+    )
+    return {"user": user, "your_chats": your_chats, "public_chats": public_chats}
+
+
 @bp.route("/")
 def index():
-    total_public_rooms = Room.query.filter_by(
-        is_private=False, is_archived=False
-    ).count()
-    total_private_rooms = 0
-    user = auth.get_current_user()
-    if user:
-        total_private_rooms = Room.query.filter_by(
-            is_private=True, is_archived=False, owner_id=user.id
-        ).count()
-
-    stats = {
-        "total_public_rooms": total_public_rooms,
-        "total_private_rooms": total_private_rooms,
-    }
-
-    return render_template("index.html", stats=stats, user=user)
+    """Our home: an empty chat. The first message makes a room (private,
+    or a multiplayer chatroom) & opens it."""
+    return render_template("home.html", user=auth.get_current_user())
 
 
 def safe_next_url(value):

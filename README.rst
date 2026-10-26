@@ -10,6 +10,9 @@ Chatroom applicationallows users to join rooms, send messages, & interact with m
 Features
 --------
 
+- A home page that is an empty chat: type, & your first message starts a
+  private chat (signed in) or a multiplayer chatroom anyone with the link can
+  join. Its sidebar lists your chats & public ones, you at the bottom.
 - Real-time messaging between users in a chatroom.
 - Ability to join different chatrooms with unique URLs.
 - Integration with language models for generating room titles and processing messages.
@@ -53,6 +56,9 @@ Installation
    (``vars.sh`` is gitignored; never commit it)::
 
     cp vars.sh.sample vars.sh
+
+   ``OPENCOMPLETION_BRAND`` (optional) names the site in every header, for
+   example ``uncloseai``; unset, it says OpenCompletion.
 
 4. Create our database tables (a SQLite file in ``instance/`` unless
    ``SQLALCHEMY_DATABASE_URI`` says otherwise), then mark migrations current::
