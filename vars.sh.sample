@@ -45,6 +45,13 @@ export MODEL_API_KEY_8="gone"
 export MODEL_ENDPOINT_9="https://api.anthropic.com/v1"
 export MODEL_API_KEY_9="gone"
 
+# Text to speech endpoints, configured like models: SPEECH_ENDPOINT_n is an
+# OpenAI-style base URL, SPEECH_API_KEY_n its optional key. Our server
+# proxies speech (/speech/voices, /speech/audio) so keys stay server-side.
+# Unset, speech uses https://speech.ai.unturf.com/v1 keyless.
+export SPEECH_ENDPOINT_1="https://speech.ai.unturf.com/v1"
+export SPEECH_API_KEY_1="your-uncloseai-api-key"
+
 # Enable code-generated filenames (enabled by default: "true", disabled: "false")
 # When enabled, uses Hermes AI to generate meaningful 1-3 word filenames for downloaded binaries
 export ENABLE_CODE_GEN_FILENAMES="true"

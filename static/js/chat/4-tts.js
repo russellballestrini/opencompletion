@@ -13,10 +13,7 @@ async function fetchTTSStreaming(cleanText, model, voice) {
 
     const response = await fetch(TTS_API_URL, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_KEY}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             model: model,
             voice: voice,
@@ -317,7 +314,7 @@ async function fetchTTSStreamingSSE(cleanText, model, voice) {
     const canStream = window.MediaSource && MediaSource.isTypeSupported(mseMime);
     const response = await fetch(TTS_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${API_KEY}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: model, voice: voice, input: cleanText, sse: true })
     });
     if (!response.ok) throw new Error(`TTS SSE request failed: ${response.status}`);

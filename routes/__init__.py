@@ -1,4 +1,4 @@
-"""Our HTTP routes, as blueprints: pages, accounts, rooms & code.
+"""Our HTTP routes, as blueprints: pages, accounts, rooms, code & speech.
 
 app.py keeps chat itself (the /chat page, Socket.IO events & model
 streaming) and calls register() once. The few helpers these routes share
@@ -17,7 +17,7 @@ def register(app, **deps):
     (the live list of names whose messages are system/assistant turns).
     """
     DEPS.update(deps)
-    from routes import accounts, code, pages, rooms
+    from routes import accounts, code, pages, rooms, speech
 
-    for module in (pages, accounts, rooms, code):
+    for module in (pages, accounts, rooms, code, speech):
         app.register_blueprint(module.bp)

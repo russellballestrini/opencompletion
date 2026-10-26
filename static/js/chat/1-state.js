@@ -3,9 +3,9 @@
 // share globals (see templates/chat.html). Config comes from CHAT_CONFIG.
 
 // Constants
-const API_KEY = "dummy-api-key";
-const TTS_API_URL = "https://speech.ai.unturf.com/v1/audio/speech";
-const VOICES_API_URL = "https://speech.ai.unturf.com/v1/voices";
+// Speech goes through our server (routes/speech.py), which holds any keys.
+const TTS_API_URL = "/speech/audio";
+const VOICES_API_URL = "/speech/voices";
 // Code execution API (proxied through backend to keep API key secure)
 const room_name = CHAT_CONFIG.roomName;
 

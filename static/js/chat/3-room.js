@@ -150,12 +150,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         populateVoiceDropdown(voicesData);
     } else {
         // Fetch voices from API
-        fetch(VOICES_API_URL, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`
-            }
-        })
+        fetch(VOICES_API_URL)
             .then(response => response.json())
             .then(voicesData => {
                 populateVoiceDropdown(voicesData);

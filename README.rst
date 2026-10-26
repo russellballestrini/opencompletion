@@ -106,6 +106,15 @@ Here are some free endpoint for research only!::
     export MODEL_ENDPOINT_2=https://qwen.ai.unturf.com/v1
     export MODEL_ENDPOINT_3=https://gpt-oss.ai.unturf.com/v1
 
+Text to speech endpoints, configured like models (``n`` is any number, an
+API key is optional). Our server proxies speech at ``/speech/voices`` and
+``/speech/audio``, so keys never reach the browser; voices merge across
+endpoints and a down endpoint falls through to the next one. Unset, speech
+uses ``https://speech.ai.unturf.com/v1`` without a key::
+
+    export SPEECH_ENDPOINT_1=https://speech.ai.unturf.com/v1
+    export SPEECH_API_KEY_1=your-uncloseai-api-key
+
 Optional classifier model, a decision endpoint that answers a categorization
 AS a decision (a probability per bucket, nothing to parse). Asked first by
 ``categorize_response`` when configured, fails open onto the chat model.
