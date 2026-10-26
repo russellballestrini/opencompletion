@@ -53,11 +53,12 @@ def _headers(api_key):
     return {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
 
-def _load_voices():
+def _load_voices(verbose=False):
     """Merged voices across endpoints, cached VOICES_TTL_S. None when no
-    endpoint answered."""
+    endpoint answered. verbose (startup) prints what each endpoint lists,
+    like app.py's model loading."""
     cached = _voices_cache.get("at")
-    if cached is not None and time.monotonic() - cached < VOICES_TTL_S:
+    if not verbose and cached is not None and time.monotonic() - cached < VOICES_TTL_S:
         return _voices_cache
     data, routes = [], {}
     for base_url, api_key in speech_endpoints():
@@ -72,6 +73,16 @@ def _load_voices():
         except (requests.RequestException, ValueError, AttributeError) as exc:
             print(f"[WARN] speech voices from {base_url} failed: {exc}")
             continue
+        if verbose:
+            listed = {
+                m.get("id"): len(m.get("voices") or [])
+                for m in models
+                if isinstance(m, dict) and m.get("id")
+            }
+            print(
+                f"[DEBUG] {base_url} returned speech models: "
+                + ", ".join(f"{k} ({n} voices)" for k, n in listed.items())
+            )
         for model in models:
             model_id = model.get("id") if isinstance(model, dict) else None
             if not model_id:
@@ -83,6 +94,15 @@ def _load_voices():
         return None
     _voices_cache.update(at=time.monotonic(), data=data, routes=routes)
     return _voices_cache
+
+
+def log_startup():
+    """Load & print our speech models once at startup."""
+    voices = _load_voices(verbose=True)
+    if voices is None:
+        print("[WARN] Loaded speech models: none (no speech endpoint answered)")
+    else:
+        print("Loaded speech models:", list(voices["routes"]))
 
 
 @bp.route("/speech/voices", methods=["GET"])

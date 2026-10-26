@@ -2073,6 +2073,21 @@ if __name__ == "__main__":
         help="Port number to run the SocketIO server on (default: 5001)",
     )
     args = parser.parse_args()
+
+    # Beside "Loaded models" above: what speech & the classifier offer.
+    import classifier
+    from routes import speech
+
+    speech.log_startup()
+    classifier_line = classifier.describe()
+    if classifier_line:
+        classifier_bases = classifier.instances()
+        for label, listed in classifier.list_models().items():
+            base = classifier_bases[label]["base"]
+            print(f"[DEBUG] {base} returned classifier models: {listed}")
+        print("Loaded", classifier_line)
+    else:
+        print("Loaded classifier: none configured")
     # Set profile_name and other configurations as global attributes of the app object
     app.config["PROFILE_NAME"] = args.profile
     app.config["LOCAL_ACTIVITIES"] = args.local_activities
