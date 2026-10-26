@@ -41,7 +41,7 @@ socket.on("chat_message", (data) => {
 
         // Create the delete button
         const deleteButton = document.createElement("button");
-        deleteButton.innerHTML = "x";
+        deleteButton.textContent = "Delete";
         deleteButton.onclick = () => deleteMessage(data.id, room_name);
         buttonContainer.appendChild(deleteButton);
 
@@ -168,7 +168,7 @@ socket.on("previous_messages", (data) => {
 
     // Create the delete button
     const deleteButton = document.createElement("button");
-    deleteButton.innerHTML = "x";
+    deleteButton.textContent = "Delete";
     deleteButton.onclick = () => deleteMessage(data.id, room_name);
     buttonContainer.appendChild(deleteButton);
 
@@ -371,7 +371,7 @@ socket.on("message_chunk", (data) => {
 
         // Create the delete button
         const deleteButton = document.createElement("button");
-        deleteButton.innerHTML = "x";
+        deleteButton.textContent = "Delete";
         deleteButton.onclick = () => deleteMessage(data.id, room_name);
         buttonContainer.appendChild(deleteButton);
 

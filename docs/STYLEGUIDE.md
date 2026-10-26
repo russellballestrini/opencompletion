@@ -9,17 +9,17 @@ marked **(tested)** in real headless Chromium at 320, 375, 768 & 1280px.
 
 | Template | What it is |
 |---|---|
-| `home.html` | Our home (`/`): an empty chat. Sidebar (`.app-sidebar`): our name on top, New chat, Search, Rooms, Your chats, Public chats, you at the bottom (`.sidebar-user`). Main: Private / Chatroom switch (`.mode-btn`, `aria-pressed`) & one `.composer`. Behaviour in `static/js/home.js`. |
-| `layout.html` | Shell for every page but chat & home: `_head.html`, our site header (`_site_nav.html`), `<main class="page">`. Pages fill `title`, `content`, `scripts` & optional `page_class` (`page-narrow` for forms). |
-| `base.html` | Chat's app shell: same `_head.html`, same `_site_nav.html` stacked in the rooms sidebar, drawers on phones. |
+| `layout.html` | Our one shell for every page: `_head.html`, `utils.js`, `_app_sidebar.html` on the left, a page on the right (`.app-main` > `<main class="page">`, a ☰ `.page-topbar` on phones). Pages fill `title`, `content`, `scripts` & optional `page_class` (`page-narrow` for forms); set `active_nav` (`home`, `search`, `browse`, `profile`, `auth`) to mark the current page. |
+| `_app_sidebar.html` | Every link we have: our name on top; New chat, Search, Rooms; Your chats & Public chats (scroll on their own); you at the bottom (`.sidebar-user`: settings & theme), Sign in for guests. Data comes from the `sidebar` context processor (`routes.pages.sidebar_chats`). |
+| `home.html` | Our home (`/`), extends `layout.html` & replaces `main`: Private / Chatroom switch (`.mode-btn`, `aria-pressed`) & one `.composer`. Behaviour in `static/js/home.js`. |
+| `base.html` | Chat, extends `layout.html`: vendored chat libraries, `.chat-shell` adds room controls (`.utility-belt`) as a third column, sign-in dialog. `chat.html` reuses home's `.composer`. |
 | `_head.html` | Meta, Open Graph, theme applied before first paint, our one stylesheet. |
-| `_site_nav.html` | Brand, search, Rooms, profile/Settings, Sign in, theme toggle. Set `active_nav` to mark the current page. |
 | `_auth_steps.html` + `static/js/auth.js` | Email-code sign in, shared by `/auth` & chat's sign-in dialog. `data-after` on `#auth-flow` decides what success does. |
 | `_room_card.html` | One room in a grid (browse & search). |
 
 Rules:
 
-- Every page extends `layout.html` or `base.html` & links `style.css` once. **(tested)**
+- Every page extends `layout.html` (chat via `base.html`) & links `style.css` once. **(tested)**
 - Templates hold no `<style>` blocks & no raw colours in `style=""`. **(tested)**
 - Shared behaviour lives in `static/js/`: `site.js` (theme, sign out), `auth.js` (sign in), `utils.js` (`slugify`), `chat/*.js` (chat, in load order). Static scripts hold no template syntax & parse under `node --check`. **(tested)**
 - Third-party browser libraries are vendored in `static/vendor/`, never loaded from a CDN.
@@ -61,10 +61,11 @@ are 16px on phones so iOS never zooms into them.
 - No horizontal scrolling at 320px or wider. Long names wrap
   (`overflow-wrap: anywhere`). **(tested)**
 - Tap targets are at least 40px tall on phones, 44px for buttons & fields. **(tested)**
-- Phone header: brand & a ☰ menu button on one row, search below; our
-  links open as a full-width list. **(tested)**
-- Home's sidebar is a drawer on phones too, opened by ☰ & closed by ×,
-  the backdrop or Escape (`openDrawer`/`closeDrawer` in `site.js`). **(tested)**
+- Our sidebar is a drawer on phones on every page, opened by ☰ & closed
+  by ×, the backdrop or Escape (`openDrawer`/`closeDrawer` in `site.js`).
+  You stay pinned at its bottom however many chats it lists. **(tested)**
+- Buttons inside a conversation (`#chat button`: message actions, code
+  Copy & Run) share one quiet style; actions brighten on hover or focus.
 - Breakpoints: 1024px narrows chat's sidebars; 768px is phone. On a phone,
   chat's rooms sidebar & room controls become drawers opened from its top
   bar (☰ & ⚙): our real panels, never copies, closed by ×, the backdrop or

@@ -87,10 +87,11 @@ git remote -v
 
 ### Frontend Structure
 - **Read `docs/STYLEGUIDE.md` before touching a template or style.css**; `/styleguide` renders every component
-- Our home `/` is an empty chat (`templates/home.html` + `static/js/home.js`, its own app shell like ChatGPT's): sidebar with our name on top, Your chats & Public chats, the person at the bottom; the first message creates a room (Private needs sign in, Chatroom is public & multiplayer) & `sessionStorage.pendingMessage` hands it to chat, which sends it on the server's `joined` event
-- `OPENCOMPLETION_BRAND` names the site in every header (say `uncloseai`); unset, OpenCompletion
-- Pages extend `templates/layout.html`; chat (`templates/chat.html`) extends `templates/base.html`, its app shell
-- Both share `_head.html` & `_site_nav.html`; sign in is `_auth_steps.html` + `static/js/auth.js`
+- Every page shares one app shell like ChatGPT's: `templates/layout.html` + `_app_sidebar.html` (our name on top, every link, Your chats & Public chats, the person pinned at the bottom; a drawer on phones). Home & chat (`base.html`) extend it too; there is no site header
+- Our home `/` is an empty chat (`templates/home.html` + `static/js/home.js`); the first message creates a room (Private needs sign in, Chatroom is public & multiplayer) & `sessionStorage.pendingMessage` hands it to chat, which sends it on the server's `joined` event
+- A room is titled after its first model reply (`title_untitled_room` in app.py), so sidebars show titles, not slugs
+- `OPENCOMPLETION_BRAND` names the site atop every page (say `uncloseai`); unset, OpenCompletion
+- Pages extend `templates/layout.html`; chat (`templates/chat.html`) extends `templates/base.html`, which extends layout; sign in is `_auth_steps.html` + `static/js/auth.js`
 - All styling is in `static/css/style.css` (tokens on `:root`, dark under `[data-theme="dark"]`); templates carry no `<style>` or raw colours
 - `make test-ui` checks our page contract & layouts in headless Chromium at 320/375/768/1280px
 - Chat's JavaScript lives in `static/js/chat/` as ordered plain scripts sharing globals: `1-state.js`, `2-vision.js`, `3-room.js`, `4-tts.js`, `5-messages.js`, `6-code.js`, `7-activities.js`; server values arrive via `window.CHAT_CONFIG` in chat.html, never Jinja inside a .js file

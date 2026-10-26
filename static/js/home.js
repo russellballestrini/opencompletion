@@ -70,26 +70,6 @@ modelSelect.addEventListener('change', () => {
     try { localStorage.setItem('selectedModel', modelSelect.value); } catch (e) {}
 });
 
-// A guest's "Your chats" come from this browser's history.
-function fillGuestChats() {
-    const list = document.getElementById('your-chats');
-    if (list.dataset.signedIn === 'true') return;
-    const chats = recentChats();
-    chats.forEach(chat => {
-        const item = document.createElement('li');
-        const link = document.createElement('a');
-        link.href = `/chat/${encodeURIComponent(chat.name)}`;
-        link.title = chat.title || chat.name;
-        const name = document.createElement('span');
-        name.className = 'chat-list-name';
-        name.textContent = chat.title || chat.name;
-        link.appendChild(name);
-        item.appendChild(link);
-        list.appendChild(item);
-    });
-    document.getElementById('your-chats-empty').hidden = chats.length > 0;
-}
-
 // A readable, unique room name: the first words of the message plus a
 // random tail, within our server's rule [a-z0-9][a-z0-9_-]{0,63}.
 function newRoomName(message) {
@@ -158,4 +138,3 @@ input.addEventListener('input', () => {
 });
 
 showMode();
-fillGuestChats();

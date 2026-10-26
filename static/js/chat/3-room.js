@@ -324,48 +324,23 @@ document.getElementById("message").addEventListener("input", function() {
 // Socket event for updating the room title
 socket.on("update_room_title", (data) => {
     document.title = data.title; // Update the window's title
+    document.getElementById("chat-title").textContent = data.title;
     rememberRecentChat(room_name, data.title);
 });
 
-// Socket event to update the room title in the sidebar or add new rooms.
-// Each item is <li data-room-id><a><b>name</b><br>title<br>N users</a></li>,
-// the same markup base.html renders, built with DOM methods (no innerHTML).
-function fillRoomLink(link, room, userCount) {
-    link.textContent = '';
-    const nameElement = document.createElement('b');
-    nameElement.textContent = room.name;
-    link.appendChild(nameElement);
-    if (room.title) {
-        link.appendChild(document.createElement('br'));
-        link.appendChild(document.createTextNode(room.title));
-    }
-    if (userCount) {
-        link.appendChild(document.createElement('br'));
-        link.appendChild(document.createTextNode(`${userCount} users`));
-    }
-}
-
+// A new or retitled room, live in our sidebar (_app_sidebar.html). Rows
+// come from chatListItem() in utils.js, the same markup the server renders.
 socket.on('update_room_list', function(updatedRoom) {
-    const roomListItem = document.querySelector(`#rooms-list li[data-room-id="${updatedRoom.id}"]`);
-
-    if (roomListItem) {
-        const link = roomListItem.querySelector('a');
-        const userCountText = link.textContent.match(/(\d+)\s*users/);
-        fillRoomLink(link, updatedRoom, userCountText ? userCountText[1] : null);
+    const row = document.querySelector(`#app-sidebar li[data-room-id="${updatedRoom.id}"]`);
+    if (row) {
+        const name = row.querySelector('.chat-list-name');
+        name.textContent = updatedRoom.title || updatedRoom.name;
+        row.querySelector('a').title = name.textContent;
     } else if (updatedRoom.is_new) {
-        const targetList = updatedRoom.is_private
-            ? document.querySelector('#private-rooms-section .rooms-list')
-            : document.querySelector('#public-rooms-section .rooms-list');
-        if (!targetList) return;
-
-        const newLi = document.createElement('li');
-        newLi.setAttribute('data-room-id', updatedRoom.id);
-        newLi.classList.add(updatedRoom.is_private ? 'private-room' : 'public-room');
-        const newLink = document.createElement('a');
-        newLink.href = `/chat/${encodeURIComponent(updatedRoom.name)}`;
-        fillRoomLink(newLink, updatedRoom, null);
-        newLi.appendChild(newLink);
-        targetList.prepend(newLi);
+        const list = document.getElementById(updatedRoom.is_private ? 'your-chats' : 'public-chats');
+        if (!list) return;
+        list.prepend(chatListItem(updatedRoom, updatedRoom.is_private ? '🔒' : '', 'private'));
+        if (updatedRoom.is_private) document.getElementById('your-chats-empty').hidden = true;
     }
 });
 

@@ -752,20 +752,6 @@ def chat(room_name):
     if room_access_denied(room, user):
         return "Access denied: This is a private room", 403
 
-    # Query public rooms and user's private rooms for sidebar
-    public_rooms = (
-        Room.query.filter_by(is_private=False, is_archived=False)
-        .order_by(Room.id.desc())
-        .all()
-    )
-    private_rooms = []
-    if user:
-        private_rooms = (
-            Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id)
-            .order_by(Room.id.desc())
-            .all()
-        )
-
     # Use authenticated user's display name, or None (will prompt on client side)
     username = user.display_name if user else None
 
@@ -786,8 +772,6 @@ def chat(room_name):
         "chat.html",
         room_name=room_name,
         current_room=room,
-        public_rooms=public_rooms,
-        private_rooms=private_rooms,
         username=username,
         user=user,
         og_title=og_title,

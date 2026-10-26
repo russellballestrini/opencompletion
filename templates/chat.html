@@ -1,30 +1,38 @@
 {% extends "base.html" %}
 
-{% block title %}Chatroom{% endblock %}
+{% block title %}{{ current_room.title if current_room and current_room.title else room_name }} - {{ brand_name }}{% endblock %}
 
 {% block content %}
 
-    <div id="chat-container">
-        <!-- Top bar: search, plus drawer toggles on phones -->
+    <main id="chat-container" class="chat-main">
+        <!-- Top bar: our room's title, plus drawer toggles on phones -->
         <div class="chat-topbar">
-            <button type="button" class="icon-btn drawer-toggle" onclick="openDrawer('rooms')" aria-label="Rooms & site menu">☰</button>
-            <form id="search-form" action="/search" method="get" role="search">
-                <label class="visually-hidden" for="search-keywords">Search messages</label>
-                <input type="search" id="search-keywords" name="keywords" placeholder="Search messages" value="{{ keywords|default('') }}">
-            </form>
+            <button type="button" class="icon-btn drawer-toggle" onclick="openDrawer('rooms')" aria-label="Chats & site menu">☰</button>
+            <h1 id="chat-title" class="chat-title" title="{{ room_name }}">{{ current_room.title if current_room and current_room.title else room_name }}</h1>
+            <span class="chat-mode">
+                {% if current_room and current_room.is_private %}🔒 Private{% else %}<svg class="sidebar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9.5 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 20v-2a4 4 0 0 0-3-3.9M16 2.1a4 4 0 0 1 0 7.8"/></svg> Chatroom{% endif %}
+            </span>
             <button type="button" class="icon-btn drawer-toggle" onclick="openDrawer('controls')" aria-label="Room controls">⚙</button>
         </div>
 
         <!-- Chat area where messages will be displayed -->
         <div id="chat"></div>
 
-        <!-- Form for sending messages -->
-        <form id="message-form">
+        <!-- Our composer, the same one our home page uses -->
+        <form id="message-form" class="composer chat-composer">
             <label class="visually-hidden" for="message">Message</label>
-            <textarea id="message" placeholder="Type your message..."></textarea>
-            <button type="button" id="send-button" class="btn" onclick="sendMessage()">Send</button>
+            <textarea id="message" rows="1" placeholder="Message, or type /help"></textarea>
+            <div class="composer-bar">
+                <label class="visually-hidden" for="model-select">Model</label>
+                <select id="model-select" class="composer-model">
+                    <option value="None">People only (no model)</option>
+                </select>
+                <button type="button" id="send-button" class="composer-send" onclick="sendMessage()" aria-label="Send">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                </button>
+            </div>
         </form>
-    </div>
+    </main>
 
     <aside class="utility-belt" aria-label="Room controls">
         <button type="button" class="icon-btn drawer-close" onclick="closeDrawer()" aria-label="Close controls">×</button>
@@ -47,12 +55,6 @@
             <a href="/download_chat_history_md?room_name={{ room_name|urlencode }}" download="{{ room_name }}.md">Markdown</a>
         </p>
 
-        <div>
-            <label for="model-select">Model</label>
-            <select id="model-select">
-                <option value="None">None</option>
-            </select>
-        </div>
         <div>
             <label for="voice-select">Voice</label>
             <select id="voice-select">

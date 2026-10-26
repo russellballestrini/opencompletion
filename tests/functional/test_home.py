@@ -44,7 +44,7 @@ def test_guest_sees_public_chats_and_cannot_pick_private(client):
     assert re.search(
         r'data-mode="private" aria-pressed="false" aria-disabled="true"', html
     )
-    assert 'href="/auth"' in html
+    assert 'href="/auth?next=/"' in html
 
 
 def test_your_chats_hold_your_rooms_and_never_anyone_elses_private_one(client):

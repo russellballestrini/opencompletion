@@ -317,14 +317,13 @@ window.addEventListener('load', () => {
         return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
     };
     if (width <= 768) {
-        for (const el of document.querySelectorAll('.btn, .icon-btn, .site-nav a, .site-nav button, .form-input')) {
+        for (const el of document.querySelectorAll('.btn, .icon-btn, .sidebar-link, .chat-list a, .sidebar-user-link, .form-input')) {
             if (visible(el) && el.getBoundingClientRect().height < 40) {
                 problems.push('small tap target ' + el.tagName + ' "' + el.textContent.trim().slice(0, 20) + '" ' + el.getBoundingClientRect().height);
             }
         }
     }
-    const header = document.querySelector('.site-header');
-    if (header && getComputedStyle(document.body).overflowY === 'hidden') {
+    if (!document.body.classList.contains('chat-page') && getComputedStyle(document.body).overflowY === 'hidden') {
         problems.push('page cannot scroll');
     }
     document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
@@ -350,22 +349,25 @@ window.addEventListener('load', () => {
     const check = (ok, name) => { if (!ok) problems.push(name); };
     const shown = el => getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0;
     const inside = el => { const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1; };
-    const rooms = document.getElementById('rooms-list');
+    const rooms = document.getElementById('app-sidebar');
     const controls = document.querySelector('.utility-belt');
     const toggles = [...document.querySelectorAll('.drawer-toggle')];
     check(document.documentElement.scrollWidth <= innerWidth, 'horizontal overflow');
     check(shown(document.getElementById('message')), 'message box visible');
+    check(shown(document.getElementById('model-select')), 'model picker in our composer');
+    check(document.querySelector('#public-chats a[aria-current="page"]'), 'open chat marked in our sidebar');
     if (innerWidth <= 768) {
         check(toggles.length === 2 && toggles.every(shown), 'drawer toggles visible');
+        const main = document.querySelector('.chat-main').getBoundingClientRect();
+        check(main.left === 0 && main.width >= innerWidth - 1, 'chat fills a phone: ' + main.width);
         check(!shown(rooms) && !shown(controls), 'panels start closed');
         openDrawer('rooms');
         check(shown(rooms) && inside(rooms), 'rooms drawer opens on screen');
-        check(shown(rooms.querySelector('#room-tabs')), 'public/private tabs in drawer');
-        check(shown(rooms.querySelector('.site-nav')), 'site links in drawer');
+        check(shown(rooms.querySelector('#public-chats')) && shown(rooms.querySelector('.sidebar-actions')), 'chats & site links in drawer');
+        check(shown(rooms.querySelector('.sidebar-user')), 'you, at the bottom of the drawer');
         closeDrawer();
         openDrawer('controls');
         check(shown(controls) && inside(controls), 'controls drawer opens on screen');
-        check(shown(document.getElementById('model-select')), 'model picker reachable');
         check(!!controls.querySelector('.download-links'), 'history download reachable');
         document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
         check(!shown(controls), 'Escape closes drawer');
@@ -431,11 +433,12 @@ window.addEventListener('load', () => {
     const copyButton = document.querySelector('#message-1 .button-container .copy-button');
     copyButton.click();
 
-    // Sidebar tabs tell assistive tech which is selected
-    switchRoomTab('private');
-    check(document.getElementById('private-rooms-tab').getAttribute('aria-selected') === 'true'
-        && document.getElementById('public-rooms-tab').getAttribute('aria-selected') === 'false', 'tabs report aria-selected');
-    switchRoomTab('public');
+    // A retitled room renames itself in our sidebar & top bar
+    const row = document.querySelector('#public-chats li[data-room-id]');
+    deliver('update_room_list', {id: Number(row.dataset.roomId), name: 'lobby', title: 'Weekend <b>plans</b>'});
+    deliver('update_room_title', {title: 'Weekend <b>plans</b>'});
+    check(row.textContent.includes('Weekend <b>plans</b>') && !row.querySelector('b'), 'sidebar title is text, never markup');
+    check(document.getElementById('chat-title').textContent === 'Weekend <b>plans</b>', 'top bar shows the title');
 
     // A name full of markdown stays a name
     deliver('chat_message', {id: 30, username: '[x](javascript:alert(1))', content: 'hi'});
@@ -504,18 +507,21 @@ MENU_PROBE = r"""
 window.addEventListener('load', () => {
     const problems = [];
     const check = (ok, name) => { if (!ok) problems.push(name); };
-    const header = document.querySelector('.site-header');
-    const toggle = header.querySelector('.nav-toggle');
-    const rooms = header.querySelector('.site-nav a[href="/browse"]');
+    const sidebar = document.getElementById('app-sidebar');
+    const toggle = document.querySelector('.page-topbar .drawer-toggle');
     const shown = el => el.getBoundingClientRect().height > 0;
+    const links = ['/', '/search', '/browse', '/profile', '/auth?next=/browse'];
+    links.forEach(href => check(sidebar.querySelector(`a[href="${href}"]`), 'sidebar links ' + href));
+    check(sidebar.querySelector('[data-theme-toggle]'), 'theme toggle in our sidebar');
+    check(sidebar.querySelector('a[href="/browse"][aria-current="page"]'), 'current page marked');
     if (innerWidth <= 768) {
-        check(shown(toggle) && !shown(rooms), 'links folded behind the menu');
-        check(header.getBoundingClientRect().height <= 120, 'header is compact: ' + header.getBoundingClientRect().height);
+        check(shown(toggle) && !shown(sidebar), 'sidebar folds behind ☰');
         toggle.click();
-        check(toggle.getAttribute('aria-expanded') === 'true', 'menu reports open');
-        check(shown(rooms) && rooms.getBoundingClientRect().right <= innerWidth, 'links show on screen');
+        check(shown(sidebar) && sidebar.getBoundingClientRect().right <= innerWidth, 'drawer opens on screen');
+        document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+        check(!shown(sidebar), 'Escape closes it');
     } else {
-        check(!shown(toggle) && shown(rooms), 'desktop shows links, no menu button');
+        check(!shown(toggle) && shown(sidebar), 'desktop shows our sidebar, no menu button');
     }
     document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
 });
@@ -524,7 +530,7 @@ window.addEventListener('load', () => {
 
 
 @pytest.mark.parametrize("width", WIDTHS)
-def test_header_menu_on_phones(client, tmp_path, width):
+def test_sidebar_menu_on_every_page(client, tmp_path, width):
     html = client.get("/browse").get_data(as_text=True)
     out = run_probe(html, MENU_PROBE, tmp_path, width)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

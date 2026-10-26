@@ -39,6 +39,43 @@ function forgetRecentChat(name) {
     try { localStorage.setItem(RECENT_CHATS_KEY, JSON.stringify(list)); } catch (e) {}
 }
 
+// One row of our sidebar's chat lists, the same markup _app_sidebar.html
+// renders, built with DOM methods (a title is never HTML).
+function chatListItem(room, tag, tagLabel) {
+    const item = document.createElement('li');
+    if (room.id) item.dataset.roomId = room.id;
+    const link = document.createElement('a');
+    link.href = `/chat/${encodeURIComponent(room.name)}`;
+    link.title = room.title || room.name;
+    const name = document.createElement('span');
+    name.className = 'chat-list-name';
+    name.textContent = room.title || room.name;
+    link.appendChild(name);
+    if (tag) {
+        const badge = document.createElement('span');
+        badge.className = 'chat-list-tag';
+        badge.setAttribute('aria-label', tagLabel || tag);
+        badge.textContent = tag;
+        link.appendChild(badge);
+    }
+    item.appendChild(link);
+    return item;
+}
+
+// A guest's "Your chats" come from this browser's history; `current`
+// names the open chat, if any.
+function fillGuestChats(current) {
+    const list = document.getElementById('your-chats');
+    if (!list || list.dataset.signedIn === 'true') return;
+    const chats = recentChats();
+    chats.forEach(chat => {
+        const item = chatListItem(chat);
+        if (chat.name === current) item.querySelector('a').setAttribute('aria-current', 'page');
+        list.appendChild(item);
+    });
+    document.getElementById('your-chats-empty').hidden = chats.length > 0;
+}
+
 // Our home page hands its first message to the chat page it opens: kept in
 // sessionStorage (this tab only) & sent once that room's page has joined.
 const PENDING_MESSAGE_KEY = 'pendingMessage';

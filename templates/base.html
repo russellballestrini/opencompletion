@@ -1,9 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    {% include "_head.html" %}
-    <title>{% block title %}Chat - OpenCompletion{% endblock %}</title>
+{% extends "layout.html" %}
+{# Chat's app shell: our layout plus vendored chat libraries, room
+   controls as a third column, & a sign-in dialog. chat.html fills
+   `content` (its main column & controls). #}
 
+{% block title %}Chat - {{ brand_name }}{% endblock %}
+
+{% block head %}
     <!-- Browser libraries, vendored in static/vendor/ (see its README):
          highlight.js for code blocks (one theme per colour scheme),
          socket.io for realtime messages, marked.js renders markdown &
@@ -14,74 +16,19 @@
     <script src="{{ url_for('static', filename='vendor/socket.io-4.0.1.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/marked-9.1.2.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/purify-2.5.9.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script>
       // Connect to the server using socket.io
       const socket = io();
     </script>
-</head>
-<body class="chat-page">
+{% endblock %}
 
-<div class="main-container">
-  <!-- Rooms sidebar: a drawer on phones (see .chat-topbar) -->
-  <aside id="rooms-list" aria-label="Rooms">
-      <button type="button" class="icon-btn drawer-close" onclick="closeDrawer()" aria-label="Close rooms">×</button>
-      {% set show_search = false %}
-      {% include "_site_nav.html" %}
+{% block body_class %}chat-page{% endblock %}
+{% block shell_class %}chat-shell{% endblock %}
+{% block skip_target %}#message{% endblock %}
 
-      <a class="btn btn-block" href="/">New chat</a>
+{% block main %}{% block content %}{% endblock %}{% endblock %}
 
-      <div id="room-tabs" role="tablist">
-          {% set private_active = current_room and current_room.is_private %}
-          <button type="button" class="room-tab {% if not private_active %}active{% endif %}" id="public-rooms-tab" role="tab" aria-controls="public-rooms-section" aria-selected="{{ 'false' if private_active else 'true' }}" onclick="switchRoomTab('public')">Public</button>
-          <button type="button" class="room-tab {% if private_active %}active{% endif %}" id="private-rooms-tab" role="tab" aria-controls="private-rooms-section" aria-selected="{{ 'true' if private_active else 'false' }}" onclick="switchRoomTab('private')">Private</button>
-      </div>
-
-      <div id="private-rooms-section" class="room-section" {% if not (current_room and current_room.is_private) %}hidden{% endif %}>
-          {% if user %}
-              {% if private_rooms %}
-                  <ul class="rooms-list">
-                      {% for room in private_rooms %}
-                      <li data-room-id="{{ room.id }}" class="private-room">
-                          <a href="{{ url_for('chat', room_name=room.name) }}">
-                              <b>{{ room.name }}</b>
-                              {% if room.title %}<br>{{ room.title }}{% endif %}
-                              {% if room.get_active_users()|length %}<br>{{ room.get_active_users()|length }} users{% endif %}
-                          </a>
-                      </li>
-                      {% endfor %}
-                  </ul>
-              {% else %}
-                  <p class="empty-state">No private rooms yet.</p>
-              {% endif %}
-          {% else %}
-              <div class="auth-prompt">
-                  <p>Private rooms are only visible to their owner.</p>
-                  <button type="button" class="btn btn-secondary btn-block" onclick="showAuthModal()">Sign in</button>
-              </div>
-          {% endif %}
-      </div>
-
-      <div id="public-rooms-section" class="room-section" {% if current_room and current_room.is_private %}hidden{% endif %}>
-          <ul id="rooms-list-ul" class="rooms-list">
-              {% for room in public_rooms %}
-              <li data-room-id="{{ room.id }}" class="public-room">
-                  <a href="{{ url_for('chat', room_name=room.name) }}">
-                      <b>{{ room.name }}</b>
-                      {% if room.title %}<br>{{ room.title }}{% endif %}
-                      {% if room.get_active_users()|length %}<br>{{ room.get_active_users()|length }} users{% endif %}
-                  </a>
-                  {% if user and room.owner_id == user.id %}<span class="badge">Yours</span>{% endif %}
-              </li>
-              {% endfor %}
-          </ul>
-      </div>
-  </aside>
-
-  {% block content %}{% endblock %}
-</div>
-<div class="drawer-backdrop" onclick="closeDrawer()"></div>
-
+{% block after_shell %}
 <!-- Sign-in dialog, the same steps as /auth -->
 <div id="auth-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" hidden>
     <div id="auth-flow" class="modal-card auth-container" data-after="reload">
@@ -90,8 +37,9 @@
         {% include "_auth_steps.html" %}
     </div>
 </div>
+{% endblock %}
 
-<script src="{{ url_for('static', filename='js/site.js') }}"></script>
+{% block scripts %}
 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 <script>
     // Phones: the rooms sidebar & our controls open as drawers (openDrawer
@@ -107,16 +55,6 @@
     }
     updateHighlightTheme(currentTheme());
     document.addEventListener('themechange', event => updateHighlightTheme(event.detail.theme));
-
-    function switchRoomTab(tab) {
-        const isPublic = tab === 'public';
-        document.getElementById('public-rooms-tab').classList.toggle('active', isPublic);
-        document.getElementById('private-rooms-tab').classList.toggle('active', !isPublic);
-        document.getElementById('public-rooms-tab').setAttribute('aria-selected', String(isPublic));
-        document.getElementById('private-rooms-tab').setAttribute('aria-selected', String(!isPublic));
-        document.getElementById('public-rooms-section').hidden = !isPublic;
-        document.getElementById('private-rooms-section').hidden = isPublic;
-    }
 
     function showAuthModal() {
         closeDrawer();
@@ -189,5 +127,4 @@
         }
     }
 </script>
-</body>
-</html>
+{% endblock %}
