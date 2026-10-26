@@ -31,17 +31,24 @@ function toggleTheme() {
     setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
 }
 
-// Phones: our header's links fold behind a menu button.
-function toggleSiteNav(button) {
-    const open = button.getAttribute('aria-expanded') !== 'true';
-    button.setAttribute('aria-expanded', String(open));
-    button.closest('.site-header').classList.toggle('nav-open', open);
+// Phones: app sidebars & panels open as drawers (chat & our home).
+function openDrawer(which) {
+    document.body.dataset.drawer = which;
 }
+
+function closeDrawer() {
+    delete document.body.dataset.drawer;
+}
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeDrawer();
+});
 
 async function signOut() {
     try {
         const response = await fetch('/auth/logout', {method: 'POST'});
         if (!response.ok) throw new Error(response.statusText);
+        forgetRecentChats();
         window.location.href = '/';
     } catch (error) {
         alert('Sign out failed. Please try again.');

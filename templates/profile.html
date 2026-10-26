@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% set active_nav = 'profile' %}
 
-{% block title %}{{ 'Profile' if user else 'Settings' }} - OpenCompletion{% endblock %}
+{% block title %}{{ 'Profile' if user else 'Settings' }} - {{ brand_name }}{% endblock %}
 {% block page_class %}page-narrow{% endblock %}
 
 {% block content %}

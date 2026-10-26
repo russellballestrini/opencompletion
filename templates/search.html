@@ -1,12 +1,17 @@
 {% extends "layout.html" %}
 {% set active_nav = 'search' %}
 
-{% block title %}{% if keywords %}{{ keywords }} - {% endif %}Search - OpenCompletion{% endblock %}
+{% block title %}{% if keywords %}{{ keywords }} - {% endif %}Search - {{ brand_name }}{% endblock %}
 
 {% block content %}
 <h1 class="page-title">Search messages</h1>
+<form class="search-form" action="/search" method="get" role="search">
+    <label class="visually-hidden" for="search-input">Search messages</label>
+    <input id="search-input" class="form-input" type="search" name="keywords" placeholder="Words to find" value="{{ keywords|default('') }}"{% if not keywords %} autofocus{% endif %}>
+    <button type="submit" class="btn">Search</button>
+</form>
 {% if not keywords %}
-<p class="page-subtitle">Type words in our search box above. We search public rooms{% if user %} & your private rooms{% endif %}.</p>
+<p class="page-subtitle">We search public rooms{% if user %} & your private rooms{% endif %}.</p>
 {% elif results %}
 <p class="page-subtitle">{{ results|length }} room{{ '' if results|length == 1 else 's' }} mention <strong>{{ keywords }}</strong>, most mentions first.</p>
 <div class="room-grid">

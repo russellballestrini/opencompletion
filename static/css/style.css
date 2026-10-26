@@ -184,40 +184,9 @@ body.chat-page {
     overflow: hidden;
 }
 
-/* Main container for chat interface (3-column grid) */
-.main-container {
-    display: grid;
-    grid-template-columns: 240px 1fr 280px;
-    width: 100%;
-    height: 100vh;
-    height: 100dvh;
-    gap: 0;
-}
-
 /* ========================================
    CHAT PAGE LAYOUT (STAR OF THE SHOW!)
    ======================================== */
-
-/* Left sidebar - rooms list */
-#rooms-list {
-    border-right: 1px solid var(--border-color);
-    overflow-y: auto;
-    padding: var(--space-3);
-    background-color: var(--bg-secondary);
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-    display: grid;
-    grid-auto-rows: max-content;
-    gap: var(--space-3);
-}
-
-/* Room tabs */
-#room-tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-    border-bottom: 2px solid var(--border-color);
-    margin-bottom: var(--space-3);
-}
 
 .room-tab {
     padding: var(--space-2);
@@ -243,103 +212,127 @@ body.chat-page {
     font-weight: 600;
 }
 
-/* Room list */
-.rooms-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: grid;
-    gap: var(--space-2);
-}
-
-.rooms-list li {
-    position: relative;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background-color: var(--bg-secondary);
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-}
-
-.rooms-list li:hover {
-    background-color: var(--bg-hover);
-    border-color: var(--button-primary);
-}
-
-.rooms-list li a {
-    display: block;
-    padding: var(--space-2) var(--space-3);
-    color: var(--link-color);
-    font-size: 13px;
-    overflow-wrap: anywhere;
-}
-
-.rooms-list li a:hover {
-    color: var(--link-hover);
-    text-decoration: none;
-}
-
-.rooms-list .badge {
-    position: absolute;
-    top: var(--space-2);
-    right: var(--space-2);
-}
-
-.room-section[hidden] {
-    display: none;
-}
-
 .room-tab {
     min-height: 40px;
     font: inherit;
 }
 
-/* Center - chat container */
-#chat-container {
+/* Center: our room's top bar, messages, & home's composer. Messages and
+   composer share one centred column, as on our home page. */
+.chat-main {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     height: 100vh;
     height: 100dvh;
     min-width: 0;
-    background-color: var(--bg-secondary);
-    padding: var(--space-4);
-    box-sizing: border-box;
-    transition: background-color 0.2s ease;
     overflow-x: hidden;
 }
 
-/* Chat messages area */
+.chat-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 60px;
+    padding: var(--space-2) var(--space-4);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chat-title {
+    margin: 0;
+    overflow: hidden;
+    font-size: 16px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
 #chat {
     overflow-y: auto;
     overflow-x: hidden;
-    padding: var(--space-3);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background-color: var(--bg-primary);
+    padding: var(--space-6) var(--space-4);
     color: var(--text-primary);
-    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-/* Message wrapper */
+#chat > *,
+.chat-composer {
+    width: 100%;
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.chat-composer {
+    margin-bottom: var(--space-4);
+}
+
+/* A message: its words, then its actions in a quiet row underneath that
+   brighten on hover or focus (still there, & tappable, on touch screens). */
 .message-wrapper {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: start;
-    gap: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
     margin-bottom: var(--space-6);
     min-width: 0;
 }
 
-.button-container {
-    display: grid;
+.message-wrapper > .button-container {
+    order: 2;
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--space-1);
+    opacity: 0.55;
+    transition: opacity 0.15s ease;
+}
+
+.message-wrapper:hover > .button-container,
+.message-wrapper:focus-within > .button-container {
+    opacity: 1;
+}
+
+.code-block-button-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin: calc(-1 * var(--space-2)) 0 var(--space-3);
+}
+
+/* Every button inside a conversation (message actions, code-block Copy &
+   Run, run results) is one quiet style, so words stay the focus. */
+#chat button {
+    min-height: 32px;
+    padding: 0 var(--space-2);
+    border: none;
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+#chat button:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
 }
 
 .message-body {
     width: 100%;
     display: grid;
     overflow-wrap: break-word;
-    word-wrap: break-word;
-    word-break: break-word;
     min-width: 0;
 }
 
@@ -352,49 +345,28 @@ body.chat-page {
 
 .message-content {
     width: 100%;
-    font-size: 14px;
-    line-height: 1.6;
+    font-size: 15px;
+    line-height: 1.65;
     overflow-wrap: break-word;
-    word-wrap: break-word;
     word-break: break-word;
     min-width: 0;
 }
 
-/* Message input area */
-#message-form {
-    margin-top: var(--space-3);
-    display: flex;
-    gap: var(--space-2);
-    align-items: flex-end;
+.message-content p:last-child {
+    margin-bottom: 0;
 }
 
-#send-button {
-    min-height: 60px;
-    white-space: nowrap;
-}
-
-#message, .message-edit {
+.message-edit {
     width: 100%;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: var(--space-3);
-    display: block;
-    background-color: var(--bg-tertiary);
-    color: var(--text-primary);
-    transition: all 0.2s ease;
     min-height: 60px;
     max-height: 200px;
-    overflow-y: auto;
-    resize: none;
-    box-sizing: border-box;
-    font-family: inherit;
-    font-size: 14px;
-    line-height: 1.5;
-}
-
-#message:focus, .message-edit:focus {
-    border-color: var(--button-primary);
+    padding: var(--space-3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
     background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    resize: none;
 }
 
 /* Right sidebar - utility belt */
@@ -423,7 +395,7 @@ body.chat-page {
 }
 
 /* Dropdowns in utility belt */
-#model-select, #voice-select, #activity-select {
+#voice-select, #activity-select {
     width: 100%;
     padding: var(--space-2);
     border: 1px solid var(--border-color);
@@ -436,7 +408,7 @@ body.chat-page {
     transition: all 0.2s ease;
 }
 
-#model-select:focus, #voice-select:focus, #activity-select:focus {
+#voice-select:focus, #activity-select:focus {
     border-color: var(--button-primary);
 }
 
@@ -668,119 +640,35 @@ textarea:focus {
 }
 
 /* ========================================
-   SITE HEADER (every page but chat, whose
-   sidebar carries the same links)
+   PAGES (browse, search, profile, auth, style guide)
    ======================================== */
 
-.site-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-4);
-    background-color: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.brand {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
-    white-space: nowrap;
-}
-
-.brand:hover {
-    color: var(--text-primary);
-    text-decoration: none;
-}
-
-.site-search {
-    margin: 0;
+/* A page beside our sidebar; on phones a slim bar opens the sidebar. */
+.app-main {
     min-width: 0;
 }
 
-.site-search input,
-#search-keywords {
-    width: 100%;
-    min-height: 40px;
-    padding: var(--space-2) var(--space-3);
-    background-color: var(--bg-tertiary);
+.page-topbar {
+    display: none;
+}
+
+.page-topbar-brand {
+    font-size: 18px;
+    font-weight: 700;
     color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    font: inherit;
 }
 
-.site-nav {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-1);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.site-nav a,
-.site-nav button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 40px;
-    padding: 0 var(--space-3);
-    border: none;
-    border-radius: var(--radius-md);
-    background: none;
-    color: var(--text-secondary);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.site-nav a:hover,
-.site-nav button:hover {
-    background-color: var(--bg-hover);
+.page-topbar-brand:hover {
     color: var(--text-primary);
     text-decoration: none;
 }
 
-.theme-icon {
-    margin-right: var(--space-1);
-}
-
-.site-header .nav-toggle {
-    display: none;
-}
-
-.site-nav a[aria-current="page"] {
-    color: var(--text-primary);
-    background-color: var(--bg-tertiary);
-}
-
-/* The chat sidebar stacks our same links. */
-#rooms-list .site-nav {
+.search-form {
     display: grid;
-    gap: 0;
-    padding-bottom: var(--space-3);
-    border-bottom: 1px solid var(--border-color);
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
 }
-
-#rooms-list .site-nav a,
-#rooms-list .site-nav button {
-    justify-content: flex-start;
-    width: 100%;
-}
-
-#rooms-list .brand {
-    padding: var(--space-2) var(--space-3);
-}
-
-/* ========================================
-   PAGES (index, browse, search, profile, auth)
-   ======================================== */
 
 .page {
     width: 100%;
@@ -1132,14 +1020,6 @@ textarea:focus {
    bar, the real panels, never copies.
    ======================================== */
 
-.chat-topbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-2);
-    align-items: center;
-    margin-bottom: var(--space-3);
-}
-
 .drawer-toggle,
 .drawer-close,
 .drawer-backdrop {
@@ -1147,25 +1027,20 @@ textarea:focus {
 }
 
 @media (max-width: 1024px) {
-    .main-container {
-        grid-template-columns: 200px 1fr 240px;
+    .app-shell.chat-shell {
+        grid-template-columns: 220px minmax(0, 1fr) 240px;
     }
 }
 
 @media (max-width: 768px) {
-    .main-container {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
     /* 16px text keeps iOS Safari from zooming into a focused field */
-    #message,
-    #search-keywords,
     .utility-belt select {
         font-size: 16px;
     }
 
     .chat-topbar {
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
+        padding: var(--space-2) var(--space-3);
     }
 
     .drawer-toggle,
@@ -1177,7 +1052,6 @@ textarea:focus {
         justify-self: end;
     }
 
-    #rooms-list,
     .utility-belt {
         display: none;
         position: fixed;
@@ -1189,15 +1063,10 @@ textarea:focus {
         box-shadow: var(--shadow-lg);
     }
 
-    #rooms-list {
-        left: 0;
-    }
-
     .utility-belt {
         right: 0;
     }
 
-    body[data-drawer="rooms"] #rooms-list,
     body[data-drawer="controls"] .utility-belt {
         display: grid;
         grid-auto-rows: max-content;
@@ -1212,48 +1081,22 @@ textarea:focus {
         background-color: var(--modal-overlay);
     }
 
-    #chat-container {
-        padding: var(--space-3);
+    #chat {
+        padding: var(--space-4) var(--space-3);
     }
 
-    /* Phone header: brand & menu button, search below, links on demand */
-    .site-header {
-        position: static;
-        grid-template-columns: minmax(0, 1fr) auto;
+    .chat-composer {
+        width: auto;
+        margin: 0 var(--space-3) var(--space-3);
     }
 
-    .site-header .nav-toggle {
-        display: inline-grid;
+    .page-topbar {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        border-bottom: 1px solid var(--border-color);
     }
-
-    .site-header nav {
-        display: none;
-        grid-column: 1 / -1;
-        grid-row: 3;
-    }
-
-    .site-header.nav-open nav {
-        display: block;
-    }
-
-    .site-header .site-nav {
-        display: grid;
-        gap: 0;
-    }
-
-    .site-header .site-nav a,
-    .site-header .site-nav button {
-        justify-content: flex-start;
-        width: 100%;
-        min-height: 44px;
-    }
-
-
-    .site-header .site-search {
-        grid-column: 1 / -1;
-        grid-row: 2;
-    }
-
 
     .page {
         padding: var(--space-4) var(--space-4) var(--space-10);
@@ -1265,13 +1108,6 @@ textarea:focus {
 
     h1 {
         font-size: 26px;
-    }
-}
-
-@media (max-width: 400px) {
-    .site-nav a,
-    .site-nav button {
-        padding: 0 var(--space-2);
     }
 }
 
@@ -1333,10 +1169,10 @@ a:hover {
    and audio start, so the wait doesn't feel like a hang. Explicit colors keep
    the disabled state legible in both light and dark themes (browser default
    disabled greys out to near-invisible against dark backgrounds). */
-.tts-queued,
-.tts-loading,
-.tts-queued:disabled,
-.tts-loading:disabled {
+#chat .tts-queued,
+#chat .tts-loading,
+#chat .tts-queued:disabled,
+#chat .tts-loading:disabled {
     background-color: var(--button-secondary);
     color: #ffffff;
     border: 1px solid var(--button-secondary);
@@ -1423,6 +1259,431 @@ a:hover {
     overflow-wrap: anywhere;
 }
 
-#rooms-list .empty-state {
-    padding: var(--space-4) 0;
+
+/* ========================================
+   APP SHELL: our home & every chat
+   (_app_sidebar.html). Sidebar of chats on
+   the left, our name on top & you at the
+   bottom; one .composer for both pages.
+   Phones: the sidebar is a drawer.
+   ======================================== */
+
+.app-shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+/* Chat adds its room controls (.utility-belt) as a third column. */
+.app-shell.chat-shell {
+    grid-template-columns: 260px minmax(0, 1fr) 280px;
+    height: 100vh;
+    height: 100dvh;
+}
+
+.app-sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    height: 100vh;
+    height: 100dvh;
+    padding: var(--space-3);
+    overflow: hidden;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+}
+
+/* Our chat lists scroll on their own, so a long list never pushes you
+   (.sidebar-user) or Sign in off the bottom of the sidebar. */
+.sidebar-scroll {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-height: 0;
+    margin: 0 calc(-1 * var(--space-3));
+    padding: 0 var(--space-3);
+    overflow-y: auto;
+}
+
+.brand {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.brand:hover {
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.sidebar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+    padding: 0 var(--space-2);
+}
+
+.sidebar-actions {
+    display: grid;
+    gap: 2px;
+}
+
+.sidebar-link,
+.chat-list a,
+.sidebar-user-link,
+.sidebar-more {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 40px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.sidebar-link:hover,
+.chat-list a:hover,
+.sidebar-user-link:hover,
+.sidebar-more:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.sidebar-link[aria-current="page"],
+.chat-list a[aria-current="page"],
+.sidebar-user-link[aria-current="page"] {
+    background-color: var(--bg-tertiary);
+    font-weight: 600;
+}
+
+.sidebar-icon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sidebar-section {
+    display: grid;
+    gap: 2px;
+}
+
+.sidebar-heading {
+    margin: 0;
+    padding: 0 var(--space-3) var(--space-1);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.chat-list {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.chat-list a {
+    justify-content: space-between;
+}
+
+.chat-list-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-list-tag {
+    flex: none;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.sidebar-more {
+    color: var(--text-secondary);
+}
+
+.sidebar-empty {
+    margin: 0;
+    padding: 0 var(--space-3);
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.sidebar-user {
+    display: flex;
+    align-items: center;
+    flex: none;
+    gap: var(--space-1);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-color);
+}
+
+.sidebar-user-link {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+}
+
+.sidebar-user-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.avatar {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--button-primary);
+    color: #fff;
+    font-weight: 700;
+}
+
+.home-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.home-topbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+}
+
+.mode-switch {
+    display: flex;
+    gap: var(--space-1);
+    margin-left: auto;
+    padding: var(--space-1);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background-color: var(--bg-secondary);
+}
+
+.mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 0 var(--space-4);
+    border: none;
+    border-radius: 999px;
+    background: none;
+    color: var(--text-secondary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.mode-btn:hover {
+    color: var(--text-primary);
+}
+
+.mode-btn[aria-pressed="true"] {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.mode-btn[aria-disabled="true"] {
+    opacity: 0.6;
+}
+
+.home-center {
+    width: 100%;
+    max-width: 760px;
+    margin: auto;
+    padding: var(--space-6) var(--space-4) 18vh;
+}
+
+.home-greeting {
+    margin-bottom: var(--space-6);
+    font-size: 28px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.composer {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-3) var(--space-2) var(--space-4);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    background-color: var(--bg-secondary);
+    box-shadow: var(--shadow-md);
+}
+
+.composer:focus-within {
+    border-color: var(--focus-ring);
+}
+
+.composer textarea {
+    width: 100%;
+    min-height: 28px;
+    max-height: 240px;
+    padding: var(--space-1) 0;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 16px;
+    resize: none;
+}
+
+/* The composer's own border shows focus, so the box needs no outline. */
+.composer textarea:focus {
+    outline: none;
+}
+
+.composer-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+}
+
+.composer-model {
+    min-width: 0;
+    max-width: 60%;
+    min-height: 40px;
+    padding: 0 var(--space-2);
+    border: none;
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--text-secondary);
+    font: inherit;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.composer-model:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.composer-send {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background-color: var(--text-primary);
+    color: var(--bg-secondary);
+    cursor: pointer;
+}
+
+.composer-send:disabled {
+    opacity: 0.5;
+    cursor: progress;
+}
+
+.composer-send svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.composer-hint {
+    margin: var(--space-3) 0 0;
+    font-size: 13px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.home-center .error-message {
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .app-shell,
+    .app-shell.chat-shell {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .app-sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1001;
+        width: min(320px, 85vw);
+        box-shadow: var(--shadow-lg);
+    }
+
+    body[data-drawer="rooms"] .app-sidebar {
+        display: flex;
+    }
+
+    .sidebar-link,
+    .chat-list a,
+    .sidebar-more {
+        min-height: 44px;
+    }
+
+    .home-topbar {
+        padding: var(--space-2) var(--space-3);
+    }
+
+    .mode-btn {
+        padding: 0 var(--space-3);
+    }
+
+    .home-greeting {
+        font-size: 22px;
+    }
+
+    .composer-model {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 360px) {
+    .mode-btn {
+        gap: var(--space-1);
+        padding: 0 var(--space-2);
+    }
+}
+
+.sidebar-top .icon-btn,
+.sidebar-user .icon-btn {
+    border-color: transparent;
+    background: none;
+}
+
+.sidebar-top .icon-btn:hover,
+.sidebar-user .icon-btn:hover {
+    background-color: var(--bg-hover);
 }

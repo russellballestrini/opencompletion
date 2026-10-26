@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+{# Our home: an empty chat, like every chat app people already know. The
+   first message makes a room: private (only you) or a multiplayer
+   chatroom anyone with the link can join. That second mode is ours. #}
+{% set active_nav = 'home' %}
+
+{% block body_class %}home-page{% endblock %}
+{% block skip_target %}#composer-input{% endblock %}
+
+{% block main %}
+<main id="main" class="home-main">
+    <div class="home-topbar">
+        <button type="button" class="icon-btn drawer-toggle" onclick="openDrawer('rooms')" aria-label="Chats & site menu">☰</button>
+        <div class="mode-switch" role="group" aria-label="Who can see this chat">
+            <button type="button" class="mode-btn" data-mode="private" aria-pressed="false"{% if not user %} aria-disabled="true"{% endif %}>
+                <svg class="sidebar-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                Private
+            </button>
+            <button type="button" class="mode-btn" data-mode="chatroom" aria-pressed="false">
+                <svg class="sidebar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9.5 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 20v-2a4 4 0 0 0-3-3.9M16 2.1a4 4 0 0 1 0 7.8"/></svg>
+                Chatroom
+            </button>
+        </div>
+    </div>
+
+    <div class="home-center">
+        <h1 class="home-greeting">Tabula rasa, in a beginning, where do we start?</h1>
+        <form id="composer" class="composer" novalidate>
+            <label class="visually-hidden" for="composer-input">Message</label>
+            <textarea id="composer-input" rows="1" placeholder="Ask anything, or type /help" autofocus></textarea>
+            <div class="composer-bar">
+                <label class="visually-hidden" for="composer-model">Model</label>
+                <select id="composer-model" class="composer-model">
+                    <option value="None">People only (no model)</option>
+                </select>
+                <button type="submit" id="composer-send" class="composer-send" aria-label="Send">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                </button>
+            </div>
+        </form>
+        <p id="mode-hint" class="composer-hint" aria-live="polite"></p>
+        <p id="composer-error" class="error-message" role="alert"></p>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.HOME_CONFIG = {signedIn: {{ 'true' if user else 'false' }}};
+</script>
+<script src="{{ url_for('static', filename='js/home.js') }}"></script>
+{% endblock %}
