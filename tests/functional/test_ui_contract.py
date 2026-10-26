@@ -433,6 +433,10 @@ window.addEventListener('load', () => {
     const copyButton = document.querySelector('#message-1 .button-container .copy-button');
     copyButton.click();
 
+    // foxhop is our default voice, whatever order the voice list comes in
+    check(defaultVoice(['kokoro:aira', 'kokoro:foxhop', 'tts-1:alloy']) === 'kokoro:foxhop', 'foxhop by default');
+    check(defaultVoice(['kokoro:aira', 'kokoro:bella']) === 'kokoro:aira', 'first voice when foxhop is missing');
+
     // A retitled room renames itself in our sidebar & top bar
     const row = document.querySelector('#public-chats li[data-room-id]');
     deliver('update_room_list', {id: Number(row.dataset.roomId), name: 'lobby', title: 'Weekend <b>plans</b>'});

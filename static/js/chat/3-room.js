@@ -24,6 +24,16 @@ function copyMessageContent(content, button) {
     });
 }
 
+// Our default voice is foxhop; option values are "model:voice".
+const DEFAULT_VOICE = 'foxhop';
+
+function defaultVoice(values) {
+    const voiceOf = value => value.split(':').pop().toLowerCase();
+    return values.find(v => voiceOf(v) === DEFAULT_VOICE)
+        || values.find(v => voiceOf(v).includes(DEFAULT_VOICE))
+        || values[0];
+}
+
 // Function to sync dropdowns and save to localStorage
 function syncDropdownsAndQueryString() {
     const modelSelectDesktop = document.getElementById("model-select");
@@ -104,8 +114,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         });
 
-        // Set initial value from localStorage or first available option (not URL)
-        const initialVoice = localStorage.getItem('selectedVoice') || voiceSelectDesktop.options[0]?.value;
+        // A voice you chose before, else our default voice, else the first.
+        const values = Array.from(voiceSelectDesktop.options).map(o => o.value);
+        const saved = localStorage.getItem('selectedVoice');
+        const initialVoice = values.includes(saved) ? saved : defaultVoice(values);
         if (initialVoice) {
             voiceSelectDesktop.value = initialVoice;
         }
