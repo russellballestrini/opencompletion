@@ -1306,6 +1306,7 @@ def chat_claude(
     )
 
     socketio.emit("delete_processing_message", msg_id, room=room_name)
+    title_untitled_room(room_name)
 
 
 def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True):
@@ -1500,6 +1501,7 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
     )
 
     socketio.emit("delete_processing_message", msg_id, room=room_name)
+    title_untitled_room(room_name)
 
 
 def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.gguf"):
@@ -1673,6 +1675,35 @@ def gpt_generate_room_title(messages):
 
     title = strip_reasoning(response.choices[0].message.content)
     return title.replace('"', "")
+
+
+# Most recent messages a first title reads; a new chat has only a few.
+TITLE_CONTEXT_MESSAGES = 20
+
+
+def title_untitled_room(room_name):
+    """Name a room after its first model reply, as chat apps do, so our
+    sidebars show a title instead of a room's slug from the start. A room
+    that already has a title keeps it (/title new replaces one on demand).
+    """
+    with app.app_context():
+        room = Room.query.filter_by(name=room_name).first()
+        if room is None or room.title:
+            return
+        recent = (
+            Message.query.filter_by(room_id=room.id)
+            .order_by(Message.id.desc())
+            .limit(TITLE_CONTEXT_MESSAGES)
+            .all()
+        )
+        title = (gpt_generate_room_title(recent) or "").strip()[:100]
+        if not title:
+            return
+        room.title = title
+        db.session.add(room)
+        db.session.commit()
+        socketio.emit("update_room_title", {"title": title}, room=room.name)
+        emit_room_list_update(room, {"id": room.id, "name": room.name, "title": title})
 
 
 def generate_new_title(room_name, username):

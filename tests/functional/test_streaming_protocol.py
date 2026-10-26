@@ -116,6 +116,11 @@ class StreamingProtocolTest(unittest.TestCase):
                     return_value=(mock_client, self.model_name),
                 ), patch.object(
                     app, "socketio", self.mock_socketio
+                ), patch.object(
+                    # Titling a new chat (its own test in test_home.py)
+                    # reads tables this mocked session never made.
+                    app,
+                    "title_untitled_room",
                 ), patch(
                     "app.Message", return_value=mock_message
                 ):
@@ -213,6 +218,11 @@ class StreamingProtocolTest(unittest.TestCase):
                     return_value=(mock_client, self.model_name),
                 ), patch.object(
                     app, "socketio", self.mock_socketio
+                ), patch.object(
+                    # Titling a new chat (its own test in test_home.py)
+                    # reads tables this mocked session never made.
+                    app,
+                    "title_untitled_room",
                 ), patch(
                     "app.Message", return_value=mock_message
                 ):
@@ -303,6 +313,11 @@ class StreamingProtocolTest(unittest.TestCase):
                     boto3, "client", return_value=mock_client
                 ), patch.object(
                     app, "socketio", self.mock_socketio
+                ), patch.object(
+                    # Titling a new chat (its own test in test_home.py)
+                    # reads tables this mocked session never made.
+                    app,
+                    "title_untitled_room",
                 ), patch(
                     "app.Message", mock_message_class
                 ):
@@ -376,6 +391,11 @@ class StreamingProtocolTest(unittest.TestCase):
                     app, "get_room", return_value=self.mock_room
                 ), patch.object(
                     app, "socketio", self.mock_socketio
+                ), patch.object(
+                    # Titling a new chat (its own test in test_home.py)
+                    # reads tables this mocked session never made.
+                    app,
+                    "title_untitled_room",
                 ), patch(
                     "app.Message", return_value=mock_message
                 ):
@@ -468,6 +488,11 @@ class StreamingProtocolTest(unittest.TestCase):
                     return_value=(mock_client, self.model_name),
                 ), patch.object(
                     app, "socketio", self.mock_socketio
+                ), patch.object(
+                    # Titling a new chat (its own test in test_home.py)
+                    # reads tables this mocked session never made.
+                    app,
+                    "title_untitled_room",
                 ), patch(
                     "app.Message", mock_message_class
                 ):
@@ -567,6 +592,11 @@ class StreamingProtocolTest(unittest.TestCase):
                     return_value=(mock_client, self.model_name),
                 ), patch.object(
                     app, "socketio", self.mock_socketio
+                ), patch.object(
+                    # Titling a new chat (its own test in test_home.py)
+                    # reads tables this mocked session never made.
+                    app,
+                    "title_untitled_room",
                 ), patch(
                     "app.Message", return_value=mock_message
                 ):
@@ -632,6 +662,11 @@ class StreamingProtocolTest(unittest.TestCase):
                     return_value=(mock_client, self.model_name),
                 ), patch.object(
                     app, "socketio", self.mock_socketio
+                ), patch.object(
+                    # Titling a new chat (its own test in test_home.py)
+                    # reads tables this mocked session never made.
+                    app,
+                    "title_untitled_room",
                 ), patch(
                     "app.Message", return_value=mock_message
                 ):

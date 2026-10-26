@@ -209,3 +209,51 @@ def test_you_stay_pinned_bottom_left_with_many_chats(client, tmp_path, width):
     html = client.get("/").get_data(as_text=True)
     out = run_probe(html, PINNED_PROBE, tmp_path, width, height=700)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+def test_a_new_chat_is_titled_after_its_first_reply(test_app, monkeypatch):
+    """Our sidebars show a generated title, not a room's slug, as soon as
+    a model has answered once; a titled room keeps its title."""
+    import app as app_module
+    from models import Room, db
+
+    room = make_room("how-do-lifetimes-work-x1y2z3", message="How do lifetimes work?")
+    emitted = []
+    monkeypatch.setattr(
+        app_module, "gpt_generate_room_title", lambda messages: " Rust lifetimes "
+    )
+    monkeypatch.setattr(
+        app_module.socketio, "emit", lambda event, data, **kw: emitted.append(event)
+    )
+    app_module.title_untitled_room(room.name)
+    db.session.expire_all()  # titled in its own app context
+    assert Room.query.filter_by(name=room.name).one().title == "Rust lifetimes"
+    assert "update_room_title" in emitted and "update_room_list" in emitted
+
+    monkeypatch.setattr(
+        app_module, "gpt_generate_room_title", lambda messages: "Something else"
+    )
+    app_module.title_untitled_room(room.name)
+    db.session.expire_all()  # titled in its own app context
+    assert Room.query.filter_by(name=room.name).one().title == "Rust lifetimes"
+
+
+def test_no_model_leaves_a_chat_untitled(test_app, monkeypatch):
+    import app as app_module
+    from models import Room, db
+
+    room = make_room("quiet-room", message="hello")
+    monkeypatch.setattr(app_module, "gpt_generate_room_title", lambda messages: None)
+    app_module.title_untitled_room(room.name)
+    db.session.expire_all()  # titled in its own app context
+    assert Room.query.filter_by(name="quiet-room").one().title is None
+
+
+def test_sidebar_shows_titles_over_names(client):
+    make_room("lobby-abc123")
+    from models import Room, db
+
+    Room.query.filter_by(name="lobby-abc123").one().title = "Weekend plans"
+    db.session.commit()
+    public = sidebar(client.get("/").get_data(as_text=True), "public-chats-heading")
+    assert "Weekend plans" in public and ">lobby-abc123<" not in public
