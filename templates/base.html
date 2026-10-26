@@ -29,7 +29,7 @@
       {% set show_search = false %}
       {% include "_site_nav.html" %}
 
-      <a class="btn btn-block" href="/">New room</a>
+      <a class="btn btn-block" href="/">New chat</a>
 
       <div id="room-tabs" role="tablist">
           {% set private_active = current_room and current_room.is_private %}
@@ -94,19 +94,10 @@
 <script src="{{ url_for('static', filename='js/site.js') }}"></script>
 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 <script>
-    // Phones: the rooms sidebar & our controls open as drawers.
-    function openDrawer(which) {
-        document.body.dataset.drawer = which;
-    }
-
-    function closeDrawer() {
-        delete document.body.dataset.drawer;
-    }
-
+    // Phones: the rooms sidebar & our controls open as drawers (openDrawer
+    // & closeDrawer live in site.js, which also closes them on Escape).
     document.addEventListener('keydown', event => {
-        if (event.key !== 'Escape') return;
-        closeDrawer();
-        closeAuthModal();
+        if (event.key === 'Escape') closeAuthModal();
     });
 
     // highlight.js follows our theme.

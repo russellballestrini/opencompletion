@@ -38,6 +38,19 @@ function toggleSiteNav(button) {
     button.closest('.site-header').classList.toggle('nav-open', open);
 }
 
+// Phones: app sidebars & panels open as drawers (chat & our home).
+function openDrawer(which) {
+    document.body.dataset.drawer = which;
+}
+
+function closeDrawer() {
+    delete document.body.dataset.drawer;
+}
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeDrawer();
+});
+
 async function signOut() {
     try {
         const response = await fetch('/auth/logout', {method: 'POST'});

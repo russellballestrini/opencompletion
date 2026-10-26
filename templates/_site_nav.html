@@ -1,6 +1,6 @@
 {# Our one set of site links. Pages show it in .site-header, chat stacks
    it in its rooms sidebar. `active_nav` names the current page. #}
-<a class="brand" href="/">OpenCompletion</a>
+<a class="brand" href="/">{{ brand_name }}</a>
 {% if show_search|default(true) %}
 <form class="site-search" action="/search" method="get" role="search">
     <label class="visually-hidden" for="site-search-input">Search messages</label>

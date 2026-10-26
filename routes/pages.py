@@ -24,24 +24,41 @@ def favicon():
     )
 
 
+@bp.app_context_processor
+def brand():
+    """Our name in every header: OPENCOMPLETION_BRAND (say "uncloseai")
+    lets one deployment carry its own, OpenCompletion otherwise."""
+    return {"brand_name": os.environ.get("OPENCOMPLETION_BRAND") or "OpenCompletion"}
+
+
+# How many chats each sidebar list shows; /browse has every room.
+SIDEBAR_CHATS = 30
+
+
 @bp.route("/")
 def index():
-    total_public_rooms = Room.query.filter_by(
-        is_private=False, is_archived=False
-    ).count()
-    total_private_rooms = 0
+    """Our home: an empty chat. Its sidebar lists your chats & public ones;
+    the first message makes a room (private, or a multiplayer chatroom)."""
     user = auth.get_current_user()
+
+    your_chats = []
     if user:
-        total_private_rooms = Room.query.filter_by(
-            is_private=True, is_archived=False, owner_id=user.id
-        ).count()
+        your_chats = (
+            Room.query.filter_by(is_archived=False, owner_id=user.id)
+            .order_by(Room.updated_at.desc(), Room.id.desc())
+            .limit(SIDEBAR_CHATS)
+            .all()
+        )
+    public_chats = (
+        Room.query.filter_by(is_private=False, is_archived=False)
+        .order_by(Room.updated_at.desc(), Room.id.desc())
+        .limit(SIDEBAR_CHATS)
+        .all()
+    )
 
-    stats = {
-        "total_public_rooms": total_public_rooms,
-        "total_private_rooms": total_private_rooms,
-    }
-
-    return render_template("index.html", stats=stats, user=user)
+    return render_template(
+        "home.html", user=user, your_chats=your_chats, public_chats=public_chats
+    )
 
 
 def safe_next_url(value):

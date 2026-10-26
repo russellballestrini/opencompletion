@@ -192,6 +192,21 @@ socket.on("connect", () => {
     socket.emit("join", {"username": sanitizedUsername, "room_name": room_name});
 });
 
+// We hear our room now: remember it for our home page's "Your chats" and
+// send the first message our home page handed over, if it was for here.
+socket.on("joined", () => {
+    rememberRecentChat(room_name);
+    const pending = takePendingMessage(room_name);
+    if (!pending || !pending.message) return;
+    socket.emit("chat_message", {
+        "username": username,
+        "message": pending.message,
+        "model": pending.model || "None",
+        "room_name": room_name,
+        "enable_thinking": showThinking
+    });
+});
+
 // The server decides our posting name: a signed-in display name, or a
 // guest name that does not impersonate an account or a model.
 socket.on("your_username", (data) => {
@@ -204,6 +219,7 @@ socket.on("your_username", (data) => {
 });
 
 socket.on("access_denied", () => {
+    forgetRecentChat(room_name);
     const chat = document.getElementById("chat");
     chat.textContent = "This room is private. Sign in as its owner to open it.";
 });
@@ -308,6 +324,7 @@ document.getElementById("message").addEventListener("input", function() {
 // Socket event for updating the room title
 socket.on("update_room_title", (data) => {
     document.title = data.title; // Update the window's title
+    rememberRecentChat(room_name, data.title);
 });
 
 // Socket event to update the room title in the sidebar or add new rooms.

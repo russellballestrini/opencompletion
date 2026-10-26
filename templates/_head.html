@@ -3,10 +3,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 {% set _desc = og_description|default('Open source chat rooms where people & machine learning models work together.') %}
-{% set _title = og_title|default('OpenCompletion') %}
+{% set _title = og_title|default(brand_name) %}
 <meta name="description" content="{{ _desc }}">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="OpenCompletion">
+<meta property="og:site_name" content="{{ brand_name }}">
 <meta property="og:title" content="{{ _title }}">
 <meta property="og:description" content="{{ _desc }}">
 <meta property="og:image" content="{{ og_image or url_for('static', filename='images/og-default.png', _external=True) }}">

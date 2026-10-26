@@ -9,7 +9,8 @@ marked **(tested)** in real headless Chromium at 320, 375, 768 & 1280px.
 
 | Template | What it is |
 |---|---|
-| `layout.html` | Shell for every page but chat: `_head.html`, our site header (`_site_nav.html`), `<main class="page">`. Pages fill `title`, `content`, `scripts` & optional `page_class` (`page-narrow` for forms). |
+| `home.html` | Our home (`/`): an empty chat. Sidebar (`.app-sidebar`): our name on top, New chat, Search, Rooms, Your chats, Public chats, you at the bottom (`.sidebar-user`). Main: Private / Chatroom switch (`.mode-btn`, `aria-pressed`) & one `.composer`. Behaviour in `static/js/home.js`. |
+| `layout.html` | Shell for every page but chat & home: `_head.html`, our site header (`_site_nav.html`), `<main class="page">`. Pages fill `title`, `content`, `scripts` & optional `page_class` (`page-narrow` for forms). |
 | `base.html` | Chat's app shell: same `_head.html`, same `_site_nav.html` stacked in the rooms sidebar, drawers on phones. |
 | `_head.html` | Meta, Open Graph, theme applied before first paint, our one stylesheet. |
 | `_site_nav.html` | Brand, search, Rooms, profile/Settings, Sign in, theme toggle. Set `active_nav` to mark the current page. |
@@ -62,6 +63,8 @@ are 16px on phones so iOS never zooms into them.
 - Tap targets are at least 40px tall on phones, 44px for buttons & fields. **(tested)**
 - Phone header: brand & a ☰ menu button on one row, search below; our
   links open as a full-width list. **(tested)**
+- Home's sidebar is a drawer on phones too, opened by ☰ & closed by ×,
+  the backdrop or Escape (`openDrawer`/`closeDrawer` in `site.js`). **(tested)**
 - Breakpoints: 1024px narrows chat's sidebars; 768px is phone. On a phone,
   chat's rooms sidebar & room controls become drawers opened from its top
   bar (☰ & ⚙): our real panels, never copies, closed by ×, the backdrop or

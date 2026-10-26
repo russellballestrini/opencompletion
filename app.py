@@ -874,6 +874,9 @@ def on_join(data):
 
     # This makes the client start listening for new events for this room.
     join_room(room_name)
+    # From here on this client hears the room: our home page's first message
+    # waits for this before it is sent (static/js/chat/3-room.js).
+    emit("joined", {"room_name": room_name}, room=request.sid)
 
     # update the title bar with the proper room title, if it exists for just this new client.
     if room.title:

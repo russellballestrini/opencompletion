@@ -87,6 +87,8 @@ git remote -v
 
 ### Frontend Structure
 - **Read `docs/STYLEGUIDE.md` before touching a template or style.css**; `/styleguide` renders every component
+- Our home `/` is an empty chat (`templates/home.html` + `static/js/home.js`, its own app shell like ChatGPT's): sidebar with our name on top, Your chats & Public chats, the person at the bottom; the first message creates a room (Private needs sign in, Chatroom is public & multiplayer) & `sessionStorage.pendingMessage` hands it to chat, which sends it on the server's `joined` event
+- `OPENCOMPLETION_BRAND` names the site in every header (say `uncloseai`); unset, OpenCompletion
 - Pages extend `templates/layout.html`; chat (`templates/chat.html`) extends `templates/base.html`, its app shell
 - Both share `_head.html` & `_site_nav.html`; sign in is `_auth_steps.html` + `static/js/auth.js`
 - All styling is in `static/css/style.css` (tokens on `:root`, dark under `[data-theme="dark"]`); templates carry no `<style>` or raw colours
