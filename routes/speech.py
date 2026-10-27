@@ -16,6 +16,7 @@ import time
 
 import requests
 from flask import Blueprint, Response, jsonify, request, stream_with_context
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from blob_store import max_bytes
 from throttle import Throttle, client_ip
@@ -181,14 +182,19 @@ TRANSCRIBE_THROTTLE = Throttle("OPENCOMPLETION_TRANSCRIBE_LIMIT", default=(30, 6
 def speech_transcribe():
     """Audio from our mic button (multipart "file", within our upload
     limit) -> {"text": ...} from the first endpoint that transcribes it."""
-    if (request.content_length or 0) > max_bytes() + 64 * 1024:
-        return jsonify({"error": "That recording is too long."}), 413
-    upload = request.files.get("file")
+    too_long = jsonify({"error": "That recording is too long."}), 413
+    request.max_content_length = max_bytes() + 64 * 1024
+    if (request.content_length or 0) > request.max_content_length:
+        return too_long
+    try:
+        upload = request.files.get("file")
+    except RequestEntityTooLarge:
+        return too_long
     data = upload.stream.read(max_bytes() + 1) if upload else b""
     if not data:
         return jsonify({"error": "No audio was recorded."}), 400
     if len(data) > max_bytes():
-        return jsonify({"error": "That recording is too long."}), 413
+        return too_long
     retry_after = TRANSCRIBE_THROTTLE.hit(client_ip())
     if retry_after:
         response = jsonify(

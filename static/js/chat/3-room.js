@@ -282,6 +282,8 @@ socket.on("active_users", (data) => {
 
 // Attach & speak (static/js/composer.js), in our message box.
 const chatTools = composerTools(document.getElementById("message-form"), document.getElementById("message"));
+// Enter or Send again while files upload must not send them twice.
+let uploadingFiles = false;
 
 // Function to handle sending the message. Attached files upload first & go
 // as links below the text; if one fails, nothing is sent.
@@ -290,13 +292,17 @@ async function sendMessage() {
     const message = messageTextarea.value;
     const model = document.getElementById("model-select").value;
     let messageToSend = message.trim();
+    if (uploadingFiles) return;
     if (chatTools.hasFiles()) {
+        uploadingFiles = true;
         try {
             const links = await chatTools.uploadAll(room_name);
             messageToSend = [messageToSend, links].filter(Boolean).join("\n\n");
         } catch (error) {
             chatTools.say(error.message);
             return;
+        } finally {
+            uploadingFiles = false;
         }
     }
 

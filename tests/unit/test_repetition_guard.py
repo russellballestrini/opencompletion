@@ -21,6 +21,15 @@ def test_a_line_that_keeps_coming_back_is_a_loop():
     assert guard.looping == "- Mr. Snuffleupagus?"
 
 
+def test_one_endless_line_keeps_little_and_still_counts_repeats():
+    guard = RepetitionGuard(limit=8)
+    assert not feed(guard, "".join(f"{n} " for n in range(50_000)), size=50)
+    assert len(guard._partial) <= 1000
+    long_line = "Elmo " * 400 + "\n"  # past our 1000-char cut
+    guard = RepetitionGuard(limit=8)
+    assert feed(guard, long_line * 8)
+
+
 def test_a_cycle_of_lines_is_a_loop():
     guard = RepetitionGuard(limit=8)
     assert feed(guard, "- Oscar?\n- Grover?\n" * 8)

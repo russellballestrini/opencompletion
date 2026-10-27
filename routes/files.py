@@ -13,6 +13,7 @@ blob_store (SQLite today). Limits: OPENCOMPLETION_UPLOAD_MAX_MB per file
 from urllib.parse import quote
 
 from flask import Blueprint, Response, jsonify, request
+from werkzeug.exceptions import RequestEntityTooLarge
 
 import auth
 from blob_store import (
@@ -56,10 +57,15 @@ def upload_attachment(room_name):
     room = Room.query.filter_by(name=room_name).first()
     if room is None or room_access_denied(room, user):
         return jsonify({"error": "No such chat"}), 404
-    # Refuse an oversized body before reading a byte of it.
-    if (request.content_length or 0) > max_bytes() + MULTIPART_OVERHEAD:
+    # Refuse an oversized body before reading a byte of it, & cap a body
+    # that names no length (chunked) while it is parsed.
+    request.max_content_length = max_bytes() + MULTIPART_OVERHEAD
+    if (request.content_length or 0) > request.max_content_length:
         return _too_big()
-    upload = request.files.get("file")
+    try:
+        upload = request.files.get("file")
+    except RequestEntityTooLarge:
+        return _too_big()
     if upload is None:
         return jsonify({"error": "Choose a file to upload."}), 400
     data = upload.stream.read(max_bytes() + 1)

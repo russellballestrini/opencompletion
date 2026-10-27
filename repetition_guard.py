@@ -29,6 +29,9 @@ _HAS_WORD = re.compile(r"[^\W_]")
 _TAIL_CHARS = 4000
 _TAIL_EVERY = 256
 _UNIT_MIN, _UNIT_MAX, _SPAN_MIN = 4, 100, 200
+# A line counts by its first _LINE_CHARS characters; past that we stop
+# keeping it, so one endless line costs no memory (the tail check sees it).
+_LINE_CHARS = 1000
 
 
 def repeat_limit():
@@ -54,10 +57,13 @@ class RepetitionGuard:
         """Take one streamed delta; return True once a loop is seen."""
         if not self.limit or self.looping or not text:
             return bool(self.looping)
-        self._partial += text
-        *done, self._partial = self._partial.split("\n")
-        for line in done:
-            self._line(line.strip())
+        *done, rest = text.split("\n")
+        if done:
+            done[0] = self._partial + done[0]
+            self._partial = ""
+            for line in done:
+                self._line(line[:_LINE_CHARS].strip())
+        self._partial = (self._partial + rest)[:_LINE_CHARS]
         self._tail = (self._tail + text)[-_TAIL_CHARS:]
         self._since_tail_check += len(text)
         if not self.looping and self._since_tail_check >= _TAIL_EVERY:

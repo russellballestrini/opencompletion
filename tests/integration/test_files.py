@@ -106,6 +106,37 @@ def test_files_over_our_limit_are_refused(test_app, monkeypatch):
     assert "limited to" in response.json["error"]
 
 
+def test_a_body_naming_no_length_is_capped_too(test_app, monkeypatch):
+    """Chunked uploads carry no Content-Length; parsing stops at our cap."""
+    import io
+
+    monkeypatch.setenv("OPENCOMPLETION_UPLOAD_MAX_MB", "0.001")  # ~1 KB
+    make_room("lobby")
+    boundary = "b0undary"
+
+    def part(name, data):
+        head = (
+            f"--{boundary}\r\nContent-Disposition: form-data; "
+            f'name="{name}"; filename="{name}.bin"\r\n\r\n'
+        )
+        return head.encode() + data + b"\r\n"
+
+    # Our file is small; the body around it is not, & says so nowhere.
+    body = (
+        part("file", b"tiny")
+        + part("padding", b"x" * 200_000)
+        + f"--{boundary}--\r\n".encode()
+    )
+    response = client_for(test_app).post(
+        "/api/rooms/lobby/attachments",
+        input_stream=io.BytesIO(body),
+        content_type=f"multipart/form-data; boundary={boundary}",
+        environ_overrides={"wsgi.input_terminated": True, "CONTENT_LENGTH": ""},
+    )
+    assert response.status_code == 413
+    assert "limited to" in response.json["error"]
+
+
 def test_empty_or_missing_files_are_refused(test_app):
     make_room("lobby")
     client = client_for(test_app)
