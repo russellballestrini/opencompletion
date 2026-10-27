@@ -334,3 +334,46 @@ def test_private_chats_stay_out_of_browser_history(client):
     sign_in(client, me)
     assert "isPrivate: true" in client.get("/chat/my-secret").get_data(as_text=True)
     assert "isPrivate: false" in client.get("/chat/open-room").get_data(as_text=True)
+
+
+SIDEWAYS_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    if (innerWidth <= 768) openDrawer('rooms');
+    const sidebar = document.getElementById('app-sidebar');
+    const edge = sidebar.getBoundingClientRect().right + 1;
+    for (const el of [sidebar, ...sidebar.querySelectorAll('*')]) {
+        const style = getComputedStyle(el);
+        // .chat-list-name clips with "…" on purpose; nothing may scroll.
+        if (el.scrollWidth > el.clientWidth + 1 && /auto|scroll/.test(style.overflowX)) {
+            problems.push('scrolls sideways: ' + el.className + ' ' + el.scrollWidth + ' > ' + el.clientWidth);
+        }
+        if (el.getBoundingClientRect().right > edge && style.display !== 'none') {
+            problems.push('past our sidebar: ' + el.tagName + '.' + el.className);
+        }
+    }
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.slice(0, 3).join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [375, 1280])
+@pytest.mark.parametrize("path", ["/", "/chat/long-room", "/browse"])
+def test_our_sidebar_never_scrolls_sideways(client, tmp_path, path, width):
+    """A long unbroken title ends in "…" inside our sidebar; it once widened
+    the grid's auto track & scrolled the whole sidebar sideways."""
+    from models import Room, db
+
+    me = make_user("a-very-long-display-name-without-spaces@example.test", "x" * 50)
+    word = "supercalifragilisticexpialidocious" * 3
+    room = make_room("long-room", owner=me)
+    room.title = f"A title long enough to wrap {word}"
+    room.active_users = ",".join(f"guest{n}" for n in range(12))
+    make_room("another-room", owner=me, private=True)
+    db.session.commit()
+    sign_in(client, me)
+    html = client.get(path).get_data(as_text=True)
+    out = run_probe(html, SIDEWAYS_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

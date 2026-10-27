@@ -1306,6 +1306,7 @@ a:hover {
     min-height: 0;
     margin: 0 calc(-1 * var(--space-3));
     padding: 0 var(--space-3);
+    overflow-x: hidden;
     overflow-y: auto;
 }
 
@@ -1378,8 +1379,12 @@ a:hover {
     stroke-linejoin: round;
 }
 
+/* One column exactly as wide as our sidebar: a long title's min-content
+   would otherwise widen an auto track & scroll the sidebar sideways
+   (titles end in "…" instead, see .chat-list-name). */
 .sidebar-section {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2px;
 }
 
@@ -1393,6 +1398,7 @@ a:hover {
 
 .chat-list {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2px;
     margin: 0;
     padding: 0;
