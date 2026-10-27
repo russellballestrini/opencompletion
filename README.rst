@@ -42,7 +42,8 @@ Features
   our Caddy; ``0`` uses the socket address).
 - Edit & resend your own message: the edit replaces it & everything after it for
   everyone in the room & the models answer again. Nothing is deleted: the
-  earlier branch is kept, hidden (run ``make upgrade-db``).
+  earlier branch is kept, hidden (run ``make upgrade-db``; see Upgrading an
+  existing database).
 - A ⋯ menu on every chat (sidebar, Rooms, Search): rename, refresh title (a
   model titles it afresh), pin (kept in this browser), archive & delete
   (owner only).
@@ -104,6 +105,28 @@ Installation
 
     source vars.sh && venv/bin/python app.py
 
+Upgrading an existing database
+------------------------------
+
+``make init-db`` only creates missing tables; it never adds columns to a
+table that exists. After pulling new code, back up & apply migrations::
+
+    cp instance/chat.db instance/chat.db.bak
+    make upgrade-db
+
+A database made by ``make init-db`` without ``flask db stamp`` has no
+migration stamp (no ``alembic_version`` table), so ``make upgrade-db`` would
+start from our first migration & fail on tables that already exist. Stamp
+the revision its schema matches first, then upgrade. ``stamp head`` is right
+only when the schema already matches our newest migration. For example, a
+database with ``blob`` & ``attachment`` tables but no
+``message.superseded_by_id`` column (check with
+``sqlite3 instance/chat.db "pragma table_info(message)"``) matches
+``2026102701``::
+
+    source vars.sh && FLASK_APP=app.py venv/bin/flask db stamp 2026102701
+    make upgrade-db
+
 Docker
 ------
 
@@ -111,10 +134,22 @@ Our ``Dockerfile`` runs the same app; ``vars.sh`` is mounted at run time,
 never baked into an image::
 
     docker build -t opencompletion .
-    docker run -p 5001:5001 \
+    docker run --name opencompletion -p 5001:5001 \
         -v "$PWD/vars.sh:/opt/server/vars.sh:ro" \
         -v opencompletion-data:/opt/server/instance \
         opencompletion
+
+Migrations run inside the container, against the database in its volume
+(``make upgrade-db`` on the host would upgrade the host's
+``instance/chat.db`` instead)::
+
+    docker exec opencompletion sh -c '. ./vars.sh && FLASK_APP=app.py flask db upgrade'
+
+The container creates its tables with ``init_db.py`` & stamps nothing, so
+the first time, stamp the revision its schema matches (see Upgrading an
+existing database), for example::
+
+    docker exec opencompletion sh -c '. ./vars.sh && FLASK_APP=app.py flask db stamp 2026102701'
 
 The named volume keeps our SQLite database across containers (a host
 directory would need to be writable by the container's non-root user). CI
