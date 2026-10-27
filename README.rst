@@ -171,7 +171,7 @@ The chatrooms support some special commands:
 
 - ``/title new``: Generates a new title which reflects conversation content for the current chatroom using our default model.
 - ``/cancel``: Cancel the most recent chat completion from streaming into the chatroom.
-- ``/help``: Displays the list of commands and models to choose from.
+- ``/help``: Shows where things are (models, chats, room controls) & these commands.
 
 Code Execution
 --------------
