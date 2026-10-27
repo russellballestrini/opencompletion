@@ -728,6 +728,17 @@ window.addEventListener('load', () => {
     deliver('followup_suggestions', {message_id: 3, suggestions: ['stale']});
     check(!document.querySelector('.followups'), 'suggestions for an older message are ignored');
 
+    // Thinking: kept from history (collapsed), & left open on a stopped reply
+    deliver('previous_messages', {id: 70, username: 'qwen', content: 'Elmo!', from_model: true, thinking: 'Elmo is <b>red</b>.'});
+    const kept = document.querySelector('#message-70 .message-thinking');
+    check(kept && !kept.open && kept.textContent.includes('Elmo is <b>red</b>.') && !kept.querySelector('b'), 'history keeps thinking, collapsed, as text');
+    deliver('message_chunk', {id: 71, reasoning_content: 'Telly is a purple? '});
+    deliver('message_chunk', {id: 71, username: 'qwen', model_name: 'qwen', content: '_Stopped: qwen kept repeating_', is_first_chunk: true, keep_thinking_open: true});
+    check(document.querySelector('#message-71 .message-thinking').open, 'a stopped reply keeps its thinking open');
+    deliver('message_chunk', {id: 72, reasoning_content: 'Big Bird is yellow. '});
+    deliver('message_chunk', {id: 72, username: 'qwen', model_name: 'qwen', content: 'Big Bird!', is_first_chunk: true});
+    check(!document.querySelector('#message-72 .message-thinking').open, 'an answer collapses its thinking');
+
     // ↓ shows only once we scroll up from the newest message
     const chat = document.getElementById('chat');
     const down = document.getElementById('scroll-bottom-button');

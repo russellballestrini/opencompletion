@@ -156,6 +156,26 @@ socket.on("chat_message", (data) => {
     }
 });
 
+// A model's thinking as a collapsible block above its reply: open while it
+// streams, collapsed once the answer starts, & from history (saved with the
+// reply as Message.thinking) collapsed. Text only, never markup.
+function thinkingBlock(text, open) {
+    const details = document.createElement("details");
+    details.className = "message-thinking";
+    details.open = open;
+    const summary = document.createElement("summary");
+    summary.textContent = open ? "thinking…" : "thinking (click to expand)";
+    details.appendChild(summary);
+    const body = document.createElement("div");
+    body.className = "message-thinking-body";
+    body.style.opacity = "0.6";
+    body.style.fontStyle = "italic";
+    body.style.whiteSpace = "pre-wrap";
+    body.textContent = text;
+    details.appendChild(body);
+    return details;
+}
+
 // Socket event for receiving previous messages
 socket.on("previous_messages", (data) => {
 
@@ -215,6 +235,7 @@ socket.on("previous_messages", (data) => {
     if (data.from_model) addForkButton(buttonContainer, data.id);
 
     messageWrapper.appendChild(buttonContainer);
+    if (data.thinking) messageWrapper.appendChild(thinkingBlock(data.thinking, false));
     messageWrapper.appendChild(newMessage);
 
     document.getElementById("chat").appendChild(messageWrapper);
@@ -279,18 +300,7 @@ socket.on("message_chunk", (data) => {
                 messageBodyWrapper.className = "message-body";
                 messageWrapper.appendChild(messageBodyWrapper);
             }
-            thinkingDetails = document.createElement("details");
-            thinkingDetails.className = "message-thinking";
-            thinkingDetails.open = true;
-            const summary = document.createElement("summary");
-            summary.textContent = "thinking…";
-            thinkingDetails.appendChild(summary);
-            const body = document.createElement("div");
-            body.className = "message-thinking-body";
-            body.style.opacity = "0.6";
-            body.style.fontStyle = "italic";
-            body.style.whiteSpace = "pre-wrap";
-            thinkingDetails.appendChild(body);
+            thinkingDetails = thinkingBlock("", true);
             // Insert at top of message-body so thinking appears above the answer
             messageBodyWrapper.insertBefore(thinkingDetails, messageBodyWrapper.firstChild);
         }
@@ -326,9 +336,14 @@ socket.on("message_chunk", (data) => {
     }
 
     // First content delta after thinking: auto-collapse the thinking block
-    // so the answer is the visible focus. Thinking stays one click away.
+    // so the answer is the visible focus. Thinking stays one click away. A
+    // reply our server stopped (a loop, the token cap) keeps it open: the
+    // thinking is what shows why.
     const thinkingDetails = messageWrapper.querySelector(".message-thinking");
-    if (thinkingDetails && thinkingDetails.open) {
+    if (thinkingDetails && data.keep_thinking_open) {
+        const summary = thinkingDetails.querySelector("summary");
+        if (summary) summary.textContent = "thinking (where it stopped)";
+    } else if (thinkingDetails && thinkingDetails.open) {
         thinkingDetails.open = false;
         const summary = thinkingDetails.querySelector("summary");
         if (summary) summary.textContent = "thinking (click to expand)";

@@ -13,8 +13,10 @@ Two shapes are caught:
   last 2 * `limit` lines (lines with no letter or digit, such as `}` or
   `|---|`, never count, so code & tables are left alone);
 - a phrase repeating with no newline: the text's tail is one unit of 4 to
-  100 characters, repeated until it spans at least 200 characters and
-  `limit` copies.
+  100 characters, repeated until it spans at least 600 characters and
+  3 * `limit` copies. Reasoning models stutter ("Telly is a purple?
+  Telly is a purple?" a dozen times) & then carry on, so a phrase must
+  repeat for a few hundred tokens before it counts.
 
 OPENCOMPLETION_REPEAT_LIMIT sets `limit` (default 8; 0 turns it off).
 """
@@ -28,7 +30,7 @@ _HAS_WORD = re.compile(r"[^\W_]")
 # How much tail text the no-newline check keeps & how often it looks.
 _TAIL_CHARS = 4000
 _TAIL_EVERY = 256
-_UNIT_MIN, _UNIT_MAX, _SPAN_MIN = 4, 100, 200
+_UNIT_MIN, _UNIT_MAX, _SPAN_MIN = 4, 100, 600
 # A line counts by its first _LINE_CHARS characters; past that we stop
 # keeping it, so one endless line costs no memory (the tail check sees it).
 _LINE_CHARS = 1000
@@ -82,7 +84,7 @@ class RepetitionGuard:
         tail = self._tail.rstrip()
         for size in range(_UNIT_MIN, _UNIT_MAX + 1):
             unit = tail[-size:]
-            copies = max(self.limit, -(-_SPAN_MIN // size))
+            copies = max(3 * self.limit, -(-_SPAN_MIN // size))
             if len(tail) >= size * copies and tail.endswith(unit * copies):
                 if _HAS_WORD.search(unit):
                     self.looping = unit.strip()

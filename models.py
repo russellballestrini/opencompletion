@@ -165,6 +165,9 @@ class Message(db.Model):
     room_id = db.Column(db.Integer, db.ForeignKey("room.id"), nullable=False)
     superseded_by_id = db.Column(db.Integer, index=True)
     revision_of_id = db.Column(db.Integer)
+    # A model's thinking, kept beside its reply (shown collapsed above it) &
+    # never sent back to a model as history.
+    thinking = db.Column(db.Text)
 
     @classmethod
     def visible(cls, room_id):
