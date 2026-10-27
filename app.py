@@ -120,7 +120,7 @@ def endpoint_is_healthy(client, base_url):
     if healthy is not None and time.time() - checked_at < ENDPOINT_HEALTH_TTL:
         return healthy
     try:
-        client.with_options(timeout=5.0).models.list()
+        client.with_options(timeout=5.0, max_retries=0).models.list()
         healthy = True
     except Exception as e:
         print(f"[WARN] Endpoint {base_url} failed health check: {e}")
@@ -208,7 +208,8 @@ def initialize_model_map():
         api_key = ep_config["api_key"]
         client = get_client_for_endpoint(base_url, api_key)
         try:
-            response = client.with_options(timeout=10.0).models.list()
+            # One try: a dead endpoint costs 10 s, not 10 s per retry.
+            response = client.with_options(timeout=10.0, max_retries=0).models.list()
             model_list = response.data  # Assume each model object has an 'id' attribute
             print(f"[DEBUG] {base_url} returned models: {[m.id for m in model_list]}")
         except Exception as e:
@@ -230,9 +231,10 @@ def initialize_model_map():
     print("Loaded models:", list(MODEL_CLIENT_MAP.keys()))
 
 
-if MODEL_CLIENT_MAP:
-    pass
-else:
+# Creating & migrating tables (make init-db, make upgrade-db) needs no models:
+# OPENCOMPLETION_SKIP_MODEL_MAP=1 skips asking every endpoint for its list, so
+# one endpoint that never answers can't stall a migration.
+if not MODEL_CLIENT_MAP and os.environ.get("OPENCOMPLETION_SKIP_MODEL_MAP") != "1":
     initialize_model_map()
 
 
@@ -591,7 +593,7 @@ def _resolve_model_num(model_num, check_health=True):
 
     # Fallback: query endpoint for models if not in map yet
     try:
-        response = client.with_options(timeout=10.0).models.list()
+        response = client.with_options(timeout=10.0, max_retries=0).models.list()
         if response.data:
             actual_model = response.data[0].id
             print(f"[DEBUG] Using first model from {endpoint}: {actual_model}")

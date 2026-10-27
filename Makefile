@@ -87,7 +87,7 @@ lock:
 init-db: venv
 	@echo "🗄️ Initializing database tables..."
 	@if [ -f vars.sh ]; then \
-		. ./vars.sh && venv/bin/python init_db.py && \
+		. ./vars.sh && OPENCOMPLETION_SKIP_MODEL_MAP=1 venv/bin/python init_db.py && \
 		echo "✅ Database tables created successfully"; \
 	else \
 		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \
@@ -98,7 +98,7 @@ init-db: venv
 upgrade-db: venv
 	@echo "🗄️ Applying database migrations..."
 	@if [ -f vars.sh ]; then \
-		. ./vars.sh && FLASK_APP=app.py venv/bin/flask db upgrade && \
+		. ./vars.sh && OPENCOMPLETION_SKIP_MODEL_MAP=1 FLASK_APP=app.py venv/bin/flask db upgrade && \
 		echo "✅ Database is at our newest migration"; \
 	else \
 		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \
