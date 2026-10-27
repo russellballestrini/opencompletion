@@ -34,7 +34,8 @@ def test_home_is_an_empty_chat(client):
     html = client.get("/").get_data(as_text=True)
     assert 'id="composer"' in html
     assert re.search(
-        r"Tabula rasa, in a beginning, <span[^>]*>where do we start\?</span>", html
+        r"Tabula rasa, in a beginning, <span class=\"phone-line\">where do we start\?</span>",
+        html,
     )
     assert 'data-mode="private"' in html and 'data-mode="chatroom"' in html
     assert "/static/js/home.js" in html
@@ -167,9 +168,12 @@ window.addEventListener('load', () => {
     const toggle = document.querySelector('.home-topbar .drawer-toggle');
     if (innerWidth <= 768) {
         check(shown(toggle) && !shown(sidebar), 'sidebar folds behind ☰');
-        const ask = document.querySelector('.home-greeting-ask');
+        const ask = document.querySelector('.home-greeting .phone-line');
         const lead = document.querySelector('.home-greeting').getBoundingClientRect();
         check(ask.getBoundingClientRect().top > lead.top + 5, 'our question starts its own line');
+        const rest = document.querySelector('#mode-hint .phone-line');
+        check(rest && rest.textContent.trim().startsWith('& it is listed'), 'hint breaks after its comma');
+        check(rest.getBoundingClientRect().top > document.getElementById('mode-hint').getBoundingClientRect().top + 5, 'hint rest on its own line');
         toggle.click();
         check(shown(sidebar) && sidebar.getBoundingClientRect().right <= innerWidth, 'drawer opens on screen');
         check(shown(sidebar.querySelector('.sidebar-user')), 'you, at the bottom of the drawer');

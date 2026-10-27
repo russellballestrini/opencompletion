@@ -4,11 +4,13 @@
 // Config comes from HOME_CONFIG in home.html.
 
 const MODE_KEY = 'newChatMode';
+// Each hint is [lead, rest]: on phones the rest starts its own line
+// (.phone-line), so a hint breaks where it reads well, not mid-phrase.
 const MODE_HINTS = {
-    private: 'Private: only you can open this chat.',
-    chatroom: 'Chatroom: anyone with the link can read & post, & it is listed under Public chats.',
+    private: ['Private: only you can open this chat.'],
+    chatroom: ['Chatroom: anyone with the link can read & post,', '& it is listed under Public chats.'],
 };
-const GUEST_PRIVATE_HINT = 'Sign in to keep chats private. As a guest you start a public chatroom.';
+const GUEST_PRIVATE_HINT = ['Sign in to keep chats private.', 'As a guest you start a public chatroom.'];
 
 const composer = document.getElementById('composer');
 const input = document.getElementById('composer-input');
@@ -30,7 +32,14 @@ function showMode(note) {
     modeButtons.forEach(button => {
         button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
     });
-    hint.textContent = note || MODE_HINTS[mode];
+    const [lead, rest] = note || MODE_HINTS[mode];
+    hint.textContent = lead;
+    if (rest) {
+        const line = document.createElement('span');
+        line.className = 'phone-line';
+        line.textContent = ' ' + rest;
+        hint.appendChild(line);
+    }
 }
 
 modeButtons.forEach(button => {

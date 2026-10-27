@@ -1671,9 +1671,16 @@ a:hover {
         font-size: 22px;
     }
 
-    /* Phones: our question gets a line of its own. */
-    .home-greeting-ask {
+    /* Phones: a .phone-line starts its own line (our greeting's question,
+       the second half of a composer hint), so text breaks where it reads. */
+    .phone-line {
         display: block;
+    }
+
+    /* A lead that still wraps (320px) splits evenly, no one-word orphan. */
+    .home-greeting,
+    .composer-hint {
+        text-wrap: balance;
     }
 
     .composer-model {
