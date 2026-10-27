@@ -1718,9 +1718,16 @@ def title_untitled_room(room_name):
             return
         if not title:
             return
-        room.title = title
-        db.session.add(room)
+        # The model call yields to other greenlets: another join or reply may
+        # have titled this room meanwhile, or someone ran /title new. Save
+        # only while the room is still untitled, in one conditional UPDATE.
+        saved = Room.query.filter(
+            Room.id == room.id, db.or_(Room.title.is_(None), Room.title == "")
+        ).update({"title": title}, synchronize_session=False)
         db.session.commit()
+        if not saved:
+            return
+        db.session.refresh(room)
         socketio.emit("update_room_title", {"title": title}, room=room.name)
         emit_room_list_update(room, {"id": room.id, "name": room.name, "title": title})
 

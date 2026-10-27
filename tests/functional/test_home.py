@@ -420,3 +420,30 @@ def test_backfill_titles_every_untitled_conversation(test_app, monkeypatch):
     db.session.expire_all()
     titles = {r.name: r.title for r in Room.query.all()}
     assert titles == {"talked": "Greetings", "one-message": None, "already": "Kept"}
+
+
+def test_a_late_auto_title_never_replaces_one_set_meanwhile(test_app, monkeypatch):
+    """The title model call yields: if /title new (or another titler) saves a
+    title meanwhile, our late automatic title is dropped, never written over it."""
+    import app as app_module
+    from models import Room, db
+
+    room = make_room("raced-room", message="hello")
+    emitted = []
+
+    def slow_model(messages):
+        # Someone sets a title while our model call is still running.
+        db.session.execute(
+            db.update(Room).where(Room.id == room.id).values(title="Chosen by hand")
+        )
+        db.session.commit()
+        return "Automatic"
+
+    monkeypatch.setattr(app_module, "gpt_generate_room_title", slow_model)
+    monkeypatch.setattr(
+        app_module.socketio, "emit", lambda event, *a, **k: emitted.append(event)
+    )
+    app_module.title_untitled_room(room.name)
+    db.session.expire_all()
+    assert Room.query.filter_by(name="raced-room").one().title == "Chosen by hand"
+    assert "update_room_title" not in emitted
