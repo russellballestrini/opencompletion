@@ -5,9 +5,9 @@ Revises: 5d0d533ff7c0
 Create Date: 2026-10-27 15:00:00
 
 """
+
 from alembic import op
 import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision = "2026102701"
@@ -17,6 +17,24 @@ depends_on = None
 
 
 def upgrade():
+    # A database our app already started on carries these tables: init_db.py
+    # & startup run create_all(), which makes missing tables without
+    # stamping a revision. Create only what is missing, so upgrading such a
+    # database never fails on "table blob already exists".
+    inspector = sa.inspect(op.get_bind())
+    tables = set(inspector.get_table_names())
+    if "blob" not in tables:
+        _create_blob()
+    if "attachment" not in tables:
+        _create_attachment()
+    indexes = {index["name"] for index in inspector.get_indexes("attachment")}
+    if "ix_attachment_room_id" not in indexes:
+        op.create_index("ix_attachment_room_id", "attachment", ["room_id"])
+    if "ix_attachment_source_url" not in indexes:
+        op.create_index("ix_attachment_source_url", "attachment", ["source_url"])
+
+
+def _create_blob():
     op.create_table(
         "blob",
         sa.Column("sha256", sa.String(length=64), primary_key=True),
@@ -24,6 +42,9 @@ def upgrade():
         sa.Column("data", sa.LargeBinary(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
     )
+
+
+def _create_attachment():
     op.create_table(
         "attachment",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -38,8 +59,6 @@ def upgrade():
         sa.Column("source_url", sa.String(length=2048)),
         sa.Column("created_at", sa.DateTime(), nullable=False),
     )
-    op.create_index("ix_attachment_room_id", "attachment", ["room_id"])
-    op.create_index("ix_attachment_source_url", "attachment", ["source_url"])
 
 
 def downgrade():
