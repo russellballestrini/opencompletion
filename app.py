@@ -470,12 +470,7 @@ def extract_first_image_for_og(room_id: int) -> str | None:
     """
     import re
 
-    messages = (
-        Message.query.filter_by(room_id=room_id)
-        .order_by(Message.id.asc())
-        .limit(50)
-        .all()
-    )
+    messages = Message.visible(room_id).order_by(Message.id.asc()).limit(50).all()
 
     for msg in messages:
         if not msg.content:
@@ -521,12 +516,7 @@ def generate_og_description(room, max_chars: int = 500) -> str:
 
     # Get first few messages for description
     if room:
-        messages = (
-            Message.query.filter_by(room_id=room.id)
-            .order_by(Message.id.asc())
-            .limit(10)
-            .all()
-        )
+        messages = Message.visible(room.id).order_by(Message.id.asc()).limit(10).all()
 
         for msg in messages:
             if not msg.content:
@@ -965,7 +955,7 @@ def on_join(data):
         socketio.emit("update_room_title", {"title": room.title}, room=request.sid)
 
     # Fetch previous messages from the database
-    previous_messages = Message.query.filter_by(room_id=room.id).all()
+    previous_messages = Message.visible(room.id).all()
 
     # count the number of tokens in this room.
     total_token_count = 0
@@ -1084,6 +1074,15 @@ def handle_message(data):
         room=room.name,
     )
 
+    dispatch_message(
+        room, username, message, [model], data.get("enable_thinking", True)
+    )
+
+
+def dispatch_message(room, username, message, models, enable_thinking=True):
+    """What a posted message sets off: a slash command, the room's running
+    activity, or a reply from each of `models` ("None" = people only)."""
+    room_name = room.name
     commands = message.splitlines()
     for command in commands:
         if command.startswith("/help"):
@@ -1125,11 +1124,17 @@ def handle_message(data):
     activity_state = ActivityState.query.filter_by(room_id=room.id).first()
     if activity_state:
         gevent.spawn(
-            activity.handle_activity_response, room_name, message, username, model
+            activity.handle_activity_response,
+            room_name,
+            message,
+            username,
+            models[0] if models else "None",
         )
         return
 
-    if model != "None":
+    for model in models:
+        if model in (None, "None"):
+            continue
         emit(
             "chat_message",
             {"id": None, "content": "<span id='processing'>Processing...</span>"},
@@ -1145,7 +1150,6 @@ def handle_message(data):
             gevent.spawn(generate_dalle_image, room_name, message, username)
         else:
             # All other models (Groq, Together, Mistral, etc.) use OpenAI client
-            enable_thinking = data.get("enable_thinking", True)
             gevent.spawn(
                 stoppable_reply,
                 chat_gpt,
@@ -1245,6 +1249,75 @@ def handle_update_message(data):
         )
 
 
+def models_that_answered(message):
+    """The models that replied to `message`: the model messages right after
+    it, up to the next one a person (or "system") wrote, in order."""
+    later = (
+        Message.visible(message.room_id)
+        .filter(Message.id > message.id)
+        .order_by(Message.id)
+    )
+    models = []
+    for reply in later:
+        if reply.username not in SYSTEM_USERS or reply.username == "system":
+            break
+        if reply.username not in models:
+            models.append(reply.username)
+    return models
+
+
+@socketio.on("edit_and_resend")
+def handle_edit_and_resend(data):
+    """Edit a person's message & have it answered again, for everyone in
+    the room: the old message & everything after it are hidden (superseded
+    by the revision, never deleted), the revision is posted in its place &
+    the models that answered the old one answer again (else our picker's
+    model)."""
+    message, room = message_in_room(data.get("message_id"), data.get("room_name"))
+    content = (data.get("content") or "").strip()
+    if not message or not content or message.superseded_by_id:
+        return
+    if message.username in SYSTEM_USERS:
+        return  # a model's reply is edited in place, never resent
+    if streaming_replies.get(room.name):
+        emit(
+            "edit_resend_refused",
+            {"error": "A reply is still streaming: Stop it, then resend."},
+            room=request.sid,
+        )
+        return
+
+    models = models_that_answered(message) or [data.get("model") or "None"]
+    branch = (
+        Message.visible(room.id)
+        .filter(Message.id >= message.id)
+        .order_by(Message.id)
+        .all()
+    )
+    revision = Message(username=message.username, content=content, room_id=room.id)
+    revision.revision_of_id = message.id
+    db.session.add(revision)
+    db.session.flush()
+    for old in branch:
+        old.superseded_by_id = revision.id
+    room.updated_at = int(time.time())
+    db.session.commit()
+
+    emit(
+        "messages_hidden",
+        {"ids": [old.id for old in branch], "revision_id": revision.id},
+        room=room.name,
+    )
+    emit(
+        "chat_message",
+        {"id": revision.id, "username": revision.username, "content": content},
+        room=room.name,
+    )
+    dispatch_message(
+        room, revision.username, content, models, data.get("enable_thinking", True)
+    )
+
+
 @socketio.on("get_activity_status")
 def handle_get_activity_status(data):
     """Get the current activity status for a room.
@@ -1295,9 +1368,7 @@ def chat_claude(
     with app.app_context():
         room = get_room(room_name)
         # claude has a 200,000 token context window for prompts.
-        all_messages = (
-            Message.query.filter_by(room_id=room.id).order_by(Message.id.desc()).all()
-        )
+        all_messages = Message.visible(room.id).order_by(Message.id.desc()).all()
 
     chat_history = []
     for msg in reversed(all_messages):
@@ -1489,10 +1560,7 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         room = get_room(room_name)
         room_id = room.id  # Save room_id to avoid DetachedInstanceError later
         last_messages = (
-            Message.query.filter_by(room_id=room_id)
-            .order_by(Message.id.desc())
-            .limit(limit)
-            .all()
+            Message.visible(room_id).order_by(Message.id.desc()).limit(limit).all()
         )
 
         chat_history = []
@@ -1735,10 +1803,7 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
     with app.app_context():
         room = get_room(room_name)
         last_messages = (
-            Message.query.filter_by(room_id=room.id)
-            .order_by(Message.id.desc())
-            .limit(limit)
-            .all()
+            Message.visible(room.id).order_by(Message.id.desc()).limit(limit).all()
         )
 
         chat_history = [
@@ -1923,7 +1988,7 @@ def backfill_titles():
         names = [
             room.name
             for room in Room.query.filter(Room.title.is_(None)).all()
-            if Message.query.filter_by(room_id=room.id).count() >= TITLE_MIN_MESSAGES
+            if Message.visible(room.id).count() >= TITLE_MIN_MESSAGES
         ]
     titled = 0
     for name in names:
@@ -1946,7 +2011,7 @@ def title_untitled_room(room_name):
         if room is None or room.title:
             return
         recent = (
-            Message.query.filter_by(room_id=room.id)
+            Message.visible(room.id)
             .order_by(Message.id.desc())
             .limit(TITLE_CONTEXT_MESSAGES)
             .all()
@@ -1979,7 +2044,7 @@ def generate_new_title(room_name, username):
         room = get_room(room_name)
         # Get the last few messages to generate a title
         last_messages = (
-            Message.query.filter_by(room_id=room.id)
+            Message.visible(room.id)
             .order_by(Message.id.desc())
             .limit(1000)  # Adjust the limit as needed
             .all()
@@ -2085,10 +2150,7 @@ def find_most_recent_code_block(room_name):
 
         # Get the most recent message for the room
         latest_message = (
-            Message.query.filter_by(room_id=room.id)
-            .order_by(Message.id.desc())
-            .offset(1)
-            .first()
+            Message.visible(room.id).order_by(Message.id.desc()).offset(1).first()
         )
 
     if latest_message:
@@ -2302,10 +2364,7 @@ def cancel_generation(room_name):
         room = get_room(room_name)
         # Get the most recent message for the room that is being generated
         latest_message = (
-            Message.query.filter_by(room_id=room.id)
-            .order_by(Message.id.desc())
-            .offset(1)
-            .first()
+            Message.visible(room.id).order_by(Message.id.desc()).offset(1).first()
         )
 
     if latest_message:

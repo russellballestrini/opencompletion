@@ -148,11 +148,28 @@ class UserSession(db.Model):
 
 
 class Message(db.Model):
+    """One message in a room.
+
+    Edit & resend never deletes: the edited message & everything after it
+    stay as rows, hidden by `superseded_by_id` (the revision that replaced
+    them), & the revision names what it revises in `revision_of_id`. So
+    every version of a conversation is kept as a tree of branches we can
+    show later: a revision's hidden branch is the rows superseded by it,
+    starting at its revision_of_id. Read a room through Message.visible().
+    """
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(128), nullable=False)
     content = db.Column(db.String(1024), nullable=False)
     token_count = db.Column(db.Integer)
     room_id = db.Column(db.Integer, db.ForeignKey("room.id"), nullable=False)
+    superseded_by_id = db.Column(db.Integer, index=True)
+    revision_of_id = db.Column(db.Integer)
+
+    @classmethod
+    def visible(cls, room_id):
+        """A room's current conversation: no superseded branches."""
+        return cls.query.filter_by(room_id=room_id, superseded_by_id=None)
 
     def __init__(self, username, content, room_id):
         self.username = username

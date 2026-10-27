@@ -248,7 +248,7 @@ def fork_conversation(source_room, up_to=None):
     db.session.add(new_room)
     db.session.commit()
 
-    copied = Message.query.filter_by(room_id=source_room.id)
+    copied = Message.visible(source_room.id)
     if up_to is not None:
         copied = copied.filter(Message.id <= up_to)
     relinked = {}
@@ -366,7 +366,7 @@ def download_chat_history():
     if not room or room_access_denied(room, auth.get_current_user()):
         return jsonify({"error": "Room not found"}), 404
 
-    messages = Message.query.filter_by(room_id=room.id).all()
+    messages = Message.visible(room.id).all()
 
     if not messages:
         return jsonify({"error": "No messages found"}), 404
@@ -401,7 +401,7 @@ def download_chat_history_md():
     if not room or room_access_denied(room, auth.get_current_user()):
         return jsonify({"error": "Room not found"}), 404
 
-    messages = Message.query.filter_by(room_id=room.id).all()
+    messages = Message.visible(room.id).all()
 
     if not messages:
         return jsonify({"error": "No messages found"}), 404
