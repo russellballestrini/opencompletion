@@ -334,3 +334,116 @@ def test_private_chats_stay_out_of_browser_history(client):
     sign_in(client, me)
     assert "isPrivate: true" in client.get("/chat/my-secret").get_data(as_text=True)
     assert "isPrivate: false" in client.get("/chat/open-room").get_data(as_text=True)
+
+
+SIDEWAYS_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    if (innerWidth <= 768) openDrawer('rooms');
+    const sidebar = document.getElementById('app-sidebar');
+    const edge = sidebar.getBoundingClientRect().right + 1;
+    for (const el of [sidebar, ...sidebar.querySelectorAll('*')]) {
+        const style = getComputedStyle(el);
+        // .chat-list-name clips with "…" on purpose; nothing may scroll.
+        if (el.scrollWidth > el.clientWidth + 1 && /auto|scroll/.test(style.overflowX)) {
+            problems.push('scrolls sideways: ' + el.className + ' ' + el.scrollWidth + ' > ' + el.clientWidth);
+        }
+        if (el.getBoundingClientRect().right > edge && style.display !== 'none') {
+            problems.push('past our sidebar: ' + el.tagName + '.' + el.className);
+        }
+    }
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.slice(0, 3).join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [375, 1280])
+@pytest.mark.parametrize("path", ["/", "/chat/long-room", "/browse"])
+def test_our_sidebar_never_scrolls_sideways(client, tmp_path, path, width):
+    """A long unbroken title ends in "…" inside our sidebar; it once widened
+    the grid's auto track & scrolled the whole sidebar sideways."""
+    from models import Room, db
+
+    me = make_user("a-very-long-display-name-without-spaces@example.test", "x" * 50)
+    word = "supercalifragilisticexpialidocious" * 3
+    room = make_room("long-room", owner=me)
+    room.title = f"A title long enough to wrap {word}"
+    room.active_users = ",".join(f"guest{n}" for n in range(12))
+    make_room("another-room", owner=me, private=True)
+    db.session.commit()
+    sign_in(client, me)
+    html = client.get(path).get_data(as_text=True)
+    out = run_probe(html, SIDEWAYS_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+def test_join_titles_an_untitled_room_in_the_background(test_app, monkeypatch):
+    """A room whose replies came before titling gets a title when someone
+    opens it, so Your chats & Public chats stop showing its slug."""
+    import app as app_module
+    from models import Message, db
+
+    room = make_room("old-untitled")
+    for who, text in [
+        ("ada", "How do lifetimes work?"),
+        ("hermes", "They bound refs."),
+    ]:
+        db.session.add(Message(username=who, content=text, room_id=room.id))
+    db.session.commit()
+    spawned = []
+    monkeypatch.setattr(
+        app_module.gevent, "spawn", lambda fn, *args: spawned.append((fn, args))
+    )
+    socket = app_module.socketio.test_client(
+        app_module.app, flask_test_client=test_app.test_client()
+    )
+    socket.emit("join", {"room_name": "old-untitled", "username": "ada"})
+    assert (app_module.title_untitled_room, ("old-untitled",)) in spawned
+
+
+def test_backfill_titles_every_untitled_conversation(test_app, monkeypatch):
+    import app as app_module
+    from models import Message, Room, db
+
+    talked = make_room("talked")
+    for text in ("hi", "hello"):
+        db.session.add(Message(username="ada", content=text, room_id=talked.id))
+    make_room("one-message", message="hi")
+    titled = make_room("already")
+    titled.title = "Kept"
+    db.session.commit()
+    monkeypatch.setattr(app_module, "gpt_generate_room_title", lambda m: "Greetings")
+    monkeypatch.setattr(app_module.socketio, "emit", lambda *a, **k: None)
+    assert app_module.backfill_titles() == (1, 1)
+    db.session.expire_all()
+    titles = {r.name: r.title for r in Room.query.all()}
+    assert titles == {"talked": "Greetings", "one-message": None, "already": "Kept"}
+
+
+def test_a_late_auto_title_never_replaces_one_set_meanwhile(test_app, monkeypatch):
+    """The title model call yields: if /title new (or another titler) saves a
+    title meanwhile, our late automatic title is dropped, never written over it."""
+    import app as app_module
+    from models import Room, db
+
+    room = make_room("raced-room", message="hello")
+    emitted = []
+
+    def slow_model(messages):
+        # Someone sets a title while our model call is still running.
+        db.session.execute(
+            db.update(Room).where(Room.id == room.id).values(title="Chosen by hand")
+        )
+        db.session.commit()
+        return "Automatic"
+
+    monkeypatch.setattr(app_module, "gpt_generate_room_title", slow_model)
+    monkeypatch.setattr(
+        app_module.socketio, "emit", lambda event, *a, **k: emitted.append(event)
+    )
+    app_module.title_untitled_room(room.name)
+    db.session.expire_all()
+    assert Room.query.filter_by(name="raced-room").one().title == "Chosen by hand"
+    assert "update_room_title" not in emitted
