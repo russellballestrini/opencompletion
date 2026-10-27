@@ -1671,6 +1671,11 @@ a:hover {
         font-size: 22px;
     }
 
+    /* Phones: our question gets a line of its own. */
+    .home-greeting-ask {
+        display: block;
+    }
+
     .composer-model {
         font-size: 16px;
     }
