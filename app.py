@@ -647,6 +647,7 @@ activity.init_activity_module(
 # HTTP routes live in routes/ (pages, accounts, rooms, code); chat stays
 # here. The re-exports keep `app.<name>` working for callers & tests.
 import routes  # noqa: E402
+from repetition_guard import RepetitionGuard  # noqa: E402
 from routes.pages import safe_next_url  # noqa: E402,F401
 from routes.rooms import (  # noqa: E402,F401
     emit_room_list_update,
@@ -1287,19 +1288,50 @@ def chat_claude(
     title_untitled_room(room_name)
 
 
+def _env_float(name, default):
+    try:
+        return float(os.environ[name])
+    except (KeyError, ValueError):
+        return default
+
+
+# Thinking & answer together; a loop that a hang-up can't stop ends here.
+DEFAULT_MAX_TOKENS = 8192
+
+
+def chat_sampling(model_name):
+    """Sampling for a chat reply. Greedy decoding (temperature 0, our old
+    default) sends reasoning models such as Qwen3 into endless repetition
+    in their thinking, so chat samples at Qwen's thinking-mode settings:
+    OPENCOMPLETION_TEMPERATURE (0.6) & OPENCOMPLETION_TOP_P (0.95), plus
+    OPENCOMPLETION_PRESENCE_PENALTY when set.
+
+    OPENCOMPLETION_MAX_TOKENS (8192; 0 = no cap) bounds every reply in the
+    request itself: hanging up on a looping model (RepetitionGuard) stops
+    the generation only where a disconnect reaches vLLM & aborts it, which
+    not every GPU host or proxy does, while vLLM always stops at max_tokens.
+    OpenAI's o-series take temperature 1 only & no top_p (o3: neither)."""
+    if any(tag in model_name for tag in ("o1-", "o3", "o4-")):
+        return {} if "o3" in model_name else {"temperature": 1}
+    sampling = {
+        "temperature": _env_float("OPENCOMPLETION_TEMPERATURE", 0.6),
+        "top_p": _env_float("OPENCOMPLETION_TOP_P", 0.95),
+    }
+    presence = _env_float("OPENCOMPLETION_PRESENCE_PENALTY", None)
+    if presence is not None:
+        sampling["presence_penalty"] = presence
+    max_tokens = int(_env_float("OPENCOMPLETION_MAX_TOKENS", DEFAULT_MAX_TOKENS))
+    if max_tokens > 0:
+        sampling["max_tokens"] = max_tokens
+    return sampling
+
+
 def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True):
     openai_client, model_name = get_openai_client_and_model(model_name)
 
-    temperature = 0
     limit = 20
     if "gpt-4" in model_name:
         limit = 1000
-    if "o1-" in model_name:
-        temperature = 1
-    if "o3-" in model_name:
-        temperature = 1
-    if "o4-" in model_name:
-        temperature = 1
 
     # Check if this is a vision-capable model
     vision_enabled = is_vision_model(model_name)
@@ -1374,10 +1406,8 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         "messages": chat_history,
         "n": 1,
         "stream": True,
+        **chat_sampling(model_name),
     }
-    if "o3" not in model_name:
-        # o3 does not support temperature at all!
-        create_kwargs["temperature"] = temperature
     try:
         if enable_thinking:
             chunks = openai_client.chat.completions.create(**create_kwargs)
@@ -1411,11 +1441,21 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         # exit early to avoid clobbering the error message.
         return None
 
+    # One guard per channel: a model looping in its thinking or its answer
+    # is cut off, and closing our stream makes the server stop generating.
+    thinking_guard, answer_guard = RepetitionGuard(), RepetitionGuard()
+    looped = None
+    cut_at_limit = False
+
     for chunk in chunks:
         # Check if there has been a cancellation request, break if there is.
         if cancellation_requests.get(msg_id):
             del cancellation_requests[msg_id]
             break
+        if not chunk.choices:
+            continue
+        if getattr(chunk.choices[0], "finish_reason", None) == "length":
+            cut_at_limit = True
 
         delta = chunk.choices[0].delta
         # Qwen3.x / Deepseek-R1 / o1: thinking streams via delta.reasoning_content,
@@ -1434,6 +1474,9 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
                 room=room_name,
             )
             socketio.sleep(0)
+            if thinking_guard.add(reasoning):
+                looped = ("thinking", thinking_guard.looping)
+                break
 
         content = delta.content
 
@@ -1460,6 +1503,43 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
                     room=room_name,
                 )
             socketio.sleep(0)  # Force immediate handling
+            if answer_guard.add(content):
+                looped = ("reply", answer_guard.looping)
+                break
+
+    notice = ""
+    if cut_at_limit and not looped:
+        cap = create_kwargs.get("max_tokens")
+        notice = (
+            f"\n\n_Stopped at our {cap}-token limit (OPENCOMPLETION_MAX_TOKENS)._"
+            if cap
+            else "\n\n_Stopped: the model reached its length limit._"
+        )
+    if looped:
+        # Hang up. Where a disconnect reaches vLLM it aborts the generation;
+        # elsewhere it runs on to max_tokens (chat_sampling), never forever.
+        close = getattr(chunks, "close", None)
+        if close:
+            close()
+        where, phrase = looped
+        notice = (
+            f"\n\n_Stopped: {model_name} kept repeating "
+            f"\u201c{phrase[:80]}\u201d in its {where}. Ask again, or rephrase._"
+        )
+        print(f"[WARN] {model_name} looped in its {where} in {room_name}: {phrase!r}")
+    if notice:
+        buffer += notice
+        socketio.emit(
+            "message_chunk",
+            {
+                "id": msg_id,
+                "content": notice,
+                "username": username,
+                "model_name": model_name,
+                "is_first_chunk": first_chunk,
+            },
+            room=room_name,
+        )
 
     # Save the entire completion to the database
     with app.app_context():
