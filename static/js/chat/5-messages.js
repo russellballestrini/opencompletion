@@ -22,7 +22,7 @@ function addForkButton(buttonContainer, messageId) {
     const forkButton = document.createElement("button");
     forkButton.textContent = "Fork";
     forkButton.className = "fork-button";
-    forkButton.title = `Fork: start a new chat from this reply, holding a copy of every message up to here${CHAT_CONFIG.signedIn ? " (private, only you)" : " (a public chatroom)"}. This chat stays as it is.`;
+    forkButton.title = `Fork: start a new chat from this reply, holding a copy of every message up to here${CHAT_CONFIG.signedIn ? " (solo, only you)" : " (a public chatroom)"}. This chat stays as it is.`;
     forkButton.onclick = () => forkFromMessage(messageId, forkButton);
     buttonContainer.appendChild(forkButton);
 }

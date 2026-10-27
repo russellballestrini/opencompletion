@@ -12,6 +12,7 @@ from flask import (
 )
 
 import auth
+from blob_store import max_bytes as max_upload_bytes
 from models import Room
 
 bp = Blueprint("pages", __name__)
@@ -28,7 +29,13 @@ def favicon():
 def brand():
     """Our name atop every page: OPENCOMPLETION_BRAND (say "uncloseai")
     lets one deployment carry its own, OpenCompletion otherwise."""
-    return {"brand_name": os.environ.get("OPENCOMPLETION_BRAND") or "OpenCompletion"}
+    limit = max_upload_bytes()
+    return {
+        "brand_name": os.environ.get("OPENCOMPLETION_BRAND") or "OpenCompletion",
+        # Our composer refuses a file over this before uploading it.
+        "max_upload_bytes": limit,
+        "max_upload_mb": f"{limit / (1024 * 1024):g}",
+    }
 
 
 @bp.app_context_processor

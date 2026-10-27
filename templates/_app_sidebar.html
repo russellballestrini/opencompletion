@@ -36,7 +36,7 @@
             <h2 id="your-chats-heading" class="sidebar-heading">Your chats</h2>
             <ul id="your-chats" class="chat-list" data-signed-in="{{ 'true' if user else 'false' }}">
                 {% for room in your_chats %}
-                {{ chat_item(room, '🔒' if room.is_private else '', 'private') }}
+                {{ chat_item(room, '🔒' if room.is_private else '', 'solo') }}
                 {% endfor %}
             </ul>
             <p id="your-chats-empty" class="sidebar-empty"{% if your_chats %} hidden{% endif %}>

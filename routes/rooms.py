@@ -20,6 +20,7 @@ from flask import (
 import auth
 from models import ActivityState, Message, Room, UserSession, db
 from routes import DEPS
+from blob_store import copy_attachments, delete_room_attachments
 from throttle import Throttle, client_ip
 
 bp = Blueprint("rooms", __name__)
@@ -159,7 +160,7 @@ def create_room_api():
     # Private rooms require authentication
     if is_private and not user:
         return (
-            jsonify({"error": "Authentication required to create private rooms"}),
+            jsonify({"error": "Sign in to start a solo chat"}),
             401,
         )
 
@@ -212,10 +213,10 @@ def fork_conversation(source_room, up_to=None):
     make_private = bool(data.get("private", False))
 
     if room_access_denied(source_room, user):
-        return jsonify({"error": "Cannot fork private rooms you do not own"}), 403
+        return jsonify({"error": "Cannot fork someone else's solo chat"}), 403
     if make_private and not user:
         return (
-            jsonify({"error": "Authentication required to create private rooms"}),
+            jsonify({"error": "Sign in to start a solo chat"}),
             401,
         )
 
@@ -250,9 +251,11 @@ def fork_conversation(source_room, up_to=None):
     copied = Message.query.filter_by(room_id=source_room.id)
     if up_to is not None:
         copied = copied.filter(Message.id <= up_to)
+    relinked = {}
     for msg in copied.order_by(Message.id).all():
+        content = copy_attachments(msg.content, source_room.id, new_room.id, relinked)
         db.session.add(
-            Message(username=msg.username, content=msg.content, room_id=new_room.id)
+            Message(username=msg.username, content=content, room_id=new_room.id)
         )
     db.session.commit()
 
@@ -343,6 +346,9 @@ def delete_room(room_id):
 
     # Delete user sessions
     UserSession.query.filter_by(room_id=room.id).delete()
+
+    # Delete its files, & bytes no other room names
+    delete_room_attachments(room.id)
 
     # Delete the room
     db.session.delete(room)

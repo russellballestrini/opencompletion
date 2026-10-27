@@ -490,6 +490,46 @@ window.addEventListener('load', () => {
     };
     fork.click();
 
+    // Stop shows while a reply streams & stops every reply in this room
+    const stop = document.getElementById('stop-button');
+    check(stop.hidden, 'no Stop when nothing streams');
+    deliver('replies_streaming', {count: 1});
+    check(!stop.hidden && getComputedStyle(stop).display !== 'none', 'Stop shows while a reply streams');
+    stop.click();
+    check(testSocket.sent.some(([event, data]) => event === 'stop_replies' && data.room_name === 'lobby'), 'Stop asks our server to end it');
+    deliver('replies_streaming', {count: 0});
+    check(stop.hidden, 'Stop hides when replies end');
+
+    // Files: dropped on our box, refused over our limit, sent as links
+    const form = document.getElementById('message-form');
+    const drop = files => {
+        const transfer = new DataTransfer();
+        files.forEach(f => transfer.items.add(f));
+        form.dispatchEvent(new DragEvent('drop', {dataTransfer: transfer, bubbles: true, cancelable: true}));
+    };
+    const limit = Number(form.dataset.maxUpload);
+    check(limit === 7 * 1024 * 1024, 'our 7 MB limit reaches the page: ' + limit);
+    drop([new File(['x'.repeat(10)], 'notes (v2).txt', {type: 'text/plain'})]);
+    check(form.querySelectorAll('.composer-file').length === 1, 'a dropped file waits as a chip');
+    const huge = new File(['x'], 'huge.bin');
+    Object.defineProperty(huge, 'size', {value: limit + 1});
+    drop([huge]);
+    check(form.querySelectorAll('.composer-file').length === 1
+        && /huge\.bin/.test(document.querySelector('.composer-status').textContent), 'an oversized file is refused, by name');
+    const uploads = [];
+    const fetchBeforeUpload = window.fetch;
+    window.fetch = (url, options) => {
+        if (String(url).endsWith('/api/rooms/lobby/attachments')) {
+            uploads.push(options.body.get('file').name);
+            return Promise.resolve({ok: true, json: () => Promise.resolve(
+                {id: 5, url: '/attachments/5/notes (v2).txt', filename: 'notes (v2).txt', size: 10, is_image: false})});
+        }
+        return fetchBeforeUpload(url, options);
+    };
+    box.value = 'see attached';
+    document.getElementById('send-button').click();
+    let fileSent = null;
+
     // Auto-fix runs only our marked post's exact block, never a same-named
     // guest's other code (guest names are not unique)
     const executed = [];
@@ -512,13 +552,17 @@ window.addEventListener('load', () => {
     // own pace: poll until both have or 1.5 s pass, never a fixed sleep.
     const started = Date.now();
     const settle = () => {
-        if ((executed.length === 0 || copyButton.textContent !== 'Copied!' || !forkAlert) && Date.now() - started < 1500) {
+        fileSent = fileSent || testSocket.sent.find(([event, data]) => event === 'chat_message' && data.message.startsWith('see attached'));
+        if ((executed.length === 0 || copyButton.textContent !== 'Copied!' || !forkAlert || !fileSent) && Date.now() - started < 1500) {
             setTimeout(settle, 50);
             return;
         }
         check(executed.length === 1 && executed[0] === 'print(2)', 'only the fixed block ran: ' + JSON.stringify(executed));
         check(copyButton.textContent === 'Copied!', 'copy shows Copied!: ' + copyButton.textContent);
         check(!window.pwned, 'no injected script ran (' + window.pwned + ')');
+        check(uploads.length === 1 && uploads[0] === 'notes (v2).txt', 'our file uploaded on send: ' + JSON.stringify(uploads));
+        check(fileSent && fileSent[1].message.includes('(/attachments/5/notes%20%28v2%29.txt)'), 'the message links it, escaped: ' + (fileSent && fileSent[1].message));
+        check(!form.querySelector('.composer-file'), 'sent files leave the box');
         check(forkCalls.length === 1 && forkCalls[0][0] === '/api/messages/60/fork' && forkCalls[0][1].private === false, 'Fork posts this reply, public for a guest: ' + JSON.stringify(forkCalls));
         check(/Too many forks/.test(forkAlert || '') && !fork.disabled, 'a refused fork says why & can be retried');
         document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';

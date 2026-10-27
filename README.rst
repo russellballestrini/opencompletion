@@ -11,7 +11,7 @@ Features
 --------
 
 - A home page that is an empty chat: type, & your first message starts a
-  private chat (signed in) or a multiplayer chatroom anyone with the link can
+  solo chat (only you, signed in) or a multiplayer chatroom anyone with the link can
   join. Its sidebar lists your chats & public ones, you at the bottom.
 - Real-time messaging between users in a chatroom.
 - Ability to join different chatrooms with unique URLs.
@@ -23,7 +23,18 @@ Features
 - Commands to load and save code blocks to AWS S3.
 - Database storage for messages and chatrooms using SQLAlchemy.
 - Migration support with Flask-Migrate.
-- Email OTP authentication with private room support
+- Attach files to any message (picked, dropped or pasted), up to
+  ``OPENCOMPLETION_UPLOAD_MAX_MB`` (default ``7``) each &
+  ``OPENCOMPLETION_UPLOAD_LIMIT`` per address (default ``30/600``). Models
+  read text & code files & see images (vision models). Bytes are stored
+  once per content in SQLite (``blob_store.py``, tables ``blob`` &
+  ``attachment``; run ``flask db upgrade`` or ``make init-db``).
+- Speak instead of typing: the mic records in the browser & our server
+  transcribes through ``SPEECH_ENDPOINT_n``'s ``/audio/transcriptions``
+  (model ``SPEECH_STT_MODEL``, default ``whisper-1``;
+  ``OPENCOMPLETION_TRANSCRIBE_LIMIT`` per address, default ``30/600``).
+- A Stop button ends the reply streaming in a chat; what it wrote stays.
+- Email OTP authentication with solo (only you) chat support
 - Fork any model reply into a new chat holding the conversation up to it,
   limited per address (``OPENCOMPLETION_FORK_LIMIT``, default ``10/600``:
   10 forks per 10 minutes; ``0`` turns it off). Behind a proxy set

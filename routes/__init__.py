@@ -17,7 +17,7 @@ def register(app, **deps):
     (the live list of names whose messages are system/assistant turns).
     """
     DEPS.update(deps)
-    from routes import accounts, code, pages, rooms, speech
+    from routes import accounts, code, files, pages, rooms, speech
 
-    for module in (pages, accounts, rooms, code, speech):
+    for module in (pages, accounts, rooms, code, speech, files):
         app.register_blueprint(module.bp)

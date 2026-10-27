@@ -7,7 +7,8 @@ any n. With none set we use speech.ai.unturf.com keyless, as before.
 /speech/voices merges every endpoint's /voices list (the first endpoint
 listing a model owns its entry); /speech/audio streams /audio/speech back
 from an endpoint that lists the requested model, falling through to the
-next one when an endpoint is down or answers 5xx.
+next one when an endpoint is down or answers 5xx. /speech/transcribe sends
+our mic's recordings to /audio/transcriptions the same way.
 """
 
 import os
@@ -15,6 +16,9 @@ import time
 
 import requests
 from flask import Blueprint, Response, jsonify, request, stream_with_context
+
+from blob_store import max_bytes
+from throttle import Throttle, client_ip
 
 bp = Blueprint("speech", __name__)
 
@@ -162,4 +166,68 @@ def speech_audio():
         status=upstream.status_code,
         content_type=upstream.headers.get("Content-Type", "application/octet-stream"),
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# Voice input: speech to text through the same endpoints, so audio goes to
+# our speech service, never a browser vendor's. SPEECH_STT_MODEL names the
+# transcription model (default whisper-1, the OpenAI-style name most
+# whisper servers answer to).
+TRANSCRIBE_TIMEOUT_S = (5, 120)
+TRANSCRIBE_THROTTLE = Throttle("OPENCOMPLETION_TRANSCRIBE_LIMIT", default=(30, 600))
+
+
+@bp.route("/speech/transcribe", methods=["POST"])
+def speech_transcribe():
+    """Audio from our mic button (multipart "file", within our upload
+    limit) -> {"text": ...} from the first endpoint that transcribes it."""
+    if (request.content_length or 0) > max_bytes() + 64 * 1024:
+        return jsonify({"error": "That recording is too long."}), 413
+    upload = request.files.get("file")
+    data = upload.stream.read(max_bytes() + 1) if upload else b""
+    if not data:
+        return jsonify({"error": "No audio was recorded."}), 400
+    if len(data) > max_bytes():
+        return jsonify({"error": "That recording is too long."}), 413
+    retry_after = TRANSCRIBE_THROTTLE.hit(client_ip())
+    if retry_after:
+        response = jsonify(
+            {"error": "Too many recordings from your address; try again soon."}
+        )
+        response.headers["Retry-After"] = str(retry_after)
+        return response, 429
+
+    model = os.environ.get("SPEECH_STT_MODEL") or "whisper-1"
+    last_error = "no speech endpoint configured"
+    for base_url, api_key in speech_endpoints():
+        try:
+            answer = requests.post(
+                f"{base_url}/audio/transcriptions",
+                files={
+                    "file": (
+                        upload.filename or "speech.webm",
+                        data,
+                        upload.mimetype or "audio/webm",
+                    )
+                },
+                data={"model": model},
+                headers=_headers(api_key),
+                timeout=TRANSCRIBE_TIMEOUT_S,
+            )
+        except requests.RequestException as exc:
+            last_error = f"{base_url}: {exc}"
+            continue
+        if answer.ok:
+            try:
+                return jsonify({"text": (answer.json().get("text") or "").strip()})
+            except ValueError:
+                last_error = f"{base_url}: not JSON"
+                continue
+        last_error = f"{base_url}: HTTP {answer.status_code}"
+    print(f"[WARN] speech transcription failed: {last_error}")
+    return (
+        jsonify(
+            {"error": "Voice input is unavailable: no speech service transcribed it."}
+        ),
+        502,
     )

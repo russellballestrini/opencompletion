@@ -1,4 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import sqlite3
 from datetime import datetime, timedelta, timezone
 import time
 
@@ -30,6 +33,18 @@ def epoch_now():
 
 
 db = SQLAlchemy()
+
+
+@event.listens_for(Engine, "connect")
+def _sqlite_pragmas(dbapi_connection, _record):
+    """WAL lets chats keep reading while a large upload is written (default
+    journaling locks readers out for the write); NORMAL sync is safe under
+    WAL & skips an fsync per commit. A :memory: database ignores WAL."""
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.close()
 
 
 class User(db.Model):
@@ -171,6 +186,43 @@ class Message(db.Model):
             and "data:image/" in self.content
             and ";base64," in self.content
         )
+
+
+class Blob(db.Model):
+    """Bytes of an uploaded file, stored once per content (SHA-256), so the
+    same file posted twice, or in two rooms, costs its size once. Only
+    blob_store.py reads & writes this table: swap that module's store for a
+    document object store when SQLite is outgrown, and nothing else moves.
+    """
+
+    sha256 = db.Column(db.String(64), primary_key=True)
+    size = db.Column(db.Integer, nullable=False)
+    # Deferred: listing attachments (or joining to blob) never loads bytes.
+    data = db.deferred(db.Column(db.LargeBinary, nullable=False))
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+
+class Attachment(db.Model):
+    """One file as posted in one room: who, what name & type, which bytes.
+    Served at /attachments/<id>/<filename> under the room's access rule."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(
+        db.Integer, db.ForeignKey("room.id"), nullable=False, index=True
+    )
+    sha256 = db.Column(db.String(64), db.ForeignKey("blob.sha256"), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    mime_type = db.Column(db.String(127), nullable=False)
+    size = db.Column(db.Integer, nullable=False)
+    username = db.Column(db.String(128))
+    # An image a vision model fetched from the web keeps its address here,
+    # so the next turn finds it by index instead of re-fetching.
+    source_url = db.Column(db.String(2048), index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    @property
+    def url(self):
+        return f"/attachments/{self.id}/{self.filename}"
 
 
 class ActivityState(db.Model):

@@ -9,13 +9,21 @@ monkey.patch_all()
 
 import json
 import time
+import base64
 import os
 
 import boto3
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
 
-from models import db, Room, UserSession, Message, ActivityState, User
+from models import db, Room, UserSession, Message, ActivityState, User, Attachment
+from blob_store import (
+    attachment_context,
+    data_url as attachment_data_url,
+    has_image_attachment,
+    max_bytes as max_upload_bytes,
+    save_attachment,
+)
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -40,6 +48,10 @@ socketio = SocketIO(app, async_mode="gevent")
 
 # Global dictionary to keep track of cancellation requests
 cancellation_requests = {}
+# Our Stop button: rooms whose streaming replies should end now, & how
+# many replies each room has streaming (stoppable_reply keeps both).
+stop_requests = set()
+streaming_replies = {}
 
 from openai import OpenAI
 import activity
@@ -216,6 +228,14 @@ def find_saved_base64_for_url(external_url: str, room_id: int) -> str | None:
     if external_url in _external_image_cache:
         return _external_image_cache[external_url]
 
+    # Saved as a blob (indexed by source_url): one lookup, no scan
+    saved = Attachment.query.filter_by(room_id=room_id, source_url=external_url).first()
+    if saved:
+        _external_image_cache[external_url] = attachment_data_url(saved)
+        return _external_image_cache[external_url]
+
+    # Older rooms saved fetched images as base64 inside a message
+
     # Look for a saved message with this URL in the alt text
     try:
         # Escape special LIKE characters in URL (%, _, \)
@@ -290,45 +310,26 @@ def fetch_external_image_as_base64(image_url: str) -> str | None:
 def save_fetched_image_as_message(
     external_url: str, data_url: str, room_id: int
 ) -> None:
-    """Save a fetched external image as a new message in the database.
-
-    This persists the base64 version so we don't need to fetch again.
-    Only saves if no saved version exists for this URL in this room.
-    """
-    print(
-        f"[Vision Save] Attempting to save base64 for room {room_id}: {external_url[:60]}..."
-    )
+    """Keep a fetched external image so the next turn needn't fetch it:
+    its bytes go to our blob store (blob_store.py) as an attachment of the
+    room, found again by source_url. Images over our upload limit are only
+    cached in memory. (Older rooms kept these as base64 inside messages;
+    find_saved_base64_for_url still reads those.)"""
+    _external_image_cache[external_url] = data_url
     try:
-        # Check if already saved for this URL in this room
-        # Escape special LIKE characters in URL (%, _, \)
-        escaped_url = escape_like_pattern(external_url)
-        existing = Message.query.filter(
-            Message.room_id == room_id,
-            Message.content.like(f'%alt="Fetched from {escaped_url}"%', escape="\\"),
-        ).first()
-
-        if existing:
-            print(f"[Vision Save] Already exists as message {existing.id}")
+        if Attachment.query.filter_by(room_id=room_id, source_url=external_url).first():
             return
-
-        # Create img tag with base64 data
-        img_content = f'<img src="{data_url}" alt="Fetched from {external_url}">'
-        new_message = Message(
-            username="system",  # Mark as system message
-            content=img_content,
-            room_id=room_id,
+        header, _, encoded = data_url.partition(",")
+        data = base64.b64decode(encoded)
+        if len(data) > max_upload_bytes():
+            return
+        mime_type = header[len("data:") :].split(";")[0] or "image/jpeg"
+        name = external_url.split("?")[0].rstrip("/").rsplit("/", 1)[-1] or "image"
+        save_attachment(
+            room_id, data, name, mime_type, "system", source_url=external_url
         )
-        db.session.add(new_message)
-        db.session.commit()
-        print(f"[Vision Save] SUCCESS - Saved as message {new_message.id}")
-
-        # Also cache it in memory
-        _external_image_cache[external_url] = data_url
     except Exception as e:
         print(f"[Vision Save] FAILED: {e}")
-        import traceback
-
-        traceback.print_exc()
         db.session.rollback()
 
 
@@ -595,7 +596,7 @@ HELP_MESSAGE = """
 - Models are listed live from this server's endpoints, so the list changes as they come & go.
 
 **Your chats**
-- **New chat** (top of our sidebar) starts one: **Private** is only you (sign in first), **Chatroom** is public & anyone with its link can join.
+- **New chat** (top of our sidebar) starts one: **Solo** is only you (sign in first), **Chatroom** is public & anyone with its link can join.
 - Your chats & public chats are listed in our sidebar; **Rooms** shows them all.
 - Room controls (fork, voice, activities, downloads, who is here) sit beside our chat; on a phone, tap ⚙.
 
@@ -747,7 +748,7 @@ def chat(room_name):
 
     # Check if they're trying to access a private room they don't own
     if room_access_denied(room, user):
-        return "Access denied: This is a private room", 403
+        return "Access denied: this is someone's solo chat", 403
 
     # Use authenticated user's display name, or None (will prompt on client side)
     username = user.display_name if user else None
@@ -858,6 +859,9 @@ def on_join(data):
     # From here on this client hears the room: our home page's first message
     # waits for this before it is sent (static/js/chat/3-room.js).
     emit("joined", {"room_name": room_name}, room=request.sid)
+    # Joining mid-reply: show Stop too.
+    if streaming_replies.get(room_name):
+        emit_streaming(room_name, to=request.sid)
 
     # update the title bar with the proper room title, if it exists for just this new client.
     if room.title:
@@ -1034,20 +1038,62 @@ def handle_message(data):
             {"id": None, "content": "<span id='processing'>Processing...</span>"},
             room=room.name,
         )
+        # elif: a Claude model once also fell through to chat_gpt, so two
+        # replies streamed for one message.
         if "anthropic.claude" in model:
-            gevent.spawn(chat_claude, username, room_name, model_name=model)
-        if "dall-e" in model:
+            gevent.spawn(
+                stoppable_reply, chat_claude, username, room_name, model_name=model
+            )
+        elif "dall-e" in model:
             gevent.spawn(generate_dalle_image, room_name, message, username)
         else:
             # All other models (Groq, Together, Mistral, etc.) use OpenAI client
             enable_thinking = data.get("enable_thinking", True)
             gevent.spawn(
+                stoppable_reply,
                 chat_gpt,
                 username,
                 room_name,
                 model_name=model,
                 enable_thinking=enable_thinking,
             )
+
+
+def emit_streaming(room_name, to=None):
+    """Tell a room (or one client) how many replies are streaming in it, so
+    our Stop button shows while there is something to stop."""
+    socketio.emit(
+        "replies_streaming",
+        {"count": streaming_replies.get(room_name, 0)},
+        room=to or room_name,
+    )
+
+
+def stoppable_reply(reply, username, room_name, **kwargs):
+    """Run a model reply (chat_gpt, chat_claude) counted as streaming in
+    its room, so Stop can end it; the count drops however the reply ends."""
+    streaming_replies[room_name] = streaming_replies.get(room_name, 0) + 1
+    emit_streaming(room_name)
+    try:
+        return reply(username, room_name, **kwargs)
+    finally:
+        streaming_replies[room_name] -= 1
+        if not streaming_replies[room_name]:
+            del streaming_replies[room_name]
+            stop_requests.discard(room_name)
+        emit_streaming(room_name)
+
+
+@socketio.on("stop_replies")
+def on_stop_replies(data):
+    """Our Stop button: end every reply streaming in this room now. What
+    was written so far stays."""
+    room_name = (data or {}).get("room_name")
+    room = Room.query.filter_by(name=room_name).first()
+    if room is None or room_access_denied(room, auth.get_current_user()):
+        return
+    if streaming_replies.get(room_name):
+        stop_requests.add(room_name)
 
 
 def message_in_room(message_id, room_name):
@@ -1210,8 +1256,8 @@ def chat_claude(
             content = ""
 
             # Check if there has been a cancellation request, break if there is.
-            if cancellation_requests.get(msg_id):
-                del cancellation_requests[msg_id]
+            if cancellation_requests.get(msg_id) or room_name in stop_requests:
+                cancellation_requests.pop(msg_id, None)
                 break
 
             if "chunk" in event:
@@ -1325,8 +1371,10 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         most_recent_image_id = None
         if vision_enabled:
             for msg in last_messages:  # newest first
-                is_image_msg = msg.is_base64_image() or extract_external_image_url(
-                    msg.content
+                is_image_msg = (
+                    msg.is_base64_image()
+                    or extract_external_image_url(msg.content)
+                    or has_image_attachment(msg.content, room_id)
                 )
                 if is_image_msg:
                     most_recent_image_id = msg.id
@@ -1358,8 +1406,15 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
                 # Skip older image messages - they have no text context
                 continue
 
-            # Regular text message - always include
-            chat_history.append({"role": role, "content": msg.content})
+            # Regular text message - always include, with the text & code
+            # files it carries inlined (& its images, for a vision model's
+            # newest image turn)
+            content = attachment_context(
+                msg.content,
+                room_id,
+                include_images=vision_enabled and msg.id == most_recent_image_id,
+            )
+            chat_history.append({"role": role, "content": content})
 
     buffer = ""  # Content buffer for accumulating the chunks
 
@@ -1416,8 +1471,8 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
 
     for chunk in chunks:
         # Check if there has been a cancellation request, break if there is.
-        if cancellation_requests.get(msg_id):
-            del cancellation_requests[msg_id]
+        if cancellation_requests.get(msg_id) or room_name in stop_requests:
+            cancellation_requests.pop(msg_id, None)
             break
 
         delta = chunk.choices[0].delta
@@ -1552,8 +1607,8 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
 
     for chunk in chunks:
         # Check if there has been a cancellation request, break if there is.
-        if cancellation_requests.get(msg_id):
-            del cancellation_requests[msg_id]
+        if cancellation_requests.get(msg_id) or room_name in stop_requests:
+            cancellation_requests.pop(msg_id, None)
             break
 
         delta = chunk["choices"][0]["delta"]

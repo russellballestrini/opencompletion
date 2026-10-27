@@ -1532,6 +1532,9 @@ a:hover {
 
 .composer {
     display: grid;
+    /* One column as wide as the box: our toolbar's buttons must never
+       widen it past a phone's screen (the model picker shrinks instead). */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-2);
     padding: var(--space-3) var(--space-3) var(--space-2) var(--space-4);
     border: 1px solid var(--border-color);
@@ -1540,7 +1543,7 @@ a:hover {
     box-shadow: var(--shadow-md);
 }
 
-/* A guest picked Private: our box shows it can't send, & why (#mode-hint). */
+/* A guest picked Solo: our box shows it can't send, & why (#mode-hint). */
 .composer-locked {
     opacity: 0.55;
 }
@@ -1575,6 +1578,7 @@ a:hover {
 
 .composer-bar {
     display: flex;
+    min-width: 0;
     align-items: center;
     justify-content: flex-end;
     gap: var(--space-2);
@@ -1626,6 +1630,149 @@ a:hover {
     stroke-width: 2.5;
     stroke-linecap: round;
     stroke-linejoin: round;
+}
+
+/* Attach & speak (_composer_tools.html), left of our model picker. */
+.composer-tools {
+    display: flex;
+    gap: var(--space-1);
+    margin-right: auto;
+}
+
+.composer-tool {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.composer-tool:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.composer-tool:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.composer-tool[hidden] {
+    display: none;
+}
+
+.composer-tool svg,
+.composer-stop svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Recording: our mic reads as live until tapped again. */
+.composer-tool[aria-pressed="true"] {
+    background-color: var(--button-danger);
+    color: #fff;
+    animation: composer-listening 1.2s ease-in-out infinite;
+}
+
+@keyframes composer-listening {
+    50% { opacity: 0.6; }
+}
+
+/* Stop: shown while a reply streams (server's replies_streaming). */
+.composer-stop {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.composer-stop svg {
+    fill: currentColor;
+}
+
+.composer-stop[hidden] {
+    display: none;
+}
+
+/* Files waiting to go with the next message, each removable. */
+.composer-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.composer-files[hidden] {
+    display: none;
+}
+
+.composer-file {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    max-width: 100%;
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background-color: var(--bg-tertiary);
+    font-size: 13px;
+}
+
+.composer-file span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.composer-file button {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.composer-file button:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.composer-drop {
+    border-style: dashed;
+    border-color: var(--button-primary);
+}
+
+.composer-status {
+    margin: var(--space-2) 0 0;
+    font-size: 13px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.composer-status:empty {
+    display: none;
 }
 
 .composer-hint {
