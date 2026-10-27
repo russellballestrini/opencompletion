@@ -886,16 +886,13 @@ def on_join(data):
             room=request.sid,
         )
 
-    message_count = len(previous_messages)
-    if room.title is None and message_count >= 6:
-        room.title = gpt_generate_room_title(previous_messages) or room.title
-        db.session.add(room)
-        socketio.emit("update_room_title", {"title": room.title}, room=room.name)
-        # Emit an event to update this room's title in the sidebar for all users.
-        updated_room_data = {"id": room.id, "name": room.name, "title": room.title}
-        emit_room_list_update(room, updated_room_data)
+    # A room whose replies came before titling (or whose title call failed)
+    # still shows its slug in every sidebar: title it in the background,
+    # never holding up this join.
+    if room.title is None and len(previous_messages) >= TITLE_MIN_MESSAGES:
+        gevent.spawn(title_untitled_room, room.name)
 
-    # commit session & active user list and title to database.
+    # commit session & active user list to database.
     db.session.commit()
 
     # Broadcast to all clients in the room that a new user has joined.
@@ -1672,6 +1669,29 @@ def gpt_generate_room_title(messages):
 
 # Most recent messages a first title reads; a new chat has only a few.
 TITLE_CONTEXT_MESSAGES = 20
+# An untitled room is titled on join once it holds a message & a reply.
+TITLE_MIN_MESSAGES = 2
+
+
+def backfill_titles():
+    """Title every untitled room holding a conversation, so Your chats &
+    Public chats show titles, not slugs (`python app.py --backfill-titles`).
+    Returns (titled, tried)."""
+    with app.app_context():
+        names = [
+            room.name
+            for room in Room.query.filter(Room.title.is_(None)).all()
+            if Message.query.filter_by(room_id=room.id).count() >= TITLE_MIN_MESSAGES
+        ]
+    titled = 0
+    for name in names:
+        title_untitled_room(name)
+        with app.app_context():
+            room = Room.query.filter_by(name=name).first()
+            if room and room.title:
+                titled += 1
+                print(f"[INFO] {name} -> {room.title}")
+    return titled, len(names)
 
 
 def title_untitled_room(room_name):
@@ -2072,7 +2092,17 @@ if __name__ == "__main__":
         default=5001,
         help="Port number to run the SocketIO server on (default: 5001)",
     )
+    parser.add_argument(
+        "--backfill-titles",
+        action="store_true",
+        help="Title every untitled room that holds a conversation, then exit",
+    )
     args = parser.parse_args()
+
+    if args.backfill_titles:
+        titled, tried = backfill_titles()
+        print(f"Titled {titled} of {tried} untitled rooms.")
+        raise SystemExit(0 if titled == tried else 1)
 
     # Beside "Loaded models" above: what speech & the classifier offer.
     import classifier

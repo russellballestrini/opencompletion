@@ -377,3 +377,46 @@ def test_our_sidebar_never_scrolls_sideways(client, tmp_path, path, width):
     html = client.get(path).get_data(as_text=True)
     out = run_probe(html, SIDEWAYS_PROBE, tmp_path, width)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+def test_join_titles_an_untitled_room_in_the_background(test_app, monkeypatch):
+    """A room whose replies came before titling gets a title when someone
+    opens it, so Your chats & Public chats stop showing its slug."""
+    import app as app_module
+    from models import Message, db
+
+    room = make_room("old-untitled")
+    for who, text in [
+        ("ada", "How do lifetimes work?"),
+        ("hermes", "They bound refs."),
+    ]:
+        db.session.add(Message(username=who, content=text, room_id=room.id))
+    db.session.commit()
+    spawned = []
+    monkeypatch.setattr(
+        app_module.gevent, "spawn", lambda fn, *args: spawned.append((fn, args))
+    )
+    socket = app_module.socketio.test_client(
+        app_module.app, flask_test_client=test_app.test_client()
+    )
+    socket.emit("join", {"room_name": "old-untitled", "username": "ada"})
+    assert (app_module.title_untitled_room, ("old-untitled",)) in spawned
+
+
+def test_backfill_titles_every_untitled_conversation(test_app, monkeypatch):
+    import app as app_module
+    from models import Message, Room, db
+
+    talked = make_room("talked")
+    for text in ("hi", "hello"):
+        db.session.add(Message(username="ada", content=text, room_id=talked.id))
+    make_room("one-message", message="hi")
+    titled = make_room("already")
+    titled.title = "Kept"
+    db.session.commit()
+    monkeypatch.setattr(app_module, "gpt_generate_room_title", lambda m: "Greetings")
+    monkeypatch.setattr(app_module.socketio, "emit", lambda *a, **k: None)
+    assert app_module.backfill_titles() == (1, 1)
+    db.session.expire_all()
+    titles = {r.name: r.title for r in Room.query.all()}
+    assert titles == {"talked": "Greetings", "one-message": None, "already": "Kept"}

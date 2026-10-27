@@ -43,6 +43,7 @@ help:
 	@echo ""
 	@echo "Machine learning & games (network where noted):"
 	@echo "  classifier-check     - Smoke test our classifier model (network)"
+	@echo "  backfill-titles      - Title untitled rooms for our sidebars (network)"
 	@echo "  jev-bench            - Self-play Jev Reasoner's probability grid (no network)"
 	@echo "  arena                - Every battleship mode plays every other (network)"
 	@echo "  test-artifact        - Compile C on a code executor & run the binary (network)"
@@ -275,6 +276,12 @@ test-artifact:
 classifier-check: venv
 	@echo "🧭 Checking our classifier model..."
 	venv/bin/python classifier.py
+
+# Title every untitled room that holds a conversation (network: a chat model)
+.PHONY: backfill-titles
+backfill-titles: venv
+	@echo "🏷️  Titling untitled rooms..."
+	venv/bin/python app.py --backfill-titles
 
 # Self-play benchmark of Jev Reasoner's exact placement-density grid
 # (jev_hunter.py), grid only, no network: mean shots to sink a random fleet.
