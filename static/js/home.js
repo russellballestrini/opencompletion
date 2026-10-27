@@ -4,11 +4,12 @@
 // Config comes from HOME_CONFIG in home.html.
 
 const MODE_KEY = 'newChatMode';
+// Each hint is [lead, rest]: on phones the rest starts its own line
+// (.phone-line), so a hint breaks where it reads well, not mid-phrase.
 const MODE_HINTS = {
-    private: 'Private: only you can open this chat.',
-    chatroom: 'Chatroom: anyone with the link can read & post, & it is listed under Public chats.',
+    private: ['Private: only you can open this chat.'],
+    chatroom: ['Chatroom: anyone with the link can read & post,', '& it is listed under Public chats.'],
 };
-const GUEST_PRIVATE_HINT = 'Sign in to keep chats private. As a guest you start a public chatroom.';
 
 const composer = document.getElementById('composer');
 const input = document.getElementById('composer-input');
@@ -22,27 +23,47 @@ function storedMode() {
     try { return localStorage.getItem(MODE_KEY); } catch (e) { return null; }
 }
 
-// Signed in, chats start private unless you chose chatroom; a guest can
-// only start a chatroom (private rooms need an owner).
+// Signed in, chats start private unless you chose chatroom; a guest
+// starts in a chatroom (private rooms need an owner).
 let mode = HOME_CONFIG.signedIn ? (storedMode() === 'chatroom' ? 'chatroom' : 'private') : 'chatroom';
 
-function showMode(note) {
+function hintLine(lead, rest) {
+    hint.textContent = lead;
+    if (!rest) return;
+    const line = document.createElement('span');
+    line.className = 'phone-line';
+    line.append(' ', ...[].concat(rest));
+    hint.appendChild(line);
+}
+
+// A guest may pick Private to see what it is, but can't start one: our
+// message box, model & Send lock until they sign in or pick Chatroom.
+function showMode() {
     modeButtons.forEach(button => {
         button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
     });
-    hint.textContent = note || MODE_HINTS[mode];
+    const locked = mode === 'private' && !HOME_CONFIG.signedIn;
+    input.disabled = modelSelect.disabled = sendButton.disabled = locked;
+    composer.classList.toggle('composer-locked', locked);
+    if (locked) {
+        const signIn = document.createElement('a');
+        signIn.href = '/auth?next=/';
+        signIn.textContent = 'Sign in';
+        hintLine('Private chats need an account.', [signIn, ' or pick Chatroom.']);
+    } else {
+        hintLine(...MODE_HINTS[mode]);
+    }
 }
 
 modeButtons.forEach(button => {
     button.addEventListener('click', () => {
-        if (button.dataset.mode === 'private' && !HOME_CONFIG.signedIn) {
-            showMode(GUEST_PRIVATE_HINT);
-            return;
-        }
         mode = button.dataset.mode;
-        try { localStorage.setItem(MODE_KEY, mode); } catch (e) {}
+        // Only an account's choice sticks: a guest always starts in a chatroom.
+        if (HOME_CONFIG.signedIn) {
+            try { localStorage.setItem(MODE_KEY, mode); } catch (e) {}
+        }
         showMode();
-        input.focus();
+        if (!input.disabled) input.focus();
     });
 });
 

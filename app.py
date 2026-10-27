@@ -591,21 +591,18 @@ def get_openai_client_and_model(model_name=None):
 
 HELP_MESSAGE = """
 **Talking to a model**
-- Pick a model under **Model** in our room controls (the right sidebar; the ⚙ button on a phone). With **None**, messages go only to people.
-- Models are listed live from this server's configured endpoints, so the list changes as endpoints come & go.
-- An image model (a name containing `dall-e`) turns your message into an image.
+- Pick a model in our message box, beside Send. **People only (no model)** sends your message to people alone.
+- Models are listed live from this server's endpoints, so the list changes as they come & go.
+
+**Your chats**
+- **New chat** (top of our sidebar) starts one: **Private** is only you (sign in first), **Chatroom** is public & anyone with its link can join.
+- Your chats & public chats are listed in our sidebar; **Rooms** shows them all.
+- Room controls (fork, voice, activities, downloads, who is here) sit beside our chat; on a phone, tap ⚙.
 
 **Commands**
-- `/activity research/activity0.yaml`: start an activity (or choose one under **Activity**).
-- `/activity cancel`, `/activity info`, `/activity metadata`: manage the running activity.
-- `/s3 ls [pattern]`, `/s3 load [path]`, `/s3 save [key]`: list, load or save files in this server's S3 bucket, when one is configured.
-- `/title new`: write a new room title from the conversation so far.
+- `/title new`: write a new title for this chat from the conversation so far.
 - `/cancel`: stop the reply that is streaming in.
 - `/help`: show this message.
-
-**Rooms**
-- Everyone in a public room sees every message; anyone with its link can join.
-- Private rooms are visible to their owner only. **Rooms** in our sidebar lists them all.
 """
 
 

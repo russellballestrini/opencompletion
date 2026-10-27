@@ -12,7 +12,7 @@
     <div class="home-topbar">
         <button type="button" class="icon-btn drawer-toggle" onclick="openDrawer('rooms')" aria-label="Chats & site menu">☰</button>
         <div class="mode-switch" role="group" aria-label="Who can see this chat">
-            <button type="button" class="mode-btn" data-mode="private" aria-pressed="false"{% if not user %} aria-disabled="true"{% endif %}>
+            <button type="button" class="mode-btn" data-mode="private" aria-pressed="false">
                 <svg class="sidebar-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
                 Private
             </button>
@@ -24,7 +24,7 @@
     </div>
 
     <div class="home-center">
-        <h1 class="home-greeting">Tabula rasa, in a beginning, where do we start?</h1>
+        <h1 class="home-greeting">Tabula rasa, in a beginning, <span class="phone-line">where do we start?</span></h1>
         <form id="composer" class="composer" novalidate>
             <label class="visually-hidden" for="composer-input">Message</label>
             <textarea id="composer-input" rows="1" placeholder="Ask anything, or type /help" autofocus></textarea>

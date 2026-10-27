@@ -33,18 +33,18 @@ def sidebar(html, list_id):
 def test_home_is_an_empty_chat(client):
     html = client.get("/").get_data(as_text=True)
     assert 'id="composer"' in html
-    assert "Tabula rasa, in a beginning, where do we start?" in html
+    assert re.search(
+        r"Tabula rasa, in a beginning, <span class=\"phone-line\">where do we start\?</span>",
+        html,
+    )
     assert 'data-mode="private"' in html and 'data-mode="chatroom"' in html
     assert "/static/js/home.js" in html
 
 
-def test_guest_sees_public_chats_and_cannot_pick_private(client):
+def test_guest_sees_public_chats_and_a_sign_in_link(client):
     make_room("lobby", message="hi")
     html = client.get("/").get_data(as_text=True)
     assert "lobby" in sidebar(html, "public-chats-heading")
-    assert re.search(
-        r'data-mode="private" aria-pressed="false" aria-disabled="true"', html
-    )
     assert 'href="/auth?next=/"' in html
 
 
@@ -115,9 +115,20 @@ window.addEventListener('load', () => {
     const input = document.getElementById('composer-input');
     check(getComputedStyle(input).display !== 'none', 'message box visible');
     check(document.querySelector('.mode-btn[data-mode="chatroom"]').getAttribute('aria-pressed') === 'true', 'guest starts a chatroom');
+    // A guest may pick Private, but our message box locks until they sign
+    // in or pick Chatroom again.
+    input.value = 'kept while locked';
     document.querySelector('.mode-btn[data-mode="private"]').click();
-    check(document.querySelector('.mode-btn[data-mode="chatroom"]').getAttribute('aria-pressed') === 'true', 'guest stays in chatroom mode');
-    check(/Sign in/.test(document.getElementById('mode-hint').textContent), 'hint says why');
+    const send = document.getElementById('composer-send');
+    const model = document.getElementById('composer-model');
+    check(document.querySelector('.mode-btn[data-mode="private"]').getAttribute('aria-pressed') === 'true', 'guest can pick Private');
+    check(input.disabled && model.disabled && send.disabled, 'box, model & Send locked for a guest in Private');
+    check(document.querySelector('#mode-hint a[href="/auth?next=/"]'), 'hint offers sign in');
+    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
+    check(created.length === 0, 'nothing sends while locked');
+    document.querySelector('.mode-btn[data-mode="chatroom"]').click();
+    check(!input.disabled && !model.disabled && !send.disabled && input.value === 'kept while locked', 'Chatroom unlocks, text kept');
+    check(localStorage.getItem('newChatMode') === null, 'a guest\'s mode is not remembered');
 
     input.value = 'Hello there, General Kenobi!';
     // A legacy, unmarked entry (maybe a private room) is never shown.
@@ -165,6 +176,12 @@ window.addEventListener('load', () => {
     const toggle = document.querySelector('.home-topbar .drawer-toggle');
     if (innerWidth <= 768) {
         check(shown(toggle) && !shown(sidebar), 'sidebar folds behind ☰');
+        const ask = document.querySelector('.home-greeting .phone-line');
+        const lead = document.querySelector('.home-greeting').getBoundingClientRect();
+        check(ask.getBoundingClientRect().top > lead.top + 5, 'our question starts its own line');
+        const rest = document.querySelector('#mode-hint .phone-line');
+        check(rest && rest.textContent.trim().startsWith('& it is listed'), 'hint breaks after its comma');
+        check(rest.getBoundingClientRect().top > document.getElementById('mode-hint').getBoundingClientRect().top + 5, 'hint rest on its own line');
         toggle.click();
         check(shown(sidebar) && sidebar.getBoundingClientRect().right <= innerWidth, 'drawer opens on screen');
         check(shown(sidebar.querySelector('.sidebar-user')), 'you, at the bottom of the drawer');

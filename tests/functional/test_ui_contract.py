@@ -173,6 +173,9 @@ def test_help_message_names_only_real_commands():
     handled = set(re.findall(r'command\.startswith\("(/[a-z0-9]+)', source))
     assert documented and documented <= handled, documented - handled
     assert not re.search(r"\bAI\b", app_module.HELP_MESSAGE)
+    # Activities start from our room controls; /activity & /s3 still work
+    # but go unlisted. /help names only what people type.
+    assert documented == {"/title", "/cancel", "/help"}, documented
 
 
 def test_sign_in_says_where_the_code_went(client):

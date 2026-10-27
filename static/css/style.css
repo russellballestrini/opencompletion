@@ -1516,10 +1516,6 @@ a:hover {
     box-shadow: var(--shadow-sm);
 }
 
-.mode-btn[aria-disabled="true"] {
-    opacity: 0.6;
-}
-
 .home-center {
     width: 100%;
     max-width: 760px;
@@ -1542,6 +1538,17 @@ a:hover {
     border-radius: 24px;
     background-color: var(--bg-secondary);
     box-shadow: var(--shadow-md);
+}
+
+/* A guest picked Private: our box shows it can't send, & why (#mode-hint). */
+.composer-locked {
+    opacity: 0.55;
+}
+
+.composer-locked textarea,
+.composer-locked select,
+.composer-locked .composer-send {
+    cursor: not-allowed;
 }
 
 .composer:focus-within {
@@ -1669,6 +1676,18 @@ a:hover {
 
     .home-greeting {
         font-size: 22px;
+    }
+
+    /* Phones: a .phone-line starts its own line (our greeting's question,
+       the second half of a composer hint), so text breaks where it reads. */
+    .phone-line {
+        display: block;
+    }
+
+    /* A lead that still wraps (320px) splits evenly, no one-word orphan. */
+    .home-greeting,
+    .composer-hint {
+        text-wrap: balance;
     }
 
     .composer-model {
