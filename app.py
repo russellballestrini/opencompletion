@@ -11,6 +11,7 @@ import json
 import time
 import base64
 import os
+import re
 
 import boto3
 from flask import Flask, render_template, request, jsonify
@@ -747,6 +748,8 @@ routes.register(
     app,
     get_openai_client_and_model=get_openai_client_and_model,
     system_users=SYSTEM_USERS,
+    retitle_room=lambda room: retitle_room(room),
+    set_room_title=lambda room, title: set_room_title(room, title),
 )
 
 
@@ -1790,7 +1793,88 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
     )
 
     socketio.emit("delete_processing_message", msg_id, room=room_name)
+    if followups_enabled() and buffer.strip() and not notice:
+        if room_name not in stop_requests:
+            gevent.spawn(
+                suggest_followups,
+                openai_client,
+                model_name,
+                room_name,
+                msg_id,
+                chat_history[-1]["content"] if chat_history else "",
+                buffer,
+            )
     title_untitled_room(room_name)
+
+
+# Follow-up suggestions: after a reply, 2-3 short next questions as chips
+# below it. OPENCOMPLETION_FOLLOWUPS=off turns them off (one small extra
+# completion per reply, on the model that answered).
+FOLLOWUP_PROMPT = (
+    "Suggest three short follow-up questions the person might ask next in "
+    "this conversation. Write them as they would, in their language. One "
+    "per line, each under 12 words, no numbering, nothing else."
+)
+FOLLOWUP_MAX = 3
+FOLLOWUP_CHARS = 120
+
+
+def followups_enabled():
+    return os.environ.get("OPENCOMPLETION_FOLLOWUPS", "on").lower() not in (
+        "0",
+        "off",
+        "false",
+        "no",
+    )
+
+
+def parse_followups(text):
+    """A model's suggestions, one per line, as up to FOLLOWUP_MAX clean
+    questions: list markers & quotes stripped, duplicates & blanks gone."""
+    suggestions = []
+    for line in (text or "").splitlines():
+        line = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", line).strip(" \"'“”")
+        if line and len(line) <= FOLLOWUP_CHARS and line not in suggestions:
+            suggestions.append(line)
+        if len(suggestions) == FOLLOWUP_MAX:
+            break
+    return suggestions
+
+
+def suggest_followups(openai_client, model_name, room_name, msg_id, question, answer):
+    """Ask the model that answered for next questions & send them to the
+    room as chips under its reply. Best effort: any failure shows none."""
+    if isinstance(question, list):  # a vision turn: its text parts
+        question = " ".join(
+            part.get("text", "") for part in question if isinstance(part, dict)
+        )
+    try:
+        response = create_completion_skip_thinking(
+            openai_client,
+            model=model_name,
+            messages=[
+                {"role": "system", "content": FOLLOWUP_PROMPT},
+                {
+                    "role": "user",
+                    "content": f"Question:\n{str(question)[:4000]}\n\n"
+                    f"Answer:\n{strip_reasoning(answer)[:6000]}",
+                },
+            ],
+            temperature=0.7,
+            max_tokens=120,
+        )
+        suggestions = parse_followups(
+            strip_reasoning(response.choices[0].message.content)
+        )
+    except Exception as e:
+        print(f"[WARN] Follow-up suggestions failed: {e}")
+        return
+    if suggestions:
+        socketio.emit(
+            "followup_suggestions",
+            {"message_id": msg_id, "suggestions": suggestions},
+            room=room_name,
+        )
 
 
 def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.gguf"):
@@ -2037,6 +2121,35 @@ def title_untitled_room(room_name):
         db.session.refresh(room)
         socketio.emit("update_room_title", {"title": title}, room=room.name)
         emit_room_list_update(room, {"id": room.id, "name": room.name, "title": title})
+
+
+def retitle_room(room):
+    """A fresh title from a room's conversation, saved & sent to its page &
+    every sidebar showing it; None when no model answered."""
+    recent = (
+        Message.visible(room.id)
+        .order_by(Message.id.desc())
+        .limit(TITLE_CONTEXT_MESSAGES)
+        .all()
+    )
+    try:
+        title = (gpt_generate_room_title(recent) or "").strip()[:100]
+    except Exception as e:
+        print(f"[WARN] Room title generation failed: {e}")
+        return None
+    if not title:
+        return None
+    set_room_title(room, title)
+    return title
+
+
+def set_room_title(room, title):
+    """Save a room's title & tell its page & every sidebar showing it."""
+    room.title = title
+    db.session.add(room)
+    db.session.commit()
+    socketio.emit("update_room_title", {"title": title}, room=room.name)
+    emit_room_list_update(room, {"id": room.id, "name": room.name, "title": title})
 
 
 def generate_new_title(room_name, username):

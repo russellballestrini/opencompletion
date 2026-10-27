@@ -306,6 +306,45 @@ def fork_from_message(message_id):
     return fork_conversation(source_room, up_to=message.id)
 
 
+def may_retitle(room, user):
+    """Who may rename a room or refresh its title: its owner, or anyone
+    who may open an unowned public room (as /title new always allowed)."""
+    if room_access_denied(room, user):
+        return False
+    if room.owner_id:
+        return bool(user) and user.id == room.owner_id
+    return True
+
+
+# A title someone types: one line, as long as our column holds.
+TITLE_MAX = 128
+
+
+@bp.route("/api/rooms/<int:room_id>/title", methods=["POST"])
+def retitle_room(room_id):
+    """Rename a room ({"title": "..."}) or have a model title it afresh
+    from its conversation ({"generate": true})."""
+    user = auth.get_current_user()
+    room = db.session.get(Room, room_id)
+    if not room or room_access_denied(room, user):
+        return jsonify({"error": "Room not found"}), 404
+    if not may_retitle(room, user):
+        return jsonify({"error": "Only this chat's owner can rename it"}), 403
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        data = {}
+    if data.get("generate"):
+        title = DEPS["retitle_room"](room)
+        if not title:
+            return jsonify({"error": "No model could title this chat right now"}), 502
+        return jsonify({"title": title})
+    title = " ".join(str(data.get("title") or "").split())[:TITLE_MAX]
+    if not title:
+        return jsonify({"error": "Give this chat a title"}), 400
+    DEPS["set_room_title"](room, title)
+    return jsonify({"title": title})
+
+
 @bp.route("/api/rooms/<int:room_id>/archive", methods=["POST"])
 @auth.require_auth
 def archive_room(room_id):
@@ -493,6 +532,7 @@ def search_messages(keywords, user=None):
         db.session.query(Message.content, Room)
         .join(Room, Message.room_id == Room.id)
         .filter(visible)
+        .filter(Message.superseded_by_id.is_(None))
         .filter(
             db.or_(
                 *[
@@ -510,7 +550,9 @@ def search_messages(keywords, user=None):
         result = search_results.setdefault(
             room.id,
             {
+                "id": room.id,
                 "room_id": room.id,
+                "owner_id": room.owner_id,
                 "name": room.name,
                 "title": room.title,
                 "room_name": room.name,

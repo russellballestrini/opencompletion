@@ -1,0 +1,6 @@
+{# What our chat actions menu (static/js/chat-actions.js) may offer for
+   `room`: rename & refresh its title (its owner, or anyone for an unowned
+   public room: routes.rooms.may_retitle) & archive or delete (its owner).
+   Attributes only, for an element that also carries data-room-id. #}
+{%- set _owner = user and room.owner_id and room.owner_id == user.id -%}
+data-room-name="{{ room.name }}" data-room-title="{{ room.title or '' }}" data-can-retitle="{{ 'true' if (_owner or not room.owner_id) else 'false' }}" data-can-remove="{{ 'true' if _owner else 'false' }}"

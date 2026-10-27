@@ -29,6 +29,7 @@ function addForkButton(buttonContainer, messageId) {
 
 // Socket event for receiving a new message
 socket.on("chat_message", (data) => {
+    clearFollowups();
     const messageWrapper = document.createElement("div");
     messageWrapper.className = "message-wrapper";
     messageWrapper.id = "message-" + data.id;
@@ -471,6 +472,40 @@ function removeMessageElement(messageId) {
         setTimeout(processNextTTS, 10);
     }
 }
+
+// Follow-up suggestions: chips under a model's reply; a click sends that
+// question. Only our newest reply keeps them.
+function clearFollowups() {
+    document.querySelectorAll(".followups").forEach((chips) => chips.remove());
+}
+
+socket.on("followup_suggestions", (data) => {
+    const messageWrapper = document.getElementById("message-" + data.message_id);
+    if (!messageWrapper || !(data.suggestions || []).length) return;
+    // A newer message arrived meanwhile: these no longer follow anything.
+    if (messageWrapper.nextElementSibling) return;
+    clearFollowups();
+    const chips = document.createElement("div");
+    chips.className = "followups";
+    chips.setAttribute("aria-label", "Suggested follow-ups");
+    data.suggestions.forEach((question) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "followup-chip";
+        chip.textContent = question;
+        chip.onclick = () => {
+            clearFollowups();
+            const textarea = document.getElementById("message");
+            textarea.value = question;
+            sendMessage();
+        };
+        chips.appendChild(chip);
+    });
+    messageWrapper.appendChild(chips);
+    if (!userHasScrolledUp) {
+        document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+    }
+});
 
 // Socket event for when a message is deleted
 socket.on("message_deleted", (data) => removeMessageElement(data.message_id));

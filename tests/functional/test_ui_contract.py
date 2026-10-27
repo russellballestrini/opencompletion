@@ -619,3 +619,130 @@ def test_models_endpoint_answers(client):
     response = client.get("/models")
     assert response.status_code == 200
     assert "models" in response.json
+
+
+CHAT_ACTIONS_PROBE = r"""
+<script>
+window.addEventListener('load', async () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    window.onunhandledrejection = (e) => { document.body.dataset.probe = 'failed: ' + e.reason; };
+    // Our server, as the menu sees it: a rename answers with its title.
+    const calls = [];
+    window.fetch = async (url, options) => {
+        calls.push([url, options && options.method, options && options.body]);
+        return new Response(JSON.stringify({title: 'Garden plans'}), {status: 200, headers: {'Content-Type': 'application/json'}});
+    };
+    window.prompt = () => 'Garden plans';
+    try { localStorage.removeItem('pinnedChats'); } catch (e) {}
+
+    const card = document.querySelector('.room-card-wrap[data-room-name="lobby"]');
+    check(card && card.querySelector('[data-chat-actions]'), 'room cards carry ⋯');
+    const row = document.querySelector('#public-chats li[data-room-name="lobby"]');
+    check(row && row.querySelector('[data-chat-actions]'), 'sidebar rows carry ⋯');
+
+    const open = button => { button.click(); return document.querySelector('.chat-actions-menu'); };
+    const labels = menu => [...menu.querySelectorAll('button')].map(b => b.textContent);
+    let menu = open(card.querySelector('[data-chat-actions]'));
+    check(menu && labels(menu).join() === 'Rename,Refresh title,Pin', 'an unowned room offers rename, refresh & pin: ' + (menu && labels(menu)));
+    const box = menu.getBoundingClientRect();
+    check(box.left >= 0 && box.right <= innerWidth && box.bottom <= innerHeight, 'menu stays on screen');
+
+    // Pin: our sidebar's Pinned section shows the chat
+    [...menu.querySelectorAll('button')].find(b => b.textContent === 'Pin').click();
+    await new Promise(r => setTimeout(r, 0));
+    const pinned = document.getElementById('pinned-chats-section');
+    check(!pinned.hidden && pinned.querySelector('[data-room-name="lobby"]'), 'pinned chat shows in Pinned');
+    menu = open(card.querySelector('[data-chat-actions]'));
+    check(labels(menu).includes('Unpin'), 'a pinned chat offers Unpin');
+    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+    check(!document.querySelector('.chat-actions-menu'), 'Escape closes the menu');
+
+    // Rename: every place showing the chat takes its new title
+    menu = open(row.querySelector('[data-chat-actions]'));
+    [...menu.querySelectorAll('button')].find(b => b.textContent === 'Rename').click();
+    await new Promise(r => setTimeout(r, 20));
+    check(calls.some(([url, method]) => url.endsWith('/title') && method === 'POST'), 'rename posts its title');
+    check(row.querySelector('.chat-list-name').textContent === 'Garden plans', 'sidebar row renamed');
+    check(card.querySelector('.room-card-title').textContent === 'Garden plans', 'room card renamed');
+
+    // Your own room also offers archive & delete
+    const mine = document.querySelector('.room-card-wrap[data-room-name="adas-room"]');
+    menu = open(mine.querySelector('[data-chat-actions]'));
+    check(labels(menu).includes('Archive') && labels(menu).includes('Delete'), 'owner may archive & delete');
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [320, 1280])
+def test_chat_actions_menu(client, tmp_path, width):
+    ada = make_user("ada@example.test", "ada")
+    make_room("lobby", message="hi")
+    make_room("adas-room", owner=ada)
+    with client.session_transaction() as session:
+        session["user_id"] = ada.id
+    html = client.get("/browse").get_data(as_text=True)
+    out = run_probe(html, CHAT_ACTIONS_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+RESEND_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const deliver = (event, data) => testSocket.deliver(event, data);
+
+    // Edit & resend on a person's message, never on a model's reply
+    deliver('chat_message', {id: 1, username: 'ada', content: 'list three muppets'});
+    deliver('message_chunk', {id: 2, username: 'qwen', model_name: 'qwen', content: 'Elmo', is_complete: true});
+    document.querySelector('#message-1 .edit-button').click();
+    check(document.querySelector('#message-1 .resend-button'), 'a person\'s message offers Save & resend');
+    document.querySelector('#message-2 .edit-button').click();
+    check(!document.querySelector('#message-2 .resend-button'), 'a model reply is only edited in place');
+    document.querySelector('#message-1 textarea').value = 'list two muppets';
+    document.querySelector('#message-1 .resend-button').click();
+    const sent = testSocket.sent.find(([event]) => event === 'edit_and_resend');
+    check(sent && sent[1].message_id === 1 && sent[1].content === 'list two muppets' && sent[1].room_name === 'lobby', 'resend emits edit_and_resend');
+    deliver('messages_hidden', {ids: [1, 2], revision_id: 3});
+    check(!document.getElementById('message-1') && !document.getElementById('message-2'), 'hidden messages leave the page');
+
+    // Follow-ups: chips under our newest reply; a click sends that question
+    deliver('chat_message', {id: 3, username: 'ada', content: 'list two muppets'});
+    deliver('message_chunk', {id: 4, username: 'qwen', model_name: 'qwen', content: 'Elmo, Oscar', is_complete: true});
+    deliver('followup_suggestions', {message_id: 4, suggestions: ['Who is <b>Oscar</b>?', 'Why green?']});
+    const chips = document.querySelectorAll('#message-4 .followup-chip');
+    check(chips.length === 2 && !document.querySelector('#message-4 .followups b'), 'chips show as text');
+    chips[1].click();
+    const asked = testSocket.sent.filter(([event]) => event === 'chat_message').pop();
+    check(asked && asked[1].message === 'Why green?', 'a chip sends its question');
+    check(!document.querySelector('.followups'), 'chips go once one is used');
+    deliver('followup_suggestions', {message_id: 3, suggestions: ['stale']});
+    check(!document.querySelector('.followups'), 'suggestions for an older message are ignored');
+
+    // ↓ shows only once we scroll up from the newest message
+    const chat = document.getElementById('chat');
+    const down = document.getElementById('scroll-bottom-button');
+    for (let i = 10; i < 60; i++) deliver('chat_message', {id: i, username: 'bob', content: 'line ' + i});
+    chat.scrollTop = chat.scrollHeight;
+    chat.dispatchEvent(new Event('scroll'));
+    check(down.hidden, 'no ↓ at the bottom');
+    chat.scrollTop = 0;
+    chat.dispatchEvent(new Event('scroll'));
+    check(!down.hidden, '↓ once scrolled up');
+    const box = down.getBoundingClientRect();
+    check(box.width > 0 && box.bottom <= document.getElementById('message-form').getBoundingClientRect().top + 1, '↓ floats above the composer');
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [320, 1280])
+def test_edit_resend_followups_and_scroll_down(client, tmp_path, width):
+    make_room("lobby")
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    out = run_probe(html, RESEND_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

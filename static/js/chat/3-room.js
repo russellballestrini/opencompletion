@@ -177,9 +177,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     });
     }
 
+    // Scrolled up from our newest message: stop following the stream & offer ↓.
+    const scrollBottomButton = document.getElementById('scroll-bottom-button');
     chatContainer.addEventListener('scroll', () => {
         const distanceFromBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
         userHasScrolledUp = distanceFromBottom > 5;
+        scrollBottomButton.hidden = distanceFromBottom < 120;
+    });
+    scrollBottomButton.addEventListener('click', () => {
+        chatContainer.scrollTo({top: chatContainer.scrollHeight, behavior: 'smooth'});
+        userHasScrolledUp = false;
     });
 
     // NOTE: Model and voice restoration happens in populateModelDropdown() and

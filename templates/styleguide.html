@@ -69,15 +69,22 @@
         <button type="button" class="room-tab" role="tab" aria-selected="false">Solo</button>
     </div>
     <div class="room-grid">
-        <a class="room-card" href="#sg-data">
-            <div class="room-card-header"><h3 class="room-card-name">study-group</h3></div>
-            <p class="room-card-title">Linear algebra, chapter 3</p>
-            <p class="room-card-meta">2 here now</p>
-        </a>
+        <div class="room-card-wrap" data-room-name="sg-study-group" data-room-title="Linear algebra, chapter 3" data-can-retitle="false" data-can-remove="false">
+            <a class="room-card" href="#sg-data">
+                <div class="room-card-header"><h3 class="room-card-name">study-group</h3></div>
+                <p class="room-card-title">Linear algebra, chapter 3</p>
+                <p class="room-card-meta">2 here now</p>
+            </a>
+            <button type="button" class="chat-actions-btn" data-chat-actions aria-label="Chat actions" title="Hover or focus a card for its ⋯ menu">⋯</button>
+        </div>
         <a class="room-card" href="#sg-data">
             <div class="room-card-header"><h3 class="room-card-name">a-very-long-room-name-that-must-wrap-on-a-phone</h3><span class="badge badge-private">Solo</span></div>
             <p class="room-card-title">Long names wrap instead of overflowing</p>
         </a>
+    </div>
+    <div class="followups" aria-label="Suggested follow-ups">
+        <button type="button" class="followup-chip">Follow-up suggestions sit under our newest reply</button>
+        <button type="button" class="followup-chip">A click sends that question</button>
     </div>
     <div class="empty-state">
         <h3>Empty states</h3>

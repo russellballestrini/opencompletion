@@ -18,6 +18,13 @@
         <!-- Chat area where messages will be displayed -->
         <div id="chat"></div>
 
+        {# ↓ while you have scrolled up from the newest message (3-room.js). #}
+        <div class="scroll-bottom-anchor">
+            <button type="button" id="scroll-bottom-button" class="scroll-bottom" aria-label="Scroll to the newest message" title="Newest message" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            </button>
+        </div>
+
         <!-- Our composer, the same one our home page uses -->
         <form id="message-form" class="composer chat-composer" data-max-upload="{{ max_upload_bytes }}">
             <label class="visually-hidden" for="message">Message</label>

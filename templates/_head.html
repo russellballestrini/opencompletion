@@ -16,6 +16,14 @@
 <meta name="twitter:description" content="{{ _desc }}">
 <meta name="twitter:image" content="{{ og_image or url_for('static', filename='images/og-default.png', _external=True) }}">
 <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+{# Installable as an app (routes.pages.web_manifest); iOS reads the apple-* tags. #}
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="{{ brand_name }}">
 <script>
     // Apply the saved theme before first paint so no page flashes.
     (function () {

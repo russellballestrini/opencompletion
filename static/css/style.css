@@ -221,7 +221,7 @@ body.chat-page {
    composer share one centred column, as on our home page. */
 .chat-main {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
     height: 100vh;
     height: 100dvh;
     min-width: 0;
@@ -1857,5 +1857,168 @@ a:hover {
 
 .sidebar-top .icon-btn:hover,
 .sidebar-user .icon-btn:hover {
+    background-color: var(--bg-hover);
+}
+
+/* Chat actions (static/js/chat-actions.js): a ⋯ on each chat in our
+   sidebar & on each room card, shown on hover or focus (always on touch
+   screens), opening one small menu. */
+.chat-list li,
+.room-card-wrap {
+    position: relative;
+    min-width: 0;
+}
+
+.room-card-wrap > .room-card {
+    height: 100%;
+}
+
+.chat-actions-btn {
+    position: absolute;
+    top: 50%;
+    right: var(--space-1);
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-md);
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+}
+
+.room-card-wrap > .chat-actions-btn {
+    top: var(--space-2);
+    right: var(--space-2);
+    transform: none;
+}
+
+.chat-list li:hover > .chat-actions-btn,
+.chat-list li:focus-within > .chat-actions-btn,
+.room-card-wrap:hover > .chat-actions-btn,
+.room-card-wrap:focus-within > .chat-actions-btn,
+.chat-actions-btn[aria-expanded="true"] {
+    opacity: 1;
+}
+
+/* Room for the ⋯ while it shows, so a title never runs under it. */
+.chat-list li:hover > a,
+.chat-list li:focus-within > a {
+    padding-right: 40px;
+}
+
+@media (hover: none) {
+    .chat-actions-btn {
+        opacity: 1;
+        background-color: transparent;
+    }
+
+    .chat-list li > a {
+        padding-right: 40px;
+    }
+}
+
+.chat-actions-menu {
+    position: fixed;
+    z-index: 1000;
+    display: grid;
+    min-width: 168px;
+    padding: var(--space-1);
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+}
+
+.chat-actions-menu button {
+    min-height: 40px;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.chat-actions-menu button:hover,
+.chat-actions-menu button:focus-visible {
+    background-color: var(--bg-hover);
+}
+
+.chat-actions-menu button.danger {
+    color: var(--text-error);
+}
+
+/* ↓ to our newest message: a zero-height row between messages & composer
+   holds it, floating just above the composer. */
+.scroll-bottom-anchor {
+    position: relative;
+    height: 0;
+}
+
+.scroll-bottom {
+    position: absolute;
+    bottom: var(--space-3);
+    left: 50%;
+    transform: translateX(-50%);
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+}
+
+.scroll-bottom[hidden] {
+    display: none;
+}
+
+.scroll-bottom svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Follow-up suggestions under our newest model reply. */
+.followups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+}
+
+.followup-chip {
+    max-width: 100%;
+    min-height: 36px;
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.followup-chip:hover,
+.followup-chip:focus-visible {
+    border-color: var(--button-primary);
     background-color: var(--bg-hover);
 }

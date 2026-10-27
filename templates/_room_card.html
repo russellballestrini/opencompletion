@@ -1,5 +1,6 @@
 {# One room in a grid: browse & search. `room` is a Room or a search
    result (both carry name, title & is_private); `meta` is optional. #}
+<div class="room-card-wrap" data-room-id="{{ room.id }}" {% include "_room_actions_data.html" %}>
 <a href="{{ url_for('chat', room_name=room.name) }}" class="room-card">
     <div class="room-card-header">
         <h3 class="room-card-name">{{ room.name }}</h3>
@@ -8,3 +9,5 @@
     {% if room.title %}<p class="room-card-title">{{ room.title }}</p>{% endif %}
     {% if meta %}<p class="room-card-meta">{{ meta }}</p>{% endif %}
 </a>
+<button type="button" class="chat-actions-btn" data-chat-actions aria-label="Chat actions" title="Rename, refresh title, pin, archive or delete">⋯</button>
+</div>

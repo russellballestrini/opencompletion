@@ -52,6 +52,8 @@ function forgetRecentChat(name) {
 function chatListItem(room, tag, tagLabel) {
     const item = document.createElement('li');
     if (room.id) item.dataset.roomId = room.id;
+    item.dataset.roomName = room.name;
+    item.dataset.roomTitle = room.title || '';
     const link = document.createElement('a');
     link.href = `/chat/${encodeURIComponent(room.name)}`;
     link.title = room.title || room.name;
@@ -67,6 +69,16 @@ function chatListItem(room, tag, tagLabel) {
         link.appendChild(badge);
     }
     item.appendChild(link);
+    // Our chat actions menu (chat-actions.js): with no permissions known
+    // here, it offers what anyone may do; our server decides the rest.
+    const actions = document.createElement('button');
+    actions.type = 'button';
+    actions.className = 'chat-actions-btn';
+    actions.dataset.chatActions = '';
+    actions.setAttribute('aria-label', 'Chat actions');
+    actions.title = 'Chat actions';
+    actions.textContent = '⋯';
+    item.appendChild(actions);
     return item;
 }
 

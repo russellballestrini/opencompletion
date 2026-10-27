@@ -40,6 +40,17 @@ Features
   10 forks per 10 minutes; ``0`` turns it off). Behind a proxy set
   ``OPENCOMPLETION_PROXY_HOPS`` to how many proxies front us (default ``1``,
   our Caddy; ``0`` uses the socket address).
+- Edit & resend a message: the edit replaces it & everything after it for
+  everyone in the room & the models answer again. Nothing is deleted: the
+  earlier branch is kept, hidden (run ``flask db upgrade``).
+- A ⋯ menu on every chat (sidebar, Rooms, Search): rename, refresh title (a
+  model titles it afresh), pin (kept in this browser), archive & delete
+  (owner only).
+- Follow-up suggestions under each reply, from the model that answered
+  (``OPENCOMPLETION_FOLLOWUPS=off`` turns them off), and a ↓ button back to
+  the newest message.
+- Installable as an app on phones & desktops (``/manifest.webmanifest``,
+  named by ``OPENCOMPLETION_BRAND``).
 - Room archiving and owner management
 
 Requirements

@@ -52,7 +52,14 @@ are 16px on phones so iOS never zooms into them.
   sits above every field; placeholders show format, never the label.
   `.choice-group` for radios. `.alert-success` / `.alert-error` report
   results; `.error-message` sits under a field.
-- **Rooms** `.room-grid` of `.room-card`s; `.badge-private` marks private rooms.
+- **Rooms** `.room-grid` of `.room-card`s, each in a `.room-card-wrap`;
+  `.badge-private` marks private rooms.
+- **Chat actions** a `.chat-actions-btn` (⋯, `data-chat-actions`) on each
+  sidebar chat & room card opens `.chat-actions-menu` (`chat-actions.js`):
+  what it offers comes from `_room_actions_data.html`'s data attributes.
+  It shows on hover or focus, always on touch screens.
+- **Follow-ups** `.followups` of `.followup-chip`s under our newest reply;
+  `.scroll-bottom` (↓) floats above the composer once you scroll up.
 - **Tabs** `.tabs` > `.room-tab` with `role="tab"` & `aria-selected`.
 - **Empty states** `.empty-state` say what is missing & offer the next step.
 
