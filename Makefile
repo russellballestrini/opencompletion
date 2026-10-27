@@ -12,6 +12,7 @@ help:
 	@echo "Setup:"
 	@echo "  venv                 - Create venv/ & install app + test dependencies"
 	@echo "  init-db              - Create database tables (needs vars.sh)"
+	@echo "  upgrade-db           - Apply database migrations (flask db upgrade; needs vars.sh)"
 	@echo ""
 	@echo "Tests (no network, no API keys):"
 	@echo "  test                 - Unit, integration, functional & YAML validation"
@@ -88,6 +89,17 @@ init-db: venv
 	@if [ -f vars.sh ]; then \
 		. ./vars.sh && venv/bin/python init_db.py && \
 		echo "✅ Database tables created successfully"; \
+	else \
+		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \
+		exit 1; \
+	fi
+
+.PHONY: upgrade-db
+upgrade-db: venv
+	@echo "🗄️ Applying database migrations..."
+	@if [ -f vars.sh ]; then \
+		. ./vars.sh && FLASK_APP=app.py venv/bin/flask db upgrade && \
+		echo "✅ Database is at our newest migration"; \
 	else \
 		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \
 		exit 1; \
