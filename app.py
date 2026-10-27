@@ -53,6 +53,7 @@ cancellation_requests = {}
 stop_requests = set()
 streaming_replies = {}
 
+import openai
 from openai import OpenAI
 import activity
 import auth
@@ -90,8 +91,15 @@ if not ENDPOINTS:
 # next healthy configured endpoint automatically.
 DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL", f"MODEL_{CONFIGURED_MODEL_NUMS[0]}")
 
-# Build a dynamic model map by querying each endpoint.
+# Build a dynamic model map by querying each endpoint. MODEL_CLIENT_MAP
+# holds each model id's pinned endpoint: the lowest MODEL_ENDPOINT_n that
+# lists it. MODEL_ENDPOINTS holds every endpoint serving it, pin first, so
+# a model whose pin goes down fails over to another copy of itself.
 MODEL_CLIENT_MAP = {}
+MODEL_ENDPOINTS = {}
+# base_url -> model ids it last listed; kept while it is down, so a MODEL_n
+# reference still knows which model to look for elsewhere.
+_endpoint_models = {}
 SYSTEM_USERS = []
 
 
@@ -120,6 +128,67 @@ def endpoint_is_healthy(client, base_url):
     return healthy
 
 
+def mark_endpoint_down(base_url):
+    """Take an endpoint out of rotation until its next health check."""
+    _endpoint_health[base_url] = (False, time.time())
+
+
+def _same_url(a, b):
+    return str(a).rstrip("/") == str(b).rstrip("/")
+
+
+def endpoints_for_model(model_name):
+    """Every (client, base_url) serving model_name, its pin first."""
+    if model_name in MODEL_ENDPOINTS:
+        return MODEL_ENDPOINTS[model_name]
+    if model_name in MODEL_CLIENT_MAP:
+        return [MODEL_CLIENT_MAP[model_name]]
+    return []
+
+
+def healthy_endpoint_for_model(model_name):
+    """The first healthy (client, base_url) serving model_name, or None."""
+    endpoints = endpoints_for_model(model_name)
+    for client, base_url in endpoints:
+        if endpoint_is_healthy(client, base_url):
+            if not _same_url(base_url, endpoints[0][1]):
+                print(
+                    f"[WARN] {model_name}: {endpoints[0][1]} is down; "
+                    f"serving it from {base_url}"
+                )
+            return client, base_url
+    return None
+
+
+# Failures worth another endpoint: it was unreachable, timed out or broke
+# (5xx). A 4xx is our request's fault and would fail anywhere.
+FAILOVER_ERRORS = (openai.APIConnectionError, openai.InternalServerError)
+
+
+def open_with_failover(openai_client, model_name, open_stream):
+    """open_stream(client) starts a completion; if it fails before a single
+    token, mark that endpoint down & try the next one serving this same
+    model. Once tokens flow there is no retry: it would repeat them."""
+    given = str(getattr(openai_client, "base_url", ""))
+    endpoints = endpoints_for_model(model_name)
+    # Health is keyed by the configured URL; the client's own adds a "/".
+    given = next((url for _, url in endpoints if _same_url(url, given)), given)
+    attempts = [(openai_client, given)] + [
+        (client, url) for client, url in endpoints if not _same_url(url, given)
+    ]
+    for i, (client, base_url) in enumerate(attempts):
+        if i and not endpoint_is_healthy(client, base_url):
+            continue
+        try:
+            return open_stream(client)
+        except FAILOVER_ERRORS as e:
+            mark_endpoint_down(base_url)
+            rest = attempts[i + 1 :]
+            if not any(endpoint_is_healthy(c, url) for c, url in rest):
+                raise
+            print(f"[WARN] {model_name} failed on {base_url} ({e}); trying next")
+
+
 def is_vision_model(model_name: str) -> bool:
     """Check if a model supports vision/image input."""
     if not model_name:
@@ -131,6 +200,7 @@ def is_vision_model(model_name: str) -> bool:
 
 def initialize_model_map():
     MODEL_CLIENT_MAP.clear()
+    MODEL_ENDPOINTS.clear()
     for ep_config in ENDPOINTS:
         base_url = ep_config["base_url"]
         api_key = ep_config["api_key"]
@@ -143,9 +213,10 @@ def initialize_model_map():
             print(f"[WARN] Could not list models for endpoint '{base_url}': {e}")
             continue
 
-        for m in model_list:
-            model_id = m.id
-            if model_id and model_id not in MODEL_CLIENT_MAP:
+        _endpoint_models[base_url] = [m.id for m in model_list if m.id]
+        for model_id in _endpoint_models[base_url]:
+            MODEL_ENDPOINTS.setdefault(model_id, []).append((client, base_url))
+            if model_id not in MODEL_CLIENT_MAP:
                 MODEL_CLIENT_MAP[model_id] = (client, base_url)
 
     # Grow SYSTEM_USERS in place (activity.py holds a reference to this
@@ -541,22 +612,46 @@ def _resolve_model_num(model_num, check_health=True):
     return client, "model"
 
 
+def _model_for_num(model_num):
+    """The model id MODEL_<num> serves (MODEL_NAME_n, else what its endpoint
+    last listed), even while that endpoint is down; None if unknown."""
+    explicit = os.environ.get(f"MODEL_NAME_{model_num}")
+    if explicit:
+        return explicit
+    endpoint = os.environ.get(f"MODEL_ENDPOINT_{model_num}")
+    listed = _endpoint_models.get(endpoint) or []
+    return listed[0] if listed else None
+
+
 def get_openai_client_and_model(model_name=None):
     """Get OpenAI client and model name.
 
     Supports MODEL_X references (e.g., MODEL_1, MODEL_2, MODEL_3) that map to
     environment variables MODEL_ENDPOINT_X and MODEL_API_KEY_X. A MODEL_X
-    whose endpoint is down or unconfigured falls through to the next healthy
-    configured endpoint, so activities keep working when the primary leaves
-    rotation. Set DEFAULT_MODEL to change which reference is main.
+    whose endpoint is down first tries other endpoints serving the same
+    model, then falls through to the next healthy configured endpoint, so
+    activities keep working when the primary leaves rotation. Set
+    DEFAULT_MODEL to change which reference is main.
+
+    A model id (chat's dropdown) is pinned to the lowest MODEL_ENDPOINT_n
+    listing it & fails over to the other endpoints listing it, in order.
     """
     if not model_name or model_name == "None":
         model_name = DEFAULT_MODEL
 
     if model_name.startswith("MODEL_"):
         requested = model_name.split("_")[1]
+        resolved = _resolve_model_num(requested)
+        if resolved:
+            return resolved
+        # Its endpoint is down: the same model on another endpoint first.
+        pinned = _model_for_num(requested)
+        if pinned:
+            found = healthy_endpoint_for_model(pinned)
+            if found:
+                return found[0], pinned
         candidates = [requested] + [n for n in CONFIGURED_MODEL_NUMS if n != requested]
-        for num in candidates:
+        for num in candidates[1:]:
             resolved = _resolve_model_num(num)
             if resolved:
                 if num != requested:
@@ -574,20 +669,21 @@ def get_openai_client_and_model(model_name=None):
         print(f"Warning: no MODEL_x endpoints configured for {model_name}")
         return None, model_name
 
-    # Direct model id (chat dropdown). If its endpoint went down, hand the
-    # request to the default rotation; the reply is attributed to whichever
+    # Direct model id (chat dropdown): its pinned endpoint first, then any
+    # other endpoint serving the same model. Only when every copy is down
+    # does the default rotation answer; the reply is attributed to whichever
     # model actually served it.
-    client = get_client_for_model(model_name)
-    if client is not None:
-        base_url = MODEL_CLIENT_MAP[model_name][1]
-        if endpoint_is_healthy(client, base_url):
-            return client, model_name
-        print(f"[WARN] {model_name} endpoint unhealthy; using default rotation")
+    endpoints = endpoints_for_model(model_name)
+    found = healthy_endpoint_for_model(model_name)
+    if found:
+        return found[0], model_name
+    if endpoints:
+        print(f"[WARN] every {model_name} endpoint is down; using default rotation")
     else:
         print(f"[WARN] Unknown model '{model_name}'; using default rotation")
     if DEFAULT_MODEL.startswith("MODEL_"):
         return get_openai_client_and_model(None)
-    return client, model_name
+    return (endpoints[0][0] if endpoints else None), model_name
 
 
 HELP_MESSAGE = """
@@ -1468,15 +1564,20 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         "stream": True,
         **chat_sampling(model_name),
     }
-    try:
+
+    def open_stream(client):
         if enable_thinking:
-            chunks = openai_client.chat.completions.create(**create_kwargs)
-        else:
-            # Suppress chain-of-thought at the template level. Endpoints that
-            # reject the chat_template_kwargs param (OpenAI, Groq, Mistral,
-            # Gemini) get retried without it inside the helper; templates that
-            # ignore the kwarg (e.g. Hermes) simply drop it.
-            chunks = create_completion_skip_thinking(openai_client, **create_kwargs)
+            return client.chat.completions.create(**create_kwargs)
+        # Suppress chain-of-thought at the template level. Endpoints that
+        # reject the chat_template_kwargs param (OpenAI, Groq, Mistral,
+        # Gemini) get retried without it inside the helper; templates that
+        # ignore the kwarg (e.g. Hermes) simply drop it.
+        return create_completion_skip_thinking(client, **create_kwargs)
+
+    try:
+        # An endpoint that fails before streaming hands over to another
+        # endpoint serving this same model.
+        chunks = open_with_failover(openai_client, model_name, open_stream)
     except Exception as e:
         with app.app_context():
             message_content = f"{model_name} Error: {e}"

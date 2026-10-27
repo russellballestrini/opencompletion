@@ -135,6 +135,12 @@ Here are some free endpoint for research only!::
     export MODEL_ENDPOINT_2=https://qwen.ai.unturf.com/v1
     export MODEL_ENDPOINT_3=https://gpt-oss.ai.unturf.com/v1
 
+Two endpoints may serve one model: the lowest ``n`` listing it is its pin &
+the others back it up, in order. A pin that is down (or fails before its
+first token) hands the reply to the next copy of the same model; only when
+every copy is down does another model answer. A ``MODEL_n`` reference whose
+endpoint is down looks for its model elsewhere the same way first.
+
 Text to speech endpoints, configured like models (``n`` is any number, an
 API key is optional). Our server proxies speech at ``/speech/voices`` and
 ``/speech/audio``, so keys never reach the browser; voices merge across
