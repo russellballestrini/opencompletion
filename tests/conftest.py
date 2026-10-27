@@ -94,6 +94,9 @@ os.environ.update(TEST_ENV_VARS)
 # whole run; tests that exercise the classifier set the knob in their own
 # setUp (tests/unit/test_classifier.py).
 os.environ["OPENCOMPLETION_CLASSIFIER"] = "off"
+# Follow-up suggestions are one more completion per reply; tests that want
+# them (tests/unit/test_followups.py) turn them on.
+os.environ["OPENCOMPLETION_FOLLOWUPS"] = "off"
 
 
 @pytest.fixture(scope="session", autouse=True)

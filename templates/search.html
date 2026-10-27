@@ -11,7 +11,7 @@
     <button type="submit" class="btn">Search</button>
 </form>
 {% if not keywords %}
-<p class="page-subtitle">We search public rooms{% if user %} & your private rooms{% endif %}.</p>
+<p class="page-subtitle">We search public rooms{% if user %} & your solo chats{% endif %}.</p>
 {% elif results %}
 <p class="page-subtitle">{{ results|length }} room{{ '' if results|length == 1 else 's' }} mention <strong>{{ keywords }}</strong>, most mentions first.</p>
 <div class="room-grid">
@@ -23,7 +23,7 @@
 {% else %}
 <div class="empty-state">
     <h3>No messages mention “{{ keywords }}”</h3>
-    <p>We searched public rooms{% if user %} & your private rooms{% endif %}. Try other words, or <a href="/browse">browse rooms</a>.</p>
+    <p>We searched public rooms{% if user %} & your solo chats{% endif %}. Try other words, or <a href="/browse">browse rooms</a>.</p>
 </div>
 {% endif %}
 {% endblock %}

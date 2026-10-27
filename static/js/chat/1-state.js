@@ -50,8 +50,10 @@ if (username) {
 const dompurify_config = {
   ADD_TAGS: ["img", "video"],
   FORBID_TAGS: ["form", "iframe", "style"],
+  // href: links work (attachments, your name -> /profile); DOMPurify still
+  // drops javascript: & other script URLs.
   ALLOWED_ATTR: [
-    "src", "width", "height", "alt", "class", "title", "controls",
+    "href", "src", "width", "height", "alt", "class", "title", "controls",
   ]
 };
 

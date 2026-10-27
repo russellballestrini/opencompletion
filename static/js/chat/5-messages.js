@@ -16,8 +16,21 @@ function senderLabel(name) {
     return name === username ? `**[${safe}](/profile):**` : `**${safe}:**`;
 }
 
+// Fork, on a model's reply: hover (or focus) says what it makes; a click
+// calls forkFromMessage() in base.html & opens the new chat.
+function addForkButton(buttonContainer, messageId) {
+    const forkButton = document.createElement("button");
+    forkButton.textContent = "Fork";
+    forkButton.className = "fork-button";
+    forkButton.title = `Fork: start a new chat from this reply, holding a copy of every message up to here${CHAT_CONFIG.signedIn ? " (solo, only you)" : " (a public chatroom)"}. This chat stays as it is.`;
+    forkButton.onclick = () => forkFromMessage(messageId, forkButton);
+    buttonContainer.appendChild(forkButton);
+}
+
 // Socket event for receiving a new message
 socket.on("chat_message", (data) => {
+    // A newer message ends the suggestions; a notice with no id does not.
+    if (data.id) clearFollowups();
     const messageWrapper = document.createElement("div");
     messageWrapper.className = "message-wrapper";
     messageWrapper.id = "message-" + data.id;
@@ -199,6 +212,7 @@ socket.on("previous_messages", (data) => {
     downloadButton.style.display = "none";
     downloadButton.dataset.messageId = data.id;
     buttonContainer.appendChild(downloadButton);
+    if (data.from_model) addForkButton(buttonContainer, data.id);
 
     messageWrapper.appendChild(buttonContainer);
     messageWrapper.appendChild(newMessage);
@@ -406,6 +420,8 @@ socket.on("message_chunk", (data) => {
         downloadButton.style.display = "none";
         downloadButton.dataset.messageId = data.id;
         buttonContainer.appendChild(downloadButton);
+        // Every streamed message is a model's reply.
+        addForkButton(buttonContainer, data.id);
 
         // Insert the button container at the beginning of the message wrapper (before header and content)
         messageWrapper.insertBefore(buttonContainer, messageWrapper.firstChild);
@@ -425,8 +441,9 @@ socket.on("message_chunk", (data) => {
 });
 
 
-// Socket event for when a message is deleted
-socket.on("message_deleted", (data) => {
+// Take a message off the page & out of our speech queue & cache.
+function removeMessageElement(messageId) {
+    const data = {message_id: messageId};
     const messageElement = document.getElementById("message-" + data.message_id);
     if (messageElement) {
         messageElement.remove();
@@ -455,6 +472,55 @@ socket.on("message_deleted", (data) => {
         isPlayingTTS = false;
         setTimeout(processNextTTS, 10);
     }
+}
+
+// Follow-up suggestions: chips under a model's reply; a click sends that
+// question. Only our newest reply keeps them.
+function clearFollowups() {
+    document.querySelectorAll(".followups").forEach((chips) => chips.remove());
+}
+
+socket.on("followup_suggestions", (data) => {
+    const messageWrapper = document.getElementById("message-" + data.message_id);
+    if (!messageWrapper || !(data.suggestions || []).length) return;
+    // A newer message arrived meanwhile: these no longer follow anything.
+    let later = messageWrapper.nextElementSibling;
+    while (later && !/^message-\d+$/.test(later.id)) later = later.nextElementSibling;
+    if (later) return;
+    clearFollowups();
+    const chips = document.createElement("div");
+    chips.className = "followups";
+    chips.setAttribute("aria-label", "Suggested follow-ups");
+    data.suggestions.forEach((question) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "followup-chip";
+        chip.textContent = question;
+        chip.onclick = () => {
+            clearFollowups();
+            const textarea = document.getElementById("message");
+            textarea.value = question;
+            sendMessage();
+        };
+        chips.appendChild(chip);
+    });
+    messageWrapper.appendChild(chips);
+    if (!userHasScrolledUp) {
+        document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+    }
+});
+
+// Socket event for when a message is deleted
+socket.on("message_deleted", (data) => removeMessageElement(data.message_id));
+
+// Edit & resend hid these (the edited message & everything after it); the
+// server keeps them as an earlier branch, so we only take them off the page.
+socket.on("messages_hidden", (data) => {
+    (data.ids || []).forEach(removeMessageElement);
+});
+
+socket.on("edit_resend_refused", (data) => {
+    chatTools.say(data.error);
 });
 
 // Socket event for when a message is updated
@@ -524,6 +590,33 @@ function editMessage(messageId, messageContentContainer) {
 
     // Append the save button next to the cancel button
     editButton.after(saveButton);
+
+    // A person's message can also be resent: models answer the edit again.
+    // Model replies carry a Fork button & are only edited in place.
+    if (!messageWrapper.querySelector(".fork-button")) {
+        const resendButton = document.createElement("button");
+        resendButton.textContent = "Save & resend";
+        resendButton.className = "resend-button";
+        resendButton.title = "Replace this message & everything after it with your edit, for everyone here; the models that answered answer again. Earlier versions are kept, hidden.";
+        resendButton.onclick = () => resendEditedMessage(messageId, textarea, messageContentContainer);
+        saveButton.after(resendButton);
+    }
+}
+
+// Edit & resend: the server hides this message & what followed, posts the
+// edit & has it answered again (messages_hidden, then chat_message).
+function resendEditedMessage(messageId, textarea, messageContentContainer) {
+    const content = textarea.value.trim();
+    if (!content) return;
+    socket.emit("edit_and_resend", {
+        "message_id": messageId,
+        "content": content,
+        "room_name": room_name,
+        "model": document.getElementById("model-select").value,
+        "enable_thinking": showThinking
+    });
+    // The editor stays open: messages_hidden takes it away once the server
+    // resends, & a refusal (edit_resend_refused) leaves the draft to retry.
 }
 
 // Function to save the edited message
@@ -554,11 +647,8 @@ function saveEditedMessage(messageId, textarea, messageContentContainer) {
         playButton.onclick = () => speakText(updatedMarkdown, playButton, messageId); // Ensure it uses the updated content
     }
 
-    // Remove the save button using the 'save-button' class
-    const saveButton = messageWrapper.querySelector(".save-button");
-    if (saveButton) {
-        saveButton.remove();
-    }
+    // Remove the save & resend buttons
+    messageWrapper.querySelectorAll(".save-button, .resend-button").forEach((button) => button.remove());
 }
 
 // Function to cancel the edit and revert changes
@@ -572,9 +662,6 @@ function cancelEdit(messageId, messageContentContainer) {
     editButton.textContent = 'Edit';
     editButton.onclick = () => editMessage(messageId, messageContentContainer, messageContentContainer.dataset.rawMarkdown);
 
-    // Remove the save button using the 'save-button' class
-    const saveButton = messageWrapper.querySelector(".save-button");
-    if (saveButton) {
-        saveButton.remove();
-    }
+    // Remove the save & resend buttons
+    messageWrapper.querySelectorAll(".save-button, .resend-button").forEach((button) => button.remove());
 }

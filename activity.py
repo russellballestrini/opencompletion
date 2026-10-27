@@ -1254,11 +1254,7 @@ def display_activity_info(room_name, username, model="MODEL_0"):
 
         try:
             # Fetch the entire room history
-            all_messages = (
-                Message.query.filter_by(room_id=room.id)
-                .order_by(Message.id.asc())
-                .all()
-            )
+            all_messages = Message.visible(room.id).order_by(Message.id.asc()).all()
             chat_history = [
                 {
                     "role": "system" if msg.username in SYSTEM_USERS else "user",

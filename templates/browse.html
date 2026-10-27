@@ -9,7 +9,7 @@
 
 <div class="tabs" role="tablist">
     <button type="button" class="room-tab active" role="tab" aria-selected="true" aria-controls="public-section" id="public-tab" onclick="switchTab('public')">Public ({{ public_rooms|length }})</button>
-    <button type="button" class="room-tab" role="tab" aria-selected="false" aria-controls="private-section" id="private-tab" onclick="switchTab('private')">Private{% if user %} ({{ private_rooms|length }}){% endif %}</button>
+    <button type="button" class="room-tab" role="tab" aria-selected="false" aria-controls="private-section" id="private-tab" onclick="switchTab('private')">Solo{% if user %} ({{ private_rooms|length }}){% endif %}</button>
 </div>
 
 <section id="public-section" role="tabpanel" aria-labelledby="public-tab">
@@ -40,13 +40,13 @@
         </div>
         {% else %}
         <div class="empty-state">
-            <h3>No private rooms yet</h3>
-            <p><a class="btn" href="/">Create a private room</a></p>
+            <h3>No solo chats yet</h3>
+            <p><a class="btn" href="/">Start a solo chat</a></p>
         </div>
         {% endif %}
     {% else %}
     <div class="empty-state">
-        <h3>Private rooms are only visible to their owner</h3>
+        <h3>Solo chats are only visible to their owner</h3>
         <p><a class="btn" href="/auth?next=/browse">Sign in to see yours</a></p>
     </div>
     {% endif %}

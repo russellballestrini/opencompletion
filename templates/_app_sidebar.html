@@ -5,10 +5,10 @@
 {% set _current = room_name|default(none) %}
 {% set _nav = active_nav|default('chat' if _current else 'home') %}
 {% macro chat_item(room, tag='', tag_label='') -%}
-<li data-room-id="{{ room.id }}"><a href="{{ url_for('chat', room_name=room.name) }}" title="{{ room.title or room.name }}"{% if room.name == _current %} aria-current="page"{% endif %}>
+<li data-room-id="{{ room.id }}" {% include "_room_actions_data.html" %}><a href="{{ url_for('chat', room_name=room.name) }}" title="{{ room.title or room.name }}"{% if room.name == _current %} aria-current="page"{% endif %}>
     <span class="chat-list-name">{{ room.title or room.name }}</span>
     {% if tag %}<span class="chat-list-tag" aria-label="{{ tag_label }}">{{ tag }}</span>{% endif %}
-</a></li>
+</a><button type="button" class="chat-actions-btn" data-chat-actions aria-label="Chat actions" title="Rename, refresh title, pin, archive or delete">⋯</button></li>
 {%- endmacro %}
 <aside id="app-sidebar" class="app-sidebar" aria-label="Chats">
     <div class="sidebar-top">
@@ -32,11 +32,17 @@
             </a>
         </nav>
 
+        {# Chats pinned in this browser (static/js/chat-actions.js fills it). #}
+        <section class="sidebar-section" aria-labelledby="pinned-chats-heading" id="pinned-chats-section" hidden>
+            <h2 id="pinned-chats-heading" class="sidebar-heading">Pinned</h2>
+            <ul id="pinned-chats" class="chat-list"></ul>
+        </section>
+
         <section class="sidebar-section" aria-labelledby="your-chats-heading">
             <h2 id="your-chats-heading" class="sidebar-heading">Your chats</h2>
             <ul id="your-chats" class="chat-list" data-signed-in="{{ 'true' if user else 'false' }}">
                 {% for room in your_chats %}
-                {{ chat_item(room, '🔒' if room.is_private else '', 'private') }}
+                {{ chat_item(room, '🔒' if room.is_private else '', 'solo') }}
                 {% endfor %}
             </ul>
             <p id="your-chats-empty" class="sidebar-empty"{% if your_chats %} hidden{% endif %}>

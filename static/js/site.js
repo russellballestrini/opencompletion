@@ -4,9 +4,13 @@ function currentTheme() {
     return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
 }
 
-// Label every theme control by the mode a click switches to.
+// Label every theme control by the mode a click switches to, & tint the
+// browser's own bar (installed app, phone) with our page background.
 function syncThemeControls() {
     const theme = currentTheme();
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    const background = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim();
+    if (themeColor && background) themeColor.setAttribute('content', background);
     document.querySelectorAll('[data-theme-toggle]').forEach(button => {
         const label = theme === 'dark' ? 'Light mode' : 'Dark mode';
         const icon = button.querySelector('.theme-icon');

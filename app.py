@@ -9,13 +9,22 @@ monkey.patch_all()
 
 import json
 import time
+import base64
 import os
+import re
 
 import boto3
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
 
-from models import db, Room, UserSession, Message, ActivityState, User
+from models import db, Room, UserSession, Message, ActivityState, User, Attachment
+from blob_store import (
+    attachment_context,
+    data_url as attachment_data_url,
+    has_image_attachment,
+    max_bytes as max_upload_bytes,
+    save_attachment,
+)
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -40,7 +49,12 @@ socketio = SocketIO(app, async_mode="gevent")
 
 # Global dictionary to keep track of cancellation requests
 cancellation_requests = {}
+# Our Stop button: rooms whose streaming replies should end now, & how
+# many replies each room has streaming (stoppable_reply keeps both).
+stop_requests = set()
+streaming_replies = {}
 
+import openai
 from openai import OpenAI
 import activity
 import auth
@@ -78,8 +92,15 @@ if not ENDPOINTS:
 # next healthy configured endpoint automatically.
 DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL", f"MODEL_{CONFIGURED_MODEL_NUMS[0]}")
 
-# Build a dynamic model map by querying each endpoint.
+# Build a dynamic model map by querying each endpoint. MODEL_CLIENT_MAP
+# holds each model id's pinned endpoint: the lowest MODEL_ENDPOINT_n that
+# lists it. MODEL_ENDPOINTS holds every endpoint serving it, pin first, so
+# a model whose pin goes down fails over to another copy of itself.
 MODEL_CLIENT_MAP = {}
+MODEL_ENDPOINTS = {}
+# base_url -> model ids it last listed; kept while it is down, so a MODEL_n
+# reference still knows which model to look for elsewhere.
+_endpoint_models = {}
 SYSTEM_USERS = []
 
 
@@ -108,6 +129,68 @@ def endpoint_is_healthy(client, base_url):
     return healthy
 
 
+def mark_endpoint_down(base_url):
+    """Take an endpoint out of rotation until its next health check."""
+    _endpoint_health[base_url] = (False, time.time())
+
+
+def _same_url(a, b):
+    return str(a).rstrip("/") == str(b).rstrip("/")
+
+
+def endpoints_for_model(model_name):
+    """Every (client, base_url) serving model_name, its pin first."""
+    if model_name in MODEL_ENDPOINTS:
+        return MODEL_ENDPOINTS[model_name]
+    if model_name in MODEL_CLIENT_MAP:
+        return [MODEL_CLIENT_MAP[model_name]]
+    return []
+
+
+def healthy_endpoint_for_model(model_name):
+    """The first healthy (client, base_url) serving model_name, or None."""
+    endpoints = endpoints_for_model(model_name)
+    for client, base_url in endpoints:
+        if endpoint_is_healthy(client, base_url):
+            if not _same_url(base_url, endpoints[0][1]):
+                print(
+                    f"[WARN] {model_name}: {endpoints[0][1]} is down; "
+                    f"serving it from {base_url}"
+                )
+            return client, base_url
+    return None
+
+
+# Failures worth another endpoint: it was unreachable, timed out or broke
+# (5xx). A 4xx is our request's fault and would fail anywhere.
+FAILOVER_ERRORS = (openai.APIConnectionError, openai.InternalServerError)
+
+
+def open_with_failover(openai_client, model_name, open_stream):
+    """open_stream(client) starts a completion; if opening the stream fails
+    (no connection, a timeout, a 5xx), mark that endpoint down & try the next
+    one serving this same model. Only opening is retried: a stream that
+    breaks while it is read, even before its first token, is not."""
+    given = str(getattr(openai_client, "base_url", ""))
+    endpoints = endpoints_for_model(model_name)
+    # Health is keyed by the configured URL; the client's own adds a "/".
+    given = next((url for _, url in endpoints if _same_url(url, given)), given)
+    attempts = [(openai_client, given)] + [
+        (client, url) for client, url in endpoints if not _same_url(url, given)
+    ]
+    for i, (client, base_url) in enumerate(attempts):
+        if i and not endpoint_is_healthy(client, base_url):
+            continue
+        try:
+            return open_stream(client)
+        except FAILOVER_ERRORS as e:
+            mark_endpoint_down(base_url)
+            rest = attempts[i + 1 :]
+            if not any(endpoint_is_healthy(c, url) for c, url in rest):
+                raise
+            print(f"[WARN] {model_name} failed on {base_url} ({e}); trying next")
+
+
 def is_vision_model(model_name: str) -> bool:
     """Check if a model supports vision/image input."""
     if not model_name:
@@ -119,6 +202,7 @@ def is_vision_model(model_name: str) -> bool:
 
 def initialize_model_map():
     MODEL_CLIENT_MAP.clear()
+    MODEL_ENDPOINTS.clear()
     for ep_config in ENDPOINTS:
         base_url = ep_config["base_url"]
         api_key = ep_config["api_key"]
@@ -131,9 +215,10 @@ def initialize_model_map():
             print(f"[WARN] Could not list models for endpoint '{base_url}': {e}")
             continue
 
-        for m in model_list:
-            model_id = m.id
-            if model_id and model_id not in MODEL_CLIENT_MAP:
+        _endpoint_models[base_url] = [m.id for m in model_list if m.id]
+        for model_id in _endpoint_models[base_url]:
+            MODEL_ENDPOINTS.setdefault(model_id, []).append((client, base_url))
+            if model_id not in MODEL_CLIENT_MAP:
                 MODEL_CLIENT_MAP[model_id] = (client, base_url)
 
     # Grow SYSTEM_USERS in place (activity.py holds a reference to this
@@ -216,6 +301,14 @@ def find_saved_base64_for_url(external_url: str, room_id: int) -> str | None:
     if external_url in _external_image_cache:
         return _external_image_cache[external_url]
 
+    # Saved as a blob (indexed by source_url): one lookup, no scan
+    saved = Attachment.query.filter_by(room_id=room_id, source_url=external_url).first()
+    if saved:
+        _external_image_cache[external_url] = attachment_data_url(saved)
+        return _external_image_cache[external_url]
+
+    # Older rooms saved fetched images as base64 inside a message
+
     # Look for a saved message with this URL in the alt text
     try:
         # Escape special LIKE characters in URL (%, _, \)
@@ -290,45 +383,26 @@ def fetch_external_image_as_base64(image_url: str) -> str | None:
 def save_fetched_image_as_message(
     external_url: str, data_url: str, room_id: int
 ) -> None:
-    """Save a fetched external image as a new message in the database.
-
-    This persists the base64 version so we don't need to fetch again.
-    Only saves if no saved version exists for this URL in this room.
-    """
-    print(
-        f"[Vision Save] Attempting to save base64 for room {room_id}: {external_url[:60]}..."
-    )
+    """Keep a fetched external image so the next turn needn't fetch it:
+    its bytes go to our blob store (blob_store.py) as an attachment of the
+    room, found again by source_url. Images over our upload limit are only
+    cached in memory. (Older rooms kept these as base64 inside messages;
+    find_saved_base64_for_url still reads those.)"""
+    _external_image_cache[external_url] = data_url
     try:
-        # Check if already saved for this URL in this room
-        # Escape special LIKE characters in URL (%, _, \)
-        escaped_url = escape_like_pattern(external_url)
-        existing = Message.query.filter(
-            Message.room_id == room_id,
-            Message.content.like(f'%alt="Fetched from {escaped_url}"%', escape="\\"),
-        ).first()
-
-        if existing:
-            print(f"[Vision Save] Already exists as message {existing.id}")
+        if Attachment.query.filter_by(room_id=room_id, source_url=external_url).first():
             return
-
-        # Create img tag with base64 data
-        img_content = f'<img src="{data_url}" alt="Fetched from {external_url}">'
-        new_message = Message(
-            username="system",  # Mark as system message
-            content=img_content,
-            room_id=room_id,
+        header, _, encoded = data_url.partition(",")
+        data = base64.b64decode(encoded)
+        if len(data) > max_upload_bytes():
+            return
+        mime_type = header[len("data:") :].split(";")[0] or "image/jpeg"
+        name = external_url.split("?")[0].rstrip("/").rsplit("/", 1)[-1] or "image"
+        save_attachment(
+            room_id, data, name, mime_type, "system", source_url=external_url
         )
-        db.session.add(new_message)
-        db.session.commit()
-        print(f"[Vision Save] SUCCESS - Saved as message {new_message.id}")
-
-        # Also cache it in memory
-        _external_image_cache[external_url] = data_url
     except Exception as e:
         print(f"[Vision Save] FAILED: {e}")
-        import traceback
-
-        traceback.print_exc()
         db.session.rollback()
 
 
@@ -398,12 +472,7 @@ def extract_first_image_for_og(room_id: int) -> str | None:
     """
     import re
 
-    messages = (
-        Message.query.filter_by(room_id=room_id)
-        .order_by(Message.id.asc())
-        .limit(50)
-        .all()
-    )
+    messages = Message.visible(room_id).order_by(Message.id.asc()).limit(50).all()
 
     for msg in messages:
         if not msg.content:
@@ -449,12 +518,7 @@ def generate_og_description(room, max_chars: int = 500) -> str:
 
     # Get first few messages for description
     if room:
-        messages = (
-            Message.query.filter_by(room_id=room.id)
-            .order_by(Message.id.asc())
-            .limit(10)
-            .all()
-        )
+        messages = Message.visible(room.id).order_by(Message.id.asc()).limit(10).all()
 
         for msg in messages:
             if not msg.content:
@@ -540,22 +604,46 @@ def _resolve_model_num(model_num, check_health=True):
     return client, "model"
 
 
+def _model_for_num(model_num):
+    """The model id MODEL_<num> serves (MODEL_NAME_n, else what its endpoint
+    last listed), even while that endpoint is down; None if unknown."""
+    explicit = os.environ.get(f"MODEL_NAME_{model_num}")
+    if explicit:
+        return explicit
+    endpoint = os.environ.get(f"MODEL_ENDPOINT_{model_num}")
+    listed = _endpoint_models.get(endpoint) or []
+    return listed[0] if listed else None
+
+
 def get_openai_client_and_model(model_name=None):
     """Get OpenAI client and model name.
 
     Supports MODEL_X references (e.g., MODEL_1, MODEL_2, MODEL_3) that map to
     environment variables MODEL_ENDPOINT_X and MODEL_API_KEY_X. A MODEL_X
-    whose endpoint is down or unconfigured falls through to the next healthy
-    configured endpoint, so activities keep working when the primary leaves
-    rotation. Set DEFAULT_MODEL to change which reference is main.
+    whose endpoint is down first tries other endpoints serving the same
+    model, then falls through to the next healthy configured endpoint, so
+    activities keep working when the primary leaves rotation. Set
+    DEFAULT_MODEL to change which reference is main.
+
+    A model id (chat's dropdown) is pinned to the lowest MODEL_ENDPOINT_n
+    listing it & fails over to the other endpoints listing it, in order.
     """
     if not model_name or model_name == "None":
         model_name = DEFAULT_MODEL
 
     if model_name.startswith("MODEL_"):
         requested = model_name.split("_")[1]
+        resolved = _resolve_model_num(requested)
+        if resolved:
+            return resolved
+        # Its endpoint is down: the same model on another endpoint first.
+        pinned = _model_for_num(requested)
+        if pinned:
+            found = healthy_endpoint_for_model(pinned)
+            if found:
+                return found[0], pinned
         candidates = [requested] + [n for n in CONFIGURED_MODEL_NUMS if n != requested]
-        for num in candidates:
+        for num in candidates[1:]:
             resolved = _resolve_model_num(num)
             if resolved:
                 if num != requested:
@@ -573,20 +661,21 @@ def get_openai_client_and_model(model_name=None):
         print(f"Warning: no MODEL_x endpoints configured for {model_name}")
         return None, model_name
 
-    # Direct model id (chat dropdown). If its endpoint went down, hand the
-    # request to the default rotation; the reply is attributed to whichever
+    # Direct model id (chat dropdown): its pinned endpoint first, then any
+    # other endpoint serving the same model. Only when every copy is down
+    # does the default rotation answer; the reply is attributed to whichever
     # model actually served it.
-    client = get_client_for_model(model_name)
-    if client is not None:
-        base_url = MODEL_CLIENT_MAP[model_name][1]
-        if endpoint_is_healthy(client, base_url):
-            return client, model_name
-        print(f"[WARN] {model_name} endpoint unhealthy; using default rotation")
+    endpoints = endpoints_for_model(model_name)
+    found = healthy_endpoint_for_model(model_name)
+    if found:
+        return found[0], model_name
+    if endpoints:
+        print(f"[WARN] every {model_name} endpoint is down; using default rotation")
     else:
         print(f"[WARN] Unknown model '{model_name}'; using default rotation")
     if DEFAULT_MODEL.startswith("MODEL_"):
         return get_openai_client_and_model(None)
-    return client, model_name
+    return (endpoints[0][0] if endpoints else None), model_name
 
 
 HELP_MESSAGE = """
@@ -595,7 +684,7 @@ HELP_MESSAGE = """
 - Models are listed live from this server's endpoints, so the list changes as they come & go.
 
 **Your chats**
-- **New chat** (top of our sidebar) starts one: **Private** is only you (sign in first), **Chatroom** is public & anyone with its link can join.
+- **New chat** (top of our sidebar) starts one: **Solo** is only you (sign in first), **Chatroom** is public & anyone with its link can join.
 - Your chats & public chats are listed in our sidebar; **Rooms** shows them all.
 - Room controls (fork, voice, activities, downloads, who is here) sit beside our chat; on a phone, tap ⚙.
 
@@ -647,6 +736,7 @@ activity.init_activity_module(
 # HTTP routes live in routes/ (pages, accounts, rooms, code); chat stays
 # here. The re-exports keep `app.<name>` working for callers & tests.
 import routes  # noqa: E402
+from repetition_guard import RepetitionGuard  # noqa: E402
 from routes.pages import safe_next_url  # noqa: E402,F401
 from routes.rooms import (  # noqa: E402,F401
     emit_room_list_update,
@@ -659,6 +749,8 @@ routes.register(
     app,
     get_openai_client_and_model=get_openai_client_and_model,
     system_users=SYSTEM_USERS,
+    retitle_room=lambda room: retitle_room(room),
+    set_room_title=lambda room, title: set_room_title(room, title),
 )
 
 
@@ -747,7 +839,7 @@ def chat(room_name):
 
     # Check if they're trying to access a private room they don't own
     if room_access_denied(room, user):
-        return "Access denied: This is a private room", 403
+        return "Access denied: this is someone's solo chat", 403
 
     # Use authenticated user's display name, or None (will prompt on client side)
     username = user.display_name if user else None
@@ -858,13 +950,16 @@ def on_join(data):
     # From here on this client hears the room: our home page's first message
     # waits for this before it is sent (static/js/chat/3-room.js).
     emit("joined", {"room_name": room_name}, room=request.sid)
+    # Joining mid-reply: show Stop too.
+    if streaming_replies.get(room_name):
+        emit_streaming(room_name, to=request.sid)
 
     # update the title bar with the proper room title, if it exists for just this new client.
     if room.title:
         socketio.emit("update_room_title", {"title": room.title}, room=request.sid)
 
     # Fetch previous messages from the database
-    previous_messages = Message.query.filter_by(room_id=room.id).all()
+    previous_messages = Message.visible(room.id).all()
 
     # count the number of tokens in this room.
     total_token_count = 0
@@ -879,6 +974,9 @@ def on_join(data):
                 "id": message.id,
                 "username": message.username,
                 "content": message.content,
+                # A model's reply can be forked from (static/js/chat/5-messages.js).
+                "from_model": message.username in SYSTEM_USERS
+                and message.username != "system",
             },
             room=request.sid,
         )
@@ -980,6 +1078,15 @@ def handle_message(data):
         room=room.name,
     )
 
+    dispatch_message(
+        room, username, message, [model], data.get("enable_thinking", True)
+    )
+
+
+def dispatch_message(room, username, message, models, enable_thinking=True):
+    """What a posted message sets off: a slash command, the room's running
+    activity, or a reply from each of `models` ("None" = people only)."""
+    room_name = room.name
     commands = message.splitlines()
     for command in commands:
         if command.startswith("/help"):
@@ -1021,30 +1128,77 @@ def handle_message(data):
     activity_state = ActivityState.query.filter_by(room_id=room.id).first()
     if activity_state:
         gevent.spawn(
-            activity.handle_activity_response, room_name, message, username, model
+            activity.handle_activity_response,
+            room_name,
+            message,
+            username,
+            models[0] if models else "None",
         )
         return
 
-    if model != "None":
+    for model in models:
+        if model in (None, "None"):
+            continue
         emit(
             "chat_message",
             {"id": None, "content": "<span id='processing'>Processing...</span>"},
             room=room.name,
         )
+        # elif: a Claude model once also fell through to chat_gpt, so two
+        # replies streamed for one message.
         if "anthropic.claude" in model:
-            gevent.spawn(chat_claude, username, room_name, model_name=model)
-        if "dall-e" in model:
+            gevent.spawn(
+                stoppable_reply, chat_claude, username, room_name, model_name=model
+            )
+        elif "dall-e" in model:
             gevent.spawn(generate_dalle_image, room_name, message, username)
         else:
             # All other models (Groq, Together, Mistral, etc.) use OpenAI client
-            enable_thinking = data.get("enable_thinking", True)
             gevent.spawn(
+                stoppable_reply,
                 chat_gpt,
                 username,
                 room_name,
                 model_name=model,
                 enable_thinking=enable_thinking,
             )
+
+
+def emit_streaming(room_name, to=None):
+    """Tell a room (or one client) how many replies are streaming in it, so
+    our Stop button shows while there is something to stop."""
+    socketio.emit(
+        "replies_streaming",
+        {"count": streaming_replies.get(room_name, 0)},
+        room=to or room_name,
+    )
+
+
+def stoppable_reply(reply, username, room_name, **kwargs):
+    """Run a model reply (chat_gpt, chat_claude) counted as streaming in
+    its room, so Stop can end it; the count drops however the reply ends."""
+    streaming_replies[room_name] = streaming_replies.get(room_name, 0) + 1
+    emit_streaming(room_name)
+    try:
+        return reply(username, room_name, **kwargs)
+    finally:
+        streaming_replies[room_name] -= 1
+        if not streaming_replies[room_name]:
+            del streaming_replies[room_name]
+            stop_requests.discard(room_name)
+        emit_streaming(room_name)
+
+
+@socketio.on("stop_replies")
+def on_stop_replies(data):
+    """Our Stop button: end every reply streaming in this room now. What
+    was written so far stays."""
+    room_name = (data or {}).get("room_name")
+    room = Room.query.filter_by(name=room_name).first()
+    if room is None or room_access_denied(room, auth.get_current_user()):
+        return
+    if streaming_replies.get(room_name):
+        stop_requests.add(room_name)
 
 
 def message_in_room(message_id, room_name):
@@ -1099,6 +1253,88 @@ def handle_update_message(data):
         )
 
 
+def models_that_answered(message):
+    """The models that replied to `message`: the model messages right after
+    it, up to the next one a person (or "system") wrote, in order."""
+    later = (
+        Message.visible(message.room_id)
+        .filter(Message.id > message.id)
+        .order_by(Message.id)
+    )
+    models = []
+    for reply in later:
+        if reply.username not in SYSTEM_USERS or reply.username == "system":
+            break
+        if reply.username not in models:
+            models.append(reply.username)
+    return models
+
+
+@socketio.on("edit_and_resend")
+def handle_edit_and_resend(data):
+    """Edit a person's message & have it answered again, for everyone in
+    the room: the old message & everything after it are hidden (superseded
+    by the revision, never deleted), the revision is posted in its place &
+    the models that answered the old one answer again (else our picker's
+    model)."""
+    message, room = message_in_room(data.get("message_id"), data.get("room_name"))
+    content = (data.get("content") or "").strip()
+    if not message or not content or message.superseded_by_id:
+        return
+    if message.username in SYSTEM_USERS:
+        return  # a model's reply is edited in place, never resent
+    # Only its author resends a message (it hides everything after it for
+    # everyone): the name this socket joined the room under, never a name
+    # the event claims.
+    joined = UserSession.query.filter_by(
+        session_id=request.sid, room_id=room.id
+    ).first()
+    if not joined or joined.username != message.username:
+        emit(
+            "edit_resend_refused",
+            {"error": "Only its author can resend a message."},
+            room=request.sid,
+        )
+        return
+    if streaming_replies.get(room.name):
+        emit(
+            "edit_resend_refused",
+            {"error": "A reply is still streaming: Stop it, then resend."},
+            room=request.sid,
+        )
+        return
+
+    models = models_that_answered(message) or [data.get("model") or "None"]
+    branch = (
+        Message.visible(room.id)
+        .filter(Message.id >= message.id)
+        .order_by(Message.id)
+        .all()
+    )
+    revision = Message(username=message.username, content=content, room_id=room.id)
+    revision.revision_of_id = message.id
+    db.session.add(revision)
+    db.session.flush()
+    for old in branch:
+        old.superseded_by_id = revision.id
+    room.updated_at = int(time.time())
+    db.session.commit()
+
+    emit(
+        "messages_hidden",
+        {"ids": [old.id for old in branch], "revision_id": revision.id},
+        room=room.name,
+    )
+    emit(
+        "chat_message",
+        {"id": revision.id, "username": revision.username, "content": content},
+        room=room.name,
+    )
+    dispatch_message(
+        room, revision.username, content, models, data.get("enable_thinking", True)
+    )
+
+
 @socketio.on("get_activity_status")
 def handle_get_activity_status(data):
     """Get the current activity status for a room.
@@ -1149,9 +1385,7 @@ def chat_claude(
     with app.app_context():
         room = get_room(room_name)
         # claude has a 200,000 token context window for prompts.
-        all_messages = (
-            Message.query.filter_by(room_id=room.id).order_by(Message.id.desc()).all()
-        )
+        all_messages = Message.visible(room.id).order_by(Message.id.desc()).all()
 
     chat_history = []
     for msg in reversed(all_messages):
@@ -1207,8 +1441,10 @@ def chat_claude(
             content = ""
 
             # Check if there has been a cancellation request, break if there is.
-            if cancellation_requests.get(msg_id):
-                del cancellation_requests[msg_id]
+            if cancellation_requests.get(msg_id) or room_name in stop_requests:
+                cancellation_requests.pop(msg_id, None)
+                # Hang up, so the model server stops generating too.
+                getattr(response, "close", lambda: None)()
                 break
 
             if "chunk" in event:
@@ -1287,19 +1523,50 @@ def chat_claude(
     title_untitled_room(room_name)
 
 
+def _env_float(name, default):
+    try:
+        return float(os.environ[name])
+    except (KeyError, ValueError):
+        return default
+
+
+# Thinking & answer together; a loop that a hang-up can't stop ends here.
+DEFAULT_MAX_TOKENS = 8192
+
+
+def chat_sampling(model_name):
+    """Sampling for a chat reply. Greedy decoding (temperature 0, our old
+    default) sends reasoning models such as Qwen3 into endless repetition
+    in their thinking, so chat samples at Qwen's thinking-mode settings:
+    OPENCOMPLETION_TEMPERATURE (0.6) & OPENCOMPLETION_TOP_P (0.95), plus
+    OPENCOMPLETION_PRESENCE_PENALTY when set.
+
+    OPENCOMPLETION_MAX_TOKENS (8192; 0 = no cap) bounds every reply in the
+    request itself: hanging up on a looping model (RepetitionGuard) stops
+    the generation only where a disconnect reaches vLLM & aborts it, which
+    not every GPU host or proxy does, while vLLM always stops at max_tokens.
+    OpenAI's o-series take temperature 1 only & no top_p (o3: neither)."""
+    if any(tag in model_name for tag in ("o1-", "o3", "o4-")):
+        return {} if "o3" in model_name else {"temperature": 1}
+    sampling = {
+        "temperature": _env_float("OPENCOMPLETION_TEMPERATURE", 0.6),
+        "top_p": _env_float("OPENCOMPLETION_TOP_P", 0.95),
+    }
+    presence = _env_float("OPENCOMPLETION_PRESENCE_PENALTY", None)
+    if presence is not None:
+        sampling["presence_penalty"] = presence
+    max_tokens = int(_env_float("OPENCOMPLETION_MAX_TOKENS", DEFAULT_MAX_TOKENS))
+    if max_tokens > 0:
+        sampling["max_tokens"] = max_tokens
+    return sampling
+
+
 def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True):
     openai_client, model_name = get_openai_client_and_model(model_name)
 
-    temperature = 0
     limit = 20
     if "gpt-4" in model_name:
         limit = 1000
-    if "o1-" in model_name:
-        temperature = 1
-    if "o3-" in model_name:
-        temperature = 1
-    if "o4-" in model_name:
-        temperature = 1
 
     # Check if this is a vision-capable model
     vision_enabled = is_vision_model(model_name)
@@ -1310,10 +1577,7 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         room = get_room(room_name)
         room_id = room.id  # Save room_id to avoid DetachedInstanceError later
         last_messages = (
-            Message.query.filter_by(room_id=room_id)
-            .order_by(Message.id.desc())
-            .limit(limit)
-            .all()
+            Message.visible(room_id).order_by(Message.id.desc()).limit(limit).all()
         )
 
         chat_history = []
@@ -1322,8 +1586,10 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         most_recent_image_id = None
         if vision_enabled:
             for msg in last_messages:  # newest first
-                is_image_msg = msg.is_base64_image() or extract_external_image_url(
-                    msg.content
+                is_image_msg = (
+                    msg.is_base64_image()
+                    or extract_external_image_url(msg.content)
+                    or has_image_attachment(msg.content, room_id)
                 )
                 if is_image_msg:
                     most_recent_image_id = msg.id
@@ -1355,8 +1621,15 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
                 # Skip older image messages - they have no text context
                 continue
 
-            # Regular text message - always include
-            chat_history.append({"role": role, "content": msg.content})
+            # Regular text message - always include, with the text & code
+            # files it carries inlined (& its images, for a vision model's
+            # newest image turn)
+            content = attachment_context(
+                msg.content,
+                room_id,
+                include_images=vision_enabled and msg.id == most_recent_image_id,
+            )
+            chat_history.append({"role": role, "content": content})
 
     buffer = ""  # Content buffer for accumulating the chunks
 
@@ -1374,19 +1647,22 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         "messages": chat_history,
         "n": 1,
         "stream": True,
+        **chat_sampling(model_name),
     }
-    if "o3" not in model_name:
-        # o3 does not support temperature at all!
-        create_kwargs["temperature"] = temperature
-    try:
+
+    def open_stream(client):
         if enable_thinking:
-            chunks = openai_client.chat.completions.create(**create_kwargs)
-        else:
-            # Suppress chain-of-thought at the template level. Endpoints that
-            # reject the chat_template_kwargs param (OpenAI, Groq, Mistral,
-            # Gemini) get retried without it inside the helper; templates that
-            # ignore the kwarg (e.g. Hermes) simply drop it.
-            chunks = create_completion_skip_thinking(openai_client, **create_kwargs)
+            return client.chat.completions.create(**create_kwargs)
+        # Suppress chain-of-thought at the template level. Endpoints that
+        # reject the chat_template_kwargs param (OpenAI, Groq, Mistral,
+        # Gemini) get retried without it inside the helper; templates that
+        # ignore the kwarg (e.g. Hermes) simply drop it.
+        return create_completion_skip_thinking(client, **create_kwargs)
+
+    try:
+        # An endpoint that fails before streaming hands over to another
+        # endpoint serving this same model.
+        chunks = open_with_failover(openai_client, model_name, open_stream)
     except Exception as e:
         with app.app_context():
             message_content = f"{model_name} Error: {e}"
@@ -1411,11 +1687,23 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         # exit early to avoid clobbering the error message.
         return None
 
+    # One guard per channel: a model looping in its thinking or its answer
+    # is cut off, and closing our stream makes the server stop generating.
+    thinking_guard, answer_guard = RepetitionGuard(), RepetitionGuard()
+    looped = None
+    cut_at_limit = False
+
     for chunk in chunks:
         # Check if there has been a cancellation request, break if there is.
-        if cancellation_requests.get(msg_id):
-            del cancellation_requests[msg_id]
+        if cancellation_requests.get(msg_id) or room_name in stop_requests:
+            cancellation_requests.pop(msg_id, None)
+            # Hang up, so the model server stops generating too.
+            getattr(chunks, "close", lambda: None)()
             break
+        if not chunk.choices:
+            continue
+        if getattr(chunk.choices[0], "finish_reason", None) == "length":
+            cut_at_limit = True
 
         delta = chunk.choices[0].delta
         # Qwen3.x / Deepseek-R1 / o1: thinking streams via delta.reasoning_content,
@@ -1434,6 +1722,9 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
                 room=room_name,
             )
             socketio.sleep(0)
+            if thinking_guard.add(reasoning):
+                looped = ("thinking", thinking_guard.looping)
+                break
 
         content = delta.content
 
@@ -1460,6 +1751,43 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
                     room=room_name,
                 )
             socketio.sleep(0)  # Force immediate handling
+            if answer_guard.add(content):
+                looped = ("reply", answer_guard.looping)
+                break
+
+    notice = ""
+    if cut_at_limit and not looped:
+        cap = create_kwargs.get("max_tokens")
+        notice = (
+            f"\n\n_Stopped at our {cap}-token limit (OPENCOMPLETION_MAX_TOKENS)._"
+            if cap
+            else "\n\n_Stopped: the model reached its length limit._"
+        )
+    if looped:
+        # Hang up. Where a disconnect reaches vLLM it aborts the generation;
+        # elsewhere it runs on to max_tokens (chat_sampling), never forever.
+        close = getattr(chunks, "close", None)
+        if close:
+            close()
+        where, phrase = looped
+        notice = (
+            f"\n\n_Stopped: {model_name} kept repeating "
+            f"\u201c{phrase[:80]}\u201d in its {where}. Ask again, or rephrase._"
+        )
+        print(f"[WARN] {model_name} looped in its {where} in {room_name}: {phrase!r}")
+    if notice:
+        buffer += notice
+        socketio.emit(
+            "message_chunk",
+            {
+                "id": msg_id,
+                "content": notice,
+                "username": username,
+                "model_name": model_name,
+                "is_first_chunk": first_chunk,
+            },
+            room=room_name,
+        )
 
     # Save the entire completion to the database
     with app.app_context():
@@ -1479,7 +1807,88 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
     )
 
     socketio.emit("delete_processing_message", msg_id, room=room_name)
+    if followups_enabled() and buffer.strip() and not notice:
+        if room_name not in stop_requests:
+            gevent.spawn(
+                suggest_followups,
+                openai_client,
+                model_name,
+                room_name,
+                msg_id,
+                chat_history[-1]["content"] if chat_history else "",
+                buffer,
+            )
     title_untitled_room(room_name)
+
+
+# Follow-up suggestions: after a reply, 2-3 short next questions as chips
+# below it. OPENCOMPLETION_FOLLOWUPS=off turns them off (one small extra
+# completion per reply, on the model that answered).
+FOLLOWUP_PROMPT = (
+    "Suggest three short follow-up questions the person might ask next in "
+    "this conversation. Write them as they would, in their language. One "
+    "per line, each under 12 words, no numbering, nothing else."
+)
+FOLLOWUP_MAX = 3
+FOLLOWUP_CHARS = 120
+
+
+def followups_enabled():
+    return os.environ.get("OPENCOMPLETION_FOLLOWUPS", "on").lower() not in (
+        "0",
+        "off",
+        "false",
+        "no",
+    )
+
+
+def parse_followups(text):
+    """A model's suggestions, one per line, as up to FOLLOWUP_MAX clean
+    questions: list markers & quotes stripped, duplicates & blanks gone."""
+    suggestions = []
+    for line in (text or "").splitlines():
+        line = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", line).strip(" \"'“”")
+        if line and len(line) <= FOLLOWUP_CHARS and line not in suggestions:
+            suggestions.append(line)
+        if len(suggestions) == FOLLOWUP_MAX:
+            break
+    return suggestions
+
+
+def suggest_followups(openai_client, model_name, room_name, msg_id, question, answer):
+    """Ask the model that answered for next questions & send them to the
+    room as chips under its reply. Best effort: any failure shows none."""
+    if isinstance(question, list):  # a vision turn: its text parts
+        question = " ".join(
+            part.get("text", "") for part in question if isinstance(part, dict)
+        )
+    try:
+        response = create_completion_skip_thinking(
+            openai_client,
+            model=model_name,
+            messages=[
+                {"role": "system", "content": FOLLOWUP_PROMPT},
+                {
+                    "role": "user",
+                    "content": f"Question:\n{str(question)[:4000]}\n\n"
+                    f"Answer:\n{strip_reasoning(answer)[:6000]}",
+                },
+            ],
+            temperature=0.7,
+            max_tokens=120,
+        )
+        suggestions = parse_followups(
+            strip_reasoning(response.choices[0].message.content)
+        )
+    except Exception as e:
+        print(f"[WARN] Follow-up suggestions failed: {e}")
+        return
+    if suggestions:
+        socketio.emit(
+            "followup_suggestions",
+            {"message_id": msg_id, "suggestions": suggestions},
+            room=room_name,
+        )
 
 
 def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.gguf"):
@@ -1492,10 +1901,7 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
     with app.app_context():
         room = get_room(room_name)
         last_messages = (
-            Message.query.filter_by(room_id=room.id)
-            .order_by(Message.id.desc())
-            .limit(limit)
-            .all()
+            Message.visible(room.id).order_by(Message.id.desc()).limit(limit).all()
         )
 
         chat_history = [
@@ -1549,8 +1955,10 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
 
     for chunk in chunks:
         # Check if there has been a cancellation request, break if there is.
-        if cancellation_requests.get(msg_id):
-            del cancellation_requests[msg_id]
+        if cancellation_requests.get(msg_id) or room_name in stop_requests:
+            cancellation_requests.pop(msg_id, None)
+            # Hang up, so the model server stops generating too.
+            getattr(chunks, "close", lambda: None)()
             break
 
         delta = chunk["choices"][0]["delta"]
@@ -1678,7 +2086,7 @@ def backfill_titles():
         names = [
             room.name
             for room in Room.query.filter(Room.title.is_(None)).all()
-            if Message.query.filter_by(room_id=room.id).count() >= TITLE_MIN_MESSAGES
+            if Message.visible(room.id).count() >= TITLE_MIN_MESSAGES
         ]
     titled = 0
     for name in names:
@@ -1701,7 +2109,7 @@ def title_untitled_room(room_name):
         if room is None or room.title:
             return
         recent = (
-            Message.query.filter_by(room_id=room.id)
+            Message.visible(room.id)
             .order_by(Message.id.desc())
             .limit(TITLE_CONTEXT_MESSAGES)
             .all()
@@ -1729,12 +2137,41 @@ def title_untitled_room(room_name):
         emit_room_list_update(room, {"id": room.id, "name": room.name, "title": title})
 
 
+def retitle_room(room):
+    """A fresh title from a room's conversation, saved & sent to its page &
+    every sidebar showing it; None when no model answered."""
+    recent = (
+        Message.visible(room.id)
+        .order_by(Message.id.desc())
+        .limit(TITLE_CONTEXT_MESSAGES)
+        .all()
+    )
+    try:
+        title = (gpt_generate_room_title(recent) or "").strip()[:100]
+    except Exception as e:
+        print(f"[WARN] Room title generation failed: {e}")
+        return None
+    if not title:
+        return None
+    set_room_title(room, title)
+    return title
+
+
+def set_room_title(room, title):
+    """Save a room's title & tell its page & every sidebar showing it."""
+    room.title = title
+    db.session.add(room)
+    db.session.commit()
+    socketio.emit("update_room_title", {"title": title}, room=room.name)
+    emit_room_list_update(room, {"id": room.id, "name": room.name, "title": title})
+
+
 def generate_new_title(room_name, username):
     with app.app_context():
         room = get_room(room_name)
         # Get the last few messages to generate a title
         last_messages = (
-            Message.query.filter_by(room_id=room.id)
+            Message.visible(room.id)
             .order_by(Message.id.desc())
             .limit(1000)  # Adjust the limit as needed
             .all()
@@ -1840,10 +2277,7 @@ def find_most_recent_code_block(room_name):
 
         # Get the most recent message for the room
         latest_message = (
-            Message.query.filter_by(room_id=room.id)
-            .order_by(Message.id.desc())
-            .offset(1)
-            .first()
+            Message.visible(room.id).order_by(Message.id.desc()).offset(1).first()
         )
 
     if latest_message:
@@ -2057,10 +2491,7 @@ def cancel_generation(room_name):
         room = get_room(room_name)
         # Get the most recent message for the room that is being generated
         latest_message = (
-            Message.query.filter_by(room_id=room.id)
-            .order_by(Message.id.desc())
-            .offset(1)
-            .first()
+            Message.visible(room.id).order_by(Message.id.desc()).offset(1).first()
         )
 
     if latest_message:

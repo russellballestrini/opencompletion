@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {# Our home: an empty chat, like every chat app people already know. The
-   first message makes a room: private (only you) or a multiplayer
+   first message makes a room: solo (only you) or a multiplayer
    chatroom anyone with the link can join. That second mode is ours. #}
 {% set active_nav = 'home' %}
 
@@ -14,7 +14,7 @@
         <div class="mode-switch" role="group" aria-label="Who can see this chat">
             <button type="button" class="mode-btn" data-mode="private" aria-pressed="false">
                 <svg class="sidebar-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-                Private
+                Solo
             </button>
             <button type="button" class="mode-btn" data-mode="chatroom" aria-pressed="false">
                 <svg class="sidebar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9.5 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 20v-2a4 4 0 0 0-3-3.9M16 2.1a4 4 0 0 1 0 7.8"/></svg>
@@ -25,10 +25,11 @@
 
     <div class="home-center">
         <h1 class="home-greeting">Tabula rasa, in a beginning, <span class="phone-line">where do we start?</span></h1>
-        <form id="composer" class="composer" novalidate>
+        <form id="composer" class="composer" novalidate data-max-upload="{{ max_upload_bytes }}">
             <label class="visually-hidden" for="composer-input">Message</label>
             <textarea id="composer-input" rows="1" placeholder="Ask anything, or type /help" autofocus></textarea>
             <div class="composer-bar">
+                {% include "_composer_tools.html" %}
                 <label class="visually-hidden" for="composer-model">Model</label>
                 <select id="composer-model" class="composer-model">
                     <option value="None">People only (no model)</option>
@@ -48,5 +49,6 @@
 <script>
     window.HOME_CONFIG = {signedIn: {{ 'true' if user else 'false' }}};
 </script>
+<script src="{{ url_for('static', filename='js/composer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/home.js') }}"></script>
 {% endblock %}

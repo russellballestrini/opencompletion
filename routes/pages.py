@@ -6,12 +6,15 @@ from urllib.parse import urlsplit
 from flask import (
     Blueprint,
     current_app,
+    jsonify,
     render_template,
     request,
     send_from_directory,
+    url_for,
 )
 
 import auth
+from blob_store import max_bytes as max_upload_bytes
 from models import Room
 
 bp = Blueprint("pages", __name__)
@@ -28,7 +31,13 @@ def favicon():
 def brand():
     """Our name atop every page: OPENCOMPLETION_BRAND (say "uncloseai")
     lets one deployment carry its own, OpenCompletion otherwise."""
-    return {"brand_name": os.environ.get("OPENCOMPLETION_BRAND") or "OpenCompletion"}
+    limit = max_upload_bytes()
+    return {
+        "brand_name": os.environ.get("OPENCOMPLETION_BRAND") or "OpenCompletion",
+        # Our composer refuses a file over this before uploading it.
+        "max_upload_bytes": limit,
+        "max_upload_mb": f"{limit / (1024 * 1024):g}",
+    }
 
 
 @bp.app_context_processor
@@ -95,6 +104,42 @@ def auth_page():
         user=auth.get_current_user(),
         next_url=safe_next_url(request.args.get("next", "")),
     )
+
+
+@bp.route("/manifest.webmanifest")
+def web_manifest():
+    """Our web app manifest: phones (& desktop browsers) install us as an
+    app under our brand, opening on an empty chat. Icons: static/images."""
+    brand = os.environ.get("OPENCOMPLETION_BRAND") or "OpenCompletion"
+
+    def icon(name, size, purpose="any"):
+        return {
+            "src": url_for("static", filename=f"images/{name}"),
+            "sizes": f"{size}x{size}",
+            "type": "image/png",
+            "purpose": purpose,
+        }
+
+    manifest = {
+        "name": brand,
+        "short_name": brand[:12],
+        "description": "Chat rooms where people & machine learning models work together.",
+        "id": "/",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#000000",
+        "theme_color": "#f5f5f7",
+        "icons": [
+            icon("icon-192.png", 192),
+            icon("icon-512.png", 512),
+            icon("icon-512.png", 512, "maskable"),
+        ],
+    }
+    response = jsonify(manifest)
+    response.mimetype = "application/manifest+json"
+    response.cache_control.max_age = 3600
+    return response
 
 
 @bp.route("/styleguide")

@@ -62,22 +62,30 @@
     <h2 id="sg-data">Stats, tabs & rooms</h2>
     <div class="stats-grid">
         <div class="stat-card"><div class="stat-value">12</div><div class="stat-label">Public rooms</div></div>
-        <div class="stat-card"><div class="stat-value">3</div><div class="stat-label">Your private rooms</div></div>
+        <div class="stat-card"><div class="stat-value">3</div><div class="stat-label">Your solo chats</div></div>
     </div>
     <div class="tabs" role="tablist">
         <button type="button" class="room-tab active" role="tab" aria-selected="true">Public</button>
-        <button type="button" class="room-tab" role="tab" aria-selected="false">Private</button>
+        <button type="button" class="room-tab" role="tab" aria-selected="false">Solo</button>
     </div>
     <div class="room-grid">
+        <div class="room-card-wrap" data-room-name="sg-study-group" data-room-title="Linear algebra, chapter 3" data-can-retitle="false" data-can-remove="false">
+            <a class="room-card" href="#sg-data">
+                <div class="room-card-header"><h3 class="room-card-name">study-group</h3></div>
+                <p class="room-card-title">Linear algebra, chapter 3</p>
+                <p class="room-card-meta">2 here now</p>
+            </a>
+            {# A picture of the ⋯ only: no data-chat-actions, so it opens no real menu. #}
+            <button type="button" class="chat-actions-btn" aria-label="Chat actions (example)" title="Hover or focus a card for its ⋯ menu">⋯</button>
+        </div>
         <a class="room-card" href="#sg-data">
-            <div class="room-card-header"><h3 class="room-card-name">study-group</h3></div>
-            <p class="room-card-title">Linear algebra, chapter 3</p>
-            <p class="room-card-meta">2 here now</p>
-        </a>
-        <a class="room-card" href="#sg-data">
-            <div class="room-card-header"><h3 class="room-card-name">a-very-long-room-name-that-must-wrap-on-a-phone</h3><span class="badge badge-private">Private</span></div>
+            <div class="room-card-header"><h3 class="room-card-name">a-very-long-room-name-that-must-wrap-on-a-phone</h3><span class="badge badge-private">Solo</span></div>
             <p class="room-card-title">Long names wrap instead of overflowing</p>
         </a>
+    </div>
+    <div class="followups" aria-label="Suggested follow-ups">
+        <button type="button" class="followup-chip">Follow-up suggestions sit under our newest reply</button>
+        <button type="button" class="followup-chip">A click sends that question</button>
     </div>
     <div class="empty-state">
         <h3>Empty states</h3>

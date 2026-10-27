@@ -469,6 +469,67 @@ window.addEventListener('load', () => {
     check(sent && sent[1].message === 'from the probe' && sent[1].room_name === 'lobby', 'send emits chat_message');
     check(box.value === '', 'box clears after send');
 
+    // Fork lives on model replies, never on people's messages or our controls
+    deliver('previous_messages', {id: 60, username: 'hermes', content: 'Big Bird', from_model: true});
+    deliver('previous_messages', {id: 61, username: 'ada', content: 'more', from_model: false});
+    const fork = document.querySelector('#message-60 .fork-button');
+    check(fork && /new chat from this reply/.test(fork.title), 'a model reply offers Fork, explained on hover');
+    check(!document.querySelector('#message-61 .fork-button'), 'a person\'s message has no Fork');
+    check(document.querySelector('#message-40 .fork-button'), 'a streamed reply offers Fork');
+    check(![...document.querySelectorAll('.utility-belt button')].some(b => /fork/i.test(b.textContent)), 'no Fork in room controls');
+    const forkCalls = [];
+    let forkAlert = null;
+    window.alert = message => { forkAlert = message; };
+    const fetchBeforeFork = window.fetch;
+    window.fetch = (url, options) => {
+        if (String(url).includes('/fork')) {
+            forkCalls.push([String(url), JSON.parse(options.body)]);
+            return Promise.resolve({ok: false, status: 429, json: () => Promise.resolve({error: 'Too many forks from your address'})});
+        }
+        return fetchBeforeFork(url, options);
+    };
+    fork.click();
+
+    // Stop shows while a reply streams & stops every reply in this room
+    const stop = document.getElementById('stop-button');
+    check(stop.hidden, 'no Stop when nothing streams');
+    deliver('replies_streaming', {count: 1});
+    check(!stop.hidden && getComputedStyle(stop).display !== 'none', 'Stop shows while a reply streams');
+    stop.click();
+    check(testSocket.sent.some(([event, data]) => event === 'stop_replies' && data.room_name === 'lobby'), 'Stop asks our server to end it');
+    deliver('replies_streaming', {count: 0});
+    check(stop.hidden, 'Stop hides when replies end');
+
+    // Files: dropped on our box, refused over our limit, sent as links
+    const form = document.getElementById('message-form');
+    const drop = files => {
+        const transfer = new DataTransfer();
+        files.forEach(f => transfer.items.add(f));
+        form.dispatchEvent(new DragEvent('drop', {dataTransfer: transfer, bubbles: true, cancelable: true}));
+    };
+    const limit = Number(form.dataset.maxUpload);
+    check(limit === 7 * 1024 * 1024, 'our 7 MB limit reaches the page: ' + limit);
+    drop([new File(['x'.repeat(10)], 'notes (v2).txt', {type: 'text/plain'})]);
+    check(form.querySelectorAll('.composer-file').length === 1, 'a dropped file waits as a chip');
+    const huge = new File(['x'], 'huge.bin');
+    Object.defineProperty(huge, 'size', {value: limit + 1});
+    drop([huge]);
+    check(form.querySelectorAll('.composer-file').length === 1
+        && /huge\.bin/.test(document.querySelector('.composer-status').textContent), 'an oversized file is refused, by name');
+    const uploads = [];
+    const fetchBeforeUpload = window.fetch;
+    window.fetch = (url, options) => {
+        if (String(url).endsWith('/api/rooms/lobby/attachments')) {
+            uploads.push(options.body.get('file').name);
+            return Promise.resolve({ok: true, json: () => Promise.resolve(
+                {id: 5, url: '/attachments/5/notes (v2).txt', filename: 'notes (v2).txt', size: 10, is_image: false})});
+        }
+        return fetchBeforeUpload(url, options);
+    };
+    box.value = 'see attached';
+    document.getElementById('send-button').click();
+    let fileSent = null;
+
     // Auto-fix runs only our marked post's exact block, never a same-named
     // guest's other code (guest names are not unique)
     const executed = [];
@@ -491,13 +552,19 @@ window.addEventListener('load', () => {
     // own pace: poll until both have or 1.5 s pass, never a fixed sleep.
     const started = Date.now();
     const settle = () => {
-        if ((executed.length === 0 || copyButton.textContent !== 'Copied!') && Date.now() - started < 1500) {
+        fileSent = fileSent || testSocket.sent.find(([event, data]) => event === 'chat_message' && data.message.startsWith('see attached'));
+        if ((executed.length === 0 || copyButton.textContent !== 'Copied!' || !forkAlert || !fileSent) && Date.now() - started < 1500) {
             setTimeout(settle, 50);
             return;
         }
         check(executed.length === 1 && executed[0] === 'print(2)', 'only the fixed block ran: ' + JSON.stringify(executed));
         check(copyButton.textContent === 'Copied!', 'copy shows Copied!: ' + copyButton.textContent);
         check(!window.pwned, 'no injected script ran (' + window.pwned + ')');
+        check(uploads.length === 1 && uploads[0] === 'notes (v2).txt', 'our file uploaded on send: ' + JSON.stringify(uploads));
+        check(fileSent && fileSent[1].message.includes('(/attachments/5/notes%20%28v2%29.txt)'), 'the message links it, escaped: ' + (fileSent && fileSent[1].message));
+        check(!form.querySelector('.composer-file'), 'sent files leave the box');
+        check(forkCalls.length === 1 && forkCalls[0][0] === '/api/messages/60/fork' && forkCalls[0][1].private === false, 'Fork posts this reply, public for a guest: ' + JSON.stringify(forkCalls));
+        check(/Too many forks/.test(forkAlert || '') && !fork.disabled, 'a refused fork says why & can be retried');
         document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
     };
     setTimeout(settle, 50);
@@ -552,3 +619,136 @@ def test_models_endpoint_answers(client):
     response = client.get("/models")
     assert response.status_code == 200
     assert "models" in response.json
+
+
+CHAT_ACTIONS_PROBE = r"""
+<script>
+window.addEventListener('load', async () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    window.onunhandledrejection = (e) => { document.body.dataset.probe = 'failed: ' + e.reason; };
+    // Our server, as the menu sees it: a rename answers with its title.
+    const calls = [];
+    window.fetch = async (url, options) => {
+        calls.push([url, options && options.method, options && options.body]);
+        return new Response(JSON.stringify({title: 'Garden plans'}), {status: 200, headers: {'Content-Type': 'application/json'}});
+    };
+    window.prompt = () => 'Garden plans';
+    try { localStorage.removeItem('pinnedChats'); } catch (e) {}
+
+    const card = document.querySelector('.room-card-wrap[data-room-name="lobby"]');
+    check(card && card.querySelector('[data-chat-actions]'), 'room cards carry ⋯');
+    const row = document.querySelector('#public-chats li[data-room-name="lobby"]');
+    check(row && row.querySelector('[data-chat-actions]'), 'sidebar rows carry ⋯');
+
+    const open = button => { button.click(); return document.querySelector('.chat-actions-menu'); };
+    const labels = menu => [...menu.querySelectorAll('button')].map(b => b.textContent);
+    let menu = open(card.querySelector('[data-chat-actions]'));
+    check(menu && labels(menu).join() === 'Rename,Refresh title,Pin', 'an unowned room offers rename, refresh & pin: ' + (menu && labels(menu)));
+    const box = menu.getBoundingClientRect();
+    check(box.left >= 0 && box.right <= innerWidth && box.bottom <= innerHeight, 'menu stays on screen');
+
+    // Pin: our sidebar's Pinned section shows the chat
+    [...menu.querySelectorAll('button')].find(b => b.textContent === 'Pin').click();
+    await new Promise(r => setTimeout(r, 0));
+    const pinned = document.getElementById('pinned-chats-section');
+    check(!pinned.hidden && pinned.querySelector('[data-room-name="lobby"]'), 'pinned chat shows in Pinned');
+    menu = open(card.querySelector('[data-chat-actions]'));
+    check(labels(menu).includes('Unpin'), 'a pinned chat offers Unpin');
+    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+    check(!document.querySelector('.chat-actions-menu'), 'Escape closes the menu');
+
+    // Rename: every place showing the chat takes its new title
+    menu = open(row.querySelector('[data-chat-actions]'));
+    [...menu.querySelectorAll('button')].find(b => b.textContent === 'Rename').click();
+    await new Promise(r => setTimeout(r, 20));
+    check(calls.some(([url, method]) => url.endsWith('/title') && method === 'POST'), 'rename posts its title');
+    check(row.querySelector('.chat-list-name').textContent === 'Garden plans', 'sidebar row renamed');
+    check(card.querySelector('.room-card-title').textContent === 'Garden plans', 'room card renamed');
+
+    // Your own room also offers archive & delete
+    const mine = document.querySelector('.room-card-wrap[data-room-name="adas-room"]');
+    menu = open(mine.querySelector('[data-chat-actions]'));
+    check(labels(menu).includes('Archive') && labels(menu).includes('Delete'), 'owner may archive & delete');
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [320, 1280])
+def test_chat_actions_menu(client, tmp_path, width):
+    ada = make_user("ada@example.test", "ada")
+    make_room("lobby", message="hi")
+    make_room("adas-room", owner=ada)
+    with client.session_transaction() as session:
+        session["user_id"] = ada.id
+    html = client.get("/browse").get_data(as_text=True)
+    out = run_probe(html, CHAT_ACTIONS_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+RESEND_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const deliver = (event, data) => testSocket.deliver(event, data);
+
+    // Edit & resend on a person's message, never on a model's reply
+    deliver('chat_message', {id: 1, username: 'ada', content: 'list three muppets'});
+    deliver('message_chunk', {id: 2, username: 'qwen', model_name: 'qwen', content: 'Elmo', is_complete: true});
+    document.querySelector('#message-1 .edit-button').click();
+    check(document.querySelector('#message-1 .resend-button'), 'a person\'s message offers Save & resend');
+    document.querySelector('#message-2 .edit-button').click();
+    check(!document.querySelector('#message-2 .resend-button'), 'a model reply is only edited in place');
+    document.querySelector('#message-1 textarea').value = 'list two muppets';
+    document.querySelector('#message-1 .resend-button').click();
+    check(document.querySelector('#message-1 textarea'), 'the editor stays open until the server answers');
+    check(document.querySelector('meta[name="theme-color"]').content !== '', 'theme-color follows our theme');
+    const sent = testSocket.sent.find(([event]) => event === 'edit_and_resend');
+    check(sent && sent[1].message_id === 1 && sent[1].content === 'list two muppets' && sent[1].room_name === 'lobby', 'resend emits edit_and_resend');
+    deliver('messages_hidden', {ids: [1, 2], revision_id: 3});
+    check(!document.getElementById('message-1') && !document.getElementById('message-2'), 'hidden messages leave the page');
+
+    // Follow-ups: chips under our newest reply; a click sends that question
+    deliver('chat_message', {id: 3, username: 'ada', content: 'list two muppets'});
+    deliver('message_chunk', {id: 4, username: 'qwen', model_name: 'qwen', content: 'Elmo, Oscar', is_complete: true});
+    deliver('followup_suggestions', {message_id: 4, suggestions: ['Who is <b>Oscar</b>?', 'Why green?']});
+    const chips = document.querySelectorAll('#message-4 .followup-chip');
+    check(chips.length === 2 && !document.querySelector('#message-4 .followups b'), 'chips show as text');
+    deliver('chat_message', {id: null, content: 'bob joined the room'});
+    check(document.querySelectorAll('#message-4 .followup-chip').length === 2, 'a notice with no id leaves the chips');
+    deliver('followup_suggestions', {message_id: 4, suggestions: ['Who is Oscar?', 'Why green?']});
+    check(document.querySelectorAll('.followup-chip').length === 2, 'late suggestions still land past a notice');
+    chips[1].click();
+    const asked = testSocket.sent.filter(([event]) => event === 'chat_message').pop();
+    check(asked && asked[1].message === 'Why green?', 'a chip sends its question');
+    check(!document.querySelector('.followups'), 'chips go once one is used');
+    deliver('followup_suggestions', {message_id: 3, suggestions: ['stale']});
+    check(!document.querySelector('.followups'), 'suggestions for an older message are ignored');
+
+    // ↓ shows only once we scroll up from the newest message
+    const chat = document.getElementById('chat');
+    const down = document.getElementById('scroll-bottom-button');
+    for (let i = 10; i < 60; i++) deliver('chat_message', {id: i, username: 'bob', content: 'line ' + i});
+    chat.scrollTop = chat.scrollHeight;
+    chat.dispatchEvent(new Event('scroll'));
+    check(down.hidden, 'no ↓ at the bottom');
+    chat.scrollTop = 0;
+    chat.dispatchEvent(new Event('scroll'));
+    check(!down.hidden, '↓ once scrolled up');
+    const box = down.getBoundingClientRect();
+    check(box.width > 0 && box.bottom <= document.getElementById('message-form').getBoundingClientRect().top + 1, '↓ floats above the composer');
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [320, 1280])
+def test_edit_resend_followups_and_scroll_down(client, tmp_path, width):
+    make_room("lobby")
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    out = run_probe(html, RESEND_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

@@ -177,9 +177,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     });
     }
 
+    // Scrolled up from our newest message: stop following the stream & offer ↓.
+    const scrollBottomButton = document.getElementById('scroll-bottom-button');
     chatContainer.addEventListener('scroll', () => {
         const distanceFromBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
         userHasScrolledUp = distanceFromBottom > 5;
+        scrollBottomButton.hidden = distanceFromBottom < 120;
+    });
+    scrollBottomButton.addEventListener('click', () => {
+        chatContainer.scrollTo({top: chatContainer.scrollHeight, behavior: 'smooth'});
+        userHasScrolledUp = false;
     });
 
     // NOTE: Model and voice restoration happens in populateModelDropdown() and
@@ -228,7 +235,7 @@ socket.on("your_username", (data) => {
 socket.on("access_denied", () => {
     forgetRecentChat(room_name);
     const chat = document.getElementById("chat");
-    chat.textContent = "This room is private. Sign in as its owner to open it.";
+    chat.textContent = "This is a solo chat. Sign in as its owner to open it.";
 });
 
 // Function to update the active and inactive user lists in the DOM
@@ -280,12 +287,31 @@ socket.on("active_users", (data) => {
     updateUserLists(data.active_users, data.inactive_users);
 });
 
-// Function to handle sending the message
-function sendMessage() {
+// Attach & speak (static/js/composer.js), in our message box.
+const chatTools = composerTools(document.getElementById("message-form"), document.getElementById("message"));
+// Enter or Send again while files upload must not send them twice.
+let uploadingFiles = false;
+
+// Function to handle sending the message. Attached files upload first & go
+// as links below the text; if one fails, nothing is sent.
+async function sendMessage() {
     const messageTextarea = document.getElementById("message");
     const message = messageTextarea.value;
     const model = document.getElementById("model-select").value;
     let messageToSend = message.trim();
+    if (uploadingFiles) return;
+    if (chatTools.hasFiles()) {
+        uploadingFiles = true;
+        try {
+            const links = await chatTools.uploadAll(room_name);
+            messageToSend = [messageToSend, links].filter(Boolean).join("\n\n");
+        } catch (error) {
+            chatTools.say(error.message);
+            return;
+        } finally {
+            uploadingFiles = false;
+        }
+    }
 
     if (messageToSend !== "") {  // Ensure we're not sending empty messages
         socket.emit("chat_message", {
@@ -299,6 +325,16 @@ function sendMessage() {
         // Reset textarea height after sending
         messageTextarea.style.height = 'auto';
     }
+}
+
+// Our Stop button shows while a reply streams in this room (the server
+// counts them) & ends them all; what they wrote so far stays.
+socket.on("replies_streaming", (data) => {
+    document.getElementById("stop-button").hidden = !(data && data.count);
+});
+
+function stopReplies() {
+    socket.emit("stop_replies", {"room_name": room_name});
 }
 
 // Function to handle deleting a message
@@ -349,7 +385,7 @@ socket.on('update_room_list', function(updatedRoom) {
     } else if (updatedRoom.is_new) {
         const list = document.getElementById(updatedRoom.is_private ? 'your-chats' : 'public-chats');
         if (!list) return;
-        list.prepend(chatListItem(updatedRoom, updatedRoom.is_private ? '🔒' : '', 'private'));
+        list.prepend(chatListItem(updatedRoom, updatedRoom.is_private ? '🔒' : '', 'solo'));
         if (updatedRoom.is_private) document.getElementById('your-chats-empty').hidden = true;
     }
 });

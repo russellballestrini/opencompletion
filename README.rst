@@ -11,7 +11,7 @@ Features
 --------
 
 - A home page that is an empty chat: type, & your first message starts a
-  private chat (signed in) or a multiplayer chatroom anyone with the link can
+  solo chat (only you, signed in) or a multiplayer chatroom anyone with the link can
   join. Its sidebar lists your chats & public ones, you at the bottom.
 - Real-time messaging between users in a chatroom.
 - Ability to join different chatrooms with unique URLs.
@@ -23,8 +23,35 @@ Features
 - Commands to load and save code blocks to AWS S3.
 - Database storage for messages and chatrooms using SQLAlchemy.
 - Migration support with Flask-Migrate.
-- Email OTP authentication with private room support
-- Room forking, archiving, and owner management
+- Attach files to any message (picked, dropped or pasted), up to
+  ``OPENCOMPLETION_UPLOAD_MAX_MB`` (default ``7``) each &
+  ``OPENCOMPLETION_UPLOAD_LIMIT`` per address (default ``30/600``). Models
+  read text & code files & see images (vision models). Bytes are stored
+  once per content in SQLite (``blob_store.py``, tables ``blob`` &
+  ``attachment``; run ``flask db upgrade`` or ``make init-db``).
+- Speak instead of typing: the mic records in the browser & our server
+  transcribes through ``SPEECH_ENDPOINT_n``'s ``/audio/transcriptions``
+  (model ``SPEECH_STT_MODEL``, default ``whisper-1``;
+  ``OPENCOMPLETION_TRANSCRIBE_LIMIT`` per address, default ``30/600``).
+- A Stop button ends the reply streaming in a chat; what it wrote stays.
+- Email OTP authentication with solo (only you) chat support
+- Fork any model reply into a new chat holding the conversation up to it,
+  limited per address (``OPENCOMPLETION_FORK_LIMIT``, default ``10/600``:
+  10 forks per 10 minutes; ``0`` turns it off). Behind a proxy set
+  ``OPENCOMPLETION_PROXY_HOPS`` to how many proxies front us (default ``1``,
+  our Caddy; ``0`` uses the socket address).
+- Edit & resend your own message: the edit replaces it & everything after it for
+  everyone in the room & the models answer again. Nothing is deleted: the
+  earlier branch is kept, hidden (run ``flask db upgrade``).
+- A ⋯ menu on every chat (sidebar, Rooms, Search): rename, refresh title (a
+  model titles it afresh), pin (kept in this browser), archive & delete
+  (owner only).
+- Follow-up suggestions under each reply, from the model that answered
+  (``OPENCOMPLETION_FOLLOWUPS=off`` turns them off), and a ↓ button back to
+  the newest message.
+- Installable as an app on phones & desktops (``/manifest.webmanifest``,
+  named by ``OPENCOMPLETION_BRAND``).
+- Room archiving and owner management
 
 Requirements
 ------------
@@ -56,6 +83,13 @@ Installation
    (``vars.sh`` is gitignored; never commit it)::
 
     cp vars.sh.sample vars.sh
+
+   Chat replies sample at temperature ``OPENCOMPLETION_TEMPERATURE`` (0.6)
+   & ``OPENCOMPLETION_TOP_P`` (0.95), never greedily (greedy decoding loops
+   reasoning models), are capped at ``OPENCOMPLETION_MAX_TOKENS`` (8192;
+   ``0`` = no cap) & stop early when a model keeps repeating itself
+   (``OPENCOMPLETION_REPEAT_LIMIT``, 8 repeats; ``0`` = off).
+   ``OPENCOMPLETION_PRESENCE_PENALTY`` is sent when set.
 
    ``OPENCOMPLETION_BRAND`` (optional) names the site in every header, for
    example ``uncloseai``; unset, it says OpenCompletion.
@@ -111,6 +145,12 @@ Here are some free endpoint for research only!::
     export MODEL_ENDPOINT_1=https://hermes.ai.unturf.com/v1
     export MODEL_ENDPOINT_2=https://qwen.ai.unturf.com/v1
     export MODEL_ENDPOINT_3=https://gpt-oss.ai.unturf.com/v1
+
+Two endpoints may serve one model: the lowest ``n`` listing it is its pin &
+the others back it up, in order. A pin that is down (or fails while its
+stream is opened) hands the reply to the next copy of the same model; only when
+every copy is down does another model answer. A ``MODEL_n`` reference whose
+endpoint is down looks for its model elsewhere the same way first.
 
 Text to speech endpoints, configured like models (``n`` is any number, an
 API key is optional). Our server proxies speech at ``/speech/voices`` and

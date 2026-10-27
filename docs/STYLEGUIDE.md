@@ -11,7 +11,7 @@ marked **(tested)** in real headless Chromium at 320, 375, 768 & 1280px.
 |---|---|
 | `layout.html` | Our one shell for every page: `_head.html`, `utils.js`, `_app_sidebar.html` on the left, a page on the right (`.app-main` > `<main class="page">`, a ☰ `.page-topbar` on phones). Pages fill `title`, `content`, `scripts` & optional `page_class` (`page-narrow` for forms); set `active_nav` (`home`, `search`, `browse`, `profile`, `auth`) to mark the current page. |
 | `_app_sidebar.html` | Every link we have: our name on top; New chat, Search, Rooms; Your chats & Public chats (scroll on their own); you at the bottom (`.sidebar-user`: settings & theme), Sign in for guests. Data comes from the `sidebar` context processor (`routes.pages.sidebar_chats`). |
-| `home.html` | Our home (`/`), extends `layout.html` & replaces `main`: Private / Chatroom switch (`.mode-btn`, `aria-pressed`) & one `.composer`. Behaviour in `static/js/home.js`. |
+| `home.html` | Our home (`/`), extends `layout.html` & replaces `main`: Solo / Chatroom switch (`.mode-btn`, `aria-pressed`; Solo is a room only its owner opens, `is_private` underneath) & one `.composer`, whose `.composer-bar` holds `_composer_tools.html` (attach & mic, `static/js/composer.js`) beside the model picker & Send; chat adds a Stop button (`.composer-stop`) while a reply streams. Behaviour in `static/js/home.js`. |
 | `base.html` | Chat, extends `layout.html`: vendored chat libraries, `.chat-shell` adds room controls (`.utility-belt`) as a third column, sign-in dialog. `chat.html` reuses home's `.composer`. |
 | `_head.html` | Meta, Open Graph, theme applied before first paint, our one stylesheet. |
 | `_auth_steps.html` + `static/js/auth.js` | Email-code sign in, shared by `/auth` & chat's sign-in dialog. `data-after` on `#auth-flow` decides what success does. |
@@ -52,7 +52,14 @@ are 16px on phones so iOS never zooms into them.
   sits above every field; placeholders show format, never the label.
   `.choice-group` for radios. `.alert-success` / `.alert-error` report
   results; `.error-message` sits under a field.
-- **Rooms** `.room-grid` of `.room-card`s; `.badge-private` marks private rooms.
+- **Rooms** `.room-grid` of `.room-card`s, each in a `.room-card-wrap`;
+  `.badge-private` marks private rooms.
+- **Chat actions** a `.chat-actions-btn` (⋯, `data-chat-actions`) on each
+  sidebar chat & room card opens `.chat-actions-menu` (`chat-actions.js`):
+  what it offers comes from `_room_actions_data.html`'s data attributes.
+  It shows on hover or focus, always on touch screens.
+- **Follow-ups** `.followups` of `.followup-chip`s under our newest reply;
+  `.scroll-bottom` (↓) floats above the composer once you scroll up.
 - **Tabs** `.tabs` > `.room-tab` with `role="tab"` & `aria-selected`.
 - **Empty states** `.empty-state` say what is missing & offer the next step.
 
@@ -83,8 +90,10 @@ are 16px on phones so iOS never zooms into them.
 - Say what really happened: sign in says whether the code was emailed or
   only written to the server log; `/help` lists only commands that exist.
   **(tested)**
-- Private means private: search, sidebars & live room updates never show a
-  private room to anyone but its owner. **(tested)**
+- Solo means only you: search, sidebars, live room updates & its files
+  never show a solo chat to anyone but its owner. **(tested)**
+- We call an only-you chat **Solo**, never "Private": elsewhere "Private"
+  means an unsaved, temporary chat, & ours are kept.
 - Hints state the real rule ("3-50 letters, numbers, _ or -"), confirms
   say what happens ("Archive: leaves every list & search, nothing is
   deleted"), errors say what failed & what to do next.

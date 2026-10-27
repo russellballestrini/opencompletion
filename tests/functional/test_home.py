@@ -464,3 +464,67 @@ def test_a_late_auto_title_never_replaces_one_set_meanwhile(test_app, monkeypatc
     db.session.expire_all()
     assert Room.query.filter_by(name="raced-room").one().title == "Chosen by hand"
     assert "update_room_title" not in emitted
+
+
+def test_solo_is_what_we_call_an_only_you_chat(client):
+    html = client.get("/").get_data(as_text=True)
+    switch = re.search(r'data-mode="private".*?</button>', html, re.S).group(0)
+    assert "Solo" in switch and "Private" not in switch
+    assert "_composer_tools.html" not in html and "data-attach" in html
+
+
+FILES_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const created = [], uploads = [];
+    window.fetch = (url, options) => {
+        if (String(url) === '/api/rooms/create') {
+            const body = JSON.parse(options.body);
+            created.push(body);
+            return Promise.resolve({ok: true, json: () => Promise.resolve({room: {name: body.name}})});
+        }
+        if (String(url).endsWith('/attachments')) {
+            uploads.push(String(url));
+            return Promise.resolve({ok: true, json: () => Promise.resolve(
+                {id: 9, url: '/attachments/9/muppets.png', filename: 'muppets.png', size: 2048, is_image: true})});
+        }
+        return Promise.reject(new TypeError('offline'));
+    };
+    let opened = null;
+    window.startChatNavigate = url => { opened = url; };
+
+    const attach = document.querySelector('[data-attach]');
+    check(attach && attach.getAttribute('aria-label') === 'Attach files', 'attach button in our box');
+    check(/7 MB/.test(attach.title), 'its hover says our limit: ' + attach.title);
+    document.querySelector('.mode-btn[data-mode="private"]').click();
+    check(attach.disabled, 'a guest in Solo cannot attach either');
+    check(/Solo chats need an account/.test(document.getElementById('mode-hint').textContent), 'Solo hint');
+    document.querySelector('.mode-btn[data-mode="chatroom"]').click();
+    check(!attach.disabled, 'Chatroom unlocks attach');
+
+    // A chat may start from files alone; its name comes from the first.
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(['png'], 'Muppets Group.png', {type: 'image/png'}));
+    document.getElementById('composer').dispatchEvent(new DragEvent('drop', {dataTransfer: transfer, bubbles: true, cancelable: true}));
+    document.getElementById('composer-send').click();
+    const started = Date.now();
+    const settle = () => {
+        if (!opened && Date.now() - started < 1500) { setTimeout(settle, 20); return; }
+        check(created.length === 1 && /^muppets-group-/.test(created[0].name), 'named from the file: ' + JSON.stringify(created));
+        check(uploads.length === 1 && uploads[0] === `/api/rooms/${created[0].name}/attachments`, 'uploaded into the new chat');
+        const pending = JSON.parse(sessionStorage.getItem('pendingMessage') || 'null');
+        check(pending && pending.message === '![muppets\\.png](/attachments/9/muppets.png)', 'the image goes as the message: ' + (pending && pending.message));
+        document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+    };
+    setTimeout(settle, 20);
+});
+</script>
+"""
+
+
+def test_a_chat_can_start_from_files(client, tmp_path):
+    html = client.get("/").get_data(as_text=True)
+    out = run_probe(html, FILES_PROBE, tmp_path, 1280)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

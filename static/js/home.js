@@ -7,7 +7,7 @@ const MODE_KEY = 'newChatMode';
 // Each hint is [lead, rest]: on phones the rest starts its own line
 // (.phone-line), so a hint breaks where it reads well, not mid-phrase.
 const MODE_HINTS = {
-    private: ['Private: only you can open this chat.'],
+    private: ['Solo: only you can open this chat.'],
     chatroom: ['Chatroom: anyone with the link can read & post,', '& it is listed under Public chats.'],
 };
 
@@ -18,6 +18,8 @@ const sendButton = document.getElementById('composer-send');
 const hint = document.getElementById('mode-hint');
 const errorEl = document.getElementById('composer-error');
 const modeButtons = [...document.querySelectorAll('.mode-btn')];
+// Attach & speak (static/js/composer.js), in our message box.
+const homeTools = composerTools(composer, input);
 
 function storedMode() {
     try { return localStorage.getItem(MODE_KEY); } catch (e) { return null; }
@@ -36,7 +38,7 @@ function hintLine(lead, rest) {
     hint.appendChild(line);
 }
 
-// A guest may pick Private to see what it is, but can't start one: our
+// A guest may pick Solo to see what it is, but can't start one: our
 // message box, model & Send lock until they sign in or pick Chatroom.
 function showMode() {
     modeButtons.forEach(button => {
@@ -44,12 +46,13 @@ function showMode() {
     });
     const locked = mode === 'private' && !HOME_CONFIG.signedIn;
     input.disabled = modelSelect.disabled = sendButton.disabled = locked;
+    composer.querySelectorAll('.composer-tool').forEach(tool => { tool.disabled = locked; });
     composer.classList.toggle('composer-locked', locked);
     if (locked) {
         const signIn = document.createElement('a');
         signIn.href = '/auth?next=/';
         signIn.textContent = 'Sign in';
-        hintLine('Private chats need an account.', [signIn, ' or pick Chatroom.']);
+        hintLine('Solo chats need an account.', [signIn, ' or pick Chatroom.']);
     } else {
         hintLine(...MODE_HINTS[mode]);
     }
@@ -117,15 +120,20 @@ async function createRoom(message) {
 async function startChat() {
     // Enter can arrive again while a room is being made: one chat per send.
     if (sendButton.disabled) return;
-    const message = input.value.trim();
+    let message = input.value.trim();
     errorEl.textContent = '';
-    if (!message) {
+    if (!message && !homeTools.hasFiles()) {
         input.focus();
         return;
     }
     sendButton.disabled = true;
     try {
-        const room = await createRoom(message);
+        const room = await createRoom(message || homeTools.firstFileName());
+        // Files upload into the new chat & go as links below the text.
+        if (homeTools.hasFiles()) {
+            const links = await homeTools.uploadAll(room);
+            message = [message, links].filter(Boolean).join('\n\n');
+        }
         // Without this handoff the new chat would open without our message.
         try {
             sessionStorage.setItem('pendingMessage', JSON.stringify({room, message, model: modelSelect.value}));
