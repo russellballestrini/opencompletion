@@ -62,7 +62,7 @@ git remote -v
 ### Makefile Commands
 - `make venv` - Create virtual environment and install dependencies
 - `make init-db` - Initialize database tables (a new database; never alters existing tables)
-- `make upgrade-db` - Apply migrations to an existing database (`FLASK_APP=app.py venv/bin/flask db upgrade`, needs vars.sh)
+- `make upgrade-db` - Apply migrations to an existing database (`FLASK_APP=app.py venv/bin/flask db upgrade`, needs vars.sh). It & `init-db` set `OPENCOMPLETION_SKIP_MODEL_MAP=1`, so no model endpoint is asked for its list (a dead one can't stall them); the app lists each endpoint once, no retries
 - `make test` - Unit, integration, functional tests & YAML validation (no network)
 - `make test-ui` - Page contract & mobile layouts in headless Chromium
 - `make lint` - black --check & flake8 (syntax, undefined names)
@@ -104,7 +104,7 @@ git remote -v
 - All styling is in `static/css/style.css` (tokens on `:root`, dark under `[data-theme="dark"]`); templates carry no `<style>` or raw colours
 - `make test-ui` checks our page contract & layouts in headless Chromium at 320/375/768/1280px
 - Chat's JavaScript lives in `static/js/chat/` as ordered plain scripts sharing globals: `1-state.js`, `2-vision.js`, `3-room.js`, `4-tts.js`, `5-messages.js`, `6-code.js`, `7-activities.js`; server values arrive via `window.CHAT_CONFIG` in chat.html, never Jinja inside a .js file
-- Chat replies (`chat_gpt`) never decode greedily: `chat_sampling()` sends `OPENCOMPLETION_TEMPERATURE` (0.6) & `OPENCOMPLETION_TOP_P` (0.95), optional `OPENCOMPLETION_PRESENCE_PENALTY`, & `OPENCOMPLETION_MAX_TOKENS` (8192, 0 = no cap), the bound that holds even where a hang-up can't cancel a vLLM generation. `repetition_guard.py` watches thinking & answer as they stream and hangs up on a loop (`OPENCOMPLETION_REPEAT_LIMIT`, default 8 repeats, 0 = off); the reply says why it stopped
+- Chat replies (`chat_gpt`) never decode greedily: `chat_sampling()` sends `OPENCOMPLETION_TEMPERATURE` (0.6), `OPENCOMPLETION_TOP_P` (0.95), `OPENCOMPLETION_TOP_K` (20, as `extra_body`; 0 = not sent), optional `OPENCOMPLETION_PRESENCE_PENALTY`, & `OPENCOMPLETION_MAX_TOKENS` (24576, thinking & answer together; 0 = no cap), the bound that holds even where a hang-up can't cancel a generation. `open_completion()` asks again without `top_k` or `max_tokens` when a server refuses them (400). **Thinking budget**: thinking past `OPENCOMPLETION_THINKING_BUDGET` (16384 tokens, ~4 chars each; 0 = off) with no answer begun is hung up & the model is asked again without thinking, its notes under our last message (`answer_from_notes`), in up to `OPENCOMPLETION_ANSWER_TOKENS` (8192). `repetition_guard.py` watches thinking & answer as they stream and hangs up on a loop (`OPENCOMPLETION_REPEAT_LIMIT`, default 8: a line 8 times in 16, or a phrase repeated 3x as often over 600+ chars, so a stutter that recovers isn't a loop); the reply says why it stopped & keeps its thinking open. Thinking is saved as `Message.thinking` (never sent back to a model; history shows it collapsed; forks copy it). Migration `2026102801`
 - Socket.IO, marked.js, DOMPurify & highlight.js are vendored in `static/vendor/` (pinned versions & sha256 in its README); no CDNs at runtime
 - Every message renders through `renderMarkdown()` (marked + DOMPurify), images included; never assign message text to innerHTML directly
 

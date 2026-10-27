@@ -254,9 +254,9 @@ def fork_conversation(source_room, up_to=None):
     relinked = {}
     for msg in copied.order_by(Message.id).all():
         content = copy_attachments(msg.content, source_room.id, new_room.id, relinked)
-        db.session.add(
-            Message(username=msg.username, content=content, room_id=new_room.id)
-        )
+        copy = Message(username=msg.username, content=content, room_id=new_room.id)
+        copy.thinking = msg.thinking
+        db.session.add(copy)
     db.session.commit()
 
     if not new_room.is_private:

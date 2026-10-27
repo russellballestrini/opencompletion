@@ -120,7 +120,7 @@ def endpoint_is_healthy(client, base_url):
     if healthy is not None and time.time() - checked_at < ENDPOINT_HEALTH_TTL:
         return healthy
     try:
-        client.with_options(timeout=5.0).models.list()
+        client.with_options(timeout=5.0, max_retries=0).models.list()
         healthy = True
     except Exception as e:
         print(f"[WARN] Endpoint {base_url} failed health check: {e}")
@@ -208,7 +208,8 @@ def initialize_model_map():
         api_key = ep_config["api_key"]
         client = get_client_for_endpoint(base_url, api_key)
         try:
-            response = client.with_options(timeout=10.0).models.list()
+            # One try: a dead endpoint costs 10 s, not 10 s per retry.
+            response = client.with_options(timeout=10.0, max_retries=0).models.list()
             model_list = response.data  # Assume each model object has an 'id' attribute
             print(f"[DEBUG] {base_url} returned models: {[m.id for m in model_list]}")
         except Exception as e:
@@ -230,9 +231,10 @@ def initialize_model_map():
     print("Loaded models:", list(MODEL_CLIENT_MAP.keys()))
 
 
-if MODEL_CLIENT_MAP:
-    pass
-else:
+# Creating & migrating tables (make init-db, make upgrade-db) needs no models:
+# OPENCOMPLETION_SKIP_MODEL_MAP=1 skips asking every endpoint for its list, so
+# one endpoint that never answers can't stall a migration.
+if not MODEL_CLIENT_MAP and os.environ.get("OPENCOMPLETION_SKIP_MODEL_MAP") != "1":
     initialize_model_map()
 
 
@@ -591,7 +593,7 @@ def _resolve_model_num(model_num, check_health=True):
 
     # Fallback: query endpoint for models if not in map yet
     try:
-        response = client.with_options(timeout=10.0).models.list()
+        response = client.with_options(timeout=10.0, max_retries=0).models.list()
         if response.data:
             actual_model = response.data[0].id
             print(f"[DEBUG] Using first model from {endpoint}: {actual_model}")
@@ -977,6 +979,7 @@ def on_join(data):
                 # A model's reply can be forked from (static/js/chat/5-messages.js).
                 "from_model": message.username in SYSTEM_USERS
                 and message.username != "system",
+                "thinking": message.thinking,
             },
             room=request.sid,
         )
@@ -1530,35 +1533,123 @@ def _env_float(name, default):
         return default
 
 
-# Thinking & answer together; a loop that a hang-up can't stop ends here.
-DEFAULT_MAX_TOKENS = 8192
+# One request's thinking & answer together; a loop that a hang-up can't
+# stop ends here. Qwen suggests 32k for thinking mode; ours is a thinking
+# budget plus an answer.
+DEFAULT_MAX_TOKENS = 24576
+# Thinking past this many tokens with no answer begun: hang up & have the
+# model answer from its notes (chat_gpt), in up to DEFAULT_ANSWER_TOKENS.
+DEFAULT_THINKING_BUDGET = 16384
+DEFAULT_ANSWER_TOKENS = 8192
+# Qwen's thinking-mode top_k; sent as an extra body field, which servers
+# that don't know it reject (open_completion then drops it).
+DEFAULT_TOP_K = 20
+# Thinking is counted in characters as it streams; ~4 per token.
+CHARS_PER_TOKEN = 4
+
+
+def _env_int(name, default):
+    return int(_env_float(name, default))
 
 
 def chat_sampling(model_name):
     """Sampling for a chat reply. Greedy decoding (temperature 0, our old
     default) sends reasoning models such as Qwen3 into endless repetition
     in their thinking, so chat samples at Qwen's thinking-mode settings:
-    OPENCOMPLETION_TEMPERATURE (0.6) & OPENCOMPLETION_TOP_P (0.95), plus
-    OPENCOMPLETION_PRESENCE_PENALTY when set.
+    OPENCOMPLETION_TEMPERATURE (0.6), OPENCOMPLETION_TOP_P (0.95) &
+    OPENCOMPLETION_TOP_K (20; 0 = not sent), plus
+    OPENCOMPLETION_PRESENCE_PENALTY when set (Qwen suggests up to 1.5 for
+    quantized models that repeat).
 
-    OPENCOMPLETION_MAX_TOKENS (8192; 0 = no cap) bounds every reply in the
+    OPENCOMPLETION_MAX_TOKENS (24576; 0 = no cap) bounds every reply in the
     request itself: hanging up on a looping model (RepetitionGuard) stops
-    the generation only where a disconnect reaches vLLM & aborts it, which
-    not every GPU host or proxy does, while vLLM always stops at max_tokens.
-    OpenAI's o-series take temperature 1 only & no top_p (o3: neither)."""
+    the generation only where a disconnect reaches the server & aborts it,
+    which not every GPU host or proxy does, while a server always stops at
+    max_tokens. OpenAI's o-series take temperature 1 only & no top_p (o3:
+    neither)."""
     if any(tag in model_name for tag in ("o1-", "o3", "o4-")):
         return {} if "o3" in model_name else {"temperature": 1}
     sampling = {
         "temperature": _env_float("OPENCOMPLETION_TEMPERATURE", 0.6),
         "top_p": _env_float("OPENCOMPLETION_TOP_P", 0.95),
     }
+    top_k = _env_int("OPENCOMPLETION_TOP_K", DEFAULT_TOP_K)
+    if top_k > 0:
+        sampling["extra_body"] = {"top_k": top_k}
     presence = _env_float("OPENCOMPLETION_PRESENCE_PENALTY", None)
     if presence is not None:
         sampling["presence_penalty"] = presence
-    max_tokens = int(_env_float("OPENCOMPLETION_MAX_TOKENS", DEFAULT_MAX_TOKENS))
+    max_tokens = _env_int("OPENCOMPLETION_MAX_TOKENS", DEFAULT_MAX_TOKENS)
     if max_tokens > 0:
         sampling["max_tokens"] = max_tokens
     return sampling
+
+
+def thinking_budget():
+    """OPENCOMPLETION_THINKING_BUDGET in tokens (16384; 0 = no budget)."""
+    return max(0, _env_int("OPENCOMPLETION_THINKING_BUDGET", DEFAULT_THINKING_BUDGET))
+
+
+def answer_tokens():
+    """OPENCOMPLETION_ANSWER_TOKENS (8192; 0 = no cap): the answer a model
+    writes from its notes once its thinking ran past its budget."""
+    return max(0, _env_int("OPENCOMPLETION_ANSWER_TOKENS", DEFAULT_ANSWER_TOKENS))
+
+
+def open_completion(client, kwargs, skip_thinking=False):
+    """Start a streamed chat completion, forgiving the two asks a server may
+    refuse with a 400: an unknown `top_k` (dropped) & a max_tokens past what
+    its context has room for (dropped: the server then stops at its context,
+    & our loop guard & thinking budget still hold)."""
+    kwargs = dict(kwargs)
+    for _ in range(3):
+        try:
+            if skip_thinking:
+                return create_completion_skip_thinking(client, **kwargs)
+            return client.chat.completions.create(**kwargs)
+        except openai.BadRequestError as e:
+            text = str(e).lower()
+            extra = dict(kwargs.get("extra_body") or {})
+            if "top_k" in text and "top_k" in extra:
+                extra.pop("top_k")
+                if extra:
+                    kwargs["extra_body"] = extra
+                else:
+                    kwargs.pop("extra_body", None)
+                continue
+            if "max_tokens" in kwargs and (
+                "context" in text or "max_tokens" in text or "maximum" in text
+            ):
+                print(f"[WARN] {kwargs.get('model')} refused max_tokens: {e}")
+                kwargs.pop("max_tokens")
+                continue
+            raise
+    return client.chat.completions.create(**kwargs)
+
+
+ANSWER_FROM_NOTES = (
+    "\n\n(Your thinking ran past its budget, so it was stopped. Your notes "
+    "so far:\n\n{notes}\n\nNow, without thinking any further, write your "
+    "final answer to the message above, based on these notes.)"
+)
+
+
+def answer_from_notes(chat_history, notes):
+    """chat_history with the model's unfinished thinking handed back under
+    our last message, asking for the answer it would have written. The
+    notes ride on that message, so roles keep alternating for templates
+    that need it."""
+    history = [dict(message) for message in chat_history]
+    ask = ANSWER_FROM_NOTES.format(notes=notes.strip())
+    if history and history[-1]["role"] == "user":
+        content = history[-1]["content"]
+        if isinstance(content, list):  # a vision turn: add a text part
+            history[-1]["content"] = content + [{"type": "text", "text": ask}]
+        else:
+            history[-1]["content"] = f"{content}{ask}"
+    else:
+        history.append({"role": "user", "content": ask.strip()})
+    return history
 
 
 def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True):
@@ -1651,13 +1742,11 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
     }
 
     def open_stream(client):
-        if enable_thinking:
-            return client.chat.completions.create(**create_kwargs)
-        # Suppress chain-of-thought at the template level. Endpoints that
-        # reject the chat_template_kwargs param (OpenAI, Groq, Mistral,
-        # Gemini) get retried without it inside the helper; templates that
-        # ignore the kwarg (e.g. Hermes) simply drop it.
-        return create_completion_skip_thinking(client, **create_kwargs)
+        # Without thinking, chain-of-thought is suppressed at the template
+        # level. Endpoints that reject the chat_template_kwargs param
+        # (OpenAI, Groq, Mistral, Gemini) get retried without it inside the
+        # helper; templates that ignore the kwarg (e.g. Hermes) simply drop it.
+        return open_completion(client, create_kwargs, skip_thinking=not enable_thinking)
 
     try:
         # An endpoint that fails before streaming hands over to another
@@ -1687,85 +1776,126 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         # exit early to avoid clobbering the error message.
         return None
 
-    # One guard per channel: a model looping in its thinking or its answer
-    # is cut off, and closing our stream makes the server stop generating.
-    thinking_guard, answer_guard = RepetitionGuard(), RepetitionGuard()
-    looped = None
-    cut_at_limit = False
+    # Every piece of thinking, kept with the reply (Message.thinking) & handed
+    # back to the model if its thinking runs past its budget.
+    thinking_parts = []
 
-    for chunk in chunks:
-        # Check if there has been a cancellation request, break if there is.
-        if cancellation_requests.get(msg_id) or room_name in stop_requests:
-            cancellation_requests.pop(msg_id, None)
-            # Hang up, so the model server stops generating too.
-            getattr(chunks, "close", lambda: None)()
-            break
-        if not chunk.choices:
-            continue
-        if getattr(chunk.choices[0], "finish_reason", None) == "length":
-            cut_at_limit = True
-
-        delta = chunk.choices[0].delta
-        # Qwen3.x / Deepseek-R1 / o1: thinking streams via delta.reasoning_content,
-        # final answer via delta.content. Forward reasoning deltas to the client
-        # so it can lazy-create a collapsible thinking block; do NOT persist them
-        # (transient, model-private intermediate state).
-        # vLLM >= 0.31 streams thinking as delta.reasoning; older servers and
-        # Deepseek/OpenAI-style APIs use delta.reasoning_content.
-        reasoning = getattr(delta, "reasoning_content", None) or getattr(
-            delta, "reasoning", None
-        )
-        if reasoning:
+    def emit_content(content):
+        nonlocal buffer, first_chunk
+        buffer += content
+        if first_chunk:
             socketio.emit(
                 "message_chunk",
-                {"id": msg_id, "reasoning_content": reasoning},
+                {
+                    "id": msg_id,
+                    "content": content,
+                    "username": username,
+                    "model_name": model_name,
+                    "is_first_chunk": True,
+                },
                 room=room_name,
             )
-            socketio.sleep(0)
-            if thinking_guard.add(reasoning):
-                looped = ("thinking", thinking_guard.looping)
-                break
+            first_chunk = False
+        else:
+            socketio.emit(
+                "message_chunk", {"id": msg_id, "content": content}, room=room_name
+            )
+        socketio.sleep(0)  # Force immediate handling
 
-        content = delta.content
-
-        if content:
-            buffer += content  # Accumulate content
-
-            if first_chunk:
+    def consume(chunks, budget_chars):
+        """Stream one completion into our reply. Returns (looped, cut at the
+        token cap, thinking ran past budget_chars before any answer)."""
+        # One guard per channel: a model looping in its thinking or its
+        # answer is cut off, and closing our stream makes the server stop.
+        thinking_guard, answer_guard = RepetitionGuard(), RepetitionGuard()
+        thought, cut = 0, False
+        for chunk in chunks:
+            # Check if there has been a cancellation request, stop if so.
+            if cancellation_requests.get(msg_id) or room_name in stop_requests:
+                cancellation_requests.pop(msg_id, None)
+                # Hang up, so the model server stops generating too.
+                getattr(chunks, "close", lambda: None)()
+                return None, False, False
+            if not chunk.choices:
+                continue
+            if getattr(chunk.choices[0], "finish_reason", None) == "length":
+                cut = True
+            delta = chunk.choices[0].delta
+            # Qwen3.x / Deepseek-R1 / o1: thinking streams via
+            # delta.reasoning_content (vLLM >= 0.31: delta.reasoning), the
+            # answer via delta.content. Thinking goes to the client as its
+            # own channel (a collapsible block) & is saved apart from the
+            # answer, never sent back to a model as history.
+            reasoning = getattr(delta, "reasoning_content", None) or getattr(
+                delta, "reasoning", None
+            )
+            if reasoning:
                 socketio.emit(
                     "message_chunk",
-                    {
-                        "id": msg_id,
-                        "content": content,
-                        "username": username,
-                        "model_name": model_name,
-                        "is_first_chunk": True,
-                    },
+                    {"id": msg_id, "reasoning_content": reasoning},
                     room=room_name,
                 )
-                first_chunk = False
-            else:
-                socketio.emit(
-                    "message_chunk",
-                    {"id": msg_id, "content": content},
-                    room=room_name,
-                )
-            socketio.sleep(0)  # Force immediate handling
-            if answer_guard.add(content):
-                looped = ("reply", answer_guard.looping)
-                break
+                socketio.sleep(0)
+                thinking_parts.append(reasoning)
+                thought += len(reasoning)
+                if thinking_guard.add(reasoning):
+                    return ("thinking", thinking_guard.looping), False, False
+                if budget_chars and first_chunk and thought > budget_chars:
+                    return None, False, True
+            content = delta.content
+            if content:
+                emit_content(content)
+                if answer_guard.add(content):
+                    return ("reply", answer_guard.looping), False, False
+        return None, cut, False
+
+    budget = thinking_budget() if enable_thinking else 0
+    looped, cut_at_limit, over_budget = consume(chunks, budget * CHARS_PER_TOKEN)
+    cap, cap_name = create_kwargs.get("max_tokens"), "OPENCOMPLETION_MAX_TOKENS"
+    footnote = ""
+    if over_budget:
+        # Thinking ran past its budget with no answer begun: hang up & ask
+        # again without thinking, handing the model its notes, so a long
+        # think still ends in an answer instead of a cap. Works on any
+        # OpenAI-compatible server (no assistant-prefix continuation).
+        getattr(chunks, "close", lambda: None)()
+        print(f"[INFO] {model_name} thought past {budget} tokens in {room_name}")
+        answer_kwargs = dict(
+            create_kwargs,
+            messages=answer_from_notes(chat_history, "".join(thinking_parts)),
+        )
+        cap, cap_name = answer_tokens(), "OPENCOMPLETION_ANSWER_TOKENS"
+        if cap:
+            answer_kwargs["max_tokens"] = cap
+        else:
+            answer_kwargs.pop("max_tokens", None)
+        try:
+            chunks = open_with_failover(
+                openai_client,
+                model_name,
+                lambda client: open_completion(
+                    client, answer_kwargs, skip_thinking=True
+                ),
+            )
+            looped, cut_at_limit, _ = consume(chunks, 0)
+            footnote = (
+                f"\n\n_Thought past its {budget}-token budget "
+                "(OPENCOMPLETION_THINKING_BUDGET), so it answered from its notes._"
+            )
+        except Exception as e:
+            looped = None
+            emit_content(f"\n\n_{model_name} could not answer from its notes: {e}_")
 
     notice = ""
     if cut_at_limit and not looped:
-        cap = create_kwargs.get("max_tokens")
         notice = (
-            f"\n\n_Stopped at our {cap}-token limit (OPENCOMPLETION_MAX_TOKENS)._"
+            f"\n\n_Stopped at our {cap}-token limit ({cap_name})._"
             if cap
             else "\n\n_Stopped: the model reached its length limit._"
         )
     if looped:
-        # Hang up. Where a disconnect reaches vLLM it aborts the generation;
-        # elsewhere it runs on to max_tokens (chat_sampling), never forever.
+        # Hang up. Where a disconnect reaches the server it aborts the
+        # generation; elsewhere it runs on to max_tokens, never forever.
         close = getattr(chunks, "close", None)
         if close:
             close()
@@ -1775,16 +1905,19 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
             f"\u201c{phrase[:80]}\u201d in its {where}. Ask again, or rephrase._"
         )
         print(f"[WARN] {model_name} looped in its {where} in {room_name}: {phrase!r}")
-    if notice:
-        buffer += notice
+    if notice or footnote:
+        tail = footnote + notice
+        buffer += tail
         socketio.emit(
             "message_chunk",
             {
                 "id": msg_id,
-                "content": notice,
+                "content": tail,
                 "username": username,
                 "model_name": model_name,
                 "is_first_chunk": first_chunk,
+                # A stopped reply keeps its thinking open: it shows why.
+                "keep_thinking_open": bool(notice),
             },
             room=room_name,
         )
@@ -1796,6 +1929,7 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         )
         if new_message:
             new_message.content = buffer
+            new_message.thinking = "".join(thinking_parts) or None
             new_message.count_tokens()
             db.session.add(new_message)
             db.session.commit()

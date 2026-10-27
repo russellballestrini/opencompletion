@@ -85,12 +85,19 @@ Installation
 
     cp vars.sh.sample vars.sh
 
-   Chat replies sample at temperature ``OPENCOMPLETION_TEMPERATURE`` (0.6)
-   & ``OPENCOMPLETION_TOP_P`` (0.95), never greedily (greedy decoding loops
-   reasoning models), are capped at ``OPENCOMPLETION_MAX_TOKENS`` (8192;
-   ``0`` = no cap) & stop early when a model keeps repeating itself
-   (``OPENCOMPLETION_REPEAT_LIMIT``, 8 repeats; ``0`` = off).
-   ``OPENCOMPLETION_PRESENCE_PENALTY`` is sent when set.
+   Chat replies sample at temperature ``OPENCOMPLETION_TEMPERATURE`` (0.6),
+   ``OPENCOMPLETION_TOP_P`` (0.95) & ``OPENCOMPLETION_TOP_K`` (20; ``0`` =
+   not sent), never greedily (greedy decoding loops reasoning models), are
+   capped at ``OPENCOMPLETION_MAX_TOKENS`` (24576, thinking & answer
+   together; ``0`` = no cap) & stop early when a model keeps repeating
+   itself (``OPENCOMPLETION_REPEAT_LIMIT``, 8 repeats; ``0`` = off).
+   ``OPENCOMPLETION_PRESENCE_PENALTY`` is sent when set (Qwen suggests up to
+   1.5 for quantized models that repeat). Thinking that passes
+   ``OPENCOMPLETION_THINKING_BUDGET`` (16384 tokens; ``0`` = no budget) with
+   no answer begun is stopped & the model answers from its notes, without
+   thinking, in up to ``OPENCOMPLETION_ANSWER_TOKENS`` (8192). A server that
+   refuses ``top_k``, or a cap past its context, is asked again without it.
+   A model's thinking is saved with its reply (run ``make upgrade-db``).
 
    ``OPENCOMPLETION_BRAND`` (optional) names the site in every header, for
    example ``uncloseai``; unset, it says OpenCompletion.
