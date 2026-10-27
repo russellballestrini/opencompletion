@@ -1259,6 +1259,8 @@ def chat_claude(
             # Check if there has been a cancellation request, break if there is.
             if cancellation_requests.get(msg_id) or room_name in stop_requests:
                 cancellation_requests.pop(msg_id, None)
+                # Hang up, so the model server stops generating too.
+                getattr(response, "close", lambda: None)()
                 break
 
             if "chunk" in event:
@@ -1509,6 +1511,8 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         # Check if there has been a cancellation request, break if there is.
         if cancellation_requests.get(msg_id) or room_name in stop_requests:
             cancellation_requests.pop(msg_id, None)
+            # Hang up, so the model server stops generating too.
+            getattr(chunks, "close", lambda: None)()
             break
         if not chunk.choices:
             continue
@@ -1689,6 +1693,8 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
         # Check if there has been a cancellation request, break if there is.
         if cancellation_requests.get(msg_id) or room_name in stop_requests:
             cancellation_requests.pop(msg_id, None)
+            # Hang up, so the model server stops generating too.
+            getattr(chunks, "close", lambda: None)()
             break
 
         delta = chunk["choices"][0]["delta"]

@@ -269,8 +269,9 @@ def test_stop_ends_a_streaming_reply(test_app, monkeypatch):
         if event == "message_chunk" and len(sent) > 5:
             app_module.stop_requests.add("stoppable")
 
+    stream = endless()
     client = SimpleNamespace(
-        chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: endless()))
+        chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: stream))
     )
     monkeypatch.setattr(
         app_module, "get_openai_client_and_model", lambda n: (client, n)
@@ -283,6 +284,7 @@ def test_stop_ends_a_streaming_reply(test_app, monkeypatch):
 
     reply = Message.query.filter_by(username="m").one().content
     assert reply.startswith("la ") and len(reply) < 200
+    assert stream.gi_frame is None  # hung up: the model server stops too
     assert "stoppable" not in app_module.stop_requests
     assert "stoppable" not in app_module.streaming_replies
     assert sent.count("replies_streaming") == 2  # one up, one down
