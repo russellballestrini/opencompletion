@@ -73,6 +73,13 @@ Installation
 
     cp vars.sh.sample vars.sh
 
+   Chat replies sample at temperature ``OPENCOMPLETION_TEMPERATURE`` (0.6)
+   & ``OPENCOMPLETION_TOP_P`` (0.95), never greedily (greedy decoding loops
+   reasoning models), are capped at ``OPENCOMPLETION_MAX_TOKENS`` (8192;
+   ``0`` = no cap) & stop early when a model keeps repeating itself
+   (``OPENCOMPLETION_REPEAT_LIMIT``, 8 repeats; ``0`` = off).
+   ``OPENCOMPLETION_PRESENCE_PENALTY`` is sent when set.
+
    ``OPENCOMPLETION_BRAND`` (optional) names the site in every header, for
    example ``uncloseai``; unset, it says OpenCompletion.
 

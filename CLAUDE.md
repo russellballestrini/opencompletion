@@ -100,6 +100,7 @@ git remote -v
 - All styling is in `static/css/style.css` (tokens on `:root`, dark under `[data-theme="dark"]`); templates carry no `<style>` or raw colours
 - `make test-ui` checks our page contract & layouts in headless Chromium at 320/375/768/1280px
 - Chat's JavaScript lives in `static/js/chat/` as ordered plain scripts sharing globals: `1-state.js`, `2-vision.js`, `3-room.js`, `4-tts.js`, `5-messages.js`, `6-code.js`, `7-activities.js`; server values arrive via `window.CHAT_CONFIG` in chat.html, never Jinja inside a .js file
+- Chat replies (`chat_gpt`) never decode greedily: `chat_sampling()` sends `OPENCOMPLETION_TEMPERATURE` (0.6) & `OPENCOMPLETION_TOP_P` (0.95), optional `OPENCOMPLETION_PRESENCE_PENALTY`, & `OPENCOMPLETION_MAX_TOKENS` (8192, 0 = no cap), the bound that holds even where a hang-up can't cancel a vLLM generation. `repetition_guard.py` watches thinking & answer as they stream and hangs up on a loop (`OPENCOMPLETION_REPEAT_LIMIT`, default 8 repeats, 0 = off); the reply says why it stopped
 - Socket.IO, marked.js, DOMPurify & highlight.js are vendored in `static/vendor/` (pinned versions & sha256 in its README); no CDNs at runtime
 - Every message renders through `renderMarkdown()` (marked + DOMPurify), images included; never assign message text to innerHTML directly
 
