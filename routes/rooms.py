@@ -4,6 +4,7 @@ downloads, and our one rule for who may open a private room."""
 import json
 import os
 import re
+import secrets
 
 from flask import (
     Blueprint,
@@ -19,6 +20,7 @@ from flask import (
 import auth
 from models import ActivityState, Message, Room, UserSession, db
 from routes import DEPS
+from throttle import Throttle, client_ip
 
 bp = Blueprint("rooms", __name__)
 
@@ -197,58 +199,74 @@ def create_room_api():
     )
 
 
-@bp.route("/api/rooms/<int:room_id>/fork", methods=["POST"])
-def fork_room(room_id):
-    """Fork a room (authenticated users can fork to private or public)"""
+# Forks per client: a bot looping over every message of every chat would
+# otherwise make rooms without end. OPENCOMPLETION_FORK_LIMIT, "count/seconds".
+FORK_THROTTLE = Throttle("OPENCOMPLETION_FORK_LIMIT", default=(10, 600))
+
+
+def fork_conversation(source_room, up_to=None):
+    """A new room holding a copy of `source_room`'s messages, in order,
+    through message `up_to` (every message when None). JSON response."""
     user = auth.get_current_user()
-    data = request.get_json() or {}
-    make_private = data.get("private", False)
+    data = request.get_json(silent=True) or {}
+    make_private = bool(data.get("private", False))
 
-    # Get source room
-    source_room = db.session.get(Room, room_id)
-    if not source_room:
-        return jsonify({"error": "Room not found"}), 404
-
-    # Private rooms can only be forked by their owner
-    if source_room.is_private:
-        if not user or source_room.owner_id != user.id:
-            return jsonify({"error": "Cannot fork private rooms you do not own"}), 403
-
-    # Private rooms require authentication
+    if room_access_denied(source_room, user):
+        return jsonify({"error": "Cannot fork private rooms you do not own"}), 403
     if make_private and not user:
         return (
             jsonify({"error": "Authentication required to create private rooms"}),
             401,
         )
 
-    # Generate new room name
-    base_name = f"{source_room.name}_fork"
-    new_name = base_name
-    counter = 1
-    while Room.query.filter_by(name=new_name).first():
-        new_name = f"{base_name}_{counter}"
-        counter += 1
+    retry_after = FORK_THROTTLE.hit(client_ip())
+    if retry_after:
+        minutes = -(-retry_after // 60)
+        response = jsonify(
+            {
+                "error": f"Too many forks from your address: "
+                f"{FORK_THROTTLE.count} per {FORK_THROTTLE.seconds // 60} minutes. "
+                f"Try again in {minutes} minute{'' if minutes == 1 else 's'}."
+            }
+        )
+        response.headers["Retry-After"] = str(retry_after)
+        return response, 429
 
-    # Create forked room
+    # A random tail: no lookup per existing fork, and no guessing a name.
+    base = f"{source_room.name[:48]}-fork"
+    new_name = f"{base}-{secrets.token_hex(3)}"
+    while Room.query.filter_by(name=new_name).first():
+        new_name = f"{base}-{secrets.token_hex(3)}"
+
     new_room = Room()
     new_room.name = new_name
     new_room.title = f"Fork of {source_room.title or source_room.name}"
     new_room.is_private = make_private
     new_room.owner_id = user.id if user else None
     new_room.forked_from_id = source_room.id
-
     db.session.add(new_room)
     db.session.commit()
 
-    # Copy messages from source room
-    source_messages = Message.query.filter_by(room_id=source_room.id).all()
-    for msg in source_messages:
-        new_msg = Message(
-            username=msg.username, content=msg.content, room_id=new_room.id
+    copied = Message.query.filter_by(room_id=source_room.id)
+    if up_to is not None:
+        copied = copied.filter(Message.id <= up_to)
+    for msg in copied.order_by(Message.id).all():
+        db.session.add(
+            Message(username=msg.username, content=msg.content, room_id=new_room.id)
         )
-        db.session.add(new_msg)
-
     db.session.commit()
+
+    if not new_room.is_private:
+        emit_room_list_update(
+            new_room,
+            {
+                "id": new_room.id,
+                "name": new_room.name,
+                "title": new_room.title,
+                "is_private": False,
+                "is_new": True,
+            },
+        )
 
     return jsonify(
         {
@@ -261,6 +279,28 @@ def fork_room(room_id):
             },
         }
     )
+
+
+@bp.route("/api/rooms/<int:room_id>/fork", methods=["POST"])
+def fork_room(room_id):
+    """Fork a whole room (body: {"private": bool})."""
+    source_room = db.session.get(Room, room_id)
+    if not source_room:
+        return jsonify({"error": "Room not found"}), 404
+    return fork_conversation(source_room)
+
+
+@bp.route("/api/messages/<int:message_id>/fork", methods=["POST"])
+def fork_from_message(message_id):
+    """Fork a conversation at one message: a new room holding every message
+    up to & including it (body: {"private": bool}). The message names its
+    room, so a chat page needs no room id."""
+    message = db.session.get(Message, message_id)
+    source_room = db.session.get(Room, message.room_id) if message else None
+    if not source_room or room_access_denied(source_room, auth.get_current_user()):
+        # A private room's messages are as unknown as missing ones.
+        return jsonify({"error": "Message not found"}), 404
+    return fork_conversation(source_room, up_to=message.id)
 
 
 @bp.route("/api/rooms/<int:room_id>/archive", methods=["POST"])

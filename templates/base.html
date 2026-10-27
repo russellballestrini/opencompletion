@@ -77,22 +77,22 @@
         return [response, await response.json()];
     }
 
-    async function forkRoom(roomId, signedIn) {
-        if (!confirm('Fork this room? You get a new room holding a copy of every message so far.')) {
-            return;
-        }
-        // Only a signed-in owner can hold a private room.
-        const makePrivate = signedIn && confirm('Make the copy private (only you)? OK = private, Cancel = public.');
+    // Fork at a model's reply: a new chat holding every message up to it.
+    // Signed in, the fork is private (like a new chat); a guest's is a
+    // public chatroom. Our server limits forks per address (429).
+    async function forkFromMessage(messageId, button) {
+        if (button) button.disabled = true;
         try {
-            const [response, data] = await roomRequest(`/api/rooms/${roomId}/fork`, 'POST', {private: makePrivate});
+            const [response, data] = await roomRequest(`/api/messages/${messageId}/fork`, 'POST', {private: CHAT_CONFIG.signedIn});
             if (response.ok) {
                 window.location.href = `/chat/${encodeURIComponent(data.room.name)}`;
-            } else {
-                alert(data.error || 'Failed to fork room');
+                return;
             }
+            alert(data.error || 'Could not fork this chat.');
         } catch (error) {
-            alert('Network error. Please try again.');
+            alert('Network error: nothing was forked. Please try again.');
         }
+        if (button) button.disabled = false;
     }
 
     async function archiveRoom(roomId) {

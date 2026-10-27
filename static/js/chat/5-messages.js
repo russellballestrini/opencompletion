@@ -16,6 +16,17 @@ function senderLabel(name) {
     return name === username ? `**[${safe}](/profile):**` : `**${safe}:**`;
 }
 
+// Fork, on a model's reply: hover (or focus) says what it makes; a click
+// calls forkFromMessage() in base.html & opens the new chat.
+function addForkButton(buttonContainer, messageId) {
+    const forkButton = document.createElement("button");
+    forkButton.textContent = "Fork";
+    forkButton.className = "fork-button";
+    forkButton.title = `Fork: start a new chat from this reply, holding a copy of every message up to here${CHAT_CONFIG.signedIn ? " (private, only you)" : " (a public chatroom)"}. This chat stays as it is.`;
+    forkButton.onclick = () => forkFromMessage(messageId, forkButton);
+    buttonContainer.appendChild(forkButton);
+}
+
 // Socket event for receiving a new message
 socket.on("chat_message", (data) => {
     const messageWrapper = document.createElement("div");
@@ -199,6 +210,7 @@ socket.on("previous_messages", (data) => {
     downloadButton.style.display = "none";
     downloadButton.dataset.messageId = data.id;
     buttonContainer.appendChild(downloadButton);
+    if (data.from_model) addForkButton(buttonContainer, data.id);
 
     messageWrapper.appendChild(buttonContainer);
     messageWrapper.appendChild(newMessage);
@@ -406,6 +418,8 @@ socket.on("message_chunk", (data) => {
         downloadButton.style.display = "none";
         downloadButton.dataset.messageId = data.id;
         buttonContainer.appendChild(downloadButton);
+        // Every streamed message is a model's reply.
+        addForkButton(buttonContainer, data.id);
 
         // Insert the button container at the beginning of the message wrapper (before header and content)
         messageWrapper.insertBefore(buttonContainer, messageWrapper.firstChild);

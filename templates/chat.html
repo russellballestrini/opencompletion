@@ -36,15 +36,13 @@
 
     <aside class="utility-belt" aria-label="Room controls">
         <button type="button" class="icon-btn drawer-close" onclick="closeDrawer()" aria-label="Close controls">×</button>
-        {% if current_room %}
+        {# Forking lives on each model reply (Fork, 5-messages.js), not here. #}
+        {% if current_room and user and current_room.owner_id == user.id %}
         <section class="room-actions-section">
             <h3>Room</h3>
             <div class="button-row">
-                <button type="button" class="btn btn-secondary" onclick="forkRoom({{ current_room.id }}, {{ 'true' if user else 'false' }})">Fork</button>
-                {% if user and current_room.owner_id == user.id %}
                 <button type="button" class="btn btn-secondary" onclick="archiveRoom({{ current_room.id }})">Archive</button>
                 <button type="button" class="btn btn-danger" onclick="deleteRoom({{ current_room.id }})">Delete</button>
-                {% endif %}
             </div>
         </section>
         {% endif %}

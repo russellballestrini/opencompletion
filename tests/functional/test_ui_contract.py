@@ -469,6 +469,27 @@ window.addEventListener('load', () => {
     check(sent && sent[1].message === 'from the probe' && sent[1].room_name === 'lobby', 'send emits chat_message');
     check(box.value === '', 'box clears after send');
 
+    // Fork lives on model replies, never on people's messages or our controls
+    deliver('previous_messages', {id: 60, username: 'hermes', content: 'Big Bird', from_model: true});
+    deliver('previous_messages', {id: 61, username: 'ada', content: 'more', from_model: false});
+    const fork = document.querySelector('#message-60 .fork-button');
+    check(fork && /new chat from this reply/.test(fork.title), 'a model reply offers Fork, explained on hover');
+    check(!document.querySelector('#message-61 .fork-button'), 'a person\'s message has no Fork');
+    check(document.querySelector('#message-40 .fork-button'), 'a streamed reply offers Fork');
+    check(![...document.querySelectorAll('.utility-belt button')].some(b => /fork/i.test(b.textContent)), 'no Fork in room controls');
+    const forkCalls = [];
+    let forkAlert = null;
+    window.alert = message => { forkAlert = message; };
+    const fetchBeforeFork = window.fetch;
+    window.fetch = (url, options) => {
+        if (String(url).includes('/fork')) {
+            forkCalls.push([String(url), JSON.parse(options.body)]);
+            return Promise.resolve({ok: false, status: 429, json: () => Promise.resolve({error: 'Too many forks from your address'})});
+        }
+        return fetchBeforeFork(url, options);
+    };
+    fork.click();
+
     // Auto-fix runs only our marked post's exact block, never a same-named
     // guest's other code (guest names are not unique)
     const executed = [];
@@ -491,13 +512,15 @@ window.addEventListener('load', () => {
     // own pace: poll until both have or 1.5 s pass, never a fixed sleep.
     const started = Date.now();
     const settle = () => {
-        if ((executed.length === 0 || copyButton.textContent !== 'Copied!') && Date.now() - started < 1500) {
+        if ((executed.length === 0 || copyButton.textContent !== 'Copied!' || !forkAlert) && Date.now() - started < 1500) {
             setTimeout(settle, 50);
             return;
         }
         check(executed.length === 1 && executed[0] === 'print(2)', 'only the fixed block ran: ' + JSON.stringify(executed));
         check(copyButton.textContent === 'Copied!', 'copy shows Copied!: ' + copyButton.textContent);
         check(!window.pwned, 'no injected script ran (' + window.pwned + ')');
+        check(forkCalls.length === 1 && forkCalls[0][0] === '/api/messages/60/fork' && forkCalls[0][1].private === false, 'Fork posts this reply, public for a guest: ' + JSON.stringify(forkCalls));
+        check(/Too many forks/.test(forkAlert || '') && !fork.disabled, 'a refused fork says why & can be retried');
         document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
     };
     setTimeout(settle, 50);

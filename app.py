@@ -879,6 +879,9 @@ def on_join(data):
                 "id": message.id,
                 "username": message.username,
                 "content": message.content,
+                # A model's reply can be forked from (static/js/chat/5-messages.js).
+                "from_model": message.username in SYSTEM_USERS
+                and message.username != "system",
             },
             room=request.sid,
         )

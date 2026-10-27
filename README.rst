@@ -24,7 +24,12 @@ Features
 - Database storage for messages and chatrooms using SQLAlchemy.
 - Migration support with Flask-Migrate.
 - Email OTP authentication with private room support
-- Room forking, archiving, and owner management
+- Fork any model reply into a new chat holding the conversation up to it,
+  limited per address (``OPENCOMPLETION_FORK_LIMIT``, default ``10/600``:
+  10 forks per 10 minutes; ``0`` turns it off). Behind a proxy set
+  ``OPENCOMPLETION_PROXY_HOPS`` to how many proxies front us (default ``1``,
+  our Caddy; ``0`` uses the socket address).
+- Room archiving and owner management
 
 Requirements
 ------------
