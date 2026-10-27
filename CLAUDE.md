@@ -61,7 +61,8 @@ git remote -v
 
 ### Makefile Commands
 - `make venv` - Create virtual environment and install dependencies
-- `make init-db` - Initialize database tables
+- `make init-db` - Initialize database tables (a new database; never alters existing tables)
+- `make upgrade-db` - Apply migrations to an existing database (`FLASK_APP=app.py venv/bin/flask db upgrade`, needs vars.sh)
 - `make test` - Unit, integration, functional tests & YAML validation (no network)
 - `make test-ui` - Page contract & mobile layouts in headless Chromium
 - `make lint` - black --check & flake8 (syntax, undefined names)

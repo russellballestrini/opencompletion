@@ -28,7 +28,7 @@ Features
   ``OPENCOMPLETION_UPLOAD_LIMIT`` per address (default ``30/600``). Models
   read text & code files & see images (vision models). Bytes are stored
   once per content in SQLite (``blob_store.py``, tables ``blob`` &
-  ``attachment``; run ``flask db upgrade`` or ``make init-db``).
+  ``attachment``; run ``make upgrade-db`` on an existing database, ``make init-db`` on a new one).
 - Speak instead of typing: the mic records in the browser & our server
   transcribes through ``SPEECH_ENDPOINT_n``'s ``/audio/transcriptions``
   (model ``SPEECH_STT_MODEL``, default ``whisper-1``;
@@ -42,7 +42,7 @@ Features
   our Caddy; ``0`` uses the socket address).
 - Edit & resend your own message: the edit replaces it & everything after it for
   everyone in the room & the models answer again. Nothing is deleted: the
-  earlier branch is kept, hidden (run ``flask db upgrade``).
+  earlier branch is kept, hidden (run ``make upgrade-db``).
 - A ⋯ menu on every chat (sidebar, Rooms, Search): rename, refresh title (a
   model titles it afresh), pin (kept in this browser), archive & delete
   (owner only).
