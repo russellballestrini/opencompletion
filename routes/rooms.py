@@ -300,8 +300,13 @@ def fork_from_message(message_id):
     room, so a chat page needs no room id."""
     message = db.session.get(Message, message_id)
     source_room = db.session.get(Room, message.room_id) if message else None
-    if not source_room or room_access_denied(source_room, auth.get_current_user()):
-        # A private room's messages are as unknown as missing ones.
+    if (
+        not source_room
+        or message.superseded_by_id is not None
+        or room_access_denied(source_room, auth.get_current_user())
+    ):
+        # A private room's messages, & ones an edit replaced, are as unknown
+        # as missing ones.
         return jsonify({"error": "Message not found"}), 404
     return fork_conversation(source_room, up_to=message.id)
 

@@ -167,9 +167,10 @@ FAILOVER_ERRORS = (openai.APIConnectionError, openai.InternalServerError)
 
 
 def open_with_failover(openai_client, model_name, open_stream):
-    """open_stream(client) starts a completion; if it fails before a single
-    token, mark that endpoint down & try the next one serving this same
-    model. Once tokens flow there is no retry: it would repeat them."""
+    """open_stream(client) starts a completion; if opening the stream fails
+    (no connection, a timeout, a 5xx), mark that endpoint down & try the next
+    one serving this same model. Only opening is retried: a stream that
+    breaks while it is read, even before its first token, is not."""
     given = str(getattr(openai_client, "base_url", ""))
     endpoints = endpoints_for_model(model_name)
     # Health is keyed by the configured URL; the client's own adds a "/".
@@ -1282,6 +1283,19 @@ def handle_edit_and_resend(data):
         return
     if message.username in SYSTEM_USERS:
         return  # a model's reply is edited in place, never resent
+    # Only its author resends a message (it hides everything after it for
+    # everyone): the name this socket joined the room under, never a name
+    # the event claims.
+    joined = UserSession.query.filter_by(
+        session_id=request.sid, room_id=room.id
+    ).first()
+    if not joined or joined.username != message.username:
+        emit(
+            "edit_resend_refused",
+            {"error": "Only its author can resend a message."},
+            room=request.sid,
+        )
+        return
     if streaming_replies.get(room.name):
         emit(
             "edit_resend_refused",

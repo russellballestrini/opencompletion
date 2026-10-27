@@ -29,7 +29,8 @@ function addForkButton(buttonContainer, messageId) {
 
 // Socket event for receiving a new message
 socket.on("chat_message", (data) => {
-    clearFollowups();
+    // A newer message ends the suggestions; a notice with no id does not.
+    if (data.id) clearFollowups();
     const messageWrapper = document.createElement("div");
     messageWrapper.className = "message-wrapper";
     messageWrapper.id = "message-" + data.id;
@@ -483,7 +484,9 @@ socket.on("followup_suggestions", (data) => {
     const messageWrapper = document.getElementById("message-" + data.message_id);
     if (!messageWrapper || !(data.suggestions || []).length) return;
     // A newer message arrived meanwhile: these no longer follow anything.
-    if (messageWrapper.nextElementSibling) return;
+    let later = messageWrapper.nextElementSibling;
+    while (later && !/^message-\d+$/.test(later.id)) later = later.nextElementSibling;
+    if (later) return;
     clearFollowups();
     const chips = document.createElement("div");
     chips.className = "followups";
@@ -612,7 +615,8 @@ function resendEditedMessage(messageId, textarea, messageContentContainer) {
         "model": document.getElementById("model-select").value,
         "enable_thinking": showThinking
     });
-    cancelEdit(messageId, messageContentContainer);
+    // The editor stays open: messages_hidden takes it away once the server
+    // resends, & a refusal (edit_resend_refused) leaves the draft to retry.
 }
 
 // Function to save the edited message

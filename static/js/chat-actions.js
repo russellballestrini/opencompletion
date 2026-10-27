@@ -168,11 +168,15 @@ const CHAT_ACTIONS = [
 
 let openMenu = null;
 
-function closeChatActions() {
+// Closing hands keyboard focus back to the ⋯ that opened the menu (only
+// for a keyboard: a pointer's focus stays where the pointer left it).
+function closeChatActions(restoreFocus = false) {
     if (!openMenu) return;
-    openMenu.menu.remove();
-    openMenu.button.setAttribute('aria-expanded', 'false');
+    const {menu, button} = openMenu;
+    menu.remove();
+    button.setAttribute('aria-expanded', 'false');
     openMenu = null;
+    if (restoreFocus && button.isConnected) button.focus();
 }
 
 function openChatActions(button) {
@@ -189,8 +193,9 @@ function openChatActions(button) {
         item.textContent = typeof action.label === 'function' ? action.label(room) : action.label;
         if (action.hint) item.title = action.hint;
         if (action.danger) item.classList.add('danger');
-        item.addEventListener('click', async () => {
-            closeChatActions();
+        item.addEventListener('click', async event => {
+            const byKeyboard = event.detail === 0;
+            closeChatActions(byKeyboard);
             button.disabled = true;
             try {
                 await action.run(room);
@@ -198,6 +203,8 @@ function openChatActions(button) {
                 alert(error instanceof TypeError ? 'Network error. Please try again.' : error.message);
             } finally {
                 button.disabled = false;
+                // Disabling blurred it; give a keyboard its place back.
+                if (byKeyboard && button.isConnected) button.focus();
             }
         });
         menu.appendChild(item);
@@ -228,7 +235,7 @@ document.addEventListener('click', event => {
 });
 
 document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') closeChatActions();
+    if (event.key === 'Escape') closeChatActions(true);
 });
 window.addEventListener('resize', closeChatActions);
 document.addEventListener('scroll', closeChatActions, true);

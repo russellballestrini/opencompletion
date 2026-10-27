@@ -40,7 +40,7 @@ Features
   10 forks per 10 minutes; ``0`` turns it off). Behind a proxy set
   ``OPENCOMPLETION_PROXY_HOPS`` to how many proxies front us (default ``1``,
   our Caddy; ``0`` uses the socket address).
-- Edit & resend a message: the edit replaces it & everything after it for
+- Edit & resend your own message: the edit replaces it & everything after it for
   everyone in the room & the models answer again. Nothing is deleted: the
   earlier branch is kept, hidden (run ``flask db upgrade``).
 - A ⋯ menu on every chat (sidebar, Rooms, Search): rename, refresh title (a
@@ -147,8 +147,8 @@ Here are some free endpoint for research only!::
     export MODEL_ENDPOINT_3=https://gpt-oss.ai.unturf.com/v1
 
 Two endpoints may serve one model: the lowest ``n`` listing it is its pin &
-the others back it up, in order. A pin that is down (or fails before its
-first token) hands the reply to the next copy of the same model; only when
+the others back it up, in order. A pin that is down (or fails while its
+stream is opened) hands the reply to the next copy of the same model; only when
 every copy is down does another model answer. A ``MODEL_n`` reference whose
 endpoint is down looks for its model elsewhere the same way first.
 

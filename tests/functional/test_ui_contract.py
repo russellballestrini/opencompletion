@@ -704,6 +704,8 @@ window.addEventListener('load', () => {
     check(!document.querySelector('#message-2 .resend-button'), 'a model reply is only edited in place');
     document.querySelector('#message-1 textarea').value = 'list two muppets';
     document.querySelector('#message-1 .resend-button').click();
+    check(document.querySelector('#message-1 textarea'), 'the editor stays open until the server answers');
+    check(document.querySelector('meta[name="theme-color"]').content !== '', 'theme-color follows our theme');
     const sent = testSocket.sent.find(([event]) => event === 'edit_and_resend');
     check(sent && sent[1].message_id === 1 && sent[1].content === 'list two muppets' && sent[1].room_name === 'lobby', 'resend emits edit_and_resend');
     deliver('messages_hidden', {ids: [1, 2], revision_id: 3});
@@ -715,6 +717,10 @@ window.addEventListener('load', () => {
     deliver('followup_suggestions', {message_id: 4, suggestions: ['Who is <b>Oscar</b>?', 'Why green?']});
     const chips = document.querySelectorAll('#message-4 .followup-chip');
     check(chips.length === 2 && !document.querySelector('#message-4 .followups b'), 'chips show as text');
+    deliver('chat_message', {id: null, content: 'bob joined the room'});
+    check(document.querySelectorAll('#message-4 .followup-chip').length === 2, 'a notice with no id leaves the chips');
+    deliver('followup_suggestions', {message_id: 4, suggestions: ['Who is Oscar?', 'Why green?']});
+    check(document.querySelectorAll('.followup-chip').length === 2, 'late suggestions still land past a notice');
     chips[1].click();
     const asked = testSocket.sent.filter(([event]) => event === 'chat_message').pop();
     check(asked && asked[1].message === 'Why green?', 'a chip sends its question');

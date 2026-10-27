@@ -39,9 +39,13 @@ def say(room, username, content):
     return message
 
 
-def client_for(test_app, app_module):
+def client_for(test_app, app_module, joined_as="ada", room="lobby"):
+    """A socket in `room` under the name `joined_as` (resend checks it)."""
     http = test_app.test_client()
-    return app_module.socketio.test_client(app_module.app, flask_test_client=http)
+    client = app_module.socketio.test_client(app_module.app, flask_test_client=http)
+    client.emit("join", {"room_name": room, "username": joined_as})
+    client.get_received()
+    return client
 
 
 def replied_models(app_module):
@@ -70,8 +74,6 @@ def test_an_edit_is_resent_and_the_old_branch_is_hidden_not_deleted(
     say(room, "qwen", "Big Bird")
 
     client = client_for(test_app, app_module)
-    client.emit("join", {"room_name": "lobby", "username": "ada"})
-    client.get_received()
     client.emit(
         "edit_and_resend",
         {"message_id": ask.id, "content": "list two muppets", "room_name": "lobby"},
@@ -149,10 +151,12 @@ def test_hidden_messages_stay_out_of_history_forks_and_downloads(test_app, app_m
         "edit_and_resend",
         {"message_id": ask.id, "content": "second try", "room_name": "lobby"},
     )
-    client.get_received()
-    client.emit("join", {"room_name": "lobby", "username": "ada"})
+    # Someone opening the room now sees only the edit.
+    http = test_app.test_client()
+    bob = app_module.socketio.test_client(app_module.app, flask_test_client=http)
+    bob.emit("join", {"room_name": "lobby", "username": "bob"})
     history = [
-        e["args"][0] for e in client.get_received() if e["name"] == "previous_messages"
+        e["args"][0] for e in bob.get_received() if e["name"] == "previous_messages"
     ]
     assert "second try" in str(history)
     assert "first try" not in str(history) and "first answer" not in str(history)
@@ -162,3 +166,29 @@ def test_hidden_messages_stay_out_of_history_forks_and_downloads(test_app, app_m
     )
     assert download.status_code == 200
     assert b"second try" in download.data and b"first try" not in download.data
+
+
+def test_only_its_author_resends_a_message(test_app, app_module):
+    room = make_room("lobby")
+    ask = say(room, "ada", "hi")
+    say(room, "qwen", "hello")
+    bob = client_for(test_app, app_module, joined_as="bob")
+    bob.emit(
+        "edit_and_resend",
+        {"message_id": ask.id, "content": "vandalised", "room_name": "lobby"},
+    )
+    assert visible(room) == ["hi", "hello"]
+    assert replied_models(app_module) == []
+    refusals = [e for e in bob.get_received() if e["name"] == "edit_resend_refused"]
+    assert refusals and "author" in refusals[0]["args"][0]["error"]
+
+
+def test_a_replaced_message_cannot_be_forked(test_app, app_module):
+    room = make_room("lobby")
+    ask = say(room, "ada", "first try")
+    client_for(test_app, app_module).emit(
+        "edit_and_resend",
+        {"message_id": ask.id, "content": "second try", "room_name": "lobby"},
+    )
+    response = test_app.test_client().post(f"/api/messages/{ask.id}/fork", json={})
+    assert response.status_code == 404

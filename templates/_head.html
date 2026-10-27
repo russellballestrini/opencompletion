@@ -19,8 +19,8 @@
 {# Installable as an app (routes.pages.web_manifest); iOS reads the apple-* tags. #}
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
-<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+{# Filled from our --bg-primary for the theme in use (site.js syncThemeControls). #}
+<meta name="theme-color" content="">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="{{ brand_name }}">
