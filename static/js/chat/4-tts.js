@@ -648,7 +648,7 @@ function updateThinkingDisplay() {
 // Toggle thinking mode. On by default; persisted in localStorage.
 function toggleThinking() {
     enableThinking = !enableThinking;
-    localStorage.setItem('showThinking', enableThinking.toString());
+    localStorage.setItem('enableThinking', enableThinking.toString());
     updateThinkingDisplay();
 }
 
