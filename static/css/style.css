@@ -1632,7 +1632,7 @@ a:hover {
     stroke-linejoin: round;
 }
 
-/* Attach & speak (_composer_tools.html), left of our model picker. */
+/* Speak & attach (_composer_tools.html), left of our model picker. */
 .composer-tools {
     display: flex;
     gap: var(--space-1);

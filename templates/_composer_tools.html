@@ -1,11 +1,11 @@
-{# Our composer's tools, home & chat: attach files & speak instead of
-   typing (static/js/composer.js). Lives in a .composer-bar. #}
+{# Our composer's tools, home & chat: speak instead of typing (mic on
+   our left) & attach files (static/js/composer.js). Lives in a .composer-bar. #}
 <div class="composer-tools">
     <input type="file" class="composer-file-input" multiple hidden>
-    <button type="button" class="composer-tool" data-attach aria-label="Attach files" title="Attach files, up to {{ max_upload_mb }} MB each (or drop or paste them here)">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 11-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6L15 6.6"/></svg>
-    </button>
     <button type="button" class="composer-tool" data-mic aria-pressed="false" aria-label="Speak instead of typing" title="Speak instead of typing: tap to record, tap again to stop" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+    </button>
+    <button type="button" class="composer-tool" data-attach aria-label="Attach files" title="Attach files, up to {{ max_upload_mb }} MB each (or drop or paste them here)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 11-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6L15 6.6"/></svg>
     </button>
 </div>
