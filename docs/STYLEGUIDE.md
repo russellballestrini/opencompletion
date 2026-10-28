@@ -45,8 +45,9 @@ are 16px on phones so iOS never zooms into them.
 
 - **Buttons** `.btn` (primary), `.btn-secondary`, `.btn-danger`,
   `.btn-block`, `.icon-btn`. One primary action per view. Two-state
-  controls are `.btn-toggle` with `aria-pressed`; CSS colours the state,
-  JavaScript never sets colours.
+  controls are `.btn-toggle`: JavaScript sets `data-on` & words naming what
+  a tap does ("Enable thinking" / "Disable thinking"); CSS colours the
+  state green, JavaScript never sets colours.
 - **Cards** `.card` group a task; `.page-title` + `.page-subtitle` open a page.
 - **Forms** `.form-group` > `label` + `.form-input` + `.form-hint`. A label
   sits above every field; placeholders show format, never the label.

@@ -640,9 +640,15 @@ function processNextTTS() {
         });
 }
 
-// Our thinking button names what a tap does: Disable while on, Enable while off.
+// Toggle buttons name what a tap does & carry data-on; CSS colours it.
+function setToggle(id, on, onWords, offWords) {
+    const button = document.getElementById(id);
+    button.dataset.on = String(on);
+    button.textContent = on ? onWords : offWords;
+}
+
 function updateThinkingDisplay() {
-    document.getElementById("thinking-btn").textContent = enableThinking ? "Disable thinking" : "Enable thinking";
+    setToggle("thinking-btn", enableThinking, "Disable thinking", "Enable thinking");
 }
 
 // Toggle thinking mode. On by default; persisted in localStorage.
@@ -653,7 +659,7 @@ function toggleThinking() {
 }
 
 function updateAutoPlayTTSDisplay() {
-    document.getElementById("auto-play-tts-btn").setAttribute("aria-pressed", String(autoPlayTTS));
+    setToggle("auto-play-tts-btn", autoPlayTTS, "Stop reading replies aloud", "Read replies aloud");
     if (!autoPlayTTS) {
         // Clear queue when turning off
         ttsQueue = [];

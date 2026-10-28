@@ -37,7 +37,7 @@
     </div>
     <p></p>
     <div class="button-row">
-        <button type="button" class="btn btn-secondary btn-toggle" aria-pressed="true" onclick="this.setAttribute('aria-pressed', String(this.getAttribute('aria-pressed') !== 'true'))">Toggle (on)</button>
+        <button type="button" class="btn btn-secondary btn-toggle" data-on="true" onclick="var on = this.dataset.on !== 'true'; this.dataset.on = String(on); this.textContent = on ? 'Turn off' : 'Turn on'">Turn off</button>
         <button type="button" class="icon-btn" aria-label="Icon button">⚙</button>
     </div>
 </section>

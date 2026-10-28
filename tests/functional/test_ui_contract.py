@@ -379,7 +379,8 @@ window.addEventListener('load', () => {
         check(shown(rooms) && shown(controls), 'both sidebars visible');
     }
     document.getElementById('auto-play-tts-btn').click();
-    check(document.getElementById('auto-play-tts-btn').getAttribute('aria-pressed') === 'true', 'toggle reports its state');
+    const readAloud = document.getElementById('auto-play-tts-btn');
+    check(readAloud.dataset.on === 'true' && readAloud.textContent === 'Stop reading replies aloud', 'toggle reports its state');
     showAuthModal();
     check(shown(document.getElementById('auth-step-email')), 'sign-in dialog opens');
     check(inside(document.querySelector('#auth-modal .modal-card')), 'sign-in dialog fits');

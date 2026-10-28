@@ -632,8 +632,9 @@ textarea:focus {
     width: 100%;
 }
 
-/* A two-state control (auto-play, thinking): aria-pressed carries state. */
-.btn-toggle[aria-pressed="true"] {
+/* A two-state control (read aloud, thinking): its words name what a tap
+   does & data-on="true" turns it green while its feature runs. */
+.btn-toggle[data-on="true"] {
     background-color: var(--button-success);
     border-color: var(--button-success);
     color: #fff;
