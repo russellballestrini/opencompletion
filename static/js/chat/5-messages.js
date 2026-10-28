@@ -290,7 +290,7 @@ socket.on("message_chunk", (data) => {
     // Fallback guard: with Thinking OFF the server already suppresses reasoning
     // at the model, but if a model ignores the switch and streams anyway, drop it.
     if (data.reasoning_content) {
-        if (!showThinking) return;
+        if (!enableThinking) return;
         let thinkingDetails = messageWrapper.querySelector(".message-thinking");
         if (!thinkingDetails) {
             // Ensure a message-body wrapper exists to anchor against
@@ -628,7 +628,7 @@ function resendEditedMessage(messageId, textarea, messageContentContainer) {
         "content": content,
         "room_name": room_name,
         "model": document.getElementById("model-select").value,
-        "enable_thinking": showThinking
+        "enable_thinking": enableThinking
     });
     // The editor stays open: messages_hidden takes it away once the server
     // resends, & a refusal (edit_resend_refused) leaves the draft to retry.

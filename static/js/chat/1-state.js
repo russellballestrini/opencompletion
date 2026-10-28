@@ -74,7 +74,7 @@ let isPlayingTTS = false;
 // chain-of-thought entirely — saving tokens, not just hiding output. As a
 // fallback, any reasoning_content that still arrives is dropped client-side
 // (see message_chunk handler). Toggle persists to localStorage.
-let showThinking = localStorage.getItem('showThinking') !== 'false';
+let enableThinking = localStorage.getItem('showThinking') !== 'false';
 
 // Vision model state for auto alt-text
 let visionAvailable = false;

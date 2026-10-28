@@ -59,8 +59,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
     // Initialize auto-play TTS button state from localStorage
     updateAutoPlayTTSDisplay();
 
-    // Initialize show-thinking button state from localStorage
-    updateShowThinkingDisplay();
+    // Initialize thinking button state from localStorage
+    updateThinkingDisplay();
 
     // Check for vision model availability (enables image hover descriptions)
     initVisionCapability();
@@ -217,7 +217,7 @@ socket.on("joined", () => {
         "message": pending.message,
         "model": pending.model || "None",
         "room_name": room_name,
-        "enable_thinking": showThinking
+        "enable_thinking": enableThinking
     });
 });
 
@@ -319,7 +319,7 @@ async function sendMessage() {
             "message": messageToSend,
             "model": model,  // Pass model as a separate attribute
             "room_name": room_name,
-            "enable_thinking": showThinking  // false => ask model to skip chain-of-thought
+            "enable_thinking": enableThinking  // false => ask model to skip chain-of-thought
         });
         messageTextarea.value = "";
         // Reset textarea height after sending

@@ -640,16 +640,16 @@ function processNextTTS() {
         });
 }
 
-// Toggle buttons carry their state in aria-pressed; CSS colours it.
-function updateShowThinkingDisplay() {
-    document.getElementById("show-thinking-btn").setAttribute("aria-pressed", String(showThinking));
+// Our thinking button names what a tap does: Disable while on, Enable while off.
+function updateThinkingDisplay() {
+    document.getElementById("thinking-btn").textContent = enableThinking ? "Disable thinking" : "Enable thinking";
 }
 
 // Toggle thinking mode. On by default; persisted in localStorage.
-function toggleShowThinking() {
-    showThinking = !showThinking;
-    localStorage.setItem('showThinking', showThinking.toString());
-    updateShowThinkingDisplay();
+function toggleThinking() {
+    enableThinking = !enableThinking;
+    localStorage.setItem('showThinking', enableThinking.toString());
+    updateThinkingDisplay();
 }
 
 function updateAutoPlayTTSDisplay() {
