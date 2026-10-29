@@ -1832,7 +1832,10 @@ def chat_gpt(
     # this a plain chat reply.
     if tool_context is not None:
         tool_context = dataclasses.replace(
-            tool_context, room_id=room_id, model=model_name
+            tool_context,
+            room_id=room_id,
+            model=model_name,
+            stopped=lambda: room_name in stop_requests,
         )
     tool_schemas = tools.schemas(tool_context)
     if tool_schemas:

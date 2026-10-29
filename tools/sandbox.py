@@ -480,7 +480,18 @@ def arm_proxy(sandbox, model):
     db.session.commit()
 
 
+DELEGATE_POLL_S = 15
+DELEGATE_DIR = "/root/.opencompletion"
+ANSI = r"s/\x1b\[[0-9;?]*[A-Za-z]//g"
+
+
 def delegate(context, task):
+    """uncloseai-cli (`unclose -p`) on a task in this chat's sandbox, run in
+    the background: we poll it every DELEGATE_POLL_S with a short command,
+    showing `unclose --peek`'s view of its session as progress, until it
+    writes its exit code. Each poll is its own quick job, so a moment of
+    unsandbox unavailability costs one poll, not the run; Stop or the time
+    limit kills it."""
     task = str(task or "").strip()
     if not task:
         return {"error": "task required"}
@@ -488,22 +499,77 @@ def delegate(context, task):
     model = context.model or sandbox.model
     if not sandbox.token_sha256 or sandbox.model != model:
         arm_proxy(sandbox, model)
-    command = (
-        ". /run/unsandbox/vault.sh 2>/dev/null; "
-        "PATH=/root/.local/bin:$PATH unclose -p --no-markdown "
-        f"--model {shlex.quote(model)} {shlex.quote(task)}"
-    )
     note = fresh_note(sandbox)
     if note:
         # uncloseai-cli starts in the new sandbox: it needs the history too.
         task = f"{note}\n\nTask: {task}"
-        command = (
-            ". /run/unsandbox/vault.sh 2>/dev/null; "
-            "PATH=/root/.local/bin:$PATH unclose -p --no-markdown "
-            f"--model {shlex.quote(model)} {shlex.quote(task)}"
-        )
-    result = _finished(_execute(sandbox, command, policy.delegate_timeout()))
-    result["answer"] = result.pop("stdout")
-    if note:
-        result["sandbox_note"] = note
-    return result
+    run_dir = shlex.quote(f"{DELEGATE_DIR}/delegate-{secrets.token_hex(4)}")
+    inner = (
+        ". /run/unsandbox/vault.sh 2>/dev/null; export PATH=/root/.local/bin:$PATH; "
+        f"unclose -p --no-markdown --model {shlex.quote(model)} {shlex.quote(task)} "
+        f"> {run_dir}/answer 2> {run_dir}/stderr & echo $! > {run_dir}/pid; "
+        f"wait $!; echo $? > {run_dir}/exit"
+    )
+    start = (
+        f"mkdir -p {run_dir} && cd /root && "
+        f"setsid nohup bash -c {shlex.quote(inner)} > /dev/null 2>&1 < /dev/null & "
+        f"sleep 1; cat {run_dir}/pid"
+    )
+    started = _execute(sandbox, start, 60)
+    if (
+        started.get("status") != "completed"
+        or not (started.get("stdout") or "").strip()
+    ):
+        result = _finished(started)
+        result.setdefault("error", "uncloseai-cli did not start")
+        return result
+    poll = (
+        f"if [ -f {run_dir}/exit ]; then echo __EXIT__$(cat {run_dir}/exit); "
+        f"cat {run_dir}/answer; echo __STDERR__; tail -c 3000 {run_dir}/stderr; "
+        f"else timeout 6 unclose --peek $(cat {run_dir}/pid) 2>&1 | sed -E '{ANSI}' "
+        f"| tail -n 12; fi"
+    )
+    stop = f"kill $(cat {run_dir}/pid) 2>/dev/null; echo stopped"
+    deadline = time.time() + policy.delegate_timeout()
+    shown = ""
+    while True:
+        if context.stopped and context.stopped():
+            _execute(sandbox, stop, 30)
+            return {"status": "stopped", "error": "stopped: Stop was pressed"}
+        if time.time() > deadline:
+            _execute(sandbox, stop, 30)
+            return {
+                "status": "timeout",
+                "error": f"uncloseai-cli did not finish within "
+                f"{policy.delegate_timeout()}s (OPENCOMPLETION_DELEGATE_TIMEOUT_S)",
+            }
+        gevent.sleep(DELEGATE_POLL_S)
+        try:
+            polled = _execute(sandbox, poll, 30)
+        except Exception as e:  # noqa: BLE001 — a blip costs one poll
+            if _transient(e):
+                continue
+            raise
+        out = polled.get("stdout") or ""
+        if out.startswith("__EXIT__"):
+            head, _, rest = out.partition("\n")
+            answer, _, stderr = rest.partition("__STDERR__\n")
+            try:
+                code = int(head[len("__EXIT__") :].strip())
+            except ValueError:
+                code = None
+            result = {
+                "status": "completed",
+                "exit_code": code,
+                "answer": _clip(answer.rstrip()),
+                "stderr": _clip(stderr.rstrip()),
+            }
+            if code != 0:
+                result["error"] = f"uncloseai-cli exited {code}"
+            if note:
+                result["sandbox_note"] = note
+            return result
+        progress = out.strip()
+        if progress and progress != shown and context.progress:
+            context.progress(progress)
+            shown = progress

@@ -2150,3 +2150,18 @@ a:hover {
 .message-content > .message-part + .message-part {
     margin-top: var(--space-2);
 }
+
+/* A long tool's progress (delegate: uncloseai-cli's session so far). */
+.message-tool-progress {
+    margin: var(--space-1) 0 0;
+    padding: var(--space-2);
+    max-width: 100%;
+    max-height: 240px;
+    overflow: auto;
+    border-radius: var(--radius-md);
+    background-color: var(--bg-secondary);
+    border: 1px dashed var(--border-color);
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre;
+}

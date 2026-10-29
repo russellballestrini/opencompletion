@@ -21,6 +21,7 @@ class Fakeunsandbox:
     """Records every call; services start running, jobs finish at once."""
 
     def __init__(self):
+        self.polls = []
         self.calls = []
         self.services = {}
         self.env = {}
@@ -80,8 +81,31 @@ class Fakeunsandbox:
         self.services[service_id] = "frozen"
 
     def execute_in_service(self, service_id, command, timeout=30000):
+        """Plays a background delegate too: its start answers a pid, each
+        poll the next of `polls`, then its exit & answer."""
         self.calls.append(("execute", service_id, command, timeout))
+        if "setsid nohup" in command:
+            return {"job_id": self._job({"status": "completed", "stdout": "4242\n"})}
+        if "__EXIT__" in command:
+            out = (
+                self.polls.pop(0)
+                if self.polls
+                else (f"__EXIT__{self.delegate_exit}\n{self.answer}\n__STDERR__\n")
+            )
+            return {"job_id": self._job({"status": "completed", "stdout": out})}
+        if command.startswith("kill "):
+            return {"job_id": self._job({"status": "completed", "stdout": "stopped"})}
         return {"job_id": self._job()}
+
+    polls = ()
+    answer = "Done."
+    delegate_exit = 0
+
+    def delegate_commands(self):
+        """The command that started uncloseai-cli, & every poll."""
+        commands = self.commands()
+        start = [c for c in commands if "setsid nohup" in c]
+        return start, [c for c in commands if "__EXIT__" in c]
 
     def set_service_env(self, service_id, env_dict):
         self.calls.append(("env", service_id))
@@ -319,9 +343,9 @@ def test_a_sandbox_without_a_chat_is_refused(unsandbox):
 # -- uncloseai-cli & our model proxy ------------------------------------------
 
 
-def delegate(room, unsandbox, task="make tests pass", model="qwen"):
-    unsandbox.next_result = {"status": "completed", "exit_code": 0, "stdout": "Done."}
-    return tools.run(fox_in(room, model), "delegate", {"task": task})
+def delegate(room, unsandbox, task="make tests pass", model="qwen", context=None):
+    context = context or fox_in(room, model)
+    return tools.run(context, "delegate", {"task": task})
 
 
 def test_delegate_runs_unclose_with_a_token_only_its_vault_holds(unsandbox, room):
@@ -336,10 +360,14 @@ def test_delegate_runs_unclose_with_a_token_only_its_vault_holds(unsandbox, room
     assert env["MODEL_ID_0"] == "qwen" and token.startswith("ocsb-")
     assert sandbox.token_sha256 == tool_sandbox.token_hash(token)
     assert sandbox.model == "qwen"
-    (command,) = unsandbox.commands()
-    assert token not in command and token not in json.dumps(result)
-    assert command.startswith(". /run/unsandbox/vault.sh")
-    assert "unclose -p --no-markdown --model qwen 'make tests pass'" in command
+    (start,), polls = unsandbox.delegate_commands()
+    assert polls  # it was polled until it wrote its exit code
+    for command in [start] + polls:
+        assert token not in command
+    assert token not in json.dumps(result)
+    assert ". /run/unsandbox/vault.sh" in start and "setsid nohup" in start
+    assert "unclose -p --no-markdown --model qwen" in start
+    assert "make tests pass" in start
     # Our own model keys never reach the sandbox.
     assert not any("MODEL_API_KEY_1" in k or "sk-" in v for k, v in env.items())
 
@@ -694,7 +722,7 @@ def test_delegate_in_a_remade_sandbox_hands_uncloseai_cli_the_history(unsandbox,
     sandbox.state = "destroyed"
     db.session.commit()
     result = delegate(room, unsandbox, task="run the tests")
-    command = unsandbox.commands()[-1]
+    (command,), _ = unsandbox.delegate_commands()
     assert "NEW & EMPTY" in command and "Task: run the tests" in command
     assert "sandbox_note" in result
 
@@ -735,7 +763,7 @@ def test_a_long_job_rides_out_unsandbox_blips(unsandbox, room, monkeypatch):
             response.status_code = 503
             blips.append(job_id)
             raise requests.HTTPError("503 Service Unavailable", response=response)
-        return {"status": "completed", "exit_code": 0, "stdout": "Done."}
+        return unsandbox.get_job(job_id)
 
     monkeypatch.setattr(un, "get_job", get_job)
     result = delegate(room, unsandbox)
@@ -769,3 +797,70 @@ def test_a_job_still_running_keeps_being_polled(unsandbox, room, monkeypatch):
 
     monkeypatch.setattr(un, "get_job", get_job)
     assert tools.run(fox_in(room), "sandbox_shell", {"command": "ls"})["stdout"] == "ok"
+
+
+def test_delegate_shows_its_progress_while_it_runs(unsandbox, room):
+    unsandbox.polls = [
+        "● bash git clone https://git.unturf.com/python/ago.git",
+        "● bash git clone https://git.unturf.com/python/ago.git",  # unchanged: not repeated
+        "● bash make test\n42 passed",
+    ]
+    unsandbox.answer = "Added 3 tests; 45 passed."
+    seen = []
+    context = tools.ToolContext(
+        sid="s", email=FOX, room_id=room.id, model="qwen", progress=seen.append
+    )
+    result = delegate(room, unsandbox, context=context)
+    assert seen == [
+        "● bash git clone https://git.unturf.com/python/ago.git",
+        "● bash make test\n42 passed",
+    ]
+    assert result["answer"] == "Added 3 tests; 45 passed." and result["exit_code"] == 0
+    _, polls = unsandbox.delegate_commands()
+    assert "unclose --peek $(cat" in polls[0]
+
+
+def test_a_failing_uncloseai_cli_says_so(unsandbox, room):
+    unsandbox.delegate_exit = 3
+    result = delegate(room, unsandbox)
+    assert result["error"] == "uncloseai-cli exited 3" and result["exit_code"] == 3
+
+
+def test_stop_kills_a_running_delegate(unsandbox, room):
+    unsandbox.polls = ["working..."] * 5
+    pressed = iter([False, True])
+    context = tools.ToolContext(
+        sid="s",
+        email=FOX,
+        room_id=room.id,
+        model="qwen",
+        stopped=lambda: next(pressed, True),
+    )
+    result = delegate(room, unsandbox, context=context)
+    assert result["status"] == "stopped" and "Stop was pressed" in result["error"]
+    assert any(c.startswith("kill $(cat") for c in unsandbox.commands())
+
+
+def test_a_delegate_past_its_time_limit_is_killed(unsandbox, room, monkeypatch):
+    monkeypatch.setenv("OPENCOMPLETION_DELEGATE_TIMEOUT_S", "1")
+    unsandbox.polls = ["working..."] * 1000
+    clock = iter(range(0, 10_000, 10))
+    monkeypatch.setattr(tool_sandbox.time, "time", lambda: next(clock))
+    result = delegate(room, unsandbox)
+    assert (
+        result["status"] == "timeout"
+        and "OPENCOMPLETION_DELEGATE_TIMEOUT_S" in result["error"]
+    )
+    assert any(c.startswith("kill $(cat") for c in unsandbox.commands())
+
+
+def test_progress_reaches_the_room_as_the_running_line(unsandbox, room):
+    """run_round turns a call's progress into its running line, kept with
+    the reply as it goes."""
+    unsandbox.polls = ["● bash make test"]
+    events = []
+    calls = [{"id": "c1", "name": "delegate", "arguments": json.dumps({"task": "t"})}]
+    tools.run_round(fox_in(room), calls, "", events.append)
+    running = [e for e in events if e["status"] == "running"]
+    assert running[-1]["progress"] == "● bash make test"
+    assert running[-1]["tool"] == "delegate" and running[-1]["where"] == "sandbox"

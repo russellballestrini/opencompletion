@@ -20,8 +20,8 @@ may call, `ToolCallCollector` & `run_round` (tools/loop.py) do the rest.
 Adding a tool: a schema, a branch in `run`, & a line in `offered`.
 """
 
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field, replace
+from typing import Callable, Optional
 
 from tools import browser, policy
 from tools.loop import ToolCallCollector, out_of_rounds, run_round  # noqa: F401
@@ -169,6 +169,11 @@ class ToolContext:
     email: Optional[str] = None
     room_id: Optional[int] = None
     model: Optional[str] = None
+    # Set by chat_gpt & run_round for long tools (delegate): stopped() is
+    # true once the room's Stop was pressed; progress(text) shows how a
+    # running call is getting on, under its line.
+    stopped: Optional[Callable[[], bool]] = field(default=None, compare=False)
+    progress: Optional[Callable[[str], None]] = field(default=None, compare=False)
 
     @property
     def server_egress(self):

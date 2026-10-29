@@ -203,6 +203,14 @@ function drawToolLine(line, data) {
         line.appendChild(why);
     }
     if (data.detail && data.detail.input) line.appendChild(toolPreview(data.detail.input));
+    // How a long call (delegate) is getting on: the newest lines of its
+    // session, while it runs.
+    if (data.progress && data.status === "running") {
+        const progress = document.createElement("pre");
+        progress.className = "message-tool-progress";
+        progress.textContent = data.progress;
+        line.appendChild(progress);
+    }
     if (data.detail) line.appendChild(toolDetail(data.detail, data.status === "running"));
     // Pages it found, or files it made (our own /attachments/ links).
     const sources = (data.sources || []).filter(

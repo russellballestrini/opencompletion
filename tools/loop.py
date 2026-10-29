@@ -10,6 +10,9 @@ without a tool (or OPENCOMPLETION_TOOL_ROUNDS runs out).
 """
 
 import json
+from dataclasses import replace
+
+PROGRESS_CHARS = 1500
 
 
 class ToolCallCollector:
@@ -106,7 +109,11 @@ def run_round(context, calls, content, notify=lambda event: None):
         if arguments is None:
             result = {"error": "arguments were not a JSON object"}
         else:
-            result = run(context, call["name"], arguments)
+            # A long call reports how it is getting on as its running line.
+            def progress(text, running=running):
+                notify(dict(running, progress=str(text)[-PROGRESS_CHARS:]))
+
+            result = run(replace(context, progress=progress), call["name"], arguments)
         done = {"tool": call["name"], "label": label, "where": where}
         shown = detail_of(call["name"], arguments or {}, result)
         if shown:
