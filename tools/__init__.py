@@ -264,7 +264,7 @@ def run(context, name, arguments):
             if name == "delegate":
                 return sandbox.delegate(context, arguments.get("task"))
     except Exception as e:  # noqa: BLE001 — the model reads why
-        return {"error": f"{name} failed: {e}"}
+        return {"error": f"{name} failed: {e}{_api_says(e)}"}
     return {"error": f"{name} is not available here"}
 
 
@@ -296,3 +296,19 @@ def shape_search(found):
     if isinstance(found.get("served_by"), str):
         shaped["served_by"] = found["served_by"][:40]
     return shaped
+
+
+def _api_says(error):
+    """What an HTTP API said with its error (unsandbox explains a 400 in
+    its body), cut short; "" when there is no body."""
+    response = getattr(error, "response", None)
+    text = getattr(response, "text", "") or ""
+    try:
+        import json
+
+        body = json.loads(text)
+        text = body.get("error") or body.get("message") or text
+    except (ValueError, AttributeError):
+        pass
+    text = str(text).strip()
+    return f" ({text[:300]})" if text else ""

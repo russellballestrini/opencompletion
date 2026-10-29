@@ -15,7 +15,9 @@ without a restart.
                                          OPENCOMPLETION_GUEST_CODE_EXEC=off)
     OPENCOMPLETION_RUN_CODE_TIMEOUT_S=60 a run's time limit
     OPENCOMPLETION_SANDBOX=on|off        a sandbox per chat (egress users)
-    OPENCOMPLETION_SANDBOX_IMAGE=unsandbox-ubuntu  its golden image
+    OPENCOMPLETION_SANDBOX_IMAGE=        a platform golden image (golden-*);
+                                         unset: unsandbox's own default,
+                                         unsandbox-ubuntu (with uncloseai-cli)
     OPENCOMPLETION_SANDBOX_IDLE_S=600    idle this long, it is frozen
     OPENCOMPLETION_SANDBOX_TIMEOUT_S=120 one shell command's time limit
     OPENCOMPLETION_DELEGATE=on|off       uncloseai-cli in that sandbox
@@ -114,10 +116,10 @@ def delegate_enabled():
 
 
 def sandbox_image():
-    """Our golden image, which carries uncloseai-cli (unsandbox-ubuntu)."""
-    return os.environ.get("OPENCOMPLETION_SANDBOX_IMAGE", "").strip() or (
-        "unsandbox-ubuntu"
-    )
+    """A golden image to name, or None: unsandbox then uses its own default
+    (CONTAINER_IMAGE, unsandbox-ubuntu, which carries uncloseai-cli). The
+    API takes only platform golden images (golden-*) by name."""
+    return os.environ.get("OPENCOMPLETION_SANDBOX_IMAGE", "").strip() or None
 
 
 def run_code_timeout():
