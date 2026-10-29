@@ -764,3 +764,30 @@ def test_edit_resend_followups_and_scroll_down(client, tmp_path, width):
     html = client.get("/chat/lobby").get_data(as_text=True)
     out = run_probe(html, RESEND_PROBE, tmp_path, width)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+SIGN_IN_CENTRED_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const card = document.getElementById('auth-flow').getBoundingClientRect();
+    const middle = (card.top + card.bottom) / 2;
+    if (innerWidth > 768) {
+        check(Math.abs(middle - innerHeight / 2) < innerHeight * 0.15,
+              `card centred top to bottom (middle ${middle}, screen ${innerHeight})`);
+        check(document.documentElement.scrollHeight <= innerHeight + 1, 'no page scroll');
+    } else {
+        check(card.top < innerHeight / 3, 'phones keep the card at the top');
+    }
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [375, 1280])
+def test_sign_in_card_is_centred_beside_our_sidebar(client, tmp_path, width):
+    html = client.get("/auth").get_data(as_text=True)
+    out = run_probe(html, SIGN_IN_CENTRED_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

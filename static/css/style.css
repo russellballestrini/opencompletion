@@ -683,6 +683,18 @@ textarea:focus {
     max-width: 480px;
 }
 
+/* One card alone on a page (sign in): centred in the space beside our
+   sidebar. Phones keep it at the top, clear of the on-screen keyboard. */
+@media (min-width: 769px) {
+    .page-centered {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+}
+
 .page-title {
     margin-bottom: var(--space-2);
 }
