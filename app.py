@@ -49,9 +49,13 @@ socketio = SocketIO(app, async_mode="gevent")
 
 # Tools a chat model may call (web search, web fetch): all of it lives in
 # tools/ & docs/TOOLS.md; chat_gpt is its one caller.
+import dataclasses
+
 import tools
+from tools import sandbox as tool_sandbox
 
 tools.register(socketio)
+tool_sandbox.init_app(app)
 
 # Global dictionary to keep track of cancellation requests
 cancellation_requests = {}
@@ -1774,8 +1778,13 @@ def chat_gpt(
         "stream": True,
         **chat_sampling(model_name),
     }
-    # The tools this reply may call (tools/: web search & fetch), by who
-    # asked (tool_context); none offered leaves this a plain chat reply.
+    # The tools this reply may call (tools/, docs/TOOLS.md), by who asked
+    # (tool_context), in this chat, for this model; none offered leaves
+    # this a plain chat reply.
+    if tool_context is not None:
+        tool_context = dataclasses.replace(
+            tool_context, room_id=room_id, model=model_name
+        )
     tool_schemas = tools.schemas(tool_context)
     if tool_schemas:
         create_kwargs["tools"] = tool_schemas
@@ -1950,9 +1959,10 @@ def chat_gpt(
         if room_name in stop_requests:
             break
         rounds += 1
-        with_tools = with_tools + tools.run_round(
-            tool_context, tool_calls.calls, buffer[round_start:], notify_tool
-        )
+        with app.app_context():  # sandboxes & run artifacts are rows
+            with_tools = with_tools + tools.run_round(
+                tool_context, tool_calls.calls, buffer[round_start:], notify_tool
+            )
         if room_name in stop_requests:  # Stop pressed while a tool ran
             break
         round_start = len(buffer)

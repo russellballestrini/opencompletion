@@ -68,7 +68,7 @@ export ENABLE_CODE_GEN_FILENAMES="true"
 # export OPENCOMPLETION_CLASSIFIER_TIMEOUT_S="8"
 # export OPENCOMPLETION_CLASSIFIER_MIN_P="0"   # below this p, chat decides
 
-# Code execution through Unsandbox (https://unsandbox.com). Anyone, guests
+# Code execution through unsandbox (https://unsandbox.com). Anyone, guests
 # included, may run code; each run spends this account, so set
 # OPENCOMPLETION_GUEST_CODE_EXEC=off to keep runs to signed-in people.
 #export UNSANDBOX_PUBLIC_KEY=unsb-pk-xxxx
@@ -83,6 +83,14 @@ export ENABLE_CODE_GEN_FILENAMES="true"
 #export OPENCOMPLETION_SERVER_EGRESS_USERS="you@example.com"
 #export OPENCOMPLETION_TOOL_ROUNDS=4
 #export OPENCOMPLETION_TOOL_TIMEOUT_S=30
+# unsandbox tools (need the UNSANDBOX_* keys below): run_code for anyone
+# allowed to run code; a sandbox per chat & uncloseai-cli in it for the
+# egress emails above. delegate needs our address as a sandbox reaches it.
+#export OPENCOMPLETION_RUN_CODE=off
+#export OPENCOMPLETION_SANDBOX=off
+#export OPENCOMPLETION_SANDBOX_IMAGE="unsandbox-ubuntu"
+#export OPENCOMPLETION_DELEGATE=off
+#export OPENCOMPLETION_PUBLIC_URL="https://demo.opencompletion.com"
 
 # Signs session cookies. Unset, our server makes a random key once & keeps
 # it in instance/secret_key; set it to share one key across servers.

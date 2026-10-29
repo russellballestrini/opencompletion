@@ -124,7 +124,10 @@ def test_a_reply_searches_then_answers_with_what_it_found(harness, monkeypatch):
 
     first, second = harness.model.asks
     assert [t["function"]["name"] for t in first["tools"]] == ["web_search"]
-    assert found == [(asker, "web_search", {"query": "who is elmo"})]
+    # The context gains this chat & the model answering (sandbox, artifacts).
+    ((context, name, arguments),) = found
+    assert (context.sid, context.room_id, context.model) == ("sid-ada", 1, "qwen")
+    assert (name, arguments) == ("web_search", {"query": "who is elmo"})
     # The second ask carries the model's tool turn & what the tool found.
     turn, result = second["messages"][-2:]
     assert turn["role"] == "assistant" and turn["content"] == "Let me check. "

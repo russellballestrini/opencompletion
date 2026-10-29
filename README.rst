@@ -18,7 +18,7 @@ Features
 - Integration with language models for generating room titles and processing messages.
 - Syntax highlighting for code blocks within messages.
 - Markdown rendering for messages.
-- **Code execution**: Run code blocks from chat in 42+ programming languages via Unsandbox.
+- **Code execution**: Run code blocks from chat in 42+ programming languages via unsandbox.
 - **Text-to-speech**: Read model replies aloud with multiple voice options.
 - Commands to load and save code blocks to AWS S3.
 - Database storage for messages and chatrooms using SQLAlchemy.
@@ -56,6 +56,11 @@ Features
   ``OPENCOMPLETION_SERVER_EGRESS_USERS`` use our server, & only they may have
   a page fetched. ``OPENCOMPLETION_WEB_SEARCH=off`` &
   ``OPENCOMPLETION_WEB_CRAWL=off`` turn them off.
+- Models run code as they answer, on unsandbox: one-off runs with no network
+  for anyone allowed to run code (files they make come back as attachments),
+  & for those same egress emails a sandbox per chat that keeps its files &
+  can hand a task to uncloseai-cli, which reaches our models through a token
+  made for that one sandbox, never our keys (``docs/TOOLS.md``).
 - Installable as an app on phones & desktops (``/manifest.webmanifest``,
   named by ``OPENCOMPLETION_BRAND``).
 - Room archiving and owner management
@@ -264,7 +269,7 @@ The chatrooms support some special commands:
 Code Execution
 --------------
 
-Code blocks can be executed from chat with the "▶ Run" button. Supports 42+ programming languages with automatic language detection. Code runs in isolated, self-terminating Unsandbox containers, and compiled binaries can be downloaded from the interface.
+Code blocks can be executed from chat with the "▶ Run" button. Supports 42+ programming languages with automatic language detection. Code runs in isolated, self-terminating unsandbox containers, and compiled binaries can be downloaded from the interface.
 
 Set ``UNSANDBOX_PUBLIC_KEY`` & ``UNSANDBOX_SECRET_KEY`` to enable it. Anyone may run code, guests included; each run spends that account, so ``OPENCOMPLETION_GUEST_CODE_EXEC=off`` keeps runs to signed-in people.
 

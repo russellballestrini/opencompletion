@@ -80,7 +80,7 @@ git remote -v
 
 ### Backend Structure
 - `app.py`: our Flask app, chat itself (`/chat/<room>`, Socket.IO events, model streaming, S3 & title helpers) & the model map
-- `routes/`: HTTP blueprints registered by `routes.register(app, ...)`: `pages.py` (home, sign in, profile, style guide), `accounts.py` (email-code sign in, names), `rooms.py` (browse, rooms API, search, downloads, `room_access_denied`), `code.py` (Unsandbox proxy, fix-code, artifact names)
+- `routes/`: HTTP blueprints registered by `routes.register(app, ...)`: `pages.py` (home, sign in, profile, style guide), `accounts.py` (email-code sign in, names), `rooms.py` (browse, rooms API, search, downloads, `room_access_denied`), `code.py` (unsandbox proxy, fix-code, artifact names)
 - Blueprints never `import app` (a server started as `python app.py` runs as `__main__`); shared helpers arrive via `routes.DEPS`, Socket.IO via `current_app.extensions["socketio"]`
 - A NEW room's name must match `[a-z0-9][a-z0-9_-]{0,63}` (`routes.rooms.valid_room_name`, what `slugify()` in `static/js/utils.js` makes); `/chat/<junk>` is a 404 & creates nothing, rooms that already exist open whatever they're called
 - Model routing (`app.py`): a model id is pinned to the lowest `MODEL_ENDPOINT_n` listing it (`MODEL_CLIENT_MAP`) & `MODEL_ENDPOINTS` keeps every endpoint serving it, pin first. A pin that fails its health check, or fails while its stream is being opened (`open_with_failover`: connection errors, timeouts & 5xx, never a 4xx), hands over to the next copy of the same model; only with every copy down does `DEFAULT_MODEL`'s rotation answer. A `MODEL_n` whose endpoint is down looks for its model (`MODEL_NAME_n`, else what it last listed) on other endpoints first. A stream that breaks while being read is not retried
@@ -98,7 +98,7 @@ git remote -v
 - **Chat actions** (`static/js/chat-actions.js`, `_room_actions_data.html`): a ⋯ on every sidebar chat & room card (browse, search) offers Rename & Refresh title (`POST /api/rooms/<id>/title`, `{"title"}` or `{"generate": true}`; the owner, or anyone for an unowned public room: `routes.rooms.may_retitle`), Pin (localStorage `pinnedChats`, our sidebar's Pinned section) & Archive/Delete (owner). **Follow-ups**: after a reply `suggest_followups` asks the model that answered for 2-3 next questions & emits `followup_suggestions` (chips; `OPENCOMPLETION_FOLLOWUPS=off`, pinned off in `tests/conftest.py`). **↓** `#scroll-bottom-button` shows once you scroll up. **Installable**: `/manifest.webmanifest` (`routes.pages.web_manifest`) & `static/images/icon-*.png`
 - **Files** (`routes/files.py`, `blob_store.py`, `static/js/composer.js` + `_composer_tools.html`): attach (pick, drop, paste) → `POST /api/rooms/<room>/attachments` per file, sent as markdown links (`![name](/attachments/<id>/<name>)` for images, `[📎 name · size](...)` otherwise); `GET /attachments/<id>/<name>` under the room's access rule, inline only for images/audio/video/PDF/plain text, everything else (SVG, HTML) downloads, `nosniff` & a sandbox CSP. Bytes live once per SHA-256 in table `blob` (deferred column), names in `attachment`; only `blob_store.py` touches bytes, so an object store later replaces one class. Forks copy attachment rows (shared bytes); deleting a room drops its files & orphaned bytes. `attachment_context()` inlines text/code files into a model's prompt (60k chars each) & adds images for a vision model's newest image turn, from the message's own room only. Limits: `OPENCOMPLETION_UPLOAD_MAX_MB` (7), `OPENCOMPLETION_UPLOAD_LIMIT` (30/600). SQLite runs in WAL mode (`models.py`). Migration `2026102701`
 - **Stop** (`#stop-button`): `stoppable_reply()` counts streaming replies per room & emits `replies_streaming`; `stop_replies` marks the room & every streaming loop ends; partial replies stay. **Voice**: the mic records (MediaRecorder) & `POST /speech/transcribe` relays to `SPEECH_ENDPOINT_n/audio/transcriptions` (`SPEECH_STT_MODEL`, default whisper-1; `OPENCOMPLETION_TRANSCRIBE_LIMIT` 30/600), so audio never goes to a browser vendor
-- **Tools** (`tools/`, **read `docs/TOOLS.md` first**): a model may call `web_search` & `web_fetch` mid-reply; `chat_gpt` offers `tools.schemas(tool_context)` & loops `tools.run_round` until it answers (`OPENCOMPLETION_TOOL_ROUNDS`). A guest's search runs in the asker's browser (`tools/browser.py` ↔ `static/js/chat/8-tools.js`), never on our network; only `OPENCOMPLETION_SERVER_EGRESS_USERS` run tools on our server & only they get `web_fetch` (public addresses only). `OPENCOMPLETION_WEB_SEARCH` / `OPENCOMPLETION_WEB_CRAWL` (on; `off` turns off), pinned off in `tests/conftest.py`. A reply's finished tool lines are kept as `Message.tool_trail` (JSON; history shows them, forks copy them; migration `2026102901`). `tools/keyless_search.py`, `mcp_wire.py` & `tools/crawler/` are vendored: never edit them here
+- **Tools** (`tools/`, **read `docs/TOOLS.md` first**): a model may call `web_search` & `web_fetch` mid-reply; `chat_gpt` offers `tools.schemas(tool_context)` & loops `tools.run_round` until it answers (`OPENCOMPLETION_TOOL_ROUNDS`). A guest's search runs in the asker's browser (`tools/browser.py` ↔ `static/js/chat/8-tools.js`), never on our network; only `OPENCOMPLETION_SERVER_EGRESS_USERS` run tools on our server & only they get `web_fetch` (public addresses only). `OPENCOMPLETION_WEB_SEARCH` / `OPENCOMPLETION_WEB_CRAWL` (on; `off` turns off), pinned off in `tests/conftest.py`. A reply's finished tool lines are kept as `Message.tool_trail` (JSON; history shows them, forks copy them; migration `2026102901`). **unsandbox tools** (`tools/sandbox.py`): `run_code` (one-off, no network, Linux or FreeBSD; guests too unless `OPENCOMPLETION_GUEST_CODE_EXEC=off`; files come back as attachments) & for egress users a sandbox per chat (`sandbox_shell`, `sandbox_write_file`; unsandbox service from `OPENCOMPLETION_SANDBOX_IMAGE`, table `sandbox`, migration `2026102902`, frozen when idle, never deleted) & `delegate` (uncloseai-cli in it). The sandbox never holds our model keys: its vault gets a per-sandbox token for `routes/sandbox_proxy.py` (`/api/sandbox/v1`, needs `OPENCOMPLETION_PUBLIC_URL`), which answers with our model & keys. `tools/keyless_search.py`, `mcp_wire.py` & `tools/crawler/` are vendored: never edit them here
 - Message markdown keeps `href` (links work); DOMPurify still drops script URLs
 - `OPENCOMPLETION_BRAND` names the site atop every page (say `uncloseai`); unset, OpenCompletion
 - Pages extend `templates/layout.html`; chat (`templates/chat.html`) extends `templates/base.html`, which extends layout; sign in is `_auth_steps.html` + `static/js/auth.js`
@@ -126,11 +126,11 @@ git remote -v
 
 ### Code Execution Integration
 
-OpenCompletion integrates with our Unsandbox API (https://unsandbox.com) for secure code execution in 42+ programming languages using our official Python SDK.
+OpenCompletion integrates with our unsandbox API (https://unsandbox.com) for secure code execution in 42+ programming languages using our official Python SDK.
 
 #### SDK Setup
 
-OpenCompletion uses our official Unsandbox Python SDK (`un.py`) which provides a clean interface to our Unsandbox API.
+OpenCompletion uses our official unsandbox Python SDK (`un.py`) which provides a clean interface to our unsandbox API.
 
 **SDK Location**: `/home/fox/git/opencompletion/un.py` (single file, no dependencies beyond `requests`)
 
@@ -210,7 +210,7 @@ Returns: `{"job_id": "job-xxx"}`
 Returns job status and results when completed.
 
 **Who may run code**: anyone, guests included; `OPENCOMPLETION_GUEST_CODE_EXEC=off`
-keeps `/api/code/execute` to signed-in people (each run spends our Unsandbox
+keeps `/api/code/execute` to signed-in people (each run spends our unsandbox
 account). Status &
 cancel answer only for job ids the same browser session started; any other
 id is a 404.

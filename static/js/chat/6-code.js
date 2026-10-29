@@ -1,4 +1,4 @@
-// Code blocks: truncation, copy, run via Unsandbox, artifacts.
+// Code blocks: truncation, copy, run via unsandbox, artifacts.
 // Part of chat.html's script, split by concern; files load in order &
 // share globals (see templates/chat.html). Config comes from CHAT_CONFIG.
 
@@ -229,7 +229,7 @@ async function executeCodeBlock(code, blockElement, playButton) {
                 }
 
                 if (job.status === 'completed') {
-                    // Unsandbox returns stdout/stderr/exit_code at top level of job response
+                    // unsandbox returns stdout/stderr/exit_code at top level of job response
                     displayExecutionResults(job, resultsContainer, language, code);
 
                     // Check if execution failed and attempt auto-fix
@@ -373,7 +373,7 @@ function displayExecutionResults(result, resultsContainer, language, code) {
     // Format and display results
     let outputHtml = '';
 
-    // Unsandbox API returns flat structure: {success, stdout, stderr, exit_code, artifacts}
+    // unsandbox API returns flat structure: {success, stdout, stderr, exit_code, artifacts}
     const actualStdout = result.stdout || '';
     const actualStderr = result.stderr || '';
     const exitCode = result.exit_code;

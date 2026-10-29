@@ -165,6 +165,8 @@ function toolLines(messageWrapper) {
 
 function toolWhere(data) {
     if (data.where === "server") return "from our server";
+    if (data.where === "unsandbox") return "on unsandbox";
+    if (data.where === "sandbox") return "in this chat's sandbox";
     if (data.where === "browser") {
         return data.asker === username ? "from your browser" : `from ${data.asker}'s browser`;
     }
@@ -174,6 +176,10 @@ function toolWhere(data) {
 const TOOL_VERBS = {
     web_search: ["Searching the web", "Searched the web"],
     web_fetch: ["Reading", "Read"],
+    run_code: ["Running", "Ran"],
+    sandbox_shell: ["Running", "Ran"],
+    sandbox_write_file: ["Writing", "Wrote"],
+    delegate: ["uncloseai-cli is working", "uncloseai-cli worked"],
 };
 
 // One tool's line, drawn from a tool_activity event or a saved trail entry.
@@ -195,7 +201,9 @@ function drawToolLine(line, data) {
         why.textContent = ` (failed: ${data.error})`;
         line.appendChild(why);
     }
-    const sources = (data.sources || []).filter((s) => /^https?:\/\//.test(s.url));
+    // Pages it found, or files it made (our own /attachments/ links).
+    const sources = (data.sources || []).filter(
+        (s) => /^https?:\/\//.test(s.url) || /^\/attachments\/\d+\//.test(s.url));
     if (sources.length) {
         const list = document.createElement("ol");
         list.className = "message-tool-sources";

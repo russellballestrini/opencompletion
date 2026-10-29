@@ -1,4 +1,4 @@
-"""Our Unsandbox proxy (routes/code.py): credentials stay on the server,
+"""Our unsandbox proxy (routes/code.py): credentials stay on the server,
 bad requests get clear 4xx answers, and upstream failures keep their real
 status & body. The SDK is patched; nothing leaves the machine."""
 
@@ -14,7 +14,7 @@ KEYS = {"UNSANDBOX_PUBLIC_KEY": "unsb-pk-test", "UNSANDBOX_SECRET_KEY": "unsb-sk
 
 @pytest.fixture
 def client(test_app):
-    """A signed-in browser: running code spends our Unsandbox account."""
+    """A signed-in browser: running code spends our unsandbox account."""
     from models import User, db
 
     user = User(email="coder@example.test", display_name="coder")

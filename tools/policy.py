@@ -10,12 +10,30 @@ without a restart.
     OPENCOMPLETION_TOOL_ROUNDS=4         asks per reply that may call
                                          tools; the next must answer
     OPENCOMPLETION_TOOL_TIMEOUT_S=30     how long a browser has to answer
+    OPENCOMPLETION_RUN_CODE=on|off       one-off code runs on unsandbox
+                                         (default on; guests too unless
+                                         OPENCOMPLETION_GUEST_CODE_EXEC=off)
+    OPENCOMPLETION_RUN_CODE_TIMEOUT_S=60 a run's time limit
+    OPENCOMPLETION_SANDBOX=on|off        a sandbox per chat (egress users)
+    OPENCOMPLETION_SANDBOX_IMAGE=        its golden image (unset: unsandbox's)
+    OPENCOMPLETION_SANDBOX_IDLE_S=600    idle this long, it is frozen
+    OPENCOMPLETION_SANDBOX_TIMEOUT_S=120 one shell command's time limit
+    OPENCOMPLETION_DELEGATE=on|off       uncloseai-cli in that sandbox
+                                         (needs OPENCOMPLETION_PUBLIC_URL)
+    OPENCOMPLETION_DELEGATE_TIMEOUT_S=900
+    OPENCOMPLETION_PUBLIC_URL=           our address as a sandbox reaches it,
+                                         e.g. https://demo.opencompletion.com
 
 Our network is never a guest's: a search for anyone not on the egress
 list runs in the asker's own browser (tools/browser.py), from their own
 address, so what they search is on them. Fetching a page has no browser
 path (a page fetched from another origin is blocked by CORS), so it is
 offered only to people on the list.
+
+unsandbox (tools/sandbox.py) spends this server's unsandbox account &
+leaves from unsandbox's own egress, never ours: one-off runs (no network)
+for anyone allowed to run code, a sandbox per chat (with network) & the
+uncloseai-cli inside it for people on the list.
 """
 
 import os
@@ -58,3 +76,58 @@ def max_rounds():
 
 def browser_timeout():
     return _positive_int("OPENCOMPLETION_TOOL_TIMEOUT_S", 30)
+
+
+def unsandbox_configured():
+    return bool(
+        os.environ.get("UNSANDBOX_PUBLIC_KEY")
+        and os.environ.get("UNSANDBOX_SECRET_KEY")
+    )
+
+
+def run_code_enabled(signed_in):
+    """One-off runs: on with unsandbox keys, for guests only while
+    OPENCOMPLETION_GUEST_CODE_EXEC allows them (routes/code.py's rule)."""
+    if not (unsandbox_configured() and _flag("OPENCOMPLETION_RUN_CODE")):
+        return False
+    return (
+        signed_in
+        or os.environ.get("OPENCOMPLETION_GUEST_CODE_EXEC", "").strip().lower()
+        not in OFF
+    )
+
+
+def sandbox_enabled():
+    return unsandbox_configured() and _flag("OPENCOMPLETION_SANDBOX")
+
+
+def public_url():
+    return os.environ.get("OPENCOMPLETION_PUBLIC_URL", "").strip().rstrip("/")
+
+
+def delegate_enabled():
+    return (
+        sandbox_enabled()
+        and _flag("OPENCOMPLETION_DELEGATE")
+        and public_url().startswith(("http://", "https://"))
+    )
+
+
+def sandbox_image():
+    return os.environ.get("OPENCOMPLETION_SANDBOX_IMAGE", "").strip() or None
+
+
+def run_code_timeout():
+    return _positive_int("OPENCOMPLETION_RUN_CODE_TIMEOUT_S", 60)
+
+
+def sandbox_idle():
+    return _positive_int("OPENCOMPLETION_SANDBOX_IDLE_S", 600)
+
+
+def sandbox_timeout():
+    return _positive_int("OPENCOMPLETION_SANDBOX_TIMEOUT_S", 120)
+
+
+def delegate_timeout():
+    return _positive_int("OPENCOMPLETION_DELEGATE_TIMEOUT_S", 900)

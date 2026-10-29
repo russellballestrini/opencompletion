@@ -19,7 +19,7 @@ def register(app, **deps):
     room's title).
     """
     DEPS.update(deps)
-    from routes import accounts, code, files, pages, rooms, speech
+    from routes import accounts, code, files, pages, rooms, sandbox_proxy, speech
 
-    for module in (pages, accounts, rooms, code, speech, files):
+    for module in (pages, accounts, rooms, code, speech, files, sandbox_proxy):
         app.register_blueprint(module.bp)

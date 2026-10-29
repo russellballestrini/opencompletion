@@ -248,6 +248,29 @@ class Attachment(db.Model):
         return f"/attachments/{self.id}/{self.filename}"
 
 
+class Sandbox(db.Model):
+    """A chat's unsandbox service (tools/sandbox.py): created on its first
+    shell call, frozen when idle, never deleted by us. `token_sha256` is the
+    hash of the token its uncloseai-cli uses for our model proxy
+    (routes/sandbox_proxy.py); the token itself lives only in the sandbox's
+    env vault."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(
+        db.Integer, db.ForeignKey("room.id"), nullable=False, unique=True
+    )
+    service_id = db.Column(db.String(128), nullable=False)
+    name = db.Column(db.String(64), nullable=False)
+    # running | frozen
+    state = db.Column(db.String(16), nullable=False, default="running")
+    token_sha256 = db.Column(db.String(64), index=True)
+    # The model its proxy answers with: the one whose reply last delegated.
+    model = db.Column(db.String(255))
+    created_by = db.Column(db.String(255))
+    last_used_at = db.Column(db.Float)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+
 class ActivityState(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     room_id = db.Column(db.Integer, db.ForeignKey("room.id"), nullable=False)

@@ -1,4 +1,4 @@
-"""Code execution through Unsandbox (credentials stay server-side), plus
+"""Code execution through unsandbox (credentials stay server-side), plus
 machine learning helpers that fix code & name artifacts."""
 
 import os
@@ -94,7 +94,7 @@ Examples:
 
 
 def _unsandbox_error_response(e, log_label):
-    """Turn an Unsandbox SDK exception into an informative JSON error.
+    """Turn an unsandbox SDK exception into an informative JSON error.
 
     Surfaces the real upstream HTTP status + body when available instead of a
     flat 500, so failures are debuggable from the browser console and logs.
@@ -106,13 +106,13 @@ def _unsandbox_error_response(e, log_label):
     if isinstance(e, requests.exceptions.HTTPError) and e.response is not None:
         status = e.response.status_code
         body = (e.response.text or "")[:2000]
-        print(f"{log_label}: HTTP {status} from Unsandbox: {body}")
+        print(f"{log_label}: HTTP {status} from unsandbox: {body}")
         traceback.print_exc()
         out_status = status if 400 <= status < 600 else 502
         return (
             jsonify(
                 {
-                    "error": "Unsandbox upstream error",
+                    "error": "unsandbox upstream error",
                     "upstream_status": status,
                     "upstream_body": body,
                 }
@@ -135,7 +135,7 @@ def code_exec_refused():
 
     Guests run code by default (free code execution for anyone);
     OPENCOMPLETION_GUEST_CODE_EXEC=off keeps runs to signed-in people, since
-    each run spends this server's Unsandbox account.
+    each run spends this server's unsandbox account.
     """
     if auth.get_current_user():
         return None
@@ -157,13 +157,13 @@ def owns_job(job_id):
     return job_id in session.get("code_jobs", [])
 
 
-# Unsandbox API proxy endpoints - keeps API keys server-side
+# unsandbox API proxy endpoints - keeps API keys server-side
 @bp.route("/api/code/execute", methods=["POST"])
 def proxy_code_execute():
-    """Proxy code execution requests to Unsandbox API.
+    """Proxy code execution requests to unsandbox API.
 
     Keeps UNSANDBOX_PUBLIC_KEY and UNSANDBOX_SECRET_KEY secure on the server side.
-    Uses official Unsandbox Python SDK for authentication and execution.
+    Uses official unsandbox Python SDK for authentication and execution.
     Supports artifacts parameter for compiled binaries, images, etc.
     """
     try:
@@ -212,7 +212,7 @@ def proxy_code_execute():
 
 @bp.route("/api/code/jobs/<job_id>", methods=["GET"])
 def proxy_job_status(job_id):
-    """Proxy job status requests to Unsandbox API using SDK."""
+    """Proxy job status requests to unsandbox API using SDK."""
     try:
         # Check if credentials are configured
         if not os.environ.get("UNSANDBOX_PUBLIC_KEY") or not os.environ.get(
@@ -237,7 +237,7 @@ def proxy_job_status(job_id):
 
 @bp.route("/api/code/jobs/<job_id>", methods=["DELETE"])
 def proxy_job_cancel(job_id):
-    """Proxy job cancellation requests to Unsandbox API using SDK."""
+    """Proxy job cancellation requests to unsandbox API using SDK."""
     try:
         # Check if credentials are configured
         if not os.environ.get("UNSANDBOX_PUBLIC_KEY") or not os.environ.get(

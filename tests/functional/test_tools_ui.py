@@ -133,6 +133,15 @@ window.addEventListener('load', async () => {
         check(/from bob's browser: grover \(failed: all throttled\)/.test(saved[1].textContent), 'history error line');
         const tools8 = document.querySelector('#message-8 .message-tools');
         check(tools8 && tools8.compareDocumentPosition(document.querySelector('#message-8 .message-content')) & Node.DOCUMENT_POSITION_FOLLOWING, 'history: answer under its tools');
+        // unsandbox lines: whose machine, & files it made link to our attachments.
+        deliver('tool_activity', {id: 11, tool: 'run_code', label: 'python', where: 'unsandbox', asker: username, status: 'done',
+            sources: [{url: '/attachments/5/plot.png', title: 'plot.png'}, {url: '/elsewhere/x', title: 'x'}]});
+        const ran = document.querySelector('#message-11 .message-tool');
+        check(/^Ran on unsandbox: python/.test(ran.textContent), 'run_code line: ' + ran.textContent);
+        const made = ran.querySelectorAll('a');
+        check(made.length === 1 && made[0].getAttribute('href') === '/attachments/5/plot.png', 'artifacts linked, nothing else');
+        deliver('tool_activity', {id: 11, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running'});
+        check(/^uncloseai-cli is working in this chat's sandbox: make tests pass…$/.test(document.querySelector('#message-11 .message-tool:last-child').textContent), 'delegate line');
         deliver('previous_messages', {id: 9, username: 'qwen', content: 'Plain.', tools: null});
         check(!document.querySelector('#message-9 .message-tools'), 'no trail, no lines');
         check(document.documentElement.scrollWidth <= innerWidth, 'no sideways scroll');

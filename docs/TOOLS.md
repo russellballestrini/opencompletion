@@ -17,6 +17,9 @@ guest's tools never run on it.
 |---|---|---|
 | `web_search` | **in their own browser**, from their address | on our server |
 | `web_fetch` | not offered | on our server |
+| `run_code` | on unsandbox, once, **no network** | on unsandbox, once, no network |
+| `sandbox_shell`, `sandbox_write_file` | not offered | this chat's own unsandbox sandbox, with network |
+| `delegate` (uncloseai-cli) | not offered | in that sandbox |
 
 An egress user is a signed-in email on
 `OPENCOMPLETION_SERVER_EGRESS_USERS` (default: nobody). Fetching a page has
@@ -36,6 +39,51 @@ the pages it found. Each reply keeps its finished lines as
 `Message.tool_trail` (JSON; migration `2026102901`, `make upgrade-db`), so
 history shows them & forks copy them.
 
+## unsandbox: code runs, a sandbox per chat & uncloseai-cli
+
+Everything here spends our unsandbox account (`UNSANDBOX_PUBLIC_KEY` &
+`UNSANDBOX_SECRET_KEY`, the same keys `/api/code` uses) & leaves from
+unsandbox's own egress (its DigitalOcean host in California), never ours.
+
+- **`run_code`**: one job, `zerotrust` (no network), Linux or FreeBSD
+  (`"os": "freebsd"`: bash, sh, python, perl, lua, c, cpp while jails grow).
+  Files it writes come back as attachments in the chat (`blob_store`), so
+  its tool line links them & the model can show an image inline. Guests
+  get it unless `OPENCOMPLETION_GUEST_CODE_EXEC=off`.
+- **A sandbox per chat** (`sandbox_shell`, `sandbox_write_file`): an
+  unsandbox service (`oc-<room>-<random>`, table `sandbox`, migration
+  `2026102902`) made on first use from `OPENCOMPLETION_SANDBOX_IMAGE`
+  (our golden image, which carries uncloseai-cli), `semitrusted` network.
+  It keeps files & installs across turns. Idle for
+  `OPENCOMPLETION_SANDBOX_IDLE_S` it is **frozen**, never deleted, & the
+  next call unfreezes it. A command counts as in use until its time limit,
+  so a long one is never frozen under itself.
+- **`delegate`**: `unclose -p` in that sandbox, for multi-step work.
+
+### uncloseai-cli's model key
+
+A sandbox runs model-written shell with network, so anything in it can
+read its environment, & a page it reads can ask it to send that
+somewhere. So it never holds our model keys. It gets:
+
+```
+MODEL_ENDPOINT_0 = $OPENCOMPLETION_PUBLIC_URL/api/sandbox/v1
+MODEL_API_KEY_0  = ocsb-<random>   # made for this one sandbox
+MODEL_ID_0       = the model whose reply delegated
+```
+
+in its env vault (`set_service_env`; sourced from
+`/run/unsandbox/vault.sh` inside the command, never on a command line).
+We keep only the token's SHA-256. `routes/sandbox_proxy.py` is an
+OpenAI-compatible `/api/sandbox/v1` (`/models`, `/chat/completions`,
+streaming) that answers a **running** sandbox's token with that model
+through `get_openai_client_and_model`: our own qwen & hermes keys, server
+side. The sandbox can't pick another model or pass anything but chat
+fields; each is limited by `OPENCOMPLETION_SANDBOX_PROXY_LIMIT` (600/600).
+A leaked token reaches only our proxy, only while its sandbox runs.
+`delegate` is offered only with `OPENCOMPLETION_PUBLIC_URL` set, the
+address a sandbox reaches us at.
+
 ## Settings (vars.sh)
 
 ```bash
@@ -44,6 +92,16 @@ export OPENCOMPLETION_WEB_CRAWL=on       # off: no web_fetch for anyone
 export OPENCOMPLETION_SERVER_EGRESS_USERS="fox@unturf.com"   # comma list
 export OPENCOMPLETION_TOOL_ROUNDS=4      # asks per reply that may call tools
 export OPENCOMPLETION_TOOL_TIMEOUT_S=30  # a browser's time to answer
+export OPENCOMPLETION_RUN_CODE=on        # off: no run_code for anyone
+export OPENCOMPLETION_RUN_CODE_TIMEOUT_S=60
+export OPENCOMPLETION_SANDBOX=on         # off: no sandbox tools
+export OPENCOMPLETION_SANDBOX_IMAGE=unsandbox-ubuntu   # unset: unsandbox's
+export OPENCOMPLETION_SANDBOX_IDLE_S=600
+export OPENCOMPLETION_SANDBOX_TIMEOUT_S=120   # one shell command
+export OPENCOMPLETION_DELEGATE=on        # off: no uncloseai-cli
+export OPENCOMPLETION_DELEGATE_TIMEOUT_S=900
+export OPENCOMPLETION_PUBLIC_URL=https://demo.opencompletion.com
+export OPENCOMPLETION_SANDBOX_PROXY_LIMIT=600/600
 ```
 
 Both tools are on by default. A model or server that refuses tools (a 400)
@@ -61,6 +119,8 @@ answers as plain chat. llama.cpp needs `--jinja` to call tools.
 | `tools/web_fetch.py` | one page, through the shared crawler, public addresses only |
 | `tools/keyless_search.py` + `mcp_wire.py` | **vendored** from uncloseai-cli |
 | `tools/crawler/async_web_fetcher.py` | **vendored**, shared verbatim with arborist, agents, crawler.unturf.com & neopig |
+| `tools/sandbox.py` | `run_code`, the sandbox per chat, `delegate` & arming its token |
+| `routes/sandbox_proxy.py` | `/api/sandbox/v1`: our model for a sandbox's uncloseai-cli |
 | `static/js/chat/8-tools.js` | the browser's search & the tool lines |
 
 **Never edit a vendored file here.** `keyless_search.py` differs from
@@ -96,6 +156,11 @@ a native thread with its own event loop (`gevent`'s threadpool).
   guest's search over real Socket.IO test clients
 - `tests/functional/test_tools_ui.py` (`make test-ui`): `8-tools.js` in
   headless Chromium, every vendor a stubbed fetch
+- `tests/integration/test_sandbox_tools.py`: who gets which unsandbox
+  tool, runs & artifacts, one sandbox per chat (made once, woken, frozen
+  when idle, never while busy), `delegate`'s token & the proxy (refused
+  without a live token, pinned to its model, streams, limited); a fake
+  unsandbox, so no test spends the account
 - `tests/unit/test_keyless_search.py`, `tests/unit/crawler/`: the vendored
   suites, run against our copies
 

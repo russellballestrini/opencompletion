@@ -103,6 +103,12 @@ def run_round(context, calls, content, notify=lambda event: None):
 
 def sources_of(result):
     """The pages a result came from, as [{url, title}] for the room."""
+    if result.get("artifacts"):
+        return [
+            {"url": item["url"], "title": item["name"]}
+            for item in result["artifacts"]
+            if item.get("url")
+        ]
     if result.get("results"):
         return [
             {"url": item["url"], "title": item.get("title") or item["url"]}

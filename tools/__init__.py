@@ -1,6 +1,6 @@
 """Tools a chat model may call. Read docs/TOOLS.md first.
 
-Two today, both opt-out from vars.sh (tools/policy.py):
+Each is opt-out from vars.sh (tools/policy.py):
 
     web_search   keyless search over five vendors' free tiers
                  (tools/keyless_search.py). Runs in the asker's browser
@@ -8,6 +8,12 @@ Two today, both opt-out from vars.sh (tools/policy.py):
                  our server for someone on OPENCOMPLETION_SERVER_EGRESS_USERS.
     web_fetch    read one page (tools/web_fetch.py, the shared crawler in
                  tools/crawler/). Server only, so egress users only.
+    run_code     one-off code on unsandbox, no network (tools/sandbox.py):
+                 anyone allowed to run code.
+    sandbox_shell, sandbox_write_file, delegate
+                 this chat's own unsandbox sandbox & the uncloseai-cli in
+                 it (tools/sandbox.py, routes/sandbox_proxy.py): egress
+                 users only.
 
 app.chat_gpt is the only caller: `schemas(context)` names what a reply
 may call, `ToolCallCollector` & `run_round` (tools/loop.py) do the rest.
@@ -64,16 +70,103 @@ WEB_FETCH = {
     },
 }
 
-SCHEMAS = {"web_search": WEB_SEARCH, "web_fetch": WEB_FETCH}
+RUN_CODE = {
+    "type": "function",
+    "function": {
+        "name": "run_code",
+        "description": (
+            "Run a program once in a fresh sandbox (no network) & read its "
+            "output: for calculations, checking code, or making a file "
+            "(an image, a CSV). Files it writes in its working directory "
+            "come back as links; show an image with ![name](url)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "language": {"type": "string", "description": "e.g. python, bash, c"},
+                "code": {"type": "string", "description": "The whole program"},
+                "os": {
+                    "type": "string",
+                    "enum": ["linux", "freebsd"],
+                    "description": "linux (default) or freebsd",
+                },
+            },
+            "required": ["language", "code"],
+        },
+    },
+}
+
+SANDBOX_SHELL = {
+    "type": "function",
+    "function": {
+        "name": "sandbox_shell",
+        "description": (
+            "Run a shell command in this chat's own Ubuntu sandbox, which "
+            "keeps its files & installs between turns & has network (git "
+            "clone, pip install). Returns stdout, stderr & the exit code."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {"command": {"type": "string"}},
+            "required": ["command"],
+        },
+    },
+}
+
+SANDBOX_WRITE_FILE = {
+    "type": "function",
+    "function": {
+        "name": "sandbox_write_file",
+        "description": "Write a text file in this chat's sandbox (made or replaced).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "e.g. /root/work/main.py"},
+                "content": {"type": "string"},
+            },
+            "required": ["path", "content"],
+        },
+    },
+}
+
+DELEGATE = {
+    "type": "function",
+    "function": {
+        "name": "delegate",
+        "description": (
+            "Hand a multi-step coding task to uncloseai-cli, an agent that "
+            "works in this chat's sandbox (reads & writes files, runs "
+            "commands) until done, & returns its final answer. For work "
+            "too long for a few shell commands. Say exactly what done means."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {"task": {"type": "string"}},
+            "required": ["task"],
+        },
+    },
+}
+
+SCHEMAS = {
+    "web_search": WEB_SEARCH,
+    "web_fetch": WEB_FETCH,
+    "run_code": RUN_CODE,
+    "sandbox_shell": SANDBOX_SHELL,
+    "sandbox_write_file": SANDBOX_WRITE_FILE,
+    "delegate": DELEGATE,
+}
 
 
 @dataclass(frozen=True)
 class ToolContext:
     """Who asked: their socket (where a browser tool runs) & their sign in
-    (whether our network may run one)."""
+    (whether our network may run one); chat_gpt adds the chat (a sandbox
+    & attachments belong to it) & the model answering."""
 
     sid: Optional[str] = None
     email: Optional[str] = None
+    room_id: Optional[int] = None
+    model: Optional[str] = None
 
     @property
     def server_egress(self):
@@ -97,6 +190,12 @@ def offered(context):
             tools["web_search"] = "browser"
     if policy.web_crawl_enabled() and context.server_egress:
         tools["web_fetch"] = "server"
+    if policy.run_code_enabled(signed_in=bool(context.email)):
+        tools["run_code"] = "unsandbox"
+    if policy.sandbox_enabled() and context.server_egress:
+        tools["sandbox_shell"] = tools["sandbox_write_file"] = "sandbox"
+        if policy.delegate_enabled() and context.model:
+            tools["delegate"] = "sandbox"
     return tools
 
 
@@ -105,7 +204,15 @@ def schemas(context):
 
 
 def label_for(name, arguments):
-    return str(arguments.get("query") or arguments.get("url") or name)[:200]
+    if name == "run_code":
+        label = arguments.get("language") or "code"
+        if arguments.get("os") == "freebsd":
+            label += " on FreeBSD"
+        return str(label)[:200]
+    for key in ("query", "url", "command", "path", "task"):
+        if arguments.get(key):
+            return str(arguments[key]).splitlines()[0][:200]
+    return name
 
 
 def run(context, name, arguments):
@@ -136,6 +243,24 @@ def run(context, name, arguments):
             from tools import web_fetch
 
             return web_fetch.fetch_page(arguments.get("url"))
+        if where in ("unsandbox", "sandbox"):
+            from tools import sandbox
+
+            if name == "run_code":
+                return sandbox.run_code(
+                    context,
+                    arguments.get("language"),
+                    arguments.get("code"),
+                    arguments.get("os") or "linux",
+                )
+            if name == "sandbox_shell":
+                return sandbox.shell(context, arguments.get("command"))
+            if name == "sandbox_write_file":
+                return sandbox.write_file(
+                    context, arguments.get("path"), arguments.get("content")
+                )
+            if name == "delegate":
+                return sandbox.delegate(context, arguments.get("task"))
     except Exception as e:  # noqa: BLE001 — the model reads why
         return {"error": f"{name} failed: {e}"}
     return {"error": f"{name} is not available here"}
