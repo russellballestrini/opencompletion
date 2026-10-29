@@ -2140,3 +2140,13 @@ a:hover {
     color: var(--text-secondary);
     opacity: 0.8;
 }
+
+/* A reply that used tools: text parts & tool lists in the order they
+   came (5-messages.js replyFlow, 8-tools.js renderFlow). */
+.message-content > .message-tools {
+    margin: var(--space-2) 0;
+}
+
+.message-content > .message-part + .message-part {
+    margin-top: var(--space-2);
+}

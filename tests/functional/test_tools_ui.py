@@ -97,6 +97,31 @@ window.addEventListener('load', async () => {
         const last = testSocket.sent[testSocket.sent.length - 1][1];
         check(last.request_id === 'r5' && /does not run in a browser/.test(last.result.error), 'unknown tool refused');
 
+        // Text & tools read in the order they came, the header on top.
+        deliver('message_chunk', {id: 40, content: 'Let me look.', username: 'ada', model_name: 'qwen', is_first_chunk: true});
+        deliver('tool_activity', {id: 40, tool: 'sandbox_shell', label: 'ls', where: 'sandbox', asker: 'ada', model_name: 'qwen', status: 'running', at: 12});
+        deliver('tool_activity', {id: 40, tool: 'sandbox_shell', label: 'ls', where: 'sandbox', asker: 'ada', model_name: 'qwen', status: 'done', at: 12});
+        deliver('message_chunk', {id: 40, content: ' Found two files.'});
+        const flow = [...document.querySelector('#message-40 .message-content').children].map(el => el.className);
+        check(flow.join() === 'message-part,message-tools,message-part', 'live order: ' + flow.join());
+        const parts40 = document.querySelectorAll('#message-40 .message-part');
+        check(parts40[0].textContent.trim() === 'Let me look.' && parts40[1].textContent.trim() === 'Found two files.', 'each part holds its own words');
+        check(document.querySelector('#message-40 .message-content').dataset.rawMarkdown === 'Let me look. Found two files.', 'copy & edit keep the whole reply');
+        // A reply whose first thing is a tool still has its header on top.
+        deliver('tool_activity', {id: 41, tool: 'offered', names: ['run_code'], status: 'done', asker: 'ada', model_name: 'qwen', at: 0});
+        const body41 = document.querySelector('#message-41 .message-body');
+        check(body41.firstElementChild.classList.contains('message-header') && /ada \(qwen\)/.test(body41.firstElementChild.textContent), 'header first even before any text');
+        // History cuts the saved text at each line's `at`.
+        deliver('previous_messages', {id: 42, username: 'qwen', content: 'Let me look. Found two files.', tools: [
+            {tool: 'offered', names: ['sandbox_shell'], status: 'done', at: 0},
+            {tool: 'sandbox_shell', label: 'ls', where: 'sandbox', asker: username, status: 'done', at: 12}]});
+        const saved42 = [...document.querySelector('#message-42 .message-content').children];
+        check(saved42.map(el => el.className).join() === 'message-part,message-tools,message-part,message-tools,message-part', 'history order: ' + saved42.map(el => el.className).join());
+        check(/qwen/.test(saved42[0].textContent) && saved42[2].textContent.trim() === 'Let me look.' && saved42[4].textContent.trim() === 'Found two files.', 'history text where it was');
+        // An older trail (no `at`) keeps its lines before the text.
+        deliver('previous_messages', {id: 43, username: 'qwen', content: 'Old.', tools: [{tool: 'web_search', label: 'q', where: 'browser', asker: username, status: 'done'}]});
+        const saved43 = [...document.querySelector('#message-43 .message-content').children].map(el => el.className);
+        check(saved43.join() === 'message-part,message-tools,message-part', 'old trail order: ' + saved43.join());
         // A reply's first line names the tools it may call.
         deliver('tool_activity', {id: 30, tool: 'offered', names: ['web_search', 'delegate'], status: 'done', asker: username});
         const offeredLine = document.querySelector('#message-30 .message-tool');
@@ -125,7 +150,8 @@ window.addEventListener('load', async () => {
         // The answer streams in under its tool lines.
         deliver('message_chunk', {id: 7, content: 'Elmo is red.', username: 'ada', model_name: 'qwen', is_first_chunk: true});
         const body = document.querySelector('#message-7 .message-body');
-        check(body.querySelector('.message-tools') && body.querySelector('.message-tools').compareDocumentPosition(body.querySelector('.message-content')) & Node.DOCUMENT_POSITION_FOLLOWING, 'answer under the tools');
+        const lastPart = body.querySelector('.message-content > .message-part:last-child');
+        check(body.querySelector('.message-tools') && lastPart && body.querySelector('.message-tools').compareDocumentPosition(lastPart) & Node.DOCUMENT_POSITION_FOLLOWING, 'answer under the tools');
         // History: a saved reply draws its kept tool lines above its answer.
         deliver('previous_messages', {id: 8, username: 'qwen', content: 'Elmo is red.', from_model: true, tools: [
             {tool: 'web_search', label: 'elmo', where: 'browser', asker: username, status: 'done',
@@ -138,7 +164,8 @@ window.addEventListener('load', async () => {
         check(saved[0].querySelectorAll('a').length === 1 && !window.pwned, 'history sources safe');
         check(/from bob's browser: grover \(failed: all throttled\)/.test(saved[1].textContent), 'history error line');
         const tools8 = document.querySelector('#message-8 .message-tools');
-        check(tools8 && tools8.compareDocumentPosition(document.querySelector('#message-8 .message-content')) & Node.DOCUMENT_POSITION_FOLLOWING, 'history: answer under its tools');
+        const answer8 = document.querySelector('#message-8 .message-content > .message-part:last-child');
+        check(tools8 && answer8 && tools8.compareDocumentPosition(answer8) & Node.DOCUMENT_POSITION_FOLLOWING && /Elmo is red/.test(answer8.textContent), 'history: answer under its tools');
         // unsandbox lines: whose machine, & files it made link to our attachments.
         deliver('tool_activity', {id: 11, tool: 'run_code', label: 'python', where: 'unsandbox', asker: username, status: 'done',
             sources: [{url: '/attachments/5/plot.png', title: 'plot.png'}, {url: '/elsewhere/x', title: 'x'}]});

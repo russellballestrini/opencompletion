@@ -244,7 +244,11 @@ socket.on("previous_messages", (data) => {
 
     messageWrapper.appendChild(buttonContainer);
     if (data.thinking) messageWrapper.appendChild(thinkingBlock(data.thinking, false));
-    if (data.tools && data.tools.length) messageWrapper.appendChild(toolTrail(data.tools));
+    // A reply that used tools reads in the order it happened: its text cut
+    // at each tool line's `at` (8-tools.js renderFlow).
+    if (data.tools && data.tools.length) {
+        renderFlow(newMessage, data.content, data.tools, senderLabel(data.username));
+    }
     messageWrapper.appendChild(newMessage);
 
     document.getElementById("chat").appendChild(messageWrapper);
@@ -273,6 +277,49 @@ socket.on("delete_processing_message", (msg_id) => {
     delete messageBuffers[msg_id];
     delete messageHeaders[msg_id];
 });
+
+// A streaming reply's body: its header (who & which model) on top, then
+// its content, a flow of text parts (.message-part) & tool lists
+// (.message-tools) in the order they came. Made on its first chunk or
+// tool line, whichever comes first.
+function replyFlow(messageWrapper) {
+    let body = messageWrapper.querySelector(".message-body");
+    if (!body) {
+        body = document.createElement("div");
+        body.className = "message-body";
+        messageWrapper.appendChild(body);
+    }
+    if (!body.querySelector(".message-header")) {
+        const header = document.createElement("div");
+        header.className = "message-header";
+        body.appendChild(header);
+    }
+    let content = body.querySelector(".message-content");
+    if (!content) {
+        content = document.createElement("div");
+        content.className = "message-content";
+        body.appendChild(content);
+    }
+    return content;
+}
+
+function replyHeader(messageWrapper, name, model) {
+    const header = messageWrapper.querySelector(".message-header");
+    if (header && name && model) {
+        header.innerHTML = renderMarkdown(`**${name} (${model}):**`);
+    }
+}
+
+// The text part new words go into: the last one, unless a tool list came
+// after it.
+function currentTextPart(content) {
+    const last = content.lastElementChild;
+    if (last && last.classList.contains("message-part")) return last;
+    const part = document.createElement("div");
+    part.className = "message-part";
+    content.appendChild(part);
+    return part;
+}
 
 // A dictionary to hold buffers for each message ID
 const messageBuffers = {};
@@ -322,28 +369,7 @@ socket.on("message_chunk", (data) => {
         return;  // reasoning deltas don't touch buffer/markdown render
     }
 
-    // If the message-content div doesn't exist, create it
-    if (!messageWrapper.querySelector(".message-content")) {
-        // Create a message body wrapper to contain both header and content
-        let messageBodyWrapper = messageWrapper.querySelector(".message-body");
-        if (!messageBodyWrapper) {
-            messageBodyWrapper = document.createElement("div");
-            messageBodyWrapper.className = "message-body";
-            messageWrapper.appendChild(messageBodyWrapper);
-        }
-
-        // Create header element for username/model
-        const headerElement = document.createElement("div");
-        headerElement.className = "message-header";
-        messageBodyWrapper.appendChild(headerElement);
-
-        // Create content element for actual message content
-        targetMessageElement = document.createElement("div");
-        targetMessageElement.className = "message-content";
-        messageBodyWrapper.appendChild(targetMessageElement);
-    } else {
-        targetMessageElement = messageWrapper.querySelector(".message-content");
-    }
+    targetMessageElement = replyFlow(messageWrapper);
 
     // First content delta after thinking: auto-collapse the thinking block
     // so the answer is the visible focus. Thinking stays one click away. A
@@ -371,27 +397,24 @@ socket.on("message_chunk", (data) => {
             model_name: data.model_name
         };
         
-        // Update header element
-        const headerElement = messageWrapper.querySelector(".message-header");
-        if (headerElement) {
-            const headerContent = `**${data.username} (${data.model_name}):**`;
-            headerElement.innerHTML = DOMPurify.sanitize(marked.marked(headerContent), dompurify_config);
-        }
+        replyHeader(messageWrapper, data.username, data.model_name);
     }
 
     // Append the chunk to the buffer
     messageBuffers[data.id] += data.content;
-    
-    // Process just the content and set it in the content element
-    const sanitizedContent = DOMPurify.sanitize(marked.marked(messageBuffers[data.id]), dompurify_config);
-    targetMessageElement.innerHTML = sanitizedContent;
+
+    // The text since the last tool line is its own part, so text & tools
+    // read in the order they came (8-tools.js adds the tool lists).
+    const part = currentTextPart(targetMessageElement);
+    part.dataset.raw = (part.dataset.raw || "") + data.content;
+    part.innerHTML = renderMarkdown(part.dataset.raw);
 
     // Store the raw markdown in a data attribute for later use in editing (without header for clean editing)
     targetMessageElement.dataset.rawMarkdown = messageBuffers[data.id];
 
     // Apply syntax highlighting to code blocks within the content
     // Don't truncate streaming messages - only truncate on page load (previous_messages)
-    targetMessageElement.querySelectorAll("pre code").forEach((block) => {
+    part.querySelectorAll("pre code").forEach((block) => {
         hljs.highlightElement(block);
         addLineNumbers(block);
         addCopyButtonToCodeBlock(block, false);
@@ -566,8 +589,11 @@ socket.on("message_updated", (data) => {
         // Find the specific element that contains the message content
         const messageContentContainer = messageWrapper.querySelector(".message-content");
 
-        // Update the message content
+        // Update the message content; its tool lines stay, above the edit
+        // (the text they sat between has changed).
+        const toolLists = [...messageContentContainer.querySelectorAll(":scope > .message-tools")];
         messageContentContainer.innerHTML = renderMarkdown(data.content);
+        toolLists.reverse().forEach((list) => messageContentContainer.prepend(list));
 
         // Update the raw markdown stored in the data attribute
         messageContentContainer.dataset.rawMarkdown = data.content;

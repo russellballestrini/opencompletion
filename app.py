@@ -1973,11 +1973,17 @@ def chat_gpt(
     tool_trail = []  # each finished tool call, kept as Message.tool_trail
 
     def notify_tool(event):
-        """Show the room a tool starting & ending, inside this reply."""
-        event = dict(event, asker=username)
+        """Show the room a tool starting & ending, inside this reply, at the
+        point of its text where it happened (`at`, an offset into it), so
+        text & tools read in the order they came."""
+        event = dict(event, asker=username, at=len(buffer))
         if event["status"] != "running":
             tool_trail.append(event)
-        socketio.emit("tool_activity", dict(event, id=msg_id), room=room_name)
+        socketio.emit(
+            "tool_activity",
+            dict(event, id=msg_id, model_name=model_name),
+            room=room_name,
+        )
         socketio.sleep(0)
 
     if tool_schemas:

@@ -413,6 +413,7 @@ def test_a_reply_keeps_its_tool_lines_for_history_and_forks(
         "names": ["web_search"],
         "status": "done",
         "asker": "ada",
+        "at": 0,  # where in the reply's text it happened
     }
     assert trail[1:] == [
         {
@@ -422,6 +423,7 @@ def test_a_reply_keeps_its_tool_lines_for_history_and_forks(
             "status": "done",
             "sources": [{"url": "https://a.org/", "title": "A"}],
             "asker": "ada",
+            "at": 0,
         }
     ]
 
@@ -451,6 +453,23 @@ def test_a_reply_keeps_its_tool_lines_for_history_and_forks(
         Message.username == "qwen", Message.room_id != source.id
     ).all()
     assert [json.loads(c.tool_trail) for c in copies] == [trail]
+
+
+def test_each_tool_line_remembers_where_in_the_text_it_happened(harness, monkeypatch):
+    monkeypatch.setattr(tools, "run", lambda *a: {"results": []})
+    harness.model.scripts = [
+        [chunk(content="Let me look. ")] + search_call("elmo"),
+        [chunk(content="Found it.")],
+    ]
+    harness.app.chat_gpt(
+        "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext("s")
+    )
+    reply = reply_of("qwen")
+    trail = json.loads(reply.tool_trail)
+    assert [(e["tool"], e["at"]) for e in trail] == [("offered", 0), ("web_search", 13)]
+    assert reply.content[:13] == "Let me look. "
+    live = [a[1] for a, k in harness.emitted if a[0] == "tool_activity"]
+    assert all(e["model_name"] == "qwen" for e in live)
 
 
 def test_a_reply_that_calls_no_tool_keeps_only_what_it_was_offered(harness):

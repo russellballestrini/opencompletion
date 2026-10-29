@@ -144,22 +144,16 @@ socket.on("tool_request", async (data) => {
     socket.emit("tool_result", {request_id: data.request_id, result: result});
 });
 
-// A tool's line inside a reply: "Searching the web from your browser: …",
-// then what it found, linked. Lives above the answer, under any thinking.
-function toolLines(messageWrapper) {
-    let body = messageWrapper.querySelector(".message-body");
-    if (!body) {
-        body = document.createElement("div");
-        body.className = "message-body";
-        messageWrapper.appendChild(body);
-    }
-    let lines = body.querySelector(".message-tools");
-    if (!lines) {
-        lines = document.createElement("ul");
-        lines.className = "message-tools";
-        const content = body.querySelector(".message-content");
-        body.insertBefore(lines, content || null);
-    }
+// The tool list a new line joins: the last thing in its reply's flow if
+// that is a tool list, else a new one after the text so far.
+function toolLines(messageWrapper, data) {
+    const content = replyFlow(messageWrapper);
+    replyHeader(messageWrapper, data.asker, data.model_name);
+    const last = content.lastElementChild;
+    if (last && last.classList.contains("message-tools")) return last;
+    const lines = document.createElement("ul");
+    lines.className = "message-tools";
+    content.appendChild(lines);
     return lines;
 }
 
@@ -276,17 +270,39 @@ function toolDetail(detail) {
     return block;
 }
 
-// A saved reply's tool lines (Message.tool_trail), for chat history.
-function toolTrail(events) {
-    const lines = document.createElement("ul");
-    lines.className = "message-tools";
-    for (const data of events) {
+// A saved reply (Message.tool_trail) in the order it happened: its text
+// cut at each tool line's `at`, the lines between. Trails saved before
+// lines carried `at` put every line first.
+function renderFlow(container, content, trail, label) {
+    container.replaceChildren();
+    const addText = (text) => {
+        if (!text.trim()) return;
+        const part = document.createElement("div");
+        part.className = "message-part";
+        part.innerHTML = renderMarkdown(text);
+        container.appendChild(part);
+    };
+    if (label) addText(label);
+    let pos = 0;
+    let lines = null;
+    for (const entry of trail) {
+        const at = Number.isInteger(entry.at) ? Math.min(Math.max(entry.at, pos), content.length) : pos;
+        if (at > pos) {
+            addText(content.slice(pos, at));
+            pos = at;
+            lines = null;
+        }
+        if (!lines) {
+            lines = document.createElement("ul");
+            lines.className = "message-tools";
+            container.appendChild(lines);
+        }
         const line = document.createElement("li");
         line.className = "message-tool";
-        drawToolLine(line, data);
+        drawToolLine(line, entry);
         lines.appendChild(line);
     }
-    return lines;
+    addText(content.slice(pos));
 }
 
 socket.on("tool_activity", (data) => {
@@ -298,7 +314,7 @@ socket.on("tool_activity", (data) => {
         messageWrapper.id = wrapperId;
         document.getElementById("chat").appendChild(messageWrapper);
     }
-    const lines = toolLines(messageWrapper);
+    const lines = toolLines(messageWrapper, data);
     let line = lines.lastElementChild;
     if (data.status === "running" || !line || !line.classList.contains("is-running")) {
         line = document.createElement("li");
