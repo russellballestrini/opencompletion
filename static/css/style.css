@@ -2098,7 +2098,7 @@ a:hover {
     box-sizing: border-box;
     margin: var(--space-1) 0 0;
     padding: var(--space-2);
-    max-height: 320px;
+    max-height: min(480px, 60vh);
     overflow: auto;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
