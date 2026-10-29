@@ -1,130 +1,58 @@
-"""
-PUBLIC DOMAIN - NO LICENSE, NO WARRANTY
-
-unsandbox.com Python SDK (Synchronous)
-
-Library Usage:
-    from un import (
-        # Execution
-        execute_code,
-        execute_async,
-        get_job,
-        wait_for_job,
-        cancel_job,
-        list_jobs,
-        get_languages,
-        detect_language,
-        # Sessions
-        list_sessions,
-        get_session,
-        create_session,
-        delete_session,
-        freeze_session,
-        unfreeze_session,
-        boost_session,
-        unboost_session,
-        shell_session,
-        # Services
-        list_services,
-        create_service,
-        get_service,
-        update_service,
-        delete_service,
-        freeze_service,
-        unfreeze_service,
-        lock_service,
-        unlock_service,
-        get_service_logs,
-        get_service_env,
-        set_service_env,
-        delete_service_env,
-        export_service_env,
-        redeploy_service,
-        execute_in_service,
-        # Snapshots
-        session_snapshot,
-        service_snapshot,
-        list_snapshots,
-        restore_snapshot,
-        delete_snapshot,
-        lock_snapshot,
-        unlock_snapshot,
-        clone_snapshot,
-        # Key validation
-        validate_keys,
-        # Image generation
-        image,
-    )
-
-    # Execute code synchronously
-    result = execute_code("python", 'print("hello")', public_key, secret_key)
-
-    # Execute asynchronously
-    job_id = execute_async("javascript", 'console.log("hello")', public_key, secret_key)
-
-    # Wait for job completion with exponential backoff
-    result = wait_for_job(job_id, public_key, secret_key)
-
-    # List all jobs
-    jobs = list_jobs(public_key, secret_key)
-
-    # Get supported languages
-    languages = get_languages(public_key, secret_key)
-
-    # Detect language from filename
-    lang = detect_language("script.py")  # Returns "python"
-
-    # Snapshot operations
-    snapshot_id = session_snapshot(session_id, public_key, secret_key, name="my-snapshot")
-    snapshot_id = service_snapshot(service_id, public_key, secret_key, name="svc-snapshot")
-    snapshots = list_snapshots(public_key, secret_key)
-    result = restore_snapshot(snapshot_id, public_key, secret_key)
-    delete_snapshot(snapshot_id, public_key, secret_key)
-
-Authentication Priority (4-tier):
-    1. Function arguments (public_key, secret_key)
-    2. Environment variables (UNSANDBOX_PUBLIC_KEY, UNSANDBOX_SECRET_KEY)
-    3. Config file (~/.unsandbox/accounts.csv, line 0 by default)
-    4. Local directory (./accounts.csv, line 0 by default)
-
-    Format: public_key,secret_key (one per line)
-    Account selection: UNSANDBOX_ACCOUNT=N env var (0-based index)
-
-Request Authentication (HMAC-SHA256):
-    Authorization: Bearer <public_key>                  (identifies account)
-    X-Timestamp: <unix_seconds>                         (replay prevention)
-    X-Signature: HMAC-SHA256(secret_key, msg)           (proves secret + body integrity)
-
-    Message format: "timestamp:METHOD:path:body"
-    - timestamp: seconds since epoch
-    - METHOD: GET, POST, DELETE, etc. (uppercase)
-    - path: e.g., "/execute", "/jobs/123"
-    - body: JSON payload (empty string for GET/DELETE)
-
-Languages Cache:
-    - Cached in ~/.unsandbox/languages.json
-    - TTL: 1 hour
-    - Updated on successful API calls
-"""
+#!/usr/bin/env python3
+# This is free software for the public good of a permacomputer hosted at
+# permacomputer.com, an always-on computer by the people, for the people.
+# One which is durable, easy to repair, & distributed like tap water
+# for machine learning intelligence.
+#
+# The permacomputer is community-owned infrastructure optimized around
+# four values:
+#
+#   TRUTH      First principles, math & science, open source code freely distributed
+#   FREEDOM    Voluntary partnerships, freedom from tyranny & corporate control
+#   HARMONY    Minimal waste, self-renewing systems with diverse thriving connections
+#   LOVE       Be yourself without hurting others, cooperation through natural law
+#
+# This software contributes to that vision by enabling code execution across 42+ programming languages through a unified interface, accessible to all.
+# Code is seeds to sprout on any abandoned technology.
 
 import hashlib
 import hmac
 import json
 import os
 import time
-import requests
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
+    requests = None  # type: ignore
 
-API_BASE = "https://api.unsandbox.com"
+
+API_BASE = os.environ.get("UNSANDBOX_API_URL", "https://api.unsandbox.com").rstrip("/")
 POLL_DELAYS_MS = [300, 450, 700, 900, 650, 1600, 2000]
 LANGUAGES_CACHE_TTL = 3600  # 1 hour
 
 
 class CredentialsError(Exception):
     """Raised when credentials cannot be found or are invalid."""
+
+
+class DependencyError(Exception):
+    """Raised when a required dependency is not installed."""
+    pass
+
+
+def _check_requests():
+    """Check if requests is available, raise helpful error if not."""
+    if not REQUESTS_AVAILABLE:
+        raise DependencyError(
+            "requests is required for HTTP operations. "
+            "Install with: pip install requests"
+        )
     pass
 
 
@@ -143,14 +71,16 @@ def _load_credentials_from_csv(csv_path: Path, account_index: int = 0) -> Option
 
     try:
         with open(csv_path, "r") as f:
-            for i, line in enumerate(f):
+            data_index = 0
+            for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
-                if i == account_index:
+                if data_index == account_index:
                     parts = line.split(",")
                     if len(parts) >= 2:
                         return (parts[0].strip(), parts[1].strip())
+                data_index += 1
         return None
     except Exception:
         return None
@@ -165,42 +95,52 @@ def _resolve_credentials(
     Resolve credentials from 4-tier priority system.
 
     Priority:
-        1. Function arguments
-        2. Environment variables
-        3. ~/.unsandbox/accounts.csv
-        4. ./accounts.csv
+        1. Function arguments (public_key, secret_key)
+        2. Explicit account_index (>= 0) -> load from accounts.csv
+        3. Environment variables (UNSANDBOX_PUBLIC_KEY, UNSANDBOX_SECRET_KEY)
+        4. Default CSV lookup (account 0 or UNSANDBOX_ACCOUNT env)
     """
     # Tier 1: Function arguments
     if public_key and secret_key:
         return (public_key, secret_key)
 
-    # Tier 2: Environment variables
+    # Tier 2: Explicit account_index overrides env vars
+    if account_index is not None and account_index >= 0:
+        unsandbox_dir = _get_unsandbox_dir()
+        creds = _load_credentials_from_csv(unsandbox_dir / "accounts.csv", account_index)
+        if creds:
+            return creds
+        creds = _load_credentials_from_csv(Path("accounts.csv"), account_index)
+        if creds:
+            return creds
+        raise CredentialsError(
+            f"No credentials found for account index {account_index} in accounts.csv"
+        )
+
+    # Tier 3: Environment variables
     env_pk = os.environ.get("UNSANDBOX_PUBLIC_KEY")
     env_sk = os.environ.get("UNSANDBOX_SECRET_KEY")
     if env_pk and env_sk:
         return (env_pk, env_sk)
 
-    # Determine account index
-    if account_index is None:
-        account_index = int(os.environ.get("UNSANDBOX_ACCOUNT", "0"))
-
-    # Tier 3: ~/.unsandbox/accounts.csv
+    # Tier 4: Default CSV lookup (UNSANDBOX_ACCOUNT env or index 0)
+    default_index = int(os.environ.get("UNSANDBOX_ACCOUNT", "0"))
     unsandbox_dir = _get_unsandbox_dir()
-    creds = _load_credentials_from_csv(unsandbox_dir / "accounts.csv", account_index)
+    creds = _load_credentials_from_csv(unsandbox_dir / "accounts.csv", default_index)
     if creds:
         return creds
 
-    # Tier 4: ./accounts.csv
-    creds = _load_credentials_from_csv(Path("accounts.csv"), account_index)
+    creds = _load_credentials_from_csv(Path("accounts.csv"), default_index)
     if creds:
         return creds
 
     raise CredentialsError(
         "No credentials found. Please provide via:\n"
         "  1. Function arguments (public_key, secret_key)\n"
-        "  2. Environment variables (UNSANDBOX_PUBLIC_KEY, UNSANDBOX_SECRET_KEY)\n"
-        "  3. ~/.unsandbox/accounts.csv\n"
-        "  4. ./accounts.csv"
+        "  2. --account N (select row from accounts.csv)\n"
+        "  3. Environment variables (UNSANDBOX_PUBLIC_KEY, UNSANDBOX_SECRET_KEY)\n"
+        "  4. ~/.unsandbox/accounts.csv\n"
+        "  5. ./accounts.csv"
     )
 
 
@@ -218,6 +158,9 @@ def _sign_request(
     Returns: 64-character hex string
     """
     body_str = body or ""
+    # The server verifies against the path without its query string
+    # (conn.request_path), so sign only the part before '?'.
+    path = path.split("?", 1)[0]
     message = f"{timestamp}:{method}:{path}:{body_str}"
     signature = hmac.new(
         secret_key.encode(),
@@ -239,7 +182,9 @@ def _make_request(
 
     Raises requests.RequestException on network errors.
     Raises ValueError if response is not valid JSON.
+    Raises DependencyError if requests is not installed.
     """
+    _check_requests()
     url = f"{API_BASE}{path}"
     timestamp = int(time.time())
     body = json.dumps(data) if data else ""
@@ -263,6 +208,91 @@ def _make_request(
         response = requests.delete(url, headers=headers, timeout=120)
     else:
         raise ValueError(f"Unsupported HTTP method: {method}")
+
+    response.raise_for_status()
+    return response.json()
+
+
+def _make_request_with_sudo(
+    method: str,
+    path: str,
+    public_key: str,
+    secret_key: str,
+    data: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Make an authenticated HTTP request with sudo OTP challenge handling.
+
+    If the server returns 428 (Precondition Required), prompts for OTP
+    and retries the request with X-Sudo-OTP and X-Sudo-Challenge headers.
+
+    Used for destructive operations: service destroy/unlock, snapshot delete/unlock,
+    image delete/unlock.
+    """
+    import sys
+
+    url = f"{API_BASE}{path}"
+    timestamp = int(time.time())
+    body = json.dumps(data) if data else ""
+
+    signature = _sign_request(secret_key, timestamp, method, path, body if data else None)
+
+    headers = {
+        "Authorization": f"Bearer {public_key}",
+        "X-Timestamp": str(timestamp),
+        "X-Signature": signature,
+        "Content-Type": "application/json",
+    }
+
+    if method == "GET":
+        response = requests.get(url, headers=headers, timeout=120)
+    elif method == "POST":
+        response = requests.post(url, headers=headers, json=data, timeout=120)
+    elif method == "PATCH":
+        response = requests.patch(url, headers=headers, json=data, timeout=120)
+    elif method == "DELETE":
+        response = requests.delete(url, headers=headers, timeout=120)
+    else:
+        raise ValueError(f"Unsupported HTTP method: {method}")
+
+    # Handle 428 sudo OTP challenge
+    if response.status_code == 428:
+        try:
+            challenge_data = response.json()
+            challenge_id = challenge_data.get("challenge_id", "")
+        except (ValueError, KeyError):
+            challenge_id = ""
+
+        print("\033[33mConfirmation required. Check your email for a one-time code.\033[0m", file=sys.stderr)
+        try:
+            otp = input("Enter OTP: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            raise ValueError("Operation cancelled")
+
+        if not otp:
+            raise ValueError("Operation cancelled")
+
+        # Retry with sudo headers
+        retry_timestamp = int(time.time())
+        retry_signature = _sign_request(secret_key, retry_timestamp, method, path, body if data else None)
+
+        retry_headers = {
+            "Authorization": f"Bearer {public_key}",
+            "X-Timestamp": str(retry_timestamp),
+            "X-Signature": retry_signature,
+            "Content-Type": "application/json",
+            "X-Sudo-OTP": otp,
+            "X-Sudo-Challenge": challenge_id,
+        }
+
+        if method == "GET":
+            response = requests.get(url, headers=retry_headers, timeout=120)
+        elif method == "POST":
+            response = requests.post(url, headers=retry_headers, json=data, timeout=120)
+        elif method == "PATCH":
+            response = requests.patch(url, headers=retry_headers, json=data, timeout=120)
+        elif method == "DELETE":
+            response = requests.delete(url, headers=retry_headers, timeout=120)
 
     response.raise_for_status()
     return response.json()
@@ -689,7 +719,7 @@ def list_snapshots(
     secret_key: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
-    List all snapshots (NEW).
+    List all snapshots.
 
     Args:
         public_key: Optional API key
@@ -706,6 +736,39 @@ def list_snapshots(
     public_key, secret_key = _resolve_credentials(public_key, secret_key)
     response = _make_request("GET", "/snapshots", public_key, secret_key)
     return response.get("snapshots", [])
+
+
+def get_snapshot(
+    snapshot_id: str,
+    public_key: Optional[str] = None,
+    secret_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Get details of a specific snapshot.
+
+    Args:
+        snapshot_id: Snapshot ID to get details for
+        public_key: Optional API key
+        secret_key: Optional API secret
+
+    Returns:
+        Snapshot details dict containing:
+        - id: Snapshot ID
+        - name: Snapshot name
+        - type: "session" or "service"
+        - source_id: Original resource ID
+        - hot: Whether snapshot preserves running state
+        - locked: Whether snapshot is locked
+        - created_at: Creation timestamp
+        - size_bytes: Size in bytes
+
+    Raises:
+        requests.RequestException: Network errors
+        ValueError: Invalid response format
+        CredentialsError: Missing credentials
+    """
+    public_key, secret_key = _resolve_credentials(public_key, secret_key)
+    return _make_request("GET", f"/snapshots/{snapshot_id}", public_key, secret_key)
 
 
 def restore_snapshot(
@@ -755,7 +818,7 @@ def delete_snapshot(
         CredentialsError: Missing credentials
     """
     public_key, secret_key = _resolve_credentials(public_key, secret_key)
-    return _make_request("DELETE", f"/snapshots/{snapshot_id}", public_key, secret_key)
+    return _make_request_with_sudo("DELETE", f"/snapshots/{snapshot_id}", public_key, secret_key)
 
 
 # =============================================================================
@@ -1052,7 +1115,7 @@ def list_services(
 
 def create_service(
     name: str,
-    ports: List[int],
+    ports: Optional[List[int]] = None,
     bootstrap: Optional[str] = None,
     public_key: Optional[str] = None,
     secret_key: Optional[str] = None,
@@ -1060,6 +1123,9 @@ def create_service(
     custom_domains: Optional[List[str]] = None,
     vcpu: int = 1,
     service_type: Optional[str] = None,
+    unfreeze_on_demand: bool = False,
+    golden_image: Optional[str] = None,
+    input_files: Optional[List[Dict[str, str]]] = None,
 ) -> Dict[str, Any]:
     """
     Create a new persistent service.
@@ -1074,6 +1140,9 @@ def create_service(
         custom_domains: Optional list of custom domain names
         vcpu: Number of vCPUs (1-8, default 1)
         service_type: Optional service type for SRV records (e.g., "minecraft")
+        unfreeze_on_demand: If True, automatically unfreeze service on incoming requests
+        golden_image: Optional LXD image alias (e.g., "golden-alpine-3.24")
+        input_files: Optional list of dicts with "filename" and "content" (base64)
 
     Returns:
         Response dict containing service_id, etc.
@@ -1086,9 +1155,10 @@ def create_service(
     public_key, secret_key = _resolve_credentials(public_key, secret_key)
     data: Dict[str, Any] = {
         "name": name,
-        "ports": ports,
         "network_mode": network_mode,
     }
+    if ports:
+        data["ports"] = ports
     if bootstrap:
         # Check if it looks like a URL
         if bootstrap.startswith("http://") or bootstrap.startswith("https://"):
@@ -1101,6 +1171,12 @@ def create_service(
         data["vcpu"] = vcpu
     if service_type:
         data["service_type"] = service_type
+    if unfreeze_on_demand:
+        data["unfreeze_on_demand"] = unfreeze_on_demand
+    if golden_image:
+        data["golden_image"] = golden_image
+    if input_files:
+        data["input_files"] = input_files
 
     return _make_request("POST", "/services", public_key, secret_key, data)
 
@@ -1186,7 +1262,7 @@ def delete_service(
         CredentialsError: Missing credentials
     """
     public_key, secret_key = _resolve_credentials(public_key, secret_key)
-    return _make_request("DELETE", f"/services/{service_id}", public_key, secret_key)
+    return _make_request_with_sudo("DELETE", f"/services/{service_id}", public_key, secret_key)
 
 
 def freeze_service(
@@ -1286,7 +1362,103 @@ def unlock_service(
         CredentialsError: Missing credentials
     """
     public_key, secret_key = _resolve_credentials(public_key, secret_key)
-    return _make_request("POST", f"/services/{service_id}/unlock", public_key, secret_key, {})
+    return _make_request_with_sudo("POST", f"/services/{service_id}/unlock", public_key, secret_key, {})
+
+
+def update_service_domains(
+    service_id: str,
+    domains: list,
+    action: str = "custom_domains",
+    public_key: Optional[str] = None,
+    secret_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Update custom domains for a service.
+
+    Args:
+        service_id: Service ID
+        domains: List of domain strings
+        action: "custom_domains" (replace), "add" (merge), or "remove" (subtract)
+        public_key: Optional API key
+        secret_key: Optional API secret
+
+    Returns:
+        Response dict with updated domains
+    """
+    public_key, secret_key = _resolve_credentials(public_key, secret_key)
+    return _make_request("PUT", f"/services/{service_id}/domains", public_key, secret_key, {action: domains})
+
+
+def set_unfreeze_on_demand(
+    service_id: str,
+    enabled: bool,
+    public_key: Optional[str] = None,
+    secret_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Enable or disable automatic unfreezing on incoming requests.
+
+    When enabled, a frozen service will automatically wake up when it
+    receives an incoming HTTP request.
+
+    Args:
+        service_id: Service ID to configure
+        enabled: True to enable auto-unfreeze, False to disable
+        public_key: Optional API key
+        secret_key: Optional API secret
+
+    Returns:
+        Response dict with update confirmation
+
+    Raises:
+        requests.RequestException: Network errors
+        ValueError: Invalid response format
+        CredentialsError: Missing credentials
+    """
+    public_key, secret_key = _resolve_credentials(public_key, secret_key)
+    return _make_request(
+        "PATCH",
+        f"/services/{service_id}",
+        public_key,
+        secret_key,
+        {"unfreeze_on_demand": enabled},
+    )
+
+
+def set_show_freeze_page(
+    service_id: str,
+    enabled: bool,
+    public_key: Optional[str] = None,
+    secret_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Enable or disable freeze page display for a service.
+
+    When disabled, frozen services return a JSON error response instead of
+    displaying the payment/unfreeze page to visitors.
+
+    Args:
+        service_id: Service ID to configure
+        enabled: True to show freeze page, False to return JSON error
+        public_key: Optional API key
+        secret_key: Optional API secret
+
+    Returns:
+        Response dict with update confirmation
+
+    Raises:
+        requests.RequestException: Network errors
+        ValueError: Invalid response format
+        CredentialsError: Missing credentials
+    """
+    public_key, secret_key = _resolve_credentials(public_key, secret_key)
+    return _make_request(
+        "PATCH",
+        f"/services/{service_id}",
+        public_key,
+        secret_key,
+        {"show_freeze_page": enabled},
+    )
 
 
 def get_service_logs(
@@ -1450,6 +1622,7 @@ def redeploy_service(
     bootstrap: Optional[str] = None,
     public_key: Optional[str] = None,
     secret_key: Optional[str] = None,
+    input_files: Optional[List[Dict[str, str]]] = None,
 ) -> Dict[str, Any]:
     """
     Redeploy a service (re-run bootstrap script).
@@ -1461,6 +1634,7 @@ def redeploy_service(
         bootstrap: Optional new bootstrap script/URL (uses existing if not provided)
         public_key: Optional API key
         secret_key: Optional API secret
+        input_files: Optional list of dicts with "filename" and "content" (base64)
 
     Returns:
         Response dict with redeploy confirmation
@@ -1477,6 +1651,8 @@ def redeploy_service(
             data["bootstrap"] = bootstrap
         else:
             data["bootstrap_content"] = bootstrap
+    if input_files:
+        data["input_files"] = input_files
 
     return _make_request("POST", f"/services/{service_id}/redeploy", public_key, secret_key, data)
 
@@ -1515,6 +1691,39 @@ def execute_in_service(
         public_key,
         secret_key,
         {"command": command, "timeout": timeout},
+    )
+
+
+def resize_service(
+    service_id: str,
+    vcpu: int,
+    public_key: Optional[str] = None,
+    secret_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Resize a service's vCPU allocation.
+
+    Args:
+        service_id: Service ID to resize
+        vcpu: Number of vCPUs (1-8 typically)
+        public_key: Optional API key
+        secret_key: Optional API secret
+
+    Returns:
+        Response dict with updated service info
+
+    Raises:
+        requests.RequestException: Network errors
+        ValueError: Invalid response format
+        CredentialsError: Missing credentials
+    """
+    public_key, secret_key = _resolve_credentials(public_key, secret_key)
+    return _make_request(
+        "PATCH",
+        f"/services/{service_id}",
+        public_key,
+        secret_key,
+        {"vcpu": vcpu},
     )
 
 
@@ -1570,7 +1779,7 @@ def unlock_snapshot(
         CredentialsError: Missing credentials
     """
     public_key, secret_key = _resolve_credentials(public_key, secret_key)
-    return _make_request("POST", f"/snapshots/{snapshot_id}/unlock", public_key, secret_key, {})
+    return _make_request_with_sudo("POST", f"/snapshots/{snapshot_id}/unlock", public_key, secret_key, {})
 
 
 def clone_snapshot(
@@ -1737,7 +1946,7 @@ def delete_image(
         Response dict with deletion confirmation
     """
     public_key, secret_key = _resolve_credentials(public_key, secret_key)
-    return _make_request("DELETE", f"/images/{image_id}", public_key, secret_key)
+    return _make_request_with_sudo("DELETE", f"/images/{image_id}", public_key, secret_key)
 
 
 def lock_image(
@@ -1777,7 +1986,7 @@ def unlock_image(
         Response dict with unlock confirmation
     """
     public_key, secret_key = _resolve_credentials(public_key, secret_key)
-    return _make_request("POST", f"/images/{image_id}/unlock", public_key, secret_key, {})
+    return _make_request_with_sudo("POST", f"/images/{image_id}/unlock", public_key, secret_key, {})
 
 
 def set_image_visibility(
@@ -1977,8 +2186,6 @@ def clone_image(
 # =============================================================================
 
 
-PORTAL_BASE = "https://unsandbox.com"
-
 
 def validate_keys(
     public_key: Optional[str] = None,
@@ -2070,6 +2277,395 @@ def image(
         payload["model"] = model
 
     return _make_request("POST", "/image", public_key, secret_key, payload)
+
+
+# =============================================================================
+# PaaS Logs Functions
+# =============================================================================
+
+_last_error: Optional[str] = None
+
+
+PORTAL_BASE = (os.environ.get("UNSANDBOX_PORTAL_URL") or "https://unsandbox.com").rstrip("/")
+
+# Platform logs live on the portal (RequireLogAccess, partner keys), not the API host:
+# GET {PORTAL_BASE}/logs/{api|portal|pool/NODE|all}[/stream]. HMAC signs the path only.
+
+
+def _logs_path(source: str, stream: bool = False) -> str:
+    source = (source or "all").strip("/") or "all"
+    return f"/logs/{source}" + ("/stream" if stream else "")
+
+
+def _logs_query(**params) -> str:
+    from urllib.parse import quote
+    parts = [f"{k}={quote(str(v), safe='-_.~')}" for k, v in params.items() if v not in (None, "")]
+    return ("?" + "&".join(parts)) if parts else ""
+
+
+def _portal_logs_get(path: str, query: str, public_key: str, secret_key: str, stream: bool = False):
+    """Signed GET to the portal; returns the requests.Response (caller checks status)."""
+    _check_requests()
+    timestamp = int(time.time())
+    headers = {
+        "Authorization": f"Bearer {public_key}",
+        "X-Timestamp": str(timestamp),
+        "X-Signature": _sign_request(secret_key, timestamp, "GET", path, None),
+    }
+    if stream:
+        headers["Accept"] = "text/event-stream"
+        return requests.get(f"{PORTAL_BASE}{path}{query}", headers=headers, stream=True,
+                            timeout=(30, 120))
+    return requests.get(f"{PORTAL_BASE}{path}{query}", headers=headers, timeout=120)
+
+
+def logs_fetch(
+    source: str = "all",
+    lines: int = 100,
+    since: str = "5m",
+    grep: Optional[str] = None,
+    public_key: Optional[str] = None,
+    secret_key: Optional[str] = None,
+    level: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Fetch batch logs from the portal (partner log access).
+
+    Args:
+        source: Log source - "all", "api", "portal", "pool/cammy", "pool/ai"
+        lines: Number of lines to fetch (1-10000)
+        since: Time window - "1m", "5m", "1h", "1d"
+        grep: Optional filter pattern
+        public_key: Optional API key
+        secret_key: Optional API secret
+        level: Optional minimum level (debug, info, notice, warning, err, crit)
+
+    Returns:
+        Dict: {"source","lines":[...]} or, for "all", {"sources","lines":[{"source","line"}]}
+
+    Raises:
+        requests.RequestException: Network errors / non-2xx (HTTPError)
+        CredentialsError: Missing credentials
+    """
+    public_key, secret_key = _resolve_credentials(public_key, secret_key)
+    lines = max(1, min(10000, int(lines)))
+    response = _portal_logs_get(_logs_path(source),
+                                _logs_query(lines=lines, since=since, grep=grep, level=level),
+                                public_key, secret_key)
+    response.raise_for_status()
+    return response.json()
+
+
+def _sse_entries(response):
+    """Yield (source, line) for each SSE data event; comments/keepalives yield nothing."""
+    for raw in response.iter_lines():
+        if not raw:
+            continue
+        decoded = raw.decode("utf-8", errors="replace")
+        if not decoded.startswith("data: "):
+            continue
+        data = decoded[6:]
+        if data == ":keepalive":
+            continue
+        try:
+            entry = json.loads(data)
+        except json.JSONDecodeError:
+            yield (None, data)
+            continue
+        if isinstance(entry, dict):
+            if "line" in entry:
+                yield (entry.get("source"), entry["line"])
+        else:
+            yield (None, data)
+
+
+def logs_stream(
+    source: str = "all",
+    grep: Optional[str] = None,
+    callback=None,
+    public_key: Optional[str] = None,
+    secret_key: Optional[str] = None,
+    level: Optional[str] = None,
+) -> None:
+    """
+    Stream logs from the portal via Server-Sent Events (one connection).
+
+    Blocks until interrupted or server closes connection.
+
+    Args:
+        source: Log source - "all", "api", "portal", "pool/cammy", "pool/ai"
+        grep: Optional filter pattern
+        callback: Function called for each log line (signature: callback(source, line))
+        public_key: Optional API key
+        secret_key: Optional API secret
+        level: Optional minimum level
+
+    Raises:
+        requests.RequestException: Network errors / non-2xx (HTTPError)
+        CredentialsError: Missing credentials
+    """
+    public_key, secret_key = _resolve_credentials(public_key, secret_key)
+    with _portal_logs_get(_logs_path(source, stream=True), _logs_query(grep=grep, level=level),
+                          public_key, secret_key, stream=True) as response:
+        response.raise_for_status()
+        for src, line in _sse_entries(response):
+            src = src or source
+            if callback:
+                callback(src, line)
+            else:
+                print(f"{src:<12} {line}", flush=True)
+
+
+def _log_cursor_path() -> Path:
+    return Path(os.environ.get("HOME", str(Path.home()))) / ".unsandbox" / "paas_log_cursor"
+
+
+def _read_log_cursor() -> Optional[str]:
+    try:
+        ts = int(_log_cursor_path().read_text().strip())
+    except (OSError, ValueError):
+        return None
+    if ts <= 0:
+        return None
+    return f"{max(5, int(time.time()) - ts)}s"
+
+
+def _write_log_cursor() -> None:
+    try:
+        p = _log_cursor_path()
+        p.parent.mkdir(mode=0o700, exist_ok=True)
+        p.write_text(f"{int(time.time())}\n")
+    except OSError:
+        pass
+
+
+def _http_error_text(response) -> str:
+    try:
+        err = response.json().get("error")
+    except Exception:
+        err = None
+    return f"Error: HTTP {response.status_code}" + (f" \u2014 {err}" if err else "")
+
+
+_PAAS_LOGS_HELP = """Usage: un.py paas logs [options]
+
+Fetch or stream PaaS production logs.
+
+Sources:
+  --all              All sources (default)
+  --api              API server logs
+  --portal           Portal server logs
+  --pool NODE        Pool node logs (e.g., cammy, ai)
+  --source SOURCE    Source string (api, portal, pool/cammy, all)
+
+Options:
+  --lines N, -n N    Number of lines (default: 100, max: 10000)
+  --since TIME       Time window: 1m, 5m, 15m, 1h, 6h, 1d (default: 5m)
+  --grep PATTERN     Filter log lines by pattern
+  --level LVL, -l    Min log level: debug, info, notice, warning, err, crit
+  --follow, -f       Follow logs in real-time (Ctrl+C to stop)
+  --json             Output raw JSON response
+  -p KEY             Public key
+  -k KEY             Secret key
+  -h                 Show this help
+
+Requires a partner API key with log access enabled."""
+
+
+def _paas_command(argv: List[str]) -> int:
+    """`un paas logs ...` - mirrors the C client's flags, output and exit codes."""
+    if not argv:
+        print("Usage: un.py paas <command> [options]\n\nCommands:\n"
+              "  logs    Fetch or stream production logs", file=sys.stderr)
+        return 1
+    if argv[0] != "logs":
+        print(f"Error: Unknown paas command '{argv[0]}'", file=sys.stderr)
+        return 1
+    source, lines, since, grep, level = "all", 100, None, None, None
+    follow = as_json = False
+    pk = sk = None
+    account = None
+    args = argv[1:]
+    i = 0
+    def nxt():
+        nonlocal i
+        i += 1
+        return args[i] if i < len(args) else None
+    def clamp(v):
+        try:
+            n = int(v)
+        except (TypeError, ValueError):
+            n = 0
+        return max(1, min(10000, n))
+    while i < len(args):
+        a = args[i]
+        has = i + 1 < len(args)
+        if a == "-p" and has: pk = nxt()
+        elif a == "-k" and has: sk = nxt()
+        elif a == "--account" and has:
+            try: account = int(nxt())
+            except ValueError: account = 0
+        elif a == "--source" and has: source = nxt()
+        elif a == "--all": source = "all"
+        elif a == "--api": source = "api"
+        elif a == "--portal": source = "portal"
+        elif a == "--pool" and has: source = f"pool/{nxt()}"
+        elif a in ("--lines", "-n") and has: lines = clamp(nxt())
+        elif a == "--since" and has: since = nxt()
+        elif a == "--grep" and has: grep = nxt()
+        elif a in ("--level", "-l") and has: level = nxt()
+        elif a in ("--follow", "-f"): follow = True
+        elif a == "--json": as_json = True
+        elif a in ("-h", "--help"):
+            print(_PAAS_LOGS_HELP, file=sys.stderr)
+            return 0
+        i += 1
+    try:
+        public_key, secret_key = _resolve_credentials(pk, sk, account)
+    except CredentialsError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    if since is None:
+        since = _read_log_cursor() or "5m"
+    _check_requests()
+    if follow:
+        return _paas_logs_follow(source, grep, level, public_key, secret_key)
+    try:
+        response = _portal_logs_get(_logs_path(source),
+                                    _logs_query(lines=lines, since=since, grep=grep, level=level),
+                                    public_key, secret_key)
+    except requests.exceptions.RequestException as e:
+        print(f"Error: Network error fetching logs: {e}", file=sys.stderr)
+        return 1
+    if response.status_code != 200:
+        print(_http_error_text(response), file=sys.stderr)
+        return 1
+    _write_log_cursor()
+    if as_json:
+        print(response.text)
+        return 0
+    try:
+        data = response.json()
+        entries = data["lines"]
+    except Exception:
+        print("Error: Invalid response format", file=sys.stderr)
+        return 1
+    for e in entries:
+        if isinstance(e, dict):
+            if e.get("source") is not None:
+                print(f"{e['source']:<12} {e.get('line', '')}")
+            else:
+                print(e.get("line", ""))
+        else:
+            print(e)
+    return 0
+
+
+def _paas_logs_follow(source, grep, level, public_key, secret_key) -> int:
+    print(f"Streaming {source} logs... (Ctrl+C to stop)", file=sys.stderr)
+    path = _logs_path(source, stream=True)
+    delay, last_recv, reconnect = 2, 0.0, False
+    try:
+        while True:
+            since = None
+            if reconnect and last_recv > 0:
+                since = f"{max(10, int(time.time() - last_recv) + 5)}s"
+            connected = time.time()
+            status = None
+            try:
+                # fresh signature each connection (timestamps expire)
+                with _portal_logs_get(path, _logs_query(grep=grep, level=level, since=since),
+                                      public_key, secret_key, stream=True) as response:
+                    status = response.status_code
+                    if status in (401, 403):
+                        print(f"Error: HTTP {status} (auth failed)", file=sys.stderr)
+                        return 1
+                    if status == 200:
+                        for src, line in _sse_entries(response):
+                            if src is not None:
+                                print(f"{src:<12} {line}", flush=True)
+                            else:
+                                print(line, flush=True)
+                            last_recv = time.time()
+                    elif status < 500:
+                        print(_http_error_text(response), file=sys.stderr)
+                        return 1
+            except requests.exceptions.RequestException:
+                pass  # dropped / timed out: reconnect silently
+            if time.time() - connected > 30:
+                delay = 2
+            time.sleep(delay)
+            delay = min(30, delay * 2)
+            reconnect = True
+    except KeyboardInterrupt:
+        return 0
+
+
+# =============================================================================
+# Utility Functions
+# =============================================================================
+
+SDK_VERSION = "4.2.0"
+
+
+def version() -> str:
+    """
+    Get the SDK version string.
+
+    Returns:
+        Version string (e.g., "4.2.0")
+    """
+    return SDK_VERSION
+
+
+def health_check() -> bool:
+    """
+    Check if the API is healthy and responding.
+
+    Returns:
+        True if API is healthy, False otherwise
+    """
+    global _last_error
+    try:
+        response = requests.get(f"{API_BASE}/health", timeout=10)
+        if response.status_code == 200:
+            return True
+        _last_error = f"Health check failed: HTTP {response.status_code}"
+        return False
+    except Exception as e:
+        _last_error = f"Health check failed: {str(e)}"
+        return False
+
+
+def last_error() -> Optional[str]:
+    """
+    Get the last error message.
+
+    Returns:
+        Last error message or None
+    """
+    return _last_error
+
+
+def hmac_sign(secret_key: str, message: str) -> str:
+    """
+    Sign a message using HMAC-SHA256.
+
+    This is the underlying signing function used for request authentication.
+    Exposed for testing and debugging purposes.
+
+    Args:
+        secret_key: The secret key for signing
+        message: The message to sign
+
+    Returns:
+        64-character lowercase hex string
+    """
+    return hmac.new(
+        secret_key.encode(),
+        message.encode(),
+        hashlib.sha256,
+    ).hexdigest()
 
 
 # =============================================================================
@@ -2189,6 +2785,7 @@ Examples:
   python un.py service --list               List all services
   python un.py snapshot --list              List all snapshots
   python un.py key                          Check API key
+  python un.py paas logs --api -n 500       Platform logs (partner keys)
   python un.py languages                    List available languages
   python un.py languages --json             List languages as JSON
 """,
@@ -2217,6 +2814,8 @@ Examples:
                         metavar="N", help="vCPU count (1-8, default: 1)")
     parser.add_argument("-y", "--yes", action="store_true",
                         help="Skip confirmation prompts")
+    parser.add_argument("--account", type=int, metavar="N",
+                        help="Select account row N from accounts.csv (overrides env vars)")
 
     # Subcommands
     subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -2274,6 +2873,12 @@ Examples:
                                help="Prevent deletion")
     service_group.add_argument("--unlock", metavar="ID",
                                help="Allow deletion")
+    service_group.add_argument("--add-domain", metavar="ID",
+                               help="Add domains (with --domains)")
+    service_group.add_argument("--remove-domain", metavar="ID",
+                               help="Remove domains (with --domains)")
+    service_group.add_argument("--set-domains", metavar="ID",
+                               help="Replace all domains (with --domains)")
     service_group.add_argument("--resize", metavar="ID",
                                help="Resize service (with --vcpu)")
     service_group.add_argument("--redeploy", metavar="ID",
@@ -2300,6 +2905,11 @@ Examples:
                                 help="Name for snapshot")
     service_parser.add_argument("--hot", action="store_true",
                                 help="Live snapshot (no freeze)")
+    service_parser.add_argument("--golden-image", metavar="IMAGE",
+                                help="LXD image alias (e.g., golden-alpine-3.24)")
+    service_parser.add_argument("-f", "--file", action="append", dest="files",
+                                metavar="FILE",
+                                help="Input file to upload (written to /tmp/ in container)")
 
     # Service env subcommand
     service_env_parser = subparsers.add_parser("service-env",
@@ -2365,7 +2975,11 @@ Examples:
                               help="Ports for spawned service (comma-separated)")
 
     # Key subcommand
-    subparsers.add_parser("key", help="Check API key validity")
+    key_parser = subparsers.add_parser("key", help="Check API key validity, or rotate its secret")
+    key_parser.add_argument("--rotate", action="store_true",
+                            help="Rotate this key's secret (sudo OTP); updates accounts.csv in place")
+    key_parser.add_argument("--otp", metavar="CODE",
+                            help="Finish a rotation started without a terminal")
 
     # Languages subcommand
     languages_parser = subparsers.add_parser("languages", help="List available languages")
@@ -2381,13 +2995,15 @@ Examples:
 
 def cli_main():
     """Main entry point for CLI."""
+    if len(sys.argv) > 1 and sys.argv[1] == "paas":
+        sys.exit(_paas_command(sys.argv[2:]))
     parser = _build_parser()
     args = parser.parse_args()
 
     # Resolve credentials
     try:
         public_key, secret_key = _resolve_credentials(
-            args.public_key, args.secret_key
+            args.public_key, args.secret_key, args.account
         )
     except CredentialsError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -2406,7 +3022,10 @@ def cli_main():
         elif args.command == "image":
             _handle_image_command(args, public_key, secret_key)
         elif args.command == "key":
-            _handle_key_command(public_key, secret_key)
+            if getattr(args, "rotate", False):
+                _handle_key_rotate(args, public_key, secret_key)
+            else:
+                _handle_key_command(public_key, secret_key)
         elif args.command == "languages":
             _handle_languages_command(args, public_key, secret_key)
         elif args.source or args.shell:
@@ -2574,6 +3193,30 @@ def _handle_service_command(args, public_key: str, secret_key: str):
     elif args.unlock:
         result = unlock_service(args.unlock, public_key, secret_key)
         print(f"Service {args.unlock} unlocked")
+    elif getattr(args, 'add_domain', None):
+        if not args.domains:
+            print("Error: --domains required with --add-domain", file=sys.stderr)
+            sys.exit(2)
+        domains = [d.strip() for d in args.domains.split(",")]
+        result = update_service_domains(args.add_domain, domains, "add", public_key, secret_key)
+        print(f"Domains added to {args.add_domain}")
+        print(f"Domains: {result.get('custom_domains', [])}")
+    elif getattr(args, 'remove_domain', None):
+        if not args.domains:
+            print("Error: --domains required with --remove-domain", file=sys.stderr)
+            sys.exit(2)
+        domains = [d.strip() for d in args.domains.split(",")]
+        result = update_service_domains(args.remove_domain, domains, "remove", public_key, secret_key)
+        print(f"Domains removed from {args.remove_domain}")
+        print(f"Domains: {result.get('custom_domains', [])}")
+    elif getattr(args, 'set_domains', None):
+        if not args.domains:
+            print("Error: --domains required with --set-domains", file=sys.stderr)
+            sys.exit(2)
+        domains = [d.strip() for d in args.domains.split(",")]
+        result = update_service_domains(args.set_domains, domains, "custom_domains", public_key, secret_key)
+        print(f"Domains set for {args.set_domains}")
+        print(f"Domains: {result.get('custom_domains', [])}")
     elif args.resize:
         vcpu = getattr(args, 'vcpu', 1) or 1
         result = update_service(args.resize, public_key, secret_key, vcpu=vcpu)
@@ -2585,7 +3228,21 @@ def _handle_service_command(args, public_key: str, secret_key: str):
                 bootstrap = f.read()
         elif args.bootstrap:
             bootstrap = args.bootstrap
-        result = redeploy_service(args.redeploy, bootstrap=bootstrap, public_key=public_key, secret_key=secret_key)
+
+        # Build input_files from -f args
+        service_input_files = None
+        if getattr(args, 'files', None):
+            import base64 as _b64
+            service_input_files = []
+            for fpath in args.files:
+                with open(fpath, "rb") as ff:
+                    encoded = _b64.b64encode(ff.read()).decode("ascii")
+                service_input_files.append({
+                    "filename": os.path.basename(fpath),
+                    "content": encoded,
+                })
+
+        result = redeploy_service(args.redeploy, bootstrap=bootstrap, input_files=service_input_files, public_key=public_key, secret_key=secret_key)
         print(f"Service {args.redeploy} redeployed")
     elif args.execute:
         service_id, command = args.execute
@@ -2631,6 +3288,19 @@ def _handle_service_command(args, public_key: str, secret_key: str):
         if args.domains:
             custom_domains = [d.strip() for d in args.domains.split(",")]
 
+        # Build input_files from -f args
+        service_input_files = None
+        if getattr(args, 'files', None):
+            import base64 as _b64
+            service_input_files = []
+            for fpath in args.files:
+                with open(fpath, "rb") as ff:
+                    encoded = _b64.b64encode(ff.read()).decode("ascii")
+                service_input_files.append({
+                    "filename": os.path.basename(fpath),
+                    "content": encoded,
+                })
+
         result = create_service(
             name=args.name,
             ports=ports,
@@ -2640,6 +3310,8 @@ def _handle_service_command(args, public_key: str, secret_key: str):
             custom_domains=custom_domains,
             vcpu=getattr(args, 'vcpu', 1) or 1,
             service_type=args.service_type,
+            golden_image=getattr(args, 'golden_image', None),
+            input_files=service_input_files,
         )
 
         service_id = result.get("service_id", result.get("id", ""))
@@ -2799,17 +3471,191 @@ def _handle_image_command(args, public_key: str, secret_key: str):
 
 
 def _handle_key_command(public_key: str, secret_key: str):
-    """Handle key validation command."""
-    result = validate_keys(public_key, secret_key)
+    """Handle key validation command (CLI_SPEC.md: `un key` output)."""
+    public_key, secret_key = _resolve_credentials(public_key, secret_key)
+    timestamp = int(time.time())
+    headers = {
+        "Authorization": f"Bearer {public_key}",
+        "X-Timestamp": str(timestamp),
+        "X-Signature": _sign_request(secret_key, timestamp, "POST", "/keys/validate", ""),
+        "Content-Type": "application/json",
+    }
+    try:
+        response = requests.post(f"{API_BASE}/keys/validate", headers=headers, data="", timeout=30)
+    except requests.RequestException as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        result = response.json()
+    except ValueError:
+        result = {}
+    if not isinstance(result, dict):
+        result = {}
 
-    print(f"Public key: {public_key}")
-    print(f"Valid: {result.get('valid', False)}")
-    if result.get('tier'):
-        print(f"Tier: {result.get('tier')}")
-    if result.get('expires_at'):
-        print(f"Expires: {result.get('expires_at')}")
-    if result.get('reason'):
-        print(f"Reason: {result.get('reason')}")
+    if response.status_code == 200:
+        state = result.get("status") or ("active" if result.get("valid") else "invalid")
+        reason = f"status {state}"
+    elif response.status_code == 401:
+        reason = str(result.get("error") or "unauthorized")
+        state = {":expired": "expired", "expired": "expired",
+                 ":suspended": "suspended", "suspended": "suspended"}.get(reason, "invalid")
+    else:
+        msg = result.get("error") or result.get("message") or response.text
+        print(f"Error: HTTP {response.status_code} {msg}", file=sys.stderr)
+        sys.exit(4)
+
+    if state != "active":
+        if state == "expired":
+            print("Expired")
+            print(f"Public Key: {public_key}")
+            print(f"To renew: Visit {PORTAL_BASE}/keys/extend")
+        elif state == "suspended":
+            print("Suspended")
+            print(f"Public Key: {public_key}")
+        else:
+            print("Invalid")
+            print(f"Public Key: {public_key}")
+            print(f"Reason: {reason}")
+        sys.exit(3)
+
+    expires = remaining = "N/A"
+    vt = result.get("valid_through")
+    if isinstance(vt, (int, float)):
+        secs = int(vt // 1000)
+        expires = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(secs))
+        left = secs - int(time.time())
+        if left <= 0:
+            remaining = "expired"
+        else:
+            remaining = f"{left // 86400}d {left % 86400 // 3600}h {left % 3600 // 60}m"
+    tier = result.get("tier")
+    print("Valid")
+    print(f"Public Key: {public_key}")
+    print(f"Tier: {tier if tier is not None else 'N/A'}")
+    print(f"Status: {result.get('status') or 'N/A'}")
+    print(f"Expires: {expires}")
+    print(f"Time Remaining: {remaining}")
+
+
+def _credentials_csv_path(args) -> Optional[Path]:
+    """The accounts.csv the CLI's credentials came from, or None (flags / env vars).
+    Mirrors _resolve_credentials' tiers."""
+    if args.public_key and args.secret_key:
+        return None
+    if args.account is None and os.environ.get("UNSANDBOX_PUBLIC_KEY") and os.environ.get("UNSANDBOX_SECRET_KEY"):
+        return None
+    index = args.account if args.account is not None else int(os.environ.get("UNSANDBOX_ACCOUNT", "0"))
+    for path in (_get_unsandbox_dir() / "accounts.csv", Path("accounts.csv")):
+        if _load_credentials_from_csv(path, index):
+            return path
+    return None
+
+
+def _rewrite_accounts_csv(path: Path, public_key: str, new_secret: str) -> bool:
+    """Replace the secret on the line whose first field is public_key. Every other
+    line, field, comment and the order stay as they are. Temp file (0600) + rename."""
+    lines = path.read_text().split("\n")
+    changed = False
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        fields = line.split(",")
+        if len(fields) >= 2 and fields[0].strip() == public_key:
+            fields[1] = new_secret
+            lines[i] = ",".join(fields)
+            changed = True
+            break
+    if not changed:
+        return False
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write("\n".join(lines))
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, path)
+    return True
+
+
+def _handle_key_rotate(args, public_key: str, secret_key: str):
+    """un key --rotate [--otp CODE]: rotate this key's secret (see CLI_SPEC.md)."""
+    _check_requests()
+    path = "/keys/self/rotate-secret"
+    body = "{}"
+    unsandbox_dir = _get_unsandbox_dir()
+    challenge_file = unsandbox_dir / (
+        "rotate-" + hashlib.sha256(public_key.encode()).hexdigest()[:16] + ".challenge"
+    )
+
+    def post(otp=None, challenge=None):
+        ts = int(time.time())
+        headers = {
+            "Authorization": f"Bearer {public_key}",
+            "X-Timestamp": str(ts),
+            "X-Signature": _sign_request(secret_key, ts, "POST", path, body),
+            "Content-Type": "application/json",
+        }
+        if otp:
+            headers["X-Sudo-OTP"] = otp
+            headers["X-Sudo-Challenge"] = challenge or ""
+        return requests.post(f"{API_BASE}{path}", headers=headers, data=body, timeout=120)
+
+    def fail(resp):
+        try:
+            data = resp.json()
+        except ValueError:
+            data = {}
+        if resp.status_code == 403 and data.get("error") == "email_required":
+            print("Error: this key has no email; add one or use POST /keys/recover", file=sys.stderr)
+            sys.exit(3)
+        if resp.status_code == 401:
+            print("Error: authentication failed", file=sys.stderr)
+            sys.exit(3)
+        print(f"Error: {data.get('message') or data.get('error') or 'HTTP ' + str(resp.status_code)}", file=sys.stderr)
+        sys.exit(4)
+
+    if args.otp:
+        try:
+            challenge = challenge_file.read_text().strip()
+        except OSError:
+            print("Error: no rotation in progress; run: un key --rotate", file=sys.stderr)
+            sys.exit(2)
+        resp = post(args.otp.strip(), challenge)
+        challenge_file.unlink(missing_ok=True)
+    else:
+        resp = post()
+        if resp.status_code == 428:
+            challenge = (resp.json() or {}).get("challenge_id", "")
+            if sys.stdin.isatty():
+                print("One-time code emailed to the key owner.", file=sys.stderr)
+                print("Code: ", end="", file=sys.stderr, flush=True)
+                otp = sys.stdin.readline().strip()
+                if not otp:
+                    print("Error: cancelled", file=sys.stderr)
+                    sys.exit(1)
+                resp = post(otp, challenge)
+            else:
+                unsandbox_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+                fd = os.open(challenge_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+                with os.fdopen(fd, "w") as f:
+                    f.write(challenge)
+                os.chmod(challenge_file, 0o600)
+                print("One-time code emailed to the key owner. Finish with: un key --rotate --otp CODE")
+                return
+
+    if resp.status_code != 200:
+        fail(resp)
+    new_secret = (resp.json() or {}).get("secret")
+    if not new_secret:
+        print("Error: API returned no secret", file=sys.stderr)
+        sys.exit(4)
+
+    csv_path = _credentials_csv_path(args)
+    if csv_path and _rewrite_accounts_csv(csv_path, public_key, new_secret):
+        print(f"Secret rotated. Updated {csv_path} (public key {public_key}).")
+    else:
+        print(f"New secret (shown once, store it now): {new_secret}")
+        print("Warning: UNSANDBOX_SECRET_KEY / -k still hold the old, now invalid, secret.")
 
 
 def _handle_languages_command(args, public_key: str, secret_key: str):
