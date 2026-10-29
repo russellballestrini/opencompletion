@@ -408,3 +408,27 @@ def test_a_reply_without_tools_keeps_no_trail(harness):
         "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext("s")
     )
     assert reply_of("qwen").tool_trail is None
+
+
+def test_a_signed_in_message_carries_its_email_so_egress_users_get_our_network(
+    test_app, spawned
+):
+    import app as app_module
+    from models import User, db
+
+    user = User(email="fox@unturf.com", display_name="fox")
+    db.session.add(user)
+    db.session.commit()
+    http = test_app.test_client()
+    with http.session_transaction() as session:
+        session["user_id"] = user.id
+    client = app_module.socketio.test_client(app_module.app, flask_test_client=http)
+    client.emit("join", {"room_name": "lobby", "username": "fox"})
+    client.emit(
+        "chat_message",
+        {"room_name": "lobby", "username": "fox", "message": "hi", "model": "qwen"},
+    )
+    ((fn, args, kwargs),) = [c for c in spawned if c[0] is app_module.stoppable_reply]
+    context = kwargs["tool_context"]
+    assert context.email == "fox@unturf.com"
+    assert tools.offered(context) == {"web_search": "server", "web_fetch": "server"}

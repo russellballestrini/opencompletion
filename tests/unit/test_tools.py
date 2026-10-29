@@ -3,21 +3,28 @@ model streams, our browser round trip & the public-address guard on
 web_fetch. No network: every outside call is replaced, & the guard's own
 tests dial loopback addresses it must refuse."""
 
-import asyncio
-import http.server
-import json
-import threading
-from types import SimpleNamespace
+# Patch as app.py does, before our threads exist: web_fetch then runs under
+# the same gevent a server does, & a suite importing app after this one
+# never finds a lock patched out from under a running thread.
+from gevent import monkey
 
-import aiohttp
-import gevent
-import pytest
+monkey.patch_all()
 
-import tools
-from tools import browser, loop, policy, web_fetch
+import asyncio  # noqa: E402
+import http.server  # noqa: E402
+import json  # noqa: E402
+import threading  # noqa: E402
+from types import SimpleNamespace  # noqa: E402
+
+import aiohttp  # noqa: E402
+import gevent  # noqa: E402
+import pytest  # noqa: E402
+
+import tools  # noqa: E402
+from tools import browser, loop, policy, web_fetch  # noqa: E402
 
 GUEST = tools.ToolContext(sid="sid-guest")
-FOX = tools.ToolContext(sid="sid-fox", email="Fox@Unturf.com")
+FOX = tools.ToolContext(sid="sid-fox", email="fox@unturf.com")
 
 
 @pytest.fixture(autouse=True)
@@ -45,10 +52,10 @@ def test_nobody_has_our_network_unless_listed(monkeypatch):
     monkeypatch.delenv("OPENCOMPLETION_SERVER_EGRESS_USERS")
     assert not policy.server_egress_allowed("fox@unturf.com")
     monkeypatch.setenv(
-        "OPENCOMPLETION_SERVER_EGRESS_USERS", " a@x.org , FOX@unturf.com,"
+        "OPENCOMPLETION_SERVER_EGRESS_USERS", " A@X.org , fox@unturf.com,"
     )
-    assert policy.server_egress_allowed("fox@UNTURF.com")
-    assert policy.server_egress_allowed("a@x.org")
+    assert policy.server_egress_allowed("fox@unturf.com")
+    assert policy.server_egress_allowed("a@x.ORG")
     assert not policy.server_egress_allowed("eve@unturf.com")
     assert not policy.server_egress_allowed(None)
     assert not policy.server_egress_allowed("")
