@@ -5,8 +5,10 @@ import pytest
 import un
 
 
-@pytest.mark.parametrize("method", ["GET", "POST", "PATCH", "DELETE"])
+@pytest.mark.parametrize("method", ["GET", "POST", "PUT", "PATCH", "DELETE"])
 def test_transport(monkeypatch, method):
+    """The bytes signed are the bytes sent (un-inception beb5c2f): a body
+    goes out as `data`, & GET sends & signs none."""
     response = Mock()
     response.json.return_value = {"ok": True}
     transport = Mock(return_value=response)
@@ -20,17 +22,36 @@ def test_transport(monkeypatch, method):
     assert kwargs["timeout"] == 120
     assert kwargs["headers"]["Authorization"] == "Bearer public"
     assert kwargs["headers"]["X-Timestamp"] == "123"
+    sent = kwargs.get("data")
+    signed = sent.decode() if sent else ""
     assert kwargs["headers"]["X-Signature"] == un._sign_request(
-        "secret", 123, method, "/test", '{"x": 1}'
+        "secret", 123, method, "/test", signed
     )
-    if method in ("POST", "PATCH"):
-        assert kwargs["json"] == {"x": 1}
+    if method == "GET":
+        assert sent is None
+    else:
+        assert sent == b'{"x": 1}'
     response.raise_for_status.assert_called_once()
+
+
+def test_an_empty_body_is_signed_as_sent(monkeypatch):
+    """{} once signed as "" yet went out as "{}": a 401 on every freeze."""
+    response = Mock()
+    response.json.return_value = {}
+    post = Mock(return_value=response)
+    monkeypatch.setattr(un.requests, "post", post)
+    monkeypatch.setattr(un.time, "time", lambda: 7)
+    un._make_request("POST", "/services/s/freeze", "public", "secret", {})
+    kwargs = post.call_args.kwargs
+    assert kwargs["data"] == b"{}"
+    assert kwargs["headers"]["X-Signature"] == un._sign_request(
+        "secret", 7, "POST", "/services/s/freeze", "{}"
+    )
 
 
 def test_unsupported_method():
     with pytest.raises(ValueError, match="Unsupported HTTP method"):
-        un._make_request("PUT", "/test", "public", "secret")
+        un._make_request("TRACE", "/test", "public", "secret")
 
 
 @pytest.mark.parametrize("status", ["completed", "failed", "timeout", "cancelled"])

@@ -44,14 +44,6 @@ def _keys():
     return un._resolve_credentials(None, None)
 
 
-def _service_action(service_id, action):
-    """POST /services/<id>/<freeze|unfreeze> with no body. un.py's
-    freeze_service & unfreeze_service pass {}, which its _make_request
-    signs as "" yet sends as "{}", so the API answers 401 (an un-inception
-    defect, 2026-10-29); with None it signs & sends nothing."""
-    return un._make_request("POST", f"/services/{service_id}/{action}", *_keys(), None)
-
-
 def _clip(text, limit=OUTPUT_CHARS):
     text = text or ""
     if len(text) <= limit:
@@ -184,7 +176,7 @@ def ready(context):
     if sandbox is None:
         sandbox = _create(context)
     elif sandbox.state == "frozen":
-        _service_action(sandbox.service_id, "unfreeze")
+        un.unfreeze_service(sandbox.service_id)
         sandbox.state = "running"
     _wait_running(sandbox.service_id)
     sandbox.last_used_at = time.time()
@@ -205,7 +197,7 @@ def freeze_if_idle(sandbox_id, app=None):
         if time.time() - (sandbox.last_used_at or 0) < policy.sandbox_idle():
             return
         try:
-            _service_action(sandbox.service_id, "freeze")
+            un.freeze_service(sandbox.service_id)
         except Exception as e:  # noqa: BLE001 — try again on its next use
             print(f"[WARN] could not freeze sandbox {sandbox.name}: {e}")
             return
@@ -268,40 +260,11 @@ def write_file(context, path, content):
 # -- uncloseai-cli in the sandbox --------------------------------------------
 
 
-def _set_vault(service_id, env):
-    """Replace a sandbox's env vault: PUT /services/<id>/env with
-    {"env": {KEY: value}}, as the API takes it. un.py's set_service_env
-    POSTs a KEY=value string there & gets a 404 (an un-inception python &
-    go client defect, 2026-10-29; ruby PUTs), & its _make_request has no
-    PUT, so this signs the request with un's own _sign_request. A running
-    sandbox has the vault written to /run/unsandbox/vault.sh at once."""
-    import json
-
-    import requests
-
-    public_key, secret_key = _keys()
-    path = f"/services/{service_id}/env"
-    body = json.dumps({"env": env})
-    timestamp = int(time.time())
-    response = requests.put(
-        un.API_BASE + path,
-        data=body,
-        headers={
-            "Authorization": f"Bearer {public_key}",
-            "X-Timestamp": str(timestamp),
-            "X-Signature": un._sign_request(secret_key, timestamp, "PUT", path, body),
-            "Content-Type": "application/json",
-        },
-        timeout=60,
-    )
-    response.raise_for_status()
-
-
 def arm_proxy(sandbox, model):
     """A fresh token for this sandbox, in its env vault, & our proxy set to
     answer it with `model`. The token is never returned or logged."""
     token = "ocsb-" + secrets.token_urlsafe(32)
-    _set_vault(
+    un.set_service_env(
         sandbox.service_id,
         {
             "MODEL_ENDPOINT_0": policy.public_url() + "/api/sandbox/v1",

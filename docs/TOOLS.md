@@ -93,9 +93,7 @@ MODEL_API_KEY_0  = ocsb-<random>   # made for this one sandbox
 MODEL_ID_0       = the model whose reply delegated
 ```
 
-in its env vault (`PUT /services/<id>/env` via `tools/sandbox._set_vault`:
-un.py's `set_service_env` POSTs & 404s, an un-inception client defect;
-sourced from
+in its env vault (`un.set_service_env`, a PUT; sourced from
 `/run/unsandbox/vault.sh` inside the command, never on a command line).
 We keep only the token's SHA-256. `routes/sandbox_proxy.py` is an
 OpenAI-compatible `/api/sandbox/v1` (`/models`, `/chat/completions`,

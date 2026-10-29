@@ -187,9 +187,11 @@ def _make_request(
     _check_requests()
     url = f"{API_BASE}{path}"
     timestamp = int(time.time())
-    body = json.dumps(data) if data else ""
+    # Serialize once: the bytes we sign are the bytes we send ({} included)
+    body = json.dumps(data) if data is not None else ""
+    payload = body.encode("utf-8") if body and method != "GET" else None
 
-    signature = _sign_request(secret_key, timestamp, method, path, body if data else None)
+    signature = _sign_request(secret_key, timestamp, method, path, body if payload else "")
 
     headers = {
         "Authorization": f"Bearer {public_key}",
@@ -201,11 +203,13 @@ def _make_request(
     if method == "GET":
         response = requests.get(url, headers=headers, timeout=120)
     elif method == "POST":
-        response = requests.post(url, headers=headers, json=data, timeout=120)
+        response = requests.post(url, headers=headers, data=payload, timeout=120)
+    elif method == "PUT":
+        response = requests.put(url, headers=headers, data=payload, timeout=120)
     elif method == "PATCH":
-        response = requests.patch(url, headers=headers, json=data, timeout=120)
+        response = requests.patch(url, headers=headers, data=payload, timeout=120)
     elif method == "DELETE":
-        response = requests.delete(url, headers=headers, timeout=120)
+        response = requests.delete(url, headers=headers, data=payload, timeout=120)
     else:
         raise ValueError(f"Unsupported HTTP method: {method}")
 
@@ -233,9 +237,11 @@ def _make_request_with_sudo(
 
     url = f"{API_BASE}{path}"
     timestamp = int(time.time())
-    body = json.dumps(data) if data else ""
+    # Serialize once: the bytes we sign are the bytes we send ({} included)
+    body = json.dumps(data) if data is not None else ""
+    payload = body.encode("utf-8") if body and method != "GET" else None
 
-    signature = _sign_request(secret_key, timestamp, method, path, body if data else None)
+    signature = _sign_request(secret_key, timestamp, method, path, body if payload else "")
 
     headers = {
         "Authorization": f"Bearer {public_key}",
@@ -247,11 +253,13 @@ def _make_request_with_sudo(
     if method == "GET":
         response = requests.get(url, headers=headers, timeout=120)
     elif method == "POST":
-        response = requests.post(url, headers=headers, json=data, timeout=120)
+        response = requests.post(url, headers=headers, data=payload, timeout=120)
+    elif method == "PUT":
+        response = requests.put(url, headers=headers, data=payload, timeout=120)
     elif method == "PATCH":
-        response = requests.patch(url, headers=headers, json=data, timeout=120)
+        response = requests.patch(url, headers=headers, data=payload, timeout=120)
     elif method == "DELETE":
-        response = requests.delete(url, headers=headers, timeout=120)
+        response = requests.delete(url, headers=headers, data=payload, timeout=120)
     else:
         raise ValueError(f"Unsupported HTTP method: {method}")
 
@@ -274,7 +282,7 @@ def _make_request_with_sudo(
 
         # Retry with sudo headers
         retry_timestamp = int(time.time())
-        retry_signature = _sign_request(secret_key, retry_timestamp, method, path, body if data else None)
+        retry_signature = _sign_request(secret_key, retry_timestamp, method, path, body if payload else "")
 
         retry_headers = {
             "Authorization": f"Bearer {public_key}",
@@ -288,11 +296,13 @@ def _make_request_with_sudo(
         if method == "GET":
             response = requests.get(url, headers=retry_headers, timeout=120)
         elif method == "POST":
-            response = requests.post(url, headers=retry_headers, json=data, timeout=120)
+            response = requests.post(url, headers=retry_headers, data=payload, timeout=120)
+        elif method == "PUT":
+            response = requests.put(url, headers=retry_headers, data=payload, timeout=120)
         elif method == "PATCH":
-            response = requests.patch(url, headers=retry_headers, json=data, timeout=120)
+            response = requests.patch(url, headers=retry_headers, data=payload, timeout=120)
         elif method == "DELETE":
-            response = requests.delete(url, headers=retry_headers, timeout=120)
+            response = requests.delete(url, headers=retry_headers, data=payload, timeout=120)
 
     response.raise_for_status()
     return response.json()
@@ -334,11 +344,28 @@ def _save_languages_cache(languages: List[str]) -> None:
         pass  # Cache failures are non-fatal
 
 
+OS_CHOICES = ("linux", "freebsd")
+
+
+def _with_os(data: Dict[str, Any], target_os: Optional[str]) -> Dict[str, Any]:
+    """Add "os" to a request body only when a target OS was given.
+
+    Omitting the field keeps bodies byte-identical for API versions that predate it.
+    """
+    if target_os:
+        value = target_os.lower()
+        if value not in OS_CHOICES:
+            raise ValueError(f"invalid os '{target_os}' (expected linux or freebsd)")
+        data["os"] = value
+    return data
+
+
 def execute_code(
     language: str,
     code: str,
     public_key: Optional[str] = None,
     secret_key: Optional[str] = None,
+    target_os: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Execute code synchronously (blocks until completion).
@@ -348,6 +375,7 @@ def execute_code(
         code: Source code to execute
         public_key: Optional API key (uses credentials resolution if not provided)
         secret_key: Optional API secret (uses credentials resolution if not provided)
+        target_os: Optional target OS, "linux" or "freebsd" (omitted = API default, linux)
 
     Returns:
         Response dict containing stdout, stderr, exit code, etc.
@@ -363,7 +391,7 @@ def execute_code(
         "/execute",
         public_key,
         secret_key,
-        {"language": language, "code": code},
+        _with_os({"language": language, "code": code}, target_os),
     )
 
     # If we got a job_id, poll until completion
@@ -381,6 +409,7 @@ def execute_async(
     code: str,
     public_key: Optional[str] = None,
     secret_key: Optional[str] = None,
+    target_os: Optional[str] = None,
 ) -> str:
     """
     Execute code asynchronously (returns immediately with job_id).
@@ -390,6 +419,7 @@ def execute_async(
         code: Source code to execute
         public_key: Optional API key
         secret_key: Optional API secret
+        target_os: Optional target OS, "linux" or "freebsd" (omitted = API default, linux)
 
     Returns:
         Job ID string
@@ -405,7 +435,7 @@ def execute_async(
         "/execute",
         public_key,
         secret_key,
-        {"language": language, "code": code},
+        _with_os({"language": language, "code": code}, target_os),
     )
     return response.get("job_id")
 
@@ -653,7 +683,8 @@ def session_snapshot(
     public_key: Optional[str] = None,
     secret_key: Optional[str] = None,
     name: Optional[str] = None,
-    ephemeral: bool = False,
+    hot: bool = False,
+    ephemeral: Optional[bool] = None,
 ) -> str:
     """
     Create a snapshot of a session.
@@ -663,7 +694,8 @@ def session_snapshot(
         public_key: Optional API key
         secret_key: Optional API secret
         name: Optional snapshot name
-        ephemeral: If True, snapshot is temporary and may be auto-deleted
+        hot: If True, snapshot the running session without stopping it
+        ephemeral: Deprecated and ignored (the API never read it); use hot
 
     Returns:
         Snapshot ID
@@ -674,12 +706,12 @@ def session_snapshot(
         CredentialsError: Missing credentials
     """
     public_key, secret_key = _resolve_credentials(public_key, secret_key)
-    data = {"session_id": session_id, "ephemeral": ephemeral}
+    data: Dict[str, Any] = {"hot": bool(hot)}
     if name:
         data["name"] = name
 
-    response = _make_request("POST", "/snapshots", public_key, secret_key, data)
-    return response.get("snapshot_id")
+    response = _make_request("POST", f"/sessions/{session_id}/snapshot", public_key, secret_key, data)
+    return response.get("snapshot_id") or response.get("id")
 
 
 def service_snapshot(
@@ -687,6 +719,7 @@ def service_snapshot(
     public_key: Optional[str] = None,
     secret_key: Optional[str] = None,
     name: Optional[str] = None,
+    hot: bool = False,
 ) -> str:
     """
     Create a snapshot of a service.
@@ -696,6 +729,7 @@ def service_snapshot(
         public_key: Optional API key
         secret_key: Optional API secret
         name: Optional snapshot name
+        hot: If True, snapshot the running service without stopping it
 
     Returns:
         Snapshot ID
@@ -706,12 +740,12 @@ def service_snapshot(
         CredentialsError: Missing credentials
     """
     public_key, secret_key = _resolve_credentials(public_key, secret_key)
-    data = {"service_id": service_id}
+    data: Dict[str, Any] = {"hot": bool(hot)}
     if name:
         data["name"] = name
 
-    response = _make_request("POST", "/snapshots", public_key, secret_key, data)
-    return response.get("snapshot_id")
+    response = _make_request("POST", f"/services/{service_id}/snapshot", public_key, secret_key, data)
+    return response.get("snapshot_id") or response.get("id")
 
 
 def list_snapshots(
@@ -884,6 +918,7 @@ def create_session(
     shell: Optional[str] = None,
     multiplexer: Optional[str] = None,
     vcpu: int = 1,
+    target_os: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a new interactive session.
@@ -897,6 +932,7 @@ def create_session(
         shell: Optional shell to use (e.g., "bash", "python3")
         multiplexer: Optional terminal multiplexer ("tmux" or "screen")
         vcpu: Number of vCPUs (1-8, default 1)
+        target_os: Optional target OS, "linux" or "freebsd" (omitted = API default, linux)
 
     Returns:
         Response dict containing session_id, container_name, etc.
@@ -919,6 +955,7 @@ def create_session(
         data["multiplexer"] = multiplexer
     if vcpu > 1:
         data["vcpu"] = vcpu
+    _with_os(data, target_os)
 
     return _make_request("POST", "/sessions", public_key, secret_key, data)
 
@@ -1126,6 +1163,7 @@ def create_service(
     unfreeze_on_demand: bool = False,
     golden_image: Optional[str] = None,
     input_files: Optional[List[Dict[str, str]]] = None,
+    target_os: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a new persistent service.
@@ -1143,6 +1181,7 @@ def create_service(
         unfreeze_on_demand: If True, automatically unfreeze service on incoming requests
         golden_image: Optional LXD image alias (e.g., "golden-alpine-3.24")
         input_files: Optional list of dicts with "filename" and "content" (base64)
+        target_os: Optional target OS, "linux" or "freebsd" (omitted = API default, linux)
 
     Returns:
         Response dict containing service_id, etc.
@@ -1177,6 +1216,7 @@ def create_service(
         data["golden_image"] = golden_image
     if input_files:
         data["input_files"] = input_files
+    _with_os(data, target_os)
 
     return _make_request("POST", "/services", public_key, secret_key, data)
 
@@ -1546,17 +1586,13 @@ def set_service_env(
         CredentialsError: Missing credentials
     """
     public_key, secret_key = _resolve_credentials(public_key, secret_key)
-    # Convert dict to .env format for the API
-    env_content = "\n".join(f"{k}={v}" for k, v in env_dict.items())
-
-    # Note: This endpoint expects text/plain body, but we'll send as JSON
-    # and let the API handle conversion
+    # PUT /services/{id}/env takes JSON {"env": {KEY: value, ...}}
     return _make_request(
-        "POST",
+        "PUT",
         f"/services/{service_id}/env",
         public_key,
         secret_key,
-        {"env": env_content},
+        {"env": dict(env_dict)},
     )
 
 
@@ -2771,8 +2807,14 @@ def _format_list_output(items: List[Dict[str, Any]], resource_type: str) -> str:
     return "\n".join(lines)
 
 
-def _build_parser() -> argparse.ArgumentParser:
-    """Build the argument parser for the CLI."""
+def _build_parser(subcommands: bool = True) -> argparse.ArgumentParser:
+    """Build the argument parser for the CLI.
+
+    With subcommands=False our parser carries only global options plus the
+    execute positional (FILE or, with -s, inline code). argparse cannot mix an
+    optional positional with subparsers: it hands the first positional to the
+    subcommand slot, so cli_main picks one parser by our first positional.
+    """
     parser = argparse.ArgumentParser(
         prog="un.py",
         description="Unsandbox CLI - Execute code in secure containers",
@@ -2816,6 +2858,14 @@ Examples:
                         help="Skip confirmation prompts")
     parser.add_argument("--account", type=int, metavar="N",
                         help="Select account row N from accounts.csv (overrides env vars)")
+    parser.add_argument("--os", type=str.lower, choices=OS_CHOICES, metavar="OS",
+                        help="Target OS: linux (default) or freebsd (execute, session, service)")
+
+    if not subcommands:
+        parser.add_argument("source", nargs="?",
+                            help="Source file or inline code (with -s)")
+        parser.set_defaults(command=None)
+        return parser
 
     # Subcommands
     subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -2986,19 +3036,49 @@ Examples:
     languages_parser.add_argument("--json", action="store_true",
                                    help="Output as JSON array")
 
-    # Positional argument for source file or inline code
+    # Positional argument for source file or inline code (listed in --help;
+    # cli_main routes execute invocations to our subcommands=False parser)
     parser.add_argument("source", nargs="?",
                         help="Source file or inline code (with -s)")
 
     return parser
 
 
+CLI_SUBCOMMANDS = ("session", "service", "service-env", "snapshot", "image", "key", "languages")
+
+
+def _first_positional(parser: argparse.ArgumentParser, argv: List[str]) -> Optional[str]:
+    """Return our first argv token that is not a global option or its value."""
+    i = 0
+    while i < len(argv):
+        tok = argv[i]
+        if tok == "--":
+            return argv[i + 1] if i + 1 < len(argv) else None
+        if tok.startswith("-") and tok != "-":
+            if tok.startswith("--"):
+                name, has_inline = tok.split("=", 1)[0], "=" in tok
+            else:
+                name, has_inline = tok[:2], len(tok) > 2
+            action = parser._option_string_actions.get(name)
+            if action is not None and action.nargs != 0 and not has_inline:
+                i += 1  # skip this option's value
+            i += 1
+            continue
+        return tok
+    return None
+
+
 def cli_main():
     """Main entry point for CLI."""
     if len(sys.argv) > 1 and sys.argv[1] == "paas":
         sys.exit(_paas_command(sys.argv[2:]))
+    argv = sys.argv[1:]
     parser = _build_parser()
-    args = parser.parse_args()
+    first = _first_positional(parser, argv)
+    if first is not None and first not in CLI_SUBCOMMANDS:
+        # Execute mode: un.py FILE  or  un.py -s LANG 'code'
+        parser = _build_parser(subcommands=False)
+    args = parser.parse_args(argv)
 
     # Resolve credentials
     try:
@@ -3084,7 +3164,7 @@ def _handle_execute_command(args, public_key: str, secret_key: str):
             sys.exit(1)
 
     # Execute code
-    result = execute_code(language, code, public_key, secret_key)
+    result = execute_code(language, code, public_key, secret_key, target_os=getattr(args, "os", None))
 
     # Output result
     stdout = result.get("stdout", "")
@@ -3140,7 +3220,7 @@ def _handle_session_command(args, public_key: str, secret_key: str):
         snapshot_id = session_snapshot(
             args.snapshot, public_key, secret_key,
             name=args.snapshot_name,
-            ephemeral=not args.hot
+            hot=args.hot
         )
         print(f"Snapshot created: {snapshot_id}")
     else:
@@ -3157,6 +3237,7 @@ def _handle_session_command(args, public_key: str, secret_key: str):
             public_key=public_key,
             secret_key=secret_key,
             multiplexer=multiplexer,
+            target_os=getattr(args, "os", None),
         )
 
         session_id = result.get("session_id", result.get("id", ""))
@@ -3266,7 +3347,8 @@ def _handle_service_command(args, public_key: str, secret_key: str):
     elif args.snapshot:
         snapshot_id = service_snapshot(
             args.snapshot, public_key, secret_key,
-            name=getattr(args, 'snapshot_name', None)
+            name=getattr(args, 'snapshot_name', None),
+            hot=getattr(args, 'hot', False)
         )
         print(f"Snapshot created: {snapshot_id}")
     elif args.name:
@@ -3312,6 +3394,7 @@ def _handle_service_command(args, public_key: str, secret_key: str):
             service_type=args.service_type,
             golden_image=getattr(args, 'golden_image', None),
             input_files=service_input_files,
+            target_os=getattr(args, "os", None),
         )
 
         service_id = result.get("service_id", result.get("id", ""))
