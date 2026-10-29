@@ -592,7 +592,7 @@ function editMessage(messageId, messageContentContainer) {
     // Create a textarea for editing
     const textarea = document.createElement("textarea");
     textarea.value = rawMarkdown;
-    textarea.rows = 16;
+    textarea.rows = 1;
     textarea.className = "message-edit";
 
     // Replace the message content with the textarea
@@ -626,6 +626,33 @@ function editMessage(messageId, messageContentContainer) {
         resendButton.onclick = () => resendEditedMessage(messageId, textarea, messageContentContainer);
         saveButton.after(resendButton);
     }
+
+    // One line to start, growing with its text to EDIT_MAX_LINES (then it
+    // scrolls), its Save & Cancel kept in view below it.
+    const buttons = messageWrapper.querySelector(".button-container");
+    const fit = () => {
+        fitEditor(textarea);
+        if (buttons) buttons.scrollIntoView({block: "nearest"});
+    };
+    textarea.addEventListener("input", fit);
+    fit();
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+}
+
+// An editor as tall as its text, from one line to EDIT_MAX_LINES lines.
+const EDIT_MAX_LINES = 14;
+function fitEditor(textarea) {
+    const style = getComputedStyle(textarea);
+    const line = parseFloat(style.lineHeight) || 21;
+    const frame = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) +
+        parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+    textarea.style.height = "auto";
+    const tallest = line * EDIT_MAX_LINES + frame;
+    const wanted = textarea.scrollHeight + parseFloat(style.borderTopWidth) +
+        parseFloat(style.borderBottomWidth);
+    textarea.style.height = `${Math.min(wanted, tallest)}px`;
+    textarea.style.overflowY = wanted > tallest ? "auto" : "hidden";
 }
 
 // Edit & resend: the server hides this message & what followed, posts the

@@ -359,11 +359,13 @@ body.chat-page {
     margin-bottom: 0;
 }
 
+/* Editing a message: one line to start, grown to its text up to 14 lines
+   by fitEditor (5-messages.js), then it scrolls. */
 .message-edit {
+    display: block;
     width: 100%;
-    min-height: 60px;
-    max-height: 200px;
-    padding: var(--space-3);
+    line-height: 1.5;
+    padding: var(--space-2) var(--space-3);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     background-color: var(--bg-secondary);
