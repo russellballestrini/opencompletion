@@ -33,6 +33,7 @@ class Fakeunsandbox:
         for name in (
             "_make_request",
             "wait_for_job",
+            "get_job",
             "create_service",
             "get_service",
             "unfreeze_service",
@@ -55,6 +56,10 @@ class Fakeunsandbox:
 
     def wait_for_job(self, job_id, timeout=None):
         self.calls.append(("wait", job_id, timeout))
+        return self.job_results[job_id]
+
+    def get_job(self, job_id):
+        self.calls.append(("poll", job_id))
         return self.job_results[job_id]
 
     def create_service(self, name, network_mode, golden_image=None, **kwargs):
@@ -95,6 +100,7 @@ def unsandbox(test_app, monkeypatch):
     monkeypatch.delenv("OPENCOMPLETION_GUEST_CODE_EXEC", raising=False)
     # Idle timers would outlive a test; the freeze is tested on its own.
     monkeypatch.setattr(tool_sandbox.gevent, "spawn_later", lambda *a, **k: None)
+    monkeypatch.setattr(tool_sandbox.gevent, "sleep", lambda s: None)
     return Fakeunsandbox().install(monkeypatch)
 
 
@@ -714,3 +720,52 @@ def test_the_proxy_passes_engine_fields_so_thinking_can_be_turned_off(proxy):
         "top_k": 20,
     }
     assert "n" not in ask and "user" not in ask and "base_url" not in ask
+
+
+def test_a_long_job_rides_out_unsandbox_blips(unsandbox, room, monkeypatch):
+    """A 503 while polling a delegate's job once failed the whole delegate."""
+    import requests
+    import un
+
+    blips = []
+
+    def get_job(job_id):
+        if len(blips) < 2:
+            response = requests.Response()
+            response.status_code = 503
+            blips.append(job_id)
+            raise requests.HTTPError("503 Service Unavailable", response=response)
+        return {"status": "completed", "exit_code": 0, "stdout": "Done."}
+
+    monkeypatch.setattr(un, "get_job", get_job)
+    result = delegate(room, unsandbox)
+    assert len(blips) == 2 and result["answer"] == "Done."
+
+
+def test_a_real_error_while_polling_still_fails(unsandbox, room, monkeypatch):
+    import requests
+    import un
+
+    def get_job(job_id):
+        response = requests.Response()
+        response.status_code = 404
+        raise requests.HTTPError("404 Not Found", response=response)
+
+    monkeypatch.setattr(un, "get_job", get_job)
+    error = tools.run(fox_in(room), "sandbox_shell", {"command": "ls"})["error"]
+    assert "404" in error
+
+
+def test_a_job_still_running_keeps_being_polled(unsandbox, room, monkeypatch):
+    import un
+
+    states = iter(["pending", "running", "running"])
+
+    def get_job(job_id):
+        state = next(states, None)
+        if state:
+            return {"status": state}
+        return {"status": "completed", "exit_code": 0, "stdout": "ok"}
+
+    monkeypatch.setattr(un, "get_job", get_job)
+    assert tools.run(fox_in(room), "sandbox_shell", {"command": "ls"})["stdout"] == "ok"

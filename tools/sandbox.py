@@ -58,6 +58,50 @@ def _clip(text, limit=OUTPUT_CHARS):
     return f"{text[:half]}\n[… {len(text) - limit} characters cut …]\n{text[-half:]}"
 
 
+# unsandbox answers these for a moment now & then (a pool restarting, a
+# node busy); waiting on a job or a sandbox rides them out instead of
+# failing a long delegate on one blip.
+TRANSIENT_STATUSES = (502, 503, 504)
+
+
+def _transient(error):
+    import requests
+
+    if isinstance(error, (requests.ConnectionError, requests.Timeout)):
+        return True
+    status = getattr(getattr(error, "response", None), "status_code", None)
+    return status in TRANSIENT_STATUSES
+
+
+def _patiently(call, deadline, *args):
+    """call(*args), retrying transient failures with backoff until deadline."""
+    delay = 2
+    while True:
+        try:
+            return call(*args)
+        except Exception as e:  # noqa: BLE001 — only transient ones are retried
+            if not _transient(e) or time.time() + delay > deadline:
+                raise
+            print(f"[WARN] unsandbox blip ({e}); retrying in {delay}s")
+            gevent.sleep(delay)
+            delay = min(delay * 2, 30)
+
+
+def _wait_job(job_id, timeout_s):
+    """A job's result once it ends: polls get_job (riding out blips) until
+    it stops being pending or running, or timeout_s passes."""
+    deadline = time.time() + timeout_s
+    delay = 0.5
+    while True:
+        job = _patiently(un.get_job, deadline, job_id)
+        if job.get("status") not in ("pending", "running", "queued", None):
+            return job
+        if time.time() > deadline:
+            return {"status": "timeout", "error": f"no result within {timeout_s}s"}
+        gevent.sleep(delay)
+        delay = min(delay * 1.5, 5)
+
+
 def _finished(result):
     """What a model reads from a finished job."""
     shaped = {
@@ -100,7 +144,7 @@ def run_code(context, language, code, os_name="linux"):
     if os_name == "freebsd":
         body["os"] = "freebsd"
     job = un._make_request("POST", "/execute", *_keys(), body)
-    result = un.wait_for_job(job["job_id"], timeout=policy.run_code_timeout() + 30)
+    result = _wait_job(job["job_id"], policy.run_code_timeout() + 30)
     shaped = _finished(result)
     shaped["artifacts"] = keep_artifacts(context, result.get("artifacts") or [])
     if not shaped["artifacts"]:
@@ -145,7 +189,7 @@ def _state(service):
 def _wait_running(service_id):
     deadline = time.time() + READY_TIMEOUT_S
     while time.time() < deadline:
-        state = _state(un.get_service(service_id))
+        state = _state(_patiently(un.get_service, deadline, service_id))
         if state == "running":
             return
         if state in ("error", "failed", "destroyed"):
@@ -380,7 +424,7 @@ def _execute(sandbox, command, timeout_s):
             sandbox.service_id, command, timeout=timeout_s * 1000
         )
         if job.get("job_id"):
-            return un.wait_for_job(job["job_id"], timeout=timeout_s + 30)
+            return _wait_job(job["job_id"], timeout_s + 30)
         return job
     finally:
         sandbox.last_used_at = time.time()
