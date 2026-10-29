@@ -590,3 +590,38 @@ def test_a_server_that_cannot_force_a_tool_still_offers_them(harness):
     retry = harness.model.asks[1]
     assert "tool_choice" not in retry and "tools" in retry
     assert "No tools this reply" not in reply_of("qwen").content
+
+
+def test_a_reply_is_saved_as_it_goes_so_a_refresh_mid_tool_shows_it(
+    harness, monkeypatch
+):
+    from models import Message, db
+
+    seen = {}
+
+    def run(context, name, arguments):
+        # Mid-tool: what a page opened now would be sent.
+        db.session.expire_all()
+        reply = Message.query.filter_by(username="qwen").one()
+        seen["content"] = reply.content
+        seen["trail"] = json.loads(reply.tool_trail)
+        return {"results": []}
+
+    monkeypatch.setattr(tools, "run", run)
+    harness.model.scripts = [
+        [chunk(content="Let me look. ")] + search_call("elmo"),
+        [chunk(content="Done.")],
+    ]
+    harness.app.chat_gpt(
+        "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext("s")
+    )
+    assert seen["content"] == "Let me look. "
+    assert [(e["tool"], e["status"]) for e in seen["trail"]] == [
+        ("offered", "done"),
+        ("web_search", "running"),
+    ]
+    final = json.loads(reply_of("qwen").tool_trail)
+    assert [(e["tool"], e["status"]) for e in final] == [
+        ("offered", "done"),
+        ("web_search", "done"),
+    ]

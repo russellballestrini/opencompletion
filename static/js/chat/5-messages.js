@@ -283,6 +283,10 @@ socket.on("delete_processing_message", (msg_id) => {
 // (.message-tools) in the order they came. Made on its first chunk or
 // tool line, whichever comes first.
 function replyFlow(messageWrapper) {
+    // A reply drawn from history (opened mid-reply) has its content as a
+    // direct child: carry on in it rather than drawing a second one.
+    const drawn = messageWrapper.querySelector(":scope > .message-content");
+    if (drawn) return drawn;
     let body = messageWrapper.querySelector(".message-body");
     if (!body) {
         body = document.createElement("div");

@@ -1972,6 +1972,14 @@ def chat_gpt(
 
     tool_trail = []  # each finished tool call, kept as Message.tool_trail
 
+    def save_progress(trail):
+        with app.app_context():
+            reply = db.session.get(Message, msg_id)
+            if reply is not None:
+                reply.content = buffer
+                reply.tool_trail = json.dumps(trail) if trail else None
+                db.session.commit()
+
     def notify_tool(event):
         """Show the room a tool starting & ending, inside this reply, at the
         point of its text where it happened (`at`, an offset into it), so
@@ -1979,6 +1987,9 @@ def chat_gpt(
         event = dict(event, asker=username, at=len(buffer))
         if event["status"] != "running":
             tool_trail.append(event)
+        # Saved as it goes, so a page opened (or refreshed) mid-reply shows
+        # the tool still running & the words so far, not an empty reply.
+        save_progress(tool_trail + ([event] if event["status"] == "running" else []))
         socketio.emit(
             "tool_activity",
             dict(event, id=msg_id, model_name=model_name),

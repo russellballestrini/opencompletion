@@ -122,6 +122,19 @@ window.addEventListener('load', async () => {
         deliver('previous_messages', {id: 43, username: 'qwen', content: 'Old.', tools: [{tool: 'web_search', label: 'q', where: 'browser', asker: username, status: 'done'}]});
         const saved43 = [...document.querySelector('#message-43 .message-content').children].map(el => el.className);
         check(saved43.join() === 'message-part,message-tools,message-part', 'old trail order: ' + saved43.join());
+        // Opened mid-reply: history drew the tool running; the live events
+        // that follow finish it in place, never a second copy of the reply.
+        deliver('previous_messages', {id: 50, username: 'qwen', content: 'Let me look. ', tools: [
+            {tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running', at: 13,
+             detail: {language: '', input: 'make tests pass'}}]});
+        check(document.querySelector('#message-50 .message-tool.is-running'), 'history shows the tool still running');
+        deliver('tool_activity', {id: 50, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, model_name: 'qwen', status: 'done', at: 13,
+            detail: {language: '', input: 'make tests pass', answer: 'All green.'}});
+        deliver('message_chunk', {id: 50, content: 'Done.'});
+        const w50 = document.getElementById('message-50');
+        check(w50.querySelectorAll('.message-content').length === 1, 'one reply, not two');
+        check(w50.querySelectorAll('.message-tool').length === 1 && !w50.querySelector('.message-tool.is-running'), 'the running line finished in place');
+        check(/Done\./.test(w50.querySelector('.message-content').textContent), 'new words join it');
         // A reply's first line names the tools it may call.
         deliver('tool_activity', {id: 30, tool: 'offered', names: ['web_search', 'delegate'], status: 'done', asker: username});
         const offeredLine = document.querySelector('#message-30 .message-tool');
