@@ -120,6 +120,21 @@ window.addEventListener('load', async () => {
         deliver('message_chunk', {id: 7, content: 'Elmo is red.', username: 'ada', model_name: 'qwen', is_first_chunk: true});
         const body = document.querySelector('#message-7 .message-body');
         check(body.querySelector('.message-tools') && body.querySelector('.message-tools').compareDocumentPosition(body.querySelector('.message-content')) & Node.DOCUMENT_POSITION_FOLLOWING, 'answer under the tools');
+        // History: a saved reply draws its kept tool lines above its answer.
+        deliver('previous_messages', {id: 8, username: 'qwen', content: 'Elmo is red.', from_model: true, tools: [
+            {tool: 'web_search', label: 'elmo', where: 'browser', asker: username, status: 'done',
+             sources: [{url: 'https://a.org/', title: 'A'}, {url: 'javascript:window.pwned=3', title: 'x'}]},
+            {tool: 'web_search', label: 'grover', where: 'browser', asker: 'bob', status: 'error', error: 'all throttled'},
+        ]});
+        const saved = document.querySelectorAll('#message-8 .message-tool');
+        check(saved.length === 2, 'history keeps both lines');
+        check(/^Searched the web from your browser: elmo/.test(saved[0].textContent), 'history line: ' + (saved[0] || {}).textContent);
+        check(saved[0].querySelectorAll('a').length === 1 && !window.pwned, 'history sources safe');
+        check(/from bob's browser: grover \(failed: all throttled\)/.test(saved[1].textContent), 'history error line');
+        const tools8 = document.querySelector('#message-8 .message-tools');
+        check(tools8 && tools8.compareDocumentPosition(document.querySelector('#message-8 .message-content')) & Node.DOCUMENT_POSITION_FOLLOWING, 'history: answer under its tools');
+        deliver('previous_messages', {id: 9, username: 'qwen', content: 'Plain.', tools: null});
+        check(!document.querySelector('#message-9 .message-tools'), 'no trail, no lines');
         check(document.documentElement.scrollWidth <= innerWidth, 'no sideways scroll');
     } catch (e) {
         problems.push('threw: ' + e);

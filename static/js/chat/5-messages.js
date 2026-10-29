@@ -236,6 +236,7 @@ socket.on("previous_messages", (data) => {
 
     messageWrapper.appendChild(buttonContainer);
     if (data.thinking) messageWrapper.appendChild(thinkingBlock(data.thinking, false));
+    if (data.tools && data.tools.length) messageWrapper.appendChild(toolTrail(data.tools));
     messageWrapper.appendChild(newMessage);
 
     document.getElementById("chat").appendChild(messageWrapper);

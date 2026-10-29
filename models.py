@@ -168,6 +168,9 @@ class Message(db.Model):
     # A model's thinking, kept beside its reply (shown collapsed above it) &
     # never sent back to a model as history.
     thinking = db.Column(db.Text)
+    # What a reply's tools did (tools/, docs/TOOLS.md), as JSON: a list of
+    # {tool, label, where, asker, status, sources, error}, shown above it.
+    tool_trail = db.Column(db.Text)
 
     @classmethod
     def visible(cls, room_id):

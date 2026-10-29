@@ -1,7 +1,8 @@
 // Tools a model calls that run here, in the asker's own browser, so a
 // guest's search goes out from their network, never ours (tools/browser.py
 // asks; docs/TOOLS.md has the whole picture). Also draws each tool's
-// line inside a reply ("Searched the web from your browser: …").
+// line inside a reply ("Searched the web from your browser: …"), live &
+// from a reply's saved trail in history.
 //
 // The server sends `tool_request` only to the socket that sent the message
 // & takes a `tool_result` only from it. Our search is a port of
@@ -175,23 +176,9 @@ const TOOL_VERBS = {
     web_fetch: ["Reading", "Read"],
 };
 
-socket.on("tool_activity", (data) => {
-    const wrapperId = "message-" + data.id;
-    let messageWrapper = document.getElementById(wrapperId);
-    if (!messageWrapper) {
-        messageWrapper = document.createElement("div");
-        messageWrapper.className = "message-wrapper";
-        messageWrapper.id = wrapperId;
-        document.getElementById("chat").appendChild(messageWrapper);
-    }
-    const lines = toolLines(messageWrapper);
+// One tool's line, drawn from a tool_activity event or a saved trail entry.
+function drawToolLine(line, data) {
     const verbs = TOOL_VERBS[data.tool] || [`Running ${data.tool}`, `Ran ${data.tool}`];
-    let line = lines.lastElementChild;
-    if (data.status === "running" || !line || !line.classList.contains("is-running")) {
-        line = document.createElement("li");
-        line.className = "message-tool";
-        lines.appendChild(line);
-    }
     line.replaceChildren();
     line.classList.toggle("is-running", data.status === "running");
     line.classList.toggle("is-error", data.status === "error");
@@ -224,6 +211,38 @@ socket.on("tool_activity", (data) => {
         }
         line.appendChild(list);
     }
+}
+
+// A saved reply's tool lines (Message.tool_trail), for chat history.
+function toolTrail(events) {
+    const lines = document.createElement("ul");
+    lines.className = "message-tools";
+    for (const data of events) {
+        const line = document.createElement("li");
+        line.className = "message-tool";
+        drawToolLine(line, data);
+        lines.appendChild(line);
+    }
+    return lines;
+}
+
+socket.on("tool_activity", (data) => {
+    const wrapperId = "message-" + data.id;
+    let messageWrapper = document.getElementById(wrapperId);
+    if (!messageWrapper) {
+        messageWrapper = document.createElement("div");
+        messageWrapper.className = "message-wrapper";
+        messageWrapper.id = wrapperId;
+        document.getElementById("chat").appendChild(messageWrapper);
+    }
+    const lines = toolLines(messageWrapper);
+    let line = lines.lastElementChild;
+    if (data.status === "running" || !line || !line.classList.contains("is-running")) {
+        line = document.createElement("li");
+        line.className = "message-tool";
+        lines.appendChild(line);
+    }
+    drawToolLine(line, data);
     if (!userHasScrolledUp) {
         document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }

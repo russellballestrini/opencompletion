@@ -986,6 +986,7 @@ def on_join(data):
                 "from_model": message.username in SYSTEM_USERS
                 and message.username != "system",
                 "thinking": message.thinking,
+                "tools": json.loads(message.tool_trail) if message.tool_trail else None,
             },
             room=request.sid,
         )
@@ -1891,11 +1892,14 @@ def chat_gpt(
                     return ("reply", answer_guard.looping), False, False
         return None, cut, False
 
+    tool_trail = []  # each finished tool call, kept as Message.tool_trail
+
     def notify_tool(event):
         """Show the room a tool starting & ending, inside this reply."""
-        socketio.emit(
-            "tool_activity", dict(event, id=msg_id, asker=username), room=room_name
-        )
+        event = dict(event, asker=username)
+        if event["status"] != "running":
+            tool_trail.append(event)
+        socketio.emit("tool_activity", dict(event, id=msg_id), room=room_name)
         socketio.sleep(0)
 
     budget = thinking_budget() if enable_thinking else 0
@@ -2013,6 +2017,7 @@ def chat_gpt(
         if new_message:
             new_message.content = buffer
             new_message.thinking = "".join(thinking_parts) or None
+            new_message.tool_trail = json.dumps(tool_trail) if tool_trail else None
             new_message.count_tokens()
             db.session.add(new_message)
             db.session.commit()

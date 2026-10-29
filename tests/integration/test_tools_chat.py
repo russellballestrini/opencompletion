@@ -342,3 +342,69 @@ def test_a_guest_search_round_trips_through_their_browser(test_app, monkeypatch)
     from models import Message
 
     assert Message.query.filter_by(username="qwen").one().content == "Elmo is red."
+
+
+# -- a reply keeps its tool lines (Message.tool_trail) ---------------------
+
+
+def test_a_reply_keeps_its_tool_lines_for_history_and_forks(
+    harness, monkeypatch, test_app
+):
+    monkeypatch.setattr(
+        tools,
+        "run",
+        lambda *a: {
+            "results": [{"url": "https://a.org/", "title": "A", "snippet": ""}]
+        },
+    )
+    harness.model.scripts = [search_call("elmo"), [chunk(content="Elmo is red.")]]
+    harness.app.chat_gpt(
+        "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext("s")
+    )
+    reply = reply_of("qwen")
+    trail = json.loads(reply.tool_trail)
+    assert trail == [
+        {
+            "tool": "web_search",
+            "label": "elmo",
+            "where": "browser",
+            "status": "done",
+            "sources": [{"url": "https://a.org/", "title": "A"}],
+            "asker": "ada",
+        }
+    ]
+
+    # History hands the trail to whoever joins later.
+    monkeypatch.undo()
+    import app as app_module
+
+    client = app_module.socketio.test_client(
+        app_module.app, flask_test_client=test_app.test_client()
+    )
+    client.emit("join", {"room_name": "muppets", "username": "bob"})
+    history = [
+        e["args"][0] for e in client.get_received() if e["name"] == "previous_messages"
+    ]
+    saved = {m["id"]: m for m in history}[reply.id]
+    assert saved["tools"] == trail
+    assert all(m["tools"] is None for m in history if m["id"] != reply.id)
+
+    # A fork copies it with the reply.
+    from models import Message, Room
+    from routes.rooms import fork_conversation
+
+    source = Room.query.filter_by(name="muppets").one()
+    with test_app.test_request_context():
+        fork_conversation(source, up_to=reply.id)
+    copies = Message.query.filter(
+        Message.username == "qwen", Message.room_id != source.id
+    ).all()
+    assert [json.loads(c.tool_trail) for c in copies] == [trail]
+
+
+def test_a_reply_without_tools_keeps_no_trail(harness):
+    harness.model.scripts = [[chunk(content="Hi!")]]
+    harness.app.chat_gpt(
+        "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext("s")
+    )
+    assert reply_of("qwen").tool_trail is None

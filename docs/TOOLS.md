@@ -32,8 +32,9 @@ is cut to shape (`tools.shape_search`) before a model reads it.
 
 Each tool shows as a line inside the reply saying whose network it ran on
 ("Searched the web from your browser: …", "Read from our server: …") with
-the pages it found. Those lines are live only, not saved: a reloaded chat
-shows the answer, which cites its urls.
+the pages it found. Each reply keeps its finished lines as
+`Message.tool_trail` (JSON; migration `2026102901`, `make upgrade-db`), so
+history shows them & forks copy them.
 
 ## Settings (vars.sh)
 

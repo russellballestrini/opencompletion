@@ -256,6 +256,7 @@ def fork_conversation(source_room, up_to=None):
         content = copy_attachments(msg.content, source_room.id, new_room.id, relinked)
         copy = Message(username=msg.username, content=content, room_id=new_room.id)
         copy.thinking = msg.thinking
+        copy.tool_trail = msg.tool_trail
         db.session.add(copy)
     db.session.commit()
 
