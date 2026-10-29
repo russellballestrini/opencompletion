@@ -429,6 +429,7 @@ def test_the_proxy_answers_with_its_chats_model_and_our_client(proxy):
     (ask,) = proxy.completions.asks
     assert proxy.asked_for == ["qwen"] and ask["model"] == "resolved/qwen"
     assert ask["temperature"] == 0.2 and "api_key" not in ask
+    assert "api_key" not in ask.get("extra_body", {})
     listed = proxy.http.get("/api/sandbox/v1/models", headers=proxy.headers).get_json()
     assert [m["id"] for m in listed["data"]] == ["qwen"]
 
@@ -690,3 +691,26 @@ def test_delegate_in_a_remade_sandbox_hands_uncloseai_cli_the_history(unsandbox,
     command = unsandbox.commands()[-1]
     assert "NEW & EMPTY" in command and "Task: run the tests" in command
     assert "sandbox_note" in result
+
+
+def test_the_proxy_passes_engine_fields_so_thinking_can_be_turned_off(proxy):
+    """uncloseai-cli sends chat_template_kwargs to turn Qwen's thinking off;
+    dropping it left the model thinking through its budget, answering
+    empty."""
+    body = {
+        "messages": [{"role": "user", "content": "hi"}],
+        "chat_template_kwargs": {"enable_thinking": False},
+        "top_k": 20,
+        "n": 5,
+        "user": "someone",
+        "base_url": "http://evil.example/",
+    }
+    proxy.http.post(
+        "/api/sandbox/v1/chat/completions", json=body, headers=proxy.headers
+    )
+    (ask,) = proxy.completions.asks
+    assert ask["extra_body"] == {
+        "chat_template_kwargs": {"enable_thinking": False},
+        "top_k": 20,
+    }
+    assert "n" not in ask and "user" not in ask and "base_url" not in ask

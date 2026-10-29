@@ -25,22 +25,33 @@ bp = Blueprint("sandbox_proxy", __name__)
 # default is generous: 600 per 10 minutes per sandbox.
 proxy_limit = Throttle("OPENCOMPLETION_SANDBOX_PROXY_LIMIT", (600, 600))
 
-# What a sandbox may ask of our model; everything else is dropped.
-PASSED = (
+# OpenAI chat fields the client takes as arguments; every other field a
+# sandbox sends (chat_template_kwargs, top_k, min_p, continue_final_message,
+# ...) rides in extra_body, as our own chat sends them. uncloseai-cli turns
+# Qwen's thinking off with chat_template_kwargs: dropped, the model thought
+# through its whole budget & answered empty.
+STANDARD = (
     "messages",
     "tools",
     "tool_choice",
+    "parallel_tool_calls",
     "temperature",
     "top_p",
     "max_tokens",
     "max_completion_tokens",
     "stop",
     "stream",
+    "stream_options",
     "response_format",
     "presence_penalty",
     "frequency_penalty",
     "seed",
+    "logprobs",
+    "top_logprobs",
 )
+# Never taken from a sandbox: the model is its chat's, one answer per call,
+# & nothing that could carry or name a credential or another endpoint.
+REFUSED = ("model", "n", "user", "api_key", "api_base", "base_url", "extra_headers")
 
 
 def _error(status, message):
@@ -81,7 +92,14 @@ def chat_completions():
     body = request.get_json(silent=True)
     if not isinstance(body, dict) or not isinstance(body.get("messages"), list):
         return _error(400, "messages required")
-    ask = {key: body[key] for key in PASSED if key in body}
+    ask = {key: body[key] for key in STANDARD if key in body}
+    extra = {
+        key: value
+        for key, value in body.items()
+        if key not in STANDARD and key not in REFUSED
+    }
+    if extra:
+        ask["extra_body"] = extra
     client, model = routes.DEPS["get_openai_client_and_model"](sandbox.model)
     ask["model"] = model
     try:
