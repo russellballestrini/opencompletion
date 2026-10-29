@@ -142,6 +142,9 @@ def test_a_reply_searches_then_answers_with_what_it_found(harness, monkeypatch):
         "Let me check. Elmo is a red monster (muppet.fandom.com)."
     )
     activity = [a[1] for a, k in harness.emitted if a[0] == "tool_activity"]
+    # The reply's first line names what it may call.
+    offered = activity.pop(0)
+    assert (offered["tool"], offered["names"]) == ("offered", ["web_search"])
     assert [(e["status"], e["where"], e["asker"]) for e in activity] == [
         ("running", "browser", "ada"),
         ("done", "browser", "ada"),
@@ -405,7 +408,13 @@ def test_a_reply_keeps_its_tool_lines_for_history_and_forks(
     )
     reply = reply_of("qwen")
     trail = json.loads(reply.tool_trail)
-    assert trail == [
+    assert trail[0] == {
+        "tool": "offered",
+        "names": ["web_search"],
+        "status": "done",
+        "asker": "ada",
+    }
+    assert trail[1:] == [
         {
             "tool": "web_search",
             "label": "elmo",
@@ -444,11 +453,17 @@ def test_a_reply_keeps_its_tool_lines_for_history_and_forks(
     assert [json.loads(c.tool_trail) for c in copies] == [trail]
 
 
-def test_a_reply_without_tools_keeps_no_trail(harness):
+def test_a_reply_that_calls_no_tool_keeps_only_what_it_was_offered(harness):
     harness.model.scripts = [[chunk(content="Hi!")]]
     harness.app.chat_gpt(
         "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext("s")
     )
+    assert [e["tool"] for e in json.loads(reply_of("qwen").tool_trail)] == ["offered"]
+
+
+def test_a_reply_offered_no_tools_keeps_no_trail(harness):
+    harness.model.scripts = [[chunk(content="Hi!")]]
+    harness.app.chat_gpt("ada", "muppets", model_name="qwen")
     assert reply_of("qwen").tool_trail is None
 
 

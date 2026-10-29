@@ -1833,6 +1833,8 @@ def chat_gpt(
         create_kwargs["tools"] = tool_schemas
         # Which tools it has & that it never claims a run it did not make.
         chat_history.insert(0, tools.guidance(tool_context))
+        offered = list(tools.offered(tool_context))
+        print(f"[INFO] {model_name} may call {', '.join(offered)} for {username}")
     # The calls the model streams in its current ask, when it may call any.
     tool_calls = tools.ToolCallCollector() if tool_schemas else None
     # Why a server refused this reply's tools, if it did (open_completion).
@@ -1962,6 +1964,11 @@ def chat_gpt(
             tool_trail.append(event)
         socketio.emit("tool_activity", dict(event, id=msg_id), room=room_name)
         socketio.sleep(0)
+
+    if tool_schemas:
+        # The reply's first line names the tools it may call, so a reply
+        # that calls none shows whether it had them to call.
+        notify_tool({"tool": "offered", "names": offered, "status": "done"})
 
     budget = thinking_budget() if enable_thinking else 0
     looped, cut_at_limit, over_budget = consume(chunks, budget * CHARS_PER_TOKEN)

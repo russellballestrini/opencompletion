@@ -97,6 +97,12 @@ window.addEventListener('load', async () => {
         const last = testSocket.sent[testSocket.sent.length - 1][1];
         check(last.request_id === 'r5' && /does not run in a browser/.test(last.result.error), 'unknown tool refused');
 
+        // A reply's first line names the tools it may call.
+        deliver('tool_activity', {id: 30, tool: 'offered', names: ['web_search', 'delegate'], status: 'done', asker: username});
+        const offeredLine = document.querySelector('#message-30 .message-tool');
+        check(offeredLine && offeredLine.textContent === 'Tools: web_search, delegate' && offeredLine.classList.contains('is-offered'), 'offered line: ' + (offeredLine || {}).textContent);
+        deliver('previous_messages', {id: 31, username: 'qwen', content: 'Hi', tools: [{tool: 'offered', names: ['run_code'], status: 'done'}]});
+        check(document.querySelector('#message-31 .message-tool').textContent === 'Tools: run_code', 'history keeps the offered line');
         // A tool's line inside a reply, & whose network it ran on.
         deliver('tool_activity', {id: 7, tool: 'web_search', label: 'elmo', where: 'browser', asker: username, status: 'running'});
         const line = () => document.querySelector('#message-7 .message-tool:last-child');

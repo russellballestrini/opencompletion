@@ -184,6 +184,13 @@ const TOOL_VERBS = {
 
 // One tool's line, drawn from a tool_activity event or a saved trail entry.
 function drawToolLine(line, data) {
+    if (data.tool === "offered") {
+        // The reply's first line: the tools it may call (app.chat_gpt).
+        line.replaceChildren();
+        line.classList.add("is-offered");
+        line.textContent = "Tools: " + (data.names || []).join(", ");
+        return;
+    }
     const verbs = TOOL_VERBS[data.tool] || [`Running ${data.tool}`, `Ran ${data.tool}`];
     line.replaceChildren();
     line.classList.toggle("is-running", data.status === "running");

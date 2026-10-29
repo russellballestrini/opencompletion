@@ -2133,3 +2133,10 @@ a:hover {
     white-space: pre;
     text-overflow: ellipsis;
 }
+
+/* A reply's first tool line: the tools it may call. */
+.message-tool.is-offered {
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
