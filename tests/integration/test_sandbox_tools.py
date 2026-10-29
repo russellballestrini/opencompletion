@@ -372,12 +372,17 @@ def test_delegate_runs_unclose_with_a_token_only_its_vault_holds(unsandbox, room
     assert not any("MODEL_API_KEY_1" in k or "sk-" in v for k, v in env.items())
 
 
-def test_a_second_delegate_reuses_its_token_until_the_model_changes(unsandbox, room):
+def test_every_delegate_arms_a_fresh_token_and_native_tools(unsandbox, room):
+    from models import Sandbox
+
     delegate(room, unsandbox)
+    first = dict(unsandbox.env[Sandbox.query.one().service_id])
     delegate(room, unsandbox)
-    assert len([c for c in unsandbox.calls if c[0] == "env"]) == 1
-    delegate(room, unsandbox, model="hermes")
+    second = unsandbox.env[Sandbox.query.one().service_id]
     assert len([c for c in unsandbox.calls if c[0] == "env"]) == 2
+    assert first["MODEL_API_KEY_0"] != second["MODEL_API_KEY_0"]
+    # vLLM strips text-format <tool_call> on qwen: uncloseai-cli goes native.
+    assert second["UNCLOSEAI_NATIVE_TOOLS"] == "on"
 
 
 class Completions:

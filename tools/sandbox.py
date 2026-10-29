@@ -473,6 +473,11 @@ def arm_proxy(sandbox, model):
             "MODEL_API_KEY_0": token,
             "MODEL_ID_0": model,
             "MODEL_LABEL_0": "opencompletion",
+            # vLLM's qwen tool parser strips text-format <tool_call> from
+            # content (a request without tools comes back empty), so
+            # uncloseai-cli declares native tools from its first turn, as
+            # fox's own development.env does for qwen.
+            "UNCLOSEAI_NATIVE_TOOLS": "on",
         },
     )
     sandbox.token_sha256 = token_hash(token)
@@ -497,8 +502,9 @@ def delegate(context, task):
         return {"error": "task required"}
     sandbox = ready(context)
     model = context.model or sandbox.model
-    if not sandbox.token_sha256 or sandbox.model != model:
-        arm_proxy(sandbox, model)
+    # Armed afresh for every run: a new token, & the vault's settings as
+    # this server has them now (an older sandbox catches up).
+    arm_proxy(sandbox, model)
     note = fresh_note(sandbox)
     if note:
         # uncloseai-cli starts in the new sandbox: it needs the history too.
