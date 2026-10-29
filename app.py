@@ -97,7 +97,7 @@ import auth
 # instance/secret_key (auth.load_secret_key); never a published default.
 app.config["SECRET_KEY"] = auth.load_secret_key(app.instance_path)
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-from activity_utils import create_completion_skip_thinking, strip_reasoning
+from activity_utils import create_completion_skip_thinking, notice_id, strip_reasoning
 
 # Build a list of endpoints dynamically.
 ENDPOINTS = []
@@ -1031,13 +1031,13 @@ def on_join(data):
     # Broadcast to all clients in the room that a new user has joined.
     emit(
         "chat_message",
-        {"id": None, "content": f"{username} has joined the room."},
+        {"id": notice_id(), "content": f"{username} has joined the room."},
         room=room.name,
     )
     emit(
         "chat_message",
         {
-            "id": None,
+            "id": notice_id(),
             "content": f"Estimated {total_token_count} total tokens in conversation.",
         },
         room=request.sid,
@@ -1070,7 +1070,7 @@ def on_disconnect():
         )
         emit(
             "chat_message",
-            {"id": None, "content": f"{username} has left the room."},
+            {"id": notice_id(), "content": f"{username} has left the room."},
             room=room.name,
             include_self=False,
         )
@@ -1140,7 +1140,7 @@ def dispatch_message(
         if command.startswith("/help"):
             socketio.emit(
                 "chat_message",
-                {"id": "tmp-1", "username": "System", "content": HELP_MESSAGE},
+                {"id": notice_id(), "username": "System", "content": HELP_MESSAGE},
                 room=room_name,
             )
             return
@@ -1189,7 +1189,10 @@ def dispatch_message(
             continue
         emit(
             "chat_message",
-            {"id": None, "content": "<span id='processing'>Processing...</span>"},
+            {
+                "id": notice_id("processing"),
+                "content": "<span id='processing'>Processing...</span>",
+            },
             room=room.name,
         )
         # elif: a Claude model once also fell through to chat_gpt, so two
@@ -2505,11 +2508,6 @@ def generate_new_title(room_name, username):
 
 
 def generate_dalle_image(room_name, message, username):
-    socketio.emit(
-        "chat_message",
-        {"id": None, "content": "Processing..."},
-        room=room_name,
-    )
 
     openai_client = OpenAI()
     # Initialize the content variable to hold either the image tag or an error message
@@ -2792,7 +2790,7 @@ def cancel_generation(room_name):
         socketio.emit(
             "chat_message",
             {
-                "id": None,
+                "id": notice_id(),
                 "username": "System",
                 "content": f"Generation for message ID {latest_message.id} has been canceled.",
             },

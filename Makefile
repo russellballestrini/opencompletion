@@ -131,7 +131,7 @@ test-functional: venv
 .PHONY: test-ui
 test-ui: venv
 	@echo "📱 Running page contract tests..."
-	venv/bin/python -m pytest tests/functional/test_ui_contract.py tests/functional/test_home.py tests/functional/test_auth_ui_regressions.py tests/functional/test_tools_ui.py
+	venv/bin/python -m pytest tests/functional/test_ui_contract.py tests/functional/test_home.py tests/functional/test_auth_ui_regressions.py tests/functional/test_tools_ui.py tests/functional/test_notices_ui.py
 
 .PHONY: test-validator
 test-validator: venv

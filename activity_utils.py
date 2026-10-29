@@ -11,6 +11,7 @@ Features:
 """
 
 import math
+import uuid
 import re
 import random
 import operator
@@ -509,3 +510,12 @@ def first_token_top_logprobs(completion):
                 }
             )
     return out
+
+
+def notice_id(kind="notice"):
+    """An id of its own for a message we never store: a notice (someone
+    joined, an activity step) or a reply's "Processing..." placeholder
+    (kind "processing"). The page keeps each as its own element; with no
+    id they all shared #message-null & one finished reply cleared them all.
+    static/js/chat/5-messages.js knows both prefixes: no Delete or Edit."""
+    return f"{kind}-{uuid.uuid4().hex[:12]}"

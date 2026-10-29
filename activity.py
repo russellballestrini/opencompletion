@@ -28,6 +28,7 @@ SYSTEM_USERS = None
 
 # Import activity utilities for v2.0 features
 from activity_utils import (
+    notice_id,
     render_template,
     evaluate_condition,
     check_conditions,
@@ -249,7 +250,7 @@ def loop_through_steps_until_question(
             socketio.emit(
                 "chat_message",
                 {
-                    "id": None,
+                    "id": notice_id(),
                     "username": "System",
                     "content": "Activity completed!",
                 },
@@ -316,7 +317,7 @@ def cancel_activity(room_name, username):
             socketio.emit(
                 "chat_message",
                 {
-                    "id": None,
+                    "id": notice_id(),
                     "username": "System",
                     "content": "No active activity found to cancel.",
                 },
@@ -332,7 +333,7 @@ def cancel_activity(room_name, username):
         socketio.emit(
             "chat_message",
             {
-                "id": None,
+                "id": notice_id(),
                 "username": "System",
                 "content": "Activity has been canceled.",
             },
@@ -352,7 +353,7 @@ def display_activity_metadata(room_name, username):
             socketio.emit(
                 "chat_message",
                 {
-                    "id": None,
+                    "id": notice_id(),
                     "username": "System",
                     "content": "No active activity found.",
                 },
@@ -459,7 +460,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                             socketio.emit(
                                 "chat_message",
                                 {
-                                    "id": None,
+                                    "id": notice_id(),
                                     "username": "System",
                                     "content": f"🎲 [RANDOM EVENT] '{bucket_name}' triggered!",
                                 },
@@ -487,7 +488,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                 socketio.emit(
                     "chat_message",
                     {
-                        "id": None,
+                        "id": notice_id(),
                         "username": "System",
                         "content": f"Category: {category}{_conf}",
                     },
@@ -524,7 +525,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                     socketio.emit(
                         "chat_message",
                         {
-                            "id": None,
+                            "id": notice_id(),
                             "username": "System",
                             "content": f"Error: Unrecognized category '{category}'. Please try again.",
                         },
@@ -548,7 +549,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                         socketio.emit(
                             "chat_message",
                             {
-                                "id": None,
+                                "id": notice_id(),
                                 "username": "System",
                                 "content": f"\n{'='*60}\nProcessing transition for bucket: '{bucket_name}'\n{'='*60}",
                             },
@@ -567,7 +568,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                             socketio.emit(
                                 "chat_message",
                                 {
-                                    "id": None,
+                                    "id": notice_id(),
                                     "username": "System",
                                     "content": f"Skipping '{bucket_name}' - metadata conditions not met",
                                 },
@@ -1224,7 +1225,7 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
             socketio.emit(
                 "chat_message",
                 {
-                    "id": None,
+                    "id": notice_id(),
                     "username": "System",
                     "content": f"Error processing activity response: {e}\n\n{msg}",
                 },
@@ -1241,7 +1242,7 @@ def display_activity_info(room_name, username, model="MODEL_0"):
             socketio.emit(
                 "chat_message",
                 {
-                    "id": None,
+                    "id": notice_id(),
                     "username": "System",
                     "content": "No active activity found.",
                 },
@@ -1306,7 +1307,7 @@ def display_activity_info(room_name, username, model="MODEL_0"):
             socketio.emit(
                 "chat_message",
                 {
-                    "id": None,
+                    "id": notice_id(),
                     "username": "System",
                     "content": f"Error displaying activity info: {e}",
                 },

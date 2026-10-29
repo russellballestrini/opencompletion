@@ -28,9 +28,17 @@ function addForkButton(buttonContainer, messageId) {
 }
 
 // Socket event for receiving a new message
+// A message we never store (someone joined, an activity step, a reply's
+// "Processing..." placeholder) carries an id of its own, notice-… or
+// processing-… (activity_utils.notice_id): its own element, no actions.
+function isNoticeId(id) {
+    return typeof id === "string" && /^(notice|processing)-/.test(id);
+}
+
 socket.on("chat_message", (data) => {
-    // A newer message ends the suggestions; a notice with no id does not.
-    if (data.id) clearFollowups();
+    // A stored message has actions & ends the suggestions; a notice neither.
+    const stored = Boolean(data.id) && !isNoticeId(data.id);
+    if (stored) clearFollowups();
     const messageWrapper = document.createElement("div");
     messageWrapper.className = "message-wrapper";
     messageWrapper.id = "message-" + data.id;
@@ -44,8 +52,8 @@ socket.on("chat_message", (data) => {
         : data.content;
     newMessage.innerHTML = renderMarkdown(messageContent);
 
-    // Check if the message has an id which means we can delete it.
-    if (data.id) {
+    // A stored message can be deleted, edited, copied & read aloud.
+    if (stored) {
         newMessage.dataset.rawMarkdown = data.content;
 
         // Create a container for the buttons
@@ -102,7 +110,7 @@ socket.on("chat_message", (data) => {
     });
 
     // Scroll to the bottom of the chat container to show the new message.
-    if (data.id) {
+    if (stored) {
         document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
 
         // Auto-run our own posted fix, and only that: in a busy room another
@@ -256,10 +264,11 @@ socket.on("previous_messages", (data) => {
 
 // Socket event for deleting a processing message
 socket.on("delete_processing_message", (msg_id) => {
-    const tempMessages = document.querySelectorAll("#message-null");
-    tempMessages.forEach((tempMessage) => {
-        tempMessage.remove();
-    });
+    // A reply has ended: its "Processing..." placeholder goes, the oldest
+    // one (each reply sent one, in order), & nothing else, so notices &
+    // other replies' placeholders stay.
+    const placeholder = document.querySelector('#chat [id^="message-processing-"]');
+    if (placeholder) placeholder.remove();
     // Clear the message buffer and header for the corresponding message ID
     delete messageBuffers[msg_id];
     delete messageHeaders[msg_id];
