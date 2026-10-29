@@ -47,6 +47,12 @@ migrate = Migrate(app, db)
 # socketio = SocketIO(app, async_mode="eventlet")
 socketio = SocketIO(app, async_mode="gevent")
 
+# Tools a chat model may call (web search, web fetch): all of it lives in
+# tools/ & docs/TOOLS.md; chat_gpt is its one caller.
+import tools
+
+tools.register(socketio)
+
 # Global dictionary to keep track of cancellation requests
 cancellation_requests = {}
 # Our Stop button: rooms whose streaming replies should end now, & how
@@ -1013,6 +1019,7 @@ def on_join(data):
 @socketio.on("disconnect")
 def on_disconnect():
     sid = request.sid
+    tools.abandon(sid)  # a tool waiting on this browser hears now
     user_session = UserSession.query.filter_by(session_id=sid).first()
 
     if user_session:
@@ -1082,13 +1089,22 @@ def handle_message(data):
     )
 
     dispatch_message(
-        room, username, message, [model], data.get("enable_thinking", True)
+        room,
+        username,
+        message,
+        [model],
+        data.get("enable_thinking", True),
+        tool_context=tools.context(request.sid, auth.get_current_user()),
     )
 
 
-def dispatch_message(room, username, message, models, enable_thinking=True):
+def dispatch_message(
+    room, username, message, models, enable_thinking=True, tool_context=None
+):
     """What a posted message sets off: a slash command, the room's running
-    activity, or a reply from each of `models` ("None" = people only)."""
+    activity, or a reply from each of `models` ("None" = people only).
+    `tool_context` (tools.context: the asker's socket & sign in) decides
+    which tools a reply may call; None offers none."""
     room_name = room.name
     commands = message.splitlines()
     for command in commands:
@@ -1164,6 +1180,7 @@ def dispatch_message(room, username, message, models, enable_thinking=True):
                 room_name,
                 model_name=model,
                 enable_thinking=enable_thinking,
+                tool_context=tool_context,
             )
 
 
@@ -1334,7 +1351,12 @@ def handle_edit_and_resend(data):
         room=room.name,
     )
     dispatch_message(
-        room, revision.username, content, models, data.get("enable_thinking", True)
+        room,
+        revision.username,
+        content,
+        models,
+        data.get("enable_thinking", True),
+        tool_context=tools.context(request.sid, auth.get_current_user()),
     )
 
 
@@ -1597,10 +1619,11 @@ def answer_tokens():
 
 
 def open_completion(client, kwargs, skip_thinking=False):
-    """Start a streamed chat completion, forgiving the two asks a server may
-    refuse with a 400: an unknown `top_k` (dropped) & a max_tokens past what
+    """Start a streamed chat completion, forgiving the asks a server may
+    refuse with a 400: an unknown `top_k` (dropped), a max_tokens past what
     its context has room for (dropped: the server then stops at its context,
-    & our loop guard & thinking budget still hold)."""
+    & our loop guard & thinking budget still hold) & `tools` on a server or
+    model that can't call them (dropped: the reply is plain chat)."""
     kwargs = dict(kwargs)
     for _ in range(3):
         try:
@@ -1622,6 +1645,10 @@ def open_completion(client, kwargs, skip_thinking=False):
             ):
                 print(f"[WARN] {kwargs.get('model')} refused max_tokens: {e}")
                 kwargs.pop("max_tokens")
+                continue
+            if "tools" in kwargs:
+                print(f"[WARN] {kwargs.get('model')} refused tools: {e}")
+                kwargs.pop("tools")
                 continue
             raise
     return client.chat.completions.create(**kwargs)
@@ -1652,7 +1679,13 @@ def answer_from_notes(chat_history, notes):
     return history
 
 
-def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True):
+def chat_gpt(
+    username,
+    room_name,
+    model_name="gpt-4o-mini",
+    enable_thinking=True,
+    tool_context=None,
+):
     openai_client, model_name = get_openai_client_and_model(model_name)
 
     limit = 20
@@ -1740,6 +1773,13 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         "stream": True,
         **chat_sampling(model_name),
     }
+    # The tools this reply may call (tools/: web search & fetch), by who
+    # asked (tool_context); none offered leaves this a plain chat reply.
+    tool_schemas = tools.schemas(tool_context)
+    if tool_schemas:
+        create_kwargs["tools"] = tool_schemas
+    # The calls the model streams in its current ask, when it may call any.
+    tool_calls = tools.ToolCallCollector() if tool_schemas else None
 
     def open_stream(client):
         # Without thinking, chain-of-thought is suppressed at the template
@@ -1842,12 +1882,21 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
                     return ("thinking", thinking_guard.looping), False, False
                 if budget_chars and first_chunk and thought > budget_chars:
                     return None, False, True
+            if tool_calls is not None and getattr(delta, "tool_calls", None):
+                tool_calls.add(delta.tool_calls)
             content = delta.content
             if content:
                 emit_content(content)
                 if answer_guard.add(content):
                     return ("reply", answer_guard.looping), False, False
         return None, cut, False
+
+    def notify_tool(event):
+        """Show the room a tool starting & ending, inside this reply."""
+        socketio.emit(
+            "tool_activity", dict(event, id=msg_id, asker=username), room=room_name
+        )
+        socketio.sleep(0)
 
     budget = thinking_budget() if enable_thinking else 0
     looped, cut_at_limit, over_budget = consume(chunks, budget * CHARS_PER_TOKEN)
@@ -1864,6 +1913,8 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
             create_kwargs,
             messages=answer_from_notes(chat_history, "".join(thinking_parts)),
         )
+        answer_kwargs.pop("tools", None)  # answering from notes: no tools
+        tool_calls = None
         cap, cap_name = answer_tokens(), "OPENCOMPLETION_ANSWER_TOKENS"
         if cap:
             answer_kwargs["max_tokens"] = cap
@@ -1885,6 +1936,38 @@ def chat_gpt(username, room_name, model_name="gpt-4o-mini", enable_thinking=True
         except Exception as e:
             looped = None
             emit_content(f"\n\n_{model_name} could not answer from its notes: {e}_")
+
+    # The model asked for tools: run them (tools.run_round: in the asker's
+    # browser or on our server, tools/policy.py says which), hand it what
+    # they found & stream its next ask into this same reply. Its last
+    # round goes without tools, so a reply always ends in an answer.
+    rounds, round_start, with_tools = 0, 0, chat_history
+    while tool_calls is not None and tool_calls.calls and not looped:
+        if room_name in stop_requests:
+            break
+        rounds += 1
+        with_tools = with_tools + tools.run_round(
+            tool_context, tool_calls.calls, buffer[round_start:], notify_tool
+        )
+        if room_name in stop_requests:  # Stop pressed while a tool ran
+            break
+        round_start = len(buffer)
+        ask = dict(create_kwargs, messages=with_tools)
+        if rounds >= tools.max_rounds():
+            ask.pop("tools", None)
+        tool_calls = tools.ToolCallCollector() if "tools" in ask else None
+        try:
+            chunks = open_with_failover(
+                openai_client,
+                model_name,
+                lambda client: open_completion(
+                    client, ask, skip_thinking=not enable_thinking
+                ),
+            )
+        except Exception as e:
+            emit_content(f"\n\n_{model_name} could not answer after its tools: {e}_")
+            break
+        looped, cut_at_limit, _ = consume(chunks, 0)
 
     notice = ""
     if cut_at_limit and not looped:

@@ -75,6 +75,15 @@ export ENABLE_CODE_GEN_FILENAMES="true"
 #export UNSANDBOX_SECRET_KEY=unsb-sk-xxxx
 #export OPENCOMPLETION_GUEST_CODE_EXEC=off
 
+# Tools a chat model may call (docs/TOOLS.md). Both on by default. A guest's
+# search runs in their own browser; only these signed-in emails use our
+# server's network (search there & fetching pages). Default: nobody.
+#export OPENCOMPLETION_WEB_SEARCH=off
+#export OPENCOMPLETION_WEB_CRAWL=off
+#export OPENCOMPLETION_SERVER_EGRESS_USERS="you@example.com"
+#export OPENCOMPLETION_TOOL_ROUNDS=4
+#export OPENCOMPLETION_TOOL_TIMEOUT_S=30
+
 # Signs session cookies. Unset, our server makes a random key once & keeps
 # it in instance/secret_key; set it to share one key across servers.
 #export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")

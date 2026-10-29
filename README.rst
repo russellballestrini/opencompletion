@@ -50,6 +50,12 @@ Features
 - Follow-up suggestions under each reply, from the model that answered
   (``OPENCOMPLETION_FOLLOWUPS=off`` turns them off), and a ↓ button back to
   the newest message.
+- Models search the web & read pages as they answer (keyless search over
+  five vendors' free tiers; ``docs/TOOLS.md``). A guest's search runs in their
+  own browser, never on our network; only emails on
+  ``OPENCOMPLETION_SERVER_EGRESS_USERS`` use our server, & only they may have
+  a page fetched. ``OPENCOMPLETION_WEB_SEARCH=off`` &
+  ``OPENCOMPLETION_WEB_CRAWL=off`` turn them off.
 - Installable as an app on phones & desktops (``/manifest.webmanifest``,
   named by ``OPENCOMPLETION_BRAND``).
 - Room archiving and owner management

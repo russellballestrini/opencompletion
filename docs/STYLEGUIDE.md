@@ -61,6 +61,9 @@ are 16px on phones so iOS never zooms into them.
   It shows on hover or focus, always on touch screens.
 - **Follow-ups** `.followups` of `.followup-chip`s under our newest reply;
   `.scroll-bottom` (↓) floats above the composer once you scroll up.
+- **Tool lines** `.message-tools` of `.message-tool`s inside a reply
+  (`8-tools.js`): what a tool did & whose network it ran on ("Searched
+  the web from your browser: …"), its pages in `.message-tool-sources`.
 - **Tabs** `.tabs` > `.room-tab` with `role="tab"` & `aria-selected`.
 - **Empty states** `.empty-state` say what is missing & offer the next step.
 

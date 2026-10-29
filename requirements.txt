@@ -26,3 +26,10 @@ pyyaml
 matplotlib
 numpy
 sympy
+
+# tools/ (web search & crawl for chat): the shared crawler's extras
+aiohttp
+beautifulsoup4
+lxml
+miniuri
+pypdf

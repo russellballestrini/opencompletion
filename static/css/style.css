@@ -2023,3 +2023,43 @@ a:hover {
     border-color: var(--button-primary);
     background-color: var(--bg-hover);
 }
+
+/* Tools inside a reply (static/js/chat/8-tools.js): one line per call,
+   saying whose network it ran on, & the pages it found. */
+.message-tools {
+    list-style: none;
+    margin: 0 0 var(--space-2);
+    padding: 0;
+    display: grid;
+    gap: var(--space-1);
+    font-size: 13px;
+    color: var(--text-secondary);
+    min-width: 0;
+}
+
+.message-tool {
+    overflow-wrap: anywhere;
+}
+
+.message-tool.is-running .message-tool-head {
+    font-style: italic;
+}
+
+.message-tool-error {
+    color: var(--text-error);
+}
+
+.message-tool-sources {
+    margin: var(--space-1) 0 0;
+    padding-left: var(--space-6);
+}
+
+.message-tool-sources a {
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.message-tool-sources a:hover,
+.message-tool-sources a:focus-visible {
+    color: var(--text-primary);
+}
