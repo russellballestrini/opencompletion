@@ -228,7 +228,7 @@ def test_a_chat_makes_its_sandbox_once_and_keeps_it(unsandbox, room):
     assert len(creates) == 1
     _, name, network, image = creates[0]
     assert name.startswith(f"oc-{room.id}-") and network == "semitrusted"
-    assert image is None
+    assert image == "unsandbox-ubuntu"  # our golden image, by default
     assert unsandbox.commands() == ["pip install x", "ls"]
     assert first["stdout"] == "ok\n" and first["exit_code"] == 0
     sandbox = Sandbox.query.one()
@@ -236,10 +236,12 @@ def test_a_chat_makes_its_sandbox_once_and_keeps_it(unsandbox, room):
     assert sandbox.state == "running" and sandbox.last_used_at <= time.time()
 
 
-def test_a_sandbox_spawns_from_our_golden_image(unsandbox, room, monkeypatch):
-    monkeypatch.setenv("OPENCOMPLETION_SANDBOX_IMAGE", "unsandbox-ubuntu")
+def test_another_golden_image_can_be_named(unsandbox, room, monkeypatch):
+    monkeypatch.setenv("OPENCOMPLETION_SANDBOX_IMAGE", "unsandbox-ubuntu-next")
     tools.run(fox_in(room), "sandbox_shell", {"command": "true"})
-    assert [c[3] for c in unsandbox.calls if c[0] == "create"] == ["unsandbox-ubuntu"]
+    assert [c[3] for c in unsandbox.calls if c[0] == "create"] == [
+        "unsandbox-ubuntu-next"
+    ]
 
 
 def test_a_frozen_sandbox_is_woken_not_remade(unsandbox, room):

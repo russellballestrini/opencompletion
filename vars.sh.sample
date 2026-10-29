@@ -88,7 +88,7 @@ export ENABLE_CODE_GEN_FILENAMES="true"
 # egress emails above. delegate needs our address as a sandbox reaches it.
 #export OPENCOMPLETION_RUN_CODE=off
 #export OPENCOMPLETION_SANDBOX=off
-#export OPENCOMPLETION_SANDBOX_IMAGE="unsandbox-ubuntu"
+#export OPENCOMPLETION_SANDBOX_IMAGE="unsandbox-ubuntu"   # the default
 #export OPENCOMPLETION_DELEGATE=off
 #export OPENCOMPLETION_PUBLIC_URL="https://demo.opencompletion.com"
 

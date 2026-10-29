@@ -53,6 +53,7 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
 - **A sandbox per chat** (`sandbox_shell`, `sandbox_write_file`): an
   unsandbox service (`oc-<room>-<random>`, table `sandbox`, migration
   `2026102902`) made on first use from `OPENCOMPLETION_SANDBOX_IMAGE`
+  (default `unsandbox-ubuntu`)
   (our golden image, which carries uncloseai-cli), `semitrusted` network.
   It keeps files & installs across turns. Idle for
   `OPENCOMPLETION_SANDBOX_IDLE_S` it is **frozen**, never deleted, & the
@@ -95,7 +96,7 @@ export OPENCOMPLETION_TOOL_TIMEOUT_S=30  # a browser's time to answer
 export OPENCOMPLETION_RUN_CODE=on        # off: no run_code for anyone
 export OPENCOMPLETION_RUN_CODE_TIMEOUT_S=60
 export OPENCOMPLETION_SANDBOX=on         # off: no sandbox tools
-export OPENCOMPLETION_SANDBOX_IMAGE=unsandbox-ubuntu   # unset: unsandbox's
+export OPENCOMPLETION_SANDBOX_IMAGE=unsandbox-ubuntu   # the default
 export OPENCOMPLETION_SANDBOX_IDLE_S=600
 export OPENCOMPLETION_SANDBOX_TIMEOUT_S=120   # one shell command
 export OPENCOMPLETION_DELEGATE=on        # off: no uncloseai-cli
