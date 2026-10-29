@@ -1666,7 +1666,7 @@ def open_completion(client, kwargs, skip_thinking=False, refusals=None):
     it went without). Any other 400 is raised: a reply never loses its
     tools to an error that was about something else."""
     kwargs = dict(kwargs)
-    for _ in range(3):
+    for _ in range(4):
         try:
             if skip_thinking:
                 return create_completion_skip_thinking(client, **kwargs)
@@ -1687,9 +1687,15 @@ def open_completion(client, kwargs, skip_thinking=False, refusals=None):
                 print(f"[WARN] {kwargs.get('model')} refused max_tokens: {e}")
                 kwargs.pop("max_tokens")
                 continue
+            if "tool_choice" in kwargs and "tool" in text:
+                # Can't force a named tool: still offer them all.
+                print(f"[WARN] {kwargs.get('model')} refused tool_choice: {e}")
+                kwargs.pop("tool_choice")
+                continue
             if "tools" in kwargs and any(w in text for w in TOOL_REFUSAL_WORDS):
                 print(f"[WARN] {kwargs.get('model')} refused tools: {e}")
                 kwargs.pop("tools")
+                kwargs.pop("tool_choice", None)
                 kwargs["messages"] = [
                     m for m in kwargs.get("messages", []) if not tools.is_guidance(m)
                 ]
@@ -1835,6 +1841,15 @@ def chat_gpt(
         chat_history.insert(0, tools.guidance(tool_context))
         offered = list(tools.offered(tool_context))
         print(f"[INFO] {model_name} may call {', '.join(offered)} for {username}")
+        # Asked for a tool by name: the first ask must call it.
+        named = tools.named_tool(
+            tool_context, chat_history[-1]["content"] if chat_history else None
+        )
+        if named:
+            create_kwargs["tool_choice"] = {
+                "type": "function",
+                "function": {"name": named},
+            }
     # The calls the model streams in its current ask, when it may call any.
     tool_calls = tools.ToolCallCollector() if tool_schemas else None
     # Why a server refused this reply's tools, if it did (open_completion).
@@ -1986,6 +2001,7 @@ def chat_gpt(
             messages=answer_from_notes(chat_history, "".join(thinking_parts)),
         )
         answer_kwargs.pop("tools", None)  # answering from notes: no tools
+        answer_kwargs.pop("tool_choice", None)
         tool_calls = None
         cap, cap_name = answer_tokens(), "OPENCOMPLETION_ANSWER_TOKENS"
         if cap:
@@ -2026,6 +2042,7 @@ def chat_gpt(
             break
         round_start = len(buffer)
         ask = dict(create_kwargs, messages=with_tools)
+        ask.pop("tool_choice", None)  # forced on the first ask only
         if rounds >= tools.max_rounds():
             ask.pop("tools", None)
             ask["messages"] = with_tools + [tools.out_of_rounds(rounds)]

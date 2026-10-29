@@ -508,3 +508,66 @@ def test_a_reply_without_tools_gets_no_tool_note(harness):
     harness.model.scripts = [[chunk(content="Hi!")]]
     harness.app.chat_gpt("ada", "muppets", model_name="qwen")
     assert all(m["role"] != "system" for m in harness.model.asks[0]["messages"])
+
+
+@pytest.mark.parametrize(
+    "message,named",
+    [
+        ("use the web_search tool: who is elmo", "web_search"),
+        ("please call web search for elmo", "web_search"),
+        ("web_search: elmo", "web_search"),
+        ("search the web for elmo", None),  # asked for the doing, not the tool
+    ],
+)
+def test_a_tool_asked_for_by_name_is_forced_on_the_first_ask(
+    harness, monkeypatch, message, named
+):
+    from models import Message, Room, db
+
+    room = Room(name="muppets")
+    db.session.add(room)
+    db.session.commit()
+    db.session.add(Message(username="ada", content=message, room_id=room.id))
+    db.session.commit()
+    monkeypatch.setattr(tools, "run", lambda *a: {"results": []})
+    harness.model.scripts = [search_call("elmo"), [chunk(content="Found it.")]]
+    harness.app.chat_gpt(
+        "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext("s")
+    )
+    first, second = harness.model.asks
+    if named:
+        assert first["tool_choice"] == {
+            "type": "function",
+            "function": {"name": named},
+        }
+    else:
+        assert "tool_choice" not in first
+    assert "tool_choice" not in second  # only the first ask is forced
+
+
+def test_a_server_that_cannot_force_a_tool_still_offers_them(harness):
+    import httpx
+    import openai
+    from models import Message, Room, db
+
+    room = Room(name="muppets")
+    db.session.add(room)
+    db.session.commit()
+    db.session.add(
+        Message(username="ada", content="use the web_search tool", room_id=room.id)
+    )
+    db.session.commit()
+    harness.model.scripts = [
+        openai.BadRequestError(
+            "tool_choice named functions are not supported",
+            response=httpx.Response(400, request=httpx.Request("POST", "http://m/")),
+            body=None,
+        ),
+        [chunk(content="Hi!")],
+    ]
+    harness.app.chat_gpt(
+        "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext("s")
+    )
+    retry = harness.model.asks[1]
+    assert "tool_choice" not in retry and "tools" in retry
+    assert "No tools this reply" not in reply_of("qwen").content

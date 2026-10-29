@@ -352,3 +352,24 @@ def is_guidance(message):
         and str(message.get("content", "")).startswith("Today is ")
         and "You can call these tools:" in str(message.get("content", ""))
     )
+
+
+def named_tool(context, text):
+    """The tool a message asks for by name ("use the delegate tool", "call
+    run_code", "delegate: ..."), when it is offered, else None. chat_gpt
+    then forces that call on the reply's first ask (tool_choice): a model
+    asked by name must call it, never write its result itself."""
+    import re
+
+    if not isinstance(text, str):
+        return None
+    lowered = text.strip().lower()
+    for name in offered(context):
+        spoken = re.escape(name).replace("_", "[_ ]")
+        if (
+            re.search(rf"\b(use|call|run)\s+(the\s+)?{spoken}\b", lowered)
+            or re.search(rf"\b{spoken}\s+tool\b", lowered)
+            or lowered.startswith(f"{name}:")
+        ):
+            return name
+    return None
