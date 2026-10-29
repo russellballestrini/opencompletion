@@ -341,3 +341,14 @@ def guidance(context):
     if "delegate" in names:
         text += GUIDANCE_DELEGATE
     return {"role": "system", "content": text}
+
+
+def is_guidance(message):
+    """True for the note `guidance` makes, so a server refusing tools gets
+    the ask without it (a model must not be told of tools it lacks)."""
+    return (
+        isinstance(message, dict)
+        and message.get("role") == "system"
+        and str(message.get("content", "")).startswith("Today is ")
+        and "You can call these tools:" in str(message.get("content", ""))
+    )

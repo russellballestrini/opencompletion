@@ -189,7 +189,38 @@ def test_a_model_that_refuses_tools_answers_plainly(harness):
         "ada", "muppets", model_name="hermes", tool_context=tools.ToolContext("s")
     )
     assert "tools" in harness.model.asks[0] and "tools" not in harness.model.asks[1]
-    assert reply_of("hermes").content == "Hi!"
+    # Its retry is not told of tools it lacks, & the reply says it went without.
+    assert not any(tools.is_guidance(m) for m in harness.model.asks[1]["messages"])
+    reply = reply_of("hermes").content
+    assert reply.startswith("Hi!")
+    assert "No tools this reply: hermes refused them" in reply
+    assert "nothing here was run or checked" in reply
+
+
+def test_a_400_about_anything_else_never_strips_the_tools(harness):
+    """A prompt past the model's context is a 400 too; it once fell through
+    to dropping tools, & the model answered as plain chat, claiming runs it
+    never made."""
+    import httpx
+    import openai
+
+    def refusal(message):
+        return openai.BadRequestError(
+            message,
+            response=httpx.Response(400, request=httpx.Request("POST", "http://m/")),
+            body=None,
+        )
+
+    harness.model.scripts = [
+        refusal("This model's maximum context length is 32768 tokens"),
+        refusal("This model's maximum context length is 32768 tokens"),
+    ]
+    harness.app.chat_gpt(
+        "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext("s")
+    )
+    assert all("tools" in ask for ask in harness.model.asks)
+    reply = reply_of("qwen").content
+    assert "maximum context length" in reply and "No tools this reply" not in reply
 
 
 def test_without_a_tool_context_a_reply_is_offered_nothing(harness):

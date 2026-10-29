@@ -1647,12 +1647,21 @@ def answer_tokens():
     return max(0, _env_int("OPENCOMPLETION_ANSWER_TOKENS", DEFAULT_ANSWER_TOKENS))
 
 
-def open_completion(client, kwargs, skip_thinking=False):
+# Words a server's 400 uses when it is the tools it refuses (llama.cpp:
+# "tools param requires --jinja flag"; groq: "`tool calling` is not
+# supported"). Any other 400 (a prompt past the context, say) keeps them.
+TOOL_REFUSAL_WORDS = ("tool", "function", "jinja")
+
+
+def open_completion(client, kwargs, skip_thinking=False, refusals=None):
     """Start a streamed chat completion, forgiving the asks a server may
     refuse with a 400: an unknown `top_k` (dropped), a max_tokens past what
     its context has room for (dropped: the server then stops at its context,
     & our loop guard & thinking budget still hold) & `tools` on a server or
-    model that can't call them (dropped: the reply is plain chat)."""
+    model that says it can't call them (dropped, with the note telling the
+    model it has them, & the reason added to `refusals` so the reply says
+    it went without). Any other 400 is raised: a reply never loses its
+    tools to an error that was about something else."""
     kwargs = dict(kwargs)
     for _ in range(3):
         try:
@@ -1675,11 +1684,18 @@ def open_completion(client, kwargs, skip_thinking=False):
                 print(f"[WARN] {kwargs.get('model')} refused max_tokens: {e}")
                 kwargs.pop("max_tokens")
                 continue
-            if "tools" in kwargs:
+            if "tools" in kwargs and any(w in text for w in TOOL_REFUSAL_WORDS):
                 print(f"[WARN] {kwargs.get('model')} refused tools: {e}")
                 kwargs.pop("tools")
+                kwargs["messages"] = [
+                    m for m in kwargs.get("messages", []) if not tools.is_guidance(m)
+                ]
+                if refusals is not None:
+                    refusals.append(str(e)[:200])
                 continue
             raise
+    if skip_thinking:
+        return create_completion_skip_thinking(client, **kwargs)
     return client.chat.completions.create(**kwargs)
 
 
@@ -1816,13 +1832,20 @@ def chat_gpt(
         chat_history.insert(0, tools.guidance(tool_context))
     # The calls the model streams in its current ask, when it may call any.
     tool_calls = tools.ToolCallCollector() if tool_schemas else None
+    # Why a server refused this reply's tools, if it did (open_completion).
+    tool_refusals = []
 
     def open_stream(client):
         # Without thinking, chain-of-thought is suppressed at the template
         # level. Endpoints that reject the chat_template_kwargs param
         # (OpenAI, Groq, Mistral, Gemini) get retried without it inside the
         # helper; templates that ignore the kwarg (e.g. Hermes) simply drop it.
-        return open_completion(client, create_kwargs, skip_thinking=not enable_thinking)
+        return open_completion(
+            client,
+            create_kwargs,
+            skip_thinking=not enable_thinking,
+            refusals=tool_refusals,
+        )
 
     try:
         # An endpoint that fails before streaming hands over to another
@@ -2002,7 +2025,10 @@ def chat_gpt(
                 openai_client,
                 model_name,
                 lambda client: open_completion(
-                    client, ask, skip_thinking=not enable_thinking
+                    client,
+                    ask,
+                    skip_thinking=not enable_thinking,
+                    refusals=tool_refusals,
                 ),
             )
         except Exception as e:
@@ -2010,6 +2036,12 @@ def chat_gpt(
             break
         looped, cut_at_limit, _ = consume(chunks, 0)
 
+    if tool_refusals:
+        # Say so: without tools, nothing in this reply was run or checked.
+        footnote += (
+            f"\n\n_No tools this reply: {model_name} refused them "
+            f"({tool_refusals[0]}), so nothing here was run or checked._"
+        )
     notice = ""
     if cut_at_limit and not looped:
         notice = (
