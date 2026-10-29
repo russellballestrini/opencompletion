@@ -203,7 +203,7 @@ function drawToolLine(line, data) {
         line.appendChild(why);
     }
     if (data.detail && data.detail.input) line.appendChild(toolPreview(data.detail.input));
-    if (data.detail && data.status !== "running") line.appendChild(toolDetail(data.detail));
+    if (data.detail) line.appendChild(toolDetail(data.detail, data.status === "running"));
     // Pages it found, or files it made (our own /attachments/ links).
     const sources = (data.sources || []).filter(
         (s) => /^https?:\/\//.test(s.url) || /^\/attachments\/\d+\//.test(s.url));
@@ -237,11 +237,12 @@ function toolPreview(input) {
 }
 
 // A code tool's code (or command) & what came back, folded under its line.
-function toolDetail(detail) {
+function toolDetail(detail, running) {
     const block = document.createElement("details");
     block.className = "message-tool-detail";
     const summary = document.createElement("summary");
-    summary.textContent = "code & output";
+    // While it runs there is only the code (or task) to open.
+    summary.textContent = running ? "code" : "code & output";
     block.appendChild(summary);
     const pre = (text, className) => {
         const box = document.createElement("pre");

@@ -191,7 +191,9 @@ window.addEventListener('load', async () => {
             detail: {language: 'bash', input: 'cd /root/ago\npip install -q pytest\nmake test\necho done\nls\npwd'}});
         let preview = document.querySelector('#message-16 .message-tool-preview');
         check(preview && preview.textContent === 'cd /root/ago\npip install -q pytest\nmake test\necho done\n… 2 more lines', 'running line previews its command: ' + (preview || {}).textContent);
-        check(!document.querySelector('#message-16 .message-tool-detail'), 'output folds in only once it ran');
+        const runningFold = document.querySelector('#message-16 .message-tool-detail');
+        check(runningFold && runningFold.querySelector('summary').textContent === 'code', 'a running line opens to its whole code');
+        check(/echo done\nls\npwd/.test(runningFold.querySelector('.message-tool-input').textContent), 'all of it, not the preview');
         deliver('tool_activity', {id: 16, tool: 'sandbox_shell', label: 'cd /root/ago', where: 'sandbox', asker: username, status: 'done',
             detail: {language: 'bash', input: 'make test', stdout: 'ok'}});
         check(document.querySelectorAll('#message-16 .message-tool-preview').length === 1 && document.querySelector('#message-16 .message-tool-detail'), 'done keeps one preview & folds the output');
