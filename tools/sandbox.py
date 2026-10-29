@@ -260,11 +260,40 @@ def write_file(context, path, content):
 # -- uncloseai-cli in the sandbox --------------------------------------------
 
 
+def _set_vault(service_id, env):
+    """Replace a sandbox's env vault: PUT /services/<id>/env with
+    {"env": {KEY: value}}, as the API takes it. un.py's set_service_env
+    POSTs a KEY=value string there & gets a 404 (an un-inception python &
+    go client defect, 2026-10-29; ruby PUTs), & its _make_request has no
+    PUT, so this signs the request with un's own _sign_request. A running
+    sandbox has the vault written to /run/unsandbox/vault.sh at once."""
+    import json
+
+    import requests
+
+    public_key, secret_key = _keys()
+    path = f"/services/{service_id}/env"
+    body = json.dumps({"env": env})
+    timestamp = int(time.time())
+    response = requests.put(
+        un.API_BASE + path,
+        data=body,
+        headers={
+            "Authorization": f"Bearer {public_key}",
+            "X-Timestamp": str(timestamp),
+            "X-Signature": un._sign_request(secret_key, timestamp, "PUT", path, body),
+            "Content-Type": "application/json",
+        },
+        timeout=60,
+    )
+    response.raise_for_status()
+
+
 def arm_proxy(sandbox, model):
     """A fresh token for this sandbox, in its env vault, & our proxy set to
     answer it with `model`. The token is never returned or logged."""
     token = "ocsb-" + secrets.token_urlsafe(32)
-    un.set_service_env(
+    _set_vault(
         sandbox.service_id,
         {
             "MODEL_ENDPOINT_0": policy.public_url() + "/api/sandbox/v1",
