@@ -44,6 +44,14 @@ def _keys():
     return un._resolve_credentials(None, None)
 
 
+def _service_action(service_id, action):
+    """POST /services/<id>/<freeze|unfreeze> with no body. un.py's
+    freeze_service & unfreeze_service pass {}, which its _make_request
+    signs as "" yet sends as "{}", so the API answers 401 (an un-inception
+    defect, 2026-10-29); with None it signs & sends nothing."""
+    return un._make_request("POST", f"/services/{service_id}/{action}", *_keys(), None)
+
+
 def _clip(text, limit=OUTPUT_CHARS):
     text = text or ""
     if len(text) <= limit:
@@ -176,7 +184,7 @@ def ready(context):
     if sandbox is None:
         sandbox = _create(context)
     elif sandbox.state == "frozen":
-        un.unfreeze_service(sandbox.service_id)
+        _service_action(sandbox.service_id, "unfreeze")
         sandbox.state = "running"
     _wait_running(sandbox.service_id)
     sandbox.last_used_at = time.time()
@@ -197,7 +205,7 @@ def freeze_if_idle(sandbox_id, app=None):
         if time.time() - (sandbox.last_used_at or 0) < policy.sandbox_idle():
             return
         try:
-            un.freeze_service(sandbox.service_id)
+            _service_action(sandbox.service_id, "freeze")
         except Exception as e:  # noqa: BLE001 — try again on its next use
             print(f"[WARN] could not freeze sandbox {sandbox.name}: {e}")
             return

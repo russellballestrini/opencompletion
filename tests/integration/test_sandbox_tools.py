@@ -41,6 +41,11 @@ class Fakeunsandbox:
         ):
             monkeypatch.setattr(un, name, getattr(self, name))
         monkeypatch.setattr(tool_sandbox, "_set_vault", self.set_service_env)
+        monkeypatch.setattr(
+            tool_sandbox,
+            "_service_action",
+            lambda service_id, action: getattr(self, f"{action}_service")(service_id),
+        )
         monkeypatch.setattr(un, "_resolve_credentials", lambda pk, sk: ("pk", "sk"))
         return self
 
@@ -551,3 +556,19 @@ def test_the_vault_is_put_as_the_api_takes_it(monkeypatch):
     )
     expected = hmac.new(b"sk-1", message.encode(), hashlib.sha256).hexdigest()
     assert headers["X-Signature"] == expected
+
+
+def test_freeze_and_unfreeze_send_no_body_so_their_signature_holds(monkeypatch):
+    """un.freeze_service passes {}: signed as "" but sent as "{}", a 401.
+    Ours passes None: nothing signed, nothing sent."""
+    import un
+
+    made = []
+    monkeypatch.setattr(un, "_resolve_credentials", lambda pk, sk: ("pk", "sk"))
+    monkeypatch.setattr(un, "_make_request", lambda *a: made.append(a) or {})
+    tool_sandbox._service_action("unsb-service-1", "freeze")
+    tool_sandbox._service_action("unsb-service-1", "unfreeze")
+    assert made == [
+        ("POST", "/services/unsb-service-1/freeze", "pk", "sk", None),
+        ("POST", "/services/unsb-service-1/unfreeze", "pk", "sk", None),
+    ]
