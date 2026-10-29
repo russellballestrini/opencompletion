@@ -86,6 +86,9 @@ def run_round(context, calls, content, notify=lambda event: None):
         else:
             result = run(context, call["name"], arguments)
         done = {"tool": call["name"], "label": label, "where": where}
+        shown = detail_of(call["name"], arguments or {}, result)
+        if shown:
+            done["detail"] = shown
         if result.get("error"):
             done.update(status="error", error=str(result["error"])[:200])
         else:
@@ -99,6 +102,39 @@ def run_round(context, calls, content, notify=lambda event: None):
             }
         )
     return messages
+
+
+# What a code tool's line can open to show: its code (or command) & what
+# came back, cut so a saved trail stays small.
+DETAIL_CODE_CHARS = 6000
+DETAIL_OUTPUT_CHARS = 4000
+DETAIL_INPUT = {
+    "run_code": "code",
+    "sandbox_shell": "command",
+    "sandbox_write_file": "content",
+    "delegate": "task",
+}
+
+
+def detail_of(name, arguments, result):
+    """{language, input, stdout, stderr, exit_code} for a code tool, else
+    None."""
+    key = DETAIL_INPUT.get(name)
+    if key is None:
+        return None
+    language = arguments.get("language") or ("bash" if name == "sandbox_shell" else "")
+    if name == "sandbox_write_file":
+        language = str(arguments.get("path") or "").rsplit(".", 1)[-1]
+    detail = {
+        "language": str(language)[:40],
+        "input": str(arguments.get(key) or "")[:DETAIL_CODE_CHARS],
+    }
+    for field in ("stdout", "stderr", "answer"):
+        if result.get(field):
+            detail[field] = str(result[field])[-DETAIL_OUTPUT_CHARS:]
+    if result.get("exit_code") is not None:
+        detail["exit_code"] = result["exit_code"]
+    return detail
 
 
 def sources_of(result):

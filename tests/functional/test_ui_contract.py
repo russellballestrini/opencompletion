@@ -791,3 +791,12 @@ def test_sign_in_card_is_centred_beside_our_sidebar(client, tmp_path, width):
     html = client.get("/auth").get_data(as_text=True)
     out = run_probe(html, SIGN_IN_CENTRED_PROBE, tmp_path, width)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+def test_static_links_carry_a_version_that_follows_the_file(client):
+    """A deploy's new scripts reach browsers at once: every /static/ link
+    names its file's content hash."""
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    versions = re.findall(r'/static/js/chat/(\d-[a-z]+\.js)\?v=([0-9a-f]{10})"', html)
+    assert len(versions) >= 8
+    assert len({v for _, v in versions}) == len(versions)  # each its own hash

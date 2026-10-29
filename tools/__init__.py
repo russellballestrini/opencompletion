@@ -77,8 +77,10 @@ RUN_CODE = {
         "description": (
             "Run a program once in a fresh sandbox (no network) & read its "
             "output: for calculations, checking code, or making a file "
-            "(an image, a CSV). Files it writes in its working directory "
-            "come back as links; show an image with ![name](url)."
+            "(an image, a CSV). Only files saved under /tmp/artifacts/ come "
+            "back (e.g. plt.savefig('/tmp/artifacts/plot.png')); each comes "
+            "back with a url, show an image with ![name](url). Never link a "
+            "file that did not come back."
         ),
         "parameters": {
             "type": "object",

@@ -201,6 +201,7 @@ function drawToolLine(line, data) {
         why.textContent = ` (failed: ${data.error})`;
         line.appendChild(why);
     }
+    if (data.detail) line.appendChild(toolDetail(data.detail));
     // Pages it found, or files it made (our own /attachments/ links).
     const sources = (data.sources || []).filter(
         (s) => /^https?:\/\//.test(s.url) || /^\/attachments\/\d+\//.test(s.url));
@@ -219,6 +220,40 @@ function drawToolLine(line, data) {
         }
         line.appendChild(list);
     }
+}
+
+// A code tool's code (or command) & what came back, folded under its line.
+function toolDetail(detail) {
+    const block = document.createElement("details");
+    block.className = "message-tool-detail";
+    const summary = document.createElement("summary");
+    summary.textContent = "code & output";
+    block.appendChild(summary);
+    const pre = (text, className) => {
+        const box = document.createElement("pre");
+        box.className = className;
+        const code = document.createElement("code");
+        code.textContent = text;
+        box.appendChild(code);
+        block.appendChild(box);
+        return code;
+    };
+    const input = pre(detail.input || "", "message-tool-input");
+    const language = String(detail.language || "").toLowerCase();
+    if (window.hljs && language && hljs.getLanguage(language)) {
+        input.className = "language-" + language;
+        hljs.highlightElement(input);
+    }
+    if (detail.stdout) pre(detail.stdout, "message-tool-output");
+    if (detail.answer) pre(detail.answer, "message-tool-output");
+    if (detail.stderr) pre(detail.stderr, "message-tool-output is-stderr");
+    if (detail.exit_code !== undefined && detail.exit_code !== null) {
+        const exit = document.createElement("div");
+        exit.className = "message-tool-exit";
+        exit.textContent = `exit code ${detail.exit_code}`;
+        block.appendChild(exit);
+    }
+    return block;
 }
 
 // A saved reply's tool lines (Message.tool_trail), for chat history.

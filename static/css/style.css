@@ -2075,3 +2075,34 @@ a:hover {
 .message-tool-sources a:focus-visible {
     color: var(--text-primary);
 }
+
+/* A code tool's code & output, folded under its line. */
+.message-tool-detail {
+    margin-top: var(--space-1);
+}
+
+.message-tool-detail summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.message-tool-detail pre {
+    margin: var(--space-1) 0 0;
+    padding: var(--space-2);
+    max-height: 320px;
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-secondary);
+    font-size: 12px;
+    white-space: pre;
+}
+
+.message-tool-output.is-stderr {
+    color: var(--text-error);
+}
+
+.message-tool-exit {
+    margin-top: var(--space-1);
+    font-size: 12px;
+}

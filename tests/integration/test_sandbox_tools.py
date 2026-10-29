@@ -446,3 +446,51 @@ def test_the_proxy_refuses_a_body_without_messages(proxy):
         "/api/sandbox/v1/chat/completions", json={"prompt": "x"}, headers=proxy.headers
     )
     assert got.status_code == 400
+
+
+def test_a_run_without_files_tells_the_model_where_files_must_go(unsandbox, room):
+    result = tools.run(fox_in(room), "run_code", {"language": "python", "code": "1"})
+    assert result["artifacts"] == []
+    assert "/tmp/artifacts/" in result["note"]
+    assert "/tmp/artifacts/" in tools.RUN_CODE["function"]["description"]
+
+
+def test_a_code_tools_line_keeps_its_code_and_output(unsandbox, room):
+    unsandbox.next_result = {
+        "status": "completed",
+        "exit_code": 1,
+        "stdout": "42\n",
+        "stderr": "warning\n",
+    }
+    events = []
+    calls = [
+        {
+            "id": "c1",
+            "name": "run_code",
+            "arguments": json.dumps({"language": "python", "code": "print(42)"}),
+        },
+        {"id": "c2", "name": "web_fetch", "arguments": "{}"},
+    ]
+    tools.run_round(fox_in(room), calls, "", events.append)
+    done = [e for e in events if e["status"] != "running"]
+    assert done[0]["detail"] == {
+        "language": "python",
+        "input": "print(42)",
+        "stdout": "42\n",
+        "stderr": "warning\n",
+        "exit_code": 1,
+    }
+    assert "detail" not in done[1]
+
+
+def test_shell_and_write_file_lines_show_their_command_and_file(unsandbox, room):
+    from tools.loop import detail_of
+
+    shell = detail_of("sandbox_shell", {"command": "ls -la"}, {"stdout": "a\n"})
+    assert shell["language"] == "bash" and shell["input"] == "ls -la"
+    wrote = detail_of(
+        "sandbox_write_file", {"path": "/root/x.py", "content": "print(1)"}, {}
+    )
+    assert wrote["language"] == "py" and wrote["input"] == "print(1)"
+    long = detail_of("run_code", {"code": "x" * 9000}, {"stdout": "y" * 9000})
+    assert len(long["input"]) == 6000 and len(long["stdout"]) == 4000

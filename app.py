@@ -40,6 +40,30 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 db.init_app(app)
 
+# Every /static/ link carries ?v=<a hash of the file>, so a deploy's new
+# JavaScript & CSS reach browsers at once instead of waiting out a cache.
+_static_versions = {}
+
+
+@app.url_defaults
+def static_version(endpoint, values):
+    if endpoint != "static" or "filename" not in values or "v" in values:
+        return
+    path = os.path.join(app.static_folder, values["filename"])
+    try:
+        mtime = os.stat(path).st_mtime
+    except OSError:
+        return
+    cached = _static_versions.get(path)
+    if cached is None or cached[0] != mtime:
+        import hashlib
+
+        with open(path, "rb") as handle:
+            digest = hashlib.sha256(handle.read()).hexdigest()[:10]
+        cached = _static_versions[path] = (mtime, digest)
+    values["v"] = cached[1]
+
+
 from flask_migrate import Migrate
 
 migrate = Migrate(app, db)

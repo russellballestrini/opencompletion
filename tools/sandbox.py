@@ -97,6 +97,8 @@ def run_code(context, language, code, os_name="linux"):
     result = un.wait_for_job(job["job_id"], timeout=policy.run_code_timeout() + 30)
     shaped = _finished(result)
     shaped["artifacts"] = keep_artifacts(context, result.get("artifacts") or [])
+    if not shaped["artifacts"]:
+        shaped["note"] = "no files came back: only files saved under /tmp/artifacts/ do"
     return shaped
 
 

@@ -47,8 +47,12 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
 
 - **`run_code`**: one job, `zerotrust` (no network), Linux or FreeBSD
   (`"os": "freebsd"`: bash, sh, python, perl, lua, c, cpp while jails grow).
-  Files it writes come back as attachments in the chat (`blob_store`), so
-  its tool line links them & the model can show an image inline. Guests
+  Only files saved under **`/tmp/artifacts/`** come back (unsandbox
+  collects nothing else); they become attachments in the chat
+  (`blob_store`), so its tool line links them & the model can show an
+  image inline. A run that returns none tells the model where files go.
+- Every code tool's line folds open to **code & output** (its code or
+  command, stdout, stderr, exit code; kept in `tool_trail`, cut to 6k/4k). Guests
   get it unless `OPENCOMPLETION_GUEST_CODE_EXEC=off`.
 - **A sandbox per chat** (`sandbox_shell`, `sandbox_write_file`): an
   unsandbox service (`oc-<room>-<random>`, table `sandbox`, migration

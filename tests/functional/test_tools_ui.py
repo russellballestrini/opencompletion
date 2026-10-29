@@ -142,6 +142,17 @@ window.addEventListener('load', async () => {
         check(made.length === 1 && made[0].getAttribute('href') === '/attachments/5/plot.png', 'artifacts linked, nothing else');
         deliver('tool_activity', {id: 11, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running'});
         check(/^uncloseai-cli is working in this chat's sandbox: make tests pass…$/.test(document.querySelector('#message-11 .message-tool:last-child').textContent), 'delegate line');
+        // A code tool's line folds open to its code & output, as text.
+        deliver('tool_activity', {id: 12, tool: 'run_code', label: 'python', where: 'unsandbox', asker: username, status: 'done',
+            detail: {language: 'python', input: 'print("<b>hi</b>")', stdout: '<b>hi</b>\n', stderr: 'oops', exit_code: 1}});
+        const fold = document.querySelector('#message-12 .message-tool-detail');
+        check(fold && !fold.open && fold.querySelector('summary').textContent === 'code & output', 'code folded under its line');
+        check(fold.querySelector('.message-tool-input code').textContent === 'print("<b>hi</b>")', 'code shown as text');
+        check(!fold.querySelector('b'), 'output never markup');
+        check(fold.querySelector('.is-stderr').textContent === 'oops' && /exit code 1/.test(fold.textContent), 'stderr & exit code');
+        deliver('previous_messages', {id: 13, username: 'qwen', content: 'Done.', tools: [
+            {tool: 'sandbox_shell', label: 'ls', where: 'sandbox', asker: username, status: 'done', detail: {language: 'bash', input: 'ls', stdout: 'a.py'}}]});
+        check(document.querySelector('#message-13 .message-tool-detail .message-tool-output').textContent === 'a.py', 'history keeps code & output');
         deliver('previous_messages', {id: 9, username: 'qwen', content: 'Plain.', tools: null});
         check(!document.querySelector('#message-9 .message-tools'), 'no trail, no lines');
         check(document.documentElement.scrollWidth <= innerWidth, 'no sideways scroll');
