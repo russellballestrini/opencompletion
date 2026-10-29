@@ -67,6 +67,20 @@ def parse_arguments(raw):
     return arguments if isinstance(arguments, dict) else None
 
 
+OUT_OF_ROUNDS = (
+    "(You have used all {rounds} tool rounds this reply may take, so no "
+    "more tools now. Answer with what you have: say what you did, what "
+    'you found & what is left to do. The person can say "continue" & '
+    "you will have a fresh set of rounds.)"
+)
+
+
+def out_of_rounds(rounds):
+    """The note our last ask carries once a reply's tool rounds are spent,
+    so the model ends by reporting instead of stopping mid-task."""
+    return {"role": "user", "content": OUT_OF_ROUNDS.format(rounds=rounds)}
+
+
 def run_round(context, calls, content, notify=lambda event: None):
     """Run each call (tools.run) & return the messages for the next ask.
     notify gets {"tool", "label", "where": browser|server|None, "status":

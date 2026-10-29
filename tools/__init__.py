@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from tools import browser, policy
-from tools.loop import ToolCallCollector, run_round  # noqa: F401
+from tools.loop import ToolCallCollector, out_of_rounds, run_round  # noqa: F401
 from tools.policy import max_rounds  # noqa: F401
 
 register = browser.register

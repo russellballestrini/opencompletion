@@ -164,6 +164,14 @@ def test_the_last_round_has_no_tools_so_a_reply_always_answers(harness, monkeypa
         "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext("s")
     )
     assert ["tools" in ask for ask in harness.model.asks] == [True, True, False]
+    # Its last ask says why the tools went, so it reports instead of stopping.
+    last = harness.model.asks[-1]["messages"][-1]
+    assert last["role"] == "user" and "used all 2 tool rounds" in last["content"]
+    assert "continue" in last["content"]
+    assert all(
+        "tool rounds" not in str(m.get("content"))
+        for m in harness.model.asks[1]["messages"]
+    )
     assert reply_of("qwen").content == "Nothing turned up."
 
 

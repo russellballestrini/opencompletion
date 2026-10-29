@@ -7,8 +7,9 @@ without a restart.
     OPENCOMPLETION_WEB_CRAWL=on|off      fetching a page (default on)
     OPENCOMPLETION_SERVER_EGRESS_USERS=  emails whose tools may run on OUR
                                          network (default: nobody)
-    OPENCOMPLETION_TOOL_ROUNDS=4         asks per reply that may call
-                                         tools; the next must answer
+    OPENCOMPLETION_TOOL_ROUNDS=40        asks per reply that may call
+                                         tools; the next must answer, & is
+                                         told why (so it says what's left)
     OPENCOMPLETION_TOOL_TIMEOUT_S=30     how long a browser has to answer
     OPENCOMPLETION_RUN_CODE=on|off       one-off code runs on unsandbox
                                          (default on; guests too unless
@@ -73,7 +74,7 @@ def _positive_int(name, default):
 
 
 def max_rounds():
-    return _positive_int("OPENCOMPLETION_TOOL_ROUNDS", 4)
+    return _positive_int("OPENCOMPLETION_TOOL_ROUNDS", 40)
 
 
 def browser_timeout():

@@ -1993,6 +1993,7 @@ def chat_gpt(
         ask = dict(create_kwargs, messages=with_tools)
         if rounds >= tools.max_rounds():
             ask.pop("tools", None)
+            ask["messages"] = with_tools + [tools.out_of_rounds(rounds)]
         tool_calls = tools.ToolCallCollector() if "tools" in ask else None
         try:
             chunks = open_with_failover(

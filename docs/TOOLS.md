@@ -96,7 +96,7 @@ address a sandbox reaches us at.
 export OPENCOMPLETION_WEB_SEARCH=on      # off: no search for anyone
 export OPENCOMPLETION_WEB_CRAWL=on       # off: no web_fetch for anyone
 export OPENCOMPLETION_SERVER_EGRESS_USERS="fox@unturf.com"   # comma list
-export OPENCOMPLETION_TOOL_ROUNDS=4      # asks per reply that may call tools
+export OPENCOMPLETION_TOOL_ROUNDS=40     # asks per reply that may call tools
 export OPENCOMPLETION_TOOL_TIMEOUT_S=30  # a browser's time to answer
 export OPENCOMPLETION_RUN_CODE=on        # off: no run_code for anyone
 export OPENCOMPLETION_RUN_CODE_TIMEOUT_S=60
