@@ -81,7 +81,7 @@ export ENABLE_CODE_GEN_FILENAMES="true"
 #export OPENCOMPLETION_WEB_SEARCH=off
 #export OPENCOMPLETION_WEB_CRAWL=off
 #export OPENCOMPLETION_SERVER_EGRESS_USERS="you@example.com"
-#export OPENCOMPLETION_TOOL_ROUNDS=40
+#export OPENCOMPLETION_TOOL_ROUNDS=100
 #export OPENCOMPLETION_TOOL_TIMEOUT_S=30
 # unsandbox tools (need the UNSANDBOX_* keys below): run_code for anyone
 # allowed to run code; a sandbox per chat & uncloseai-cli in it for the

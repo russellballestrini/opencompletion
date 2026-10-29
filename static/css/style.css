@@ -2115,3 +2115,19 @@ a:hover {
     margin-top: var(--space-1);
     font-size: 12px;
 }
+
+/* The first lines of a code tool's code, in view without opening it;
+   each line is cut to the reply's width. */
+.message-tool-preview {
+    margin: var(--space-1) 0 0;
+    padding: var(--space-1) var(--space-2);
+    max-width: 100%;
+    overflow: hidden;
+    border-left: 2px solid var(--border-color);
+    background: none;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre;
+    text-overflow: ellipsis;
+}

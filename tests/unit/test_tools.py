@@ -62,7 +62,7 @@ def test_nobody_has_our_network_unless_listed(monkeypatch):
 
 
 def test_rounds_and_timeout_knobs(monkeypatch):
-    assert policy.max_rounds() == 40 and policy.browser_timeout() == 30
+    assert policy.max_rounds() == 100 and policy.browser_timeout() == 30
     monkeypatch.setenv("OPENCOMPLETION_TOOL_ROUNDS", "0")
     monkeypatch.setenv("OPENCOMPLETION_TOOL_TIMEOUT_S", "junk")
     assert policy.max_rounds() == 1 and policy.browser_timeout() == 30

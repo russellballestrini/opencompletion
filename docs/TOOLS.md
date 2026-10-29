@@ -66,6 +66,21 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   so a long one is never frozen under itself.
 - **`delegate`**: `unclose -p` in that sandbox, for multi-step work.
 
+Every call goes through our vendored SDK, `un.py`: `/execute` (via
+`un._make_request`, for `return_artifact` & `os`) & `wait_for_job` for
+runs; `create_service`, `get_service`, `execute_in_service` +
+`wait_for_job`, `set_service_env`, `freeze_service` & `unfreeze_service`
+for sandboxes. Nothing is uploaded: `sandbox_write_file` sends its file
+base64 inside one command, & a sandbox fetches the rest itself (git, pip).
+
+**What ends a sandbox.** We never delete one. Idle, it freezes (disk kept,
+RAM freed) & wakes on the next call. On unsandbox's side a service is
+destroyed only by an explicit (sudo-gated) destroy, or by its ghost reaper
+once the container has been unreachable for an hour on a healthy node,
+i.e. already gone. An expired unsandbox key deep-freezes services, never
+deletes them; extending the key lets them wake. Limit: 21 services per
+concurrency slot on our account.
+
 ### uncloseai-cli's model key
 
 A sandbox runs model-written shell with network, so anything in it can
@@ -96,7 +111,7 @@ address a sandbox reaches us at.
 export OPENCOMPLETION_WEB_SEARCH=on      # off: no search for anyone
 export OPENCOMPLETION_WEB_CRAWL=on       # off: no web_fetch for anyone
 export OPENCOMPLETION_SERVER_EGRESS_USERS="fox@unturf.com"   # comma list
-export OPENCOMPLETION_TOOL_ROUNDS=40     # asks per reply that may call tools
+export OPENCOMPLETION_TOOL_ROUNDS=100    # asks per reply that may call tools
 export OPENCOMPLETION_TOOL_TIMEOUT_S=30  # a browser's time to answer
 export OPENCOMPLETION_RUN_CODE=on        # off: no run_code for anyone
 export OPENCOMPLETION_RUN_CODE_TIMEOUT_S=60

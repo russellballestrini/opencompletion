@@ -92,9 +92,17 @@ def run_round(context, calls, content, notify=lambda event: None):
         arguments = parse_arguments(call["arguments"])
         label = label_for(call["name"], arguments or {})
         where = offered(context).get(call["name"])
-        notify(
-            {"tool": call["name"], "label": label, "where": where, "status": "running"}
-        )
+        running = {
+            "tool": call["name"],
+            "label": label,
+            "where": where,
+            "status": "running",
+        }
+        # A code tool shows what it is running while it runs.
+        shown = detail_of(call["name"], arguments or {}, {})
+        if shown:
+            running["detail"] = shown
+        notify(running)
         if arguments is None:
             result = {"error": "arguments were not a JSON object"}
         else:

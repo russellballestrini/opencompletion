@@ -201,7 +201,8 @@ function drawToolLine(line, data) {
         why.textContent = ` (failed: ${data.error})`;
         line.appendChild(why);
     }
-    if (data.detail) line.appendChild(toolDetail(data.detail));
+    if (data.detail && data.detail.input) line.appendChild(toolPreview(data.detail.input));
+    if (data.detail && data.status !== "running") line.appendChild(toolDetail(data.detail));
     // Pages it found, or files it made (our own /attachments/ links).
     const sources = (data.sources || []).filter(
         (s) => /^https?:\/\//.test(s.url) || /^\/attachments\/\d+\//.test(s.url));
@@ -220,6 +221,18 @@ function drawToolLine(line, data) {
         }
         line.appendChild(list);
     }
+}
+
+// The first lines of a code tool's code or command, always in view.
+const PREVIEW_LINES = 4;
+function toolPreview(input) {
+    const lines = String(input).replace(/\s+$/, "").split("\n");
+    const preview = document.createElement("pre");
+    preview.className = "message-tool-preview";
+    const shown = lines.slice(0, PREVIEW_LINES).join("\n");
+    preview.textContent = lines.length > PREVIEW_LINES
+        ? `${shown}\n… ${lines.length - PREVIEW_LINES} more lines` : shown;
+    return preview;
 }
 
 // A code tool's code (or command) & what came back, folded under its line.
