@@ -21,6 +21,9 @@ without a restart.
                                          unsandbox-ubuntu (with uncloseai-cli)
     OPENCOMPLETION_SANDBOX_IDLE_S=600    idle this long, it is frozen
     OPENCOMPLETION_SANDBOX_TIMEOUT_S=120 one shell command's time limit
+    OPENCOMPLETION_SANDBOX_RETENTION_DAYS=14  a sandbox frozen & unused this
+                                         long is destroyed (0 = never); a
+                                         deleted chat's sandbox goes at once
     OPENCOMPLETION_DELEGATE=on|off       uncloseai-cli in that sandbox
                                          (needs OPENCOMPLETION_PUBLIC_URL)
     OPENCOMPLETION_DELEGATE_TIMEOUT_S=900
@@ -133,6 +136,15 @@ def sandbox_idle():
 
 def sandbox_timeout():
     return _positive_int("OPENCOMPLETION_SANDBOX_TIMEOUT_S", 120)
+
+
+def sandbox_retention_days():
+    try:
+        return max(
+            0, float(os.environ.get("OPENCOMPLETION_SANDBOX_RETENTION_DAYS", 14))
+        )
+    except ValueError:
+        return 14
 
 
 def delegate_timeout():

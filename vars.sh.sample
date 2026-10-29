@@ -92,6 +92,9 @@ export ENABLE_CODE_GEN_FILENAMES="true"
 # uncloseai-cli); set only to a platform golden image (golden-*).
 #export OPENCOMPLETION_SANDBOX_IMAGE="golden-..."
 #export OPENCOMPLETION_DELEGATE=off
+# Frozen & unused this many days, a sandbox is destroyed (0 = never); a
+# deleted chat's goes at once. Needs sudo off for the unsandbox key.
+#export OPENCOMPLETION_SANDBOX_RETENTION_DAYS=14
 #export OPENCOMPLETION_PUBLIC_URL="https://demo.opencompletion.com"
 
 # Signs session cookies. Unset, our server makes a random key once & keeps

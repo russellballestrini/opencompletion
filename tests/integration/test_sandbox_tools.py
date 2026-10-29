@@ -518,3 +518,175 @@ def test_an_egress_users_note_names_delegate_for_multi_step_work(unsandbox, room
     assert "run_code, sandbox_shell, sandbox_write_file, delegate" in note
     assert "call delegate with the whole task" in note
     assert tools.guidance(None) is None
+
+
+# -- destroying sandboxes & the next one ------------------------------------
+
+
+def make_sandbox(unsandbox, room):
+    from models import Sandbox
+
+    tools.run(fox_in(room), "sandbox_shell", {"command": "true"})
+    return Sandbox.query.one()
+
+
+def test_destroy_sends_a_plain_delete_and_keeps_the_row(unsandbox, room):
+    sandbox = make_sandbox(unsandbox, room)
+    sandbox.token_sha256 = "abc"
+    assert tool_sandbox.destroy(sandbox, "test") is True
+    assert (
+        "request",
+        "DELETE",
+        f"/services/{sandbox.service_id}",
+        None,
+    ) in unsandbox.calls
+    assert sandbox.state == "destroyed" and sandbox.token_sha256 is None
+
+
+def test_a_sudo_gated_destroy_keeps_the_sandbox_and_says_why(
+    unsandbox, room, monkeypatch, capsys
+):
+    import requests
+    import un
+
+    sandbox = make_sandbox(unsandbox, room)
+    response = requests.Response()
+    response.status_code = 428
+
+    def refuse(*a):
+        raise requests.HTTPError("428 Client Error", response=response)
+
+    monkeypatch.setattr(un, "_make_request", refuse)
+    assert tool_sandbox.destroy(sandbox, "test") is False
+    assert sandbox.state == "running"
+    assert "turn sudo off for this key" in capsys.readouterr().out
+
+
+def test_the_sweep_destroys_only_long_frozen_sandboxes(
+    unsandbox, test_app, monkeypatch
+):
+    from models import Room, Sandbox, db
+
+    rooms = [Room(name=f"r{i}") for i in range(3)]
+    db.session.add_all(rooms)
+    db.session.commit()
+    now = time.time()
+    rows = [
+        Sandbox(
+            room_id=rooms[0].id,
+            service_id="s-old",
+            name="a",
+            state="frozen",
+            last_used_at=now - 15 * 86400,
+        ),
+        Sandbox(
+            room_id=rooms[1].id,
+            service_id="s-new",
+            name="b",
+            state="frozen",
+            last_used_at=now - 86400,
+        ),
+        Sandbox(
+            room_id=rooms[2].id,
+            service_id="s-run",
+            name="c",
+            state="running",
+            last_used_at=now - 30 * 86400,
+        ),
+    ]
+    db.session.add_all(rows)
+    db.session.commit()
+    assert tool_sandbox.sweep(app=test_app) == 1
+    db.session.expire_all()
+    assert [s.state for s in Sandbox.query.order_by(Sandbox.id)] == [
+        "destroyed",
+        "frozen",
+        "running",
+    ]
+    monkeypatch.setenv("OPENCOMPLETION_SANDBOX_RETENTION_DAYS", "0")
+    assert tool_sandbox.sweep(app=test_app) == 0
+
+
+def test_deleting_a_chat_destroys_its_sandbox(unsandbox, test_app):
+    from models import Room, Sandbox, User, db
+
+    owner = User(email=FOX, display_name="fox")
+    db.session.add(owner)
+    db.session.commit()
+    room = Room(name="mine", owner_id=owner.id)
+    db.session.add(room)
+    db.session.commit()
+    sandbox = make_sandbox(unsandbox, room)
+    service_id = sandbox.service_id
+    http = test_app.test_client()
+    with http.session_transaction() as session:
+        session["user_id"] = owner.id
+    assert http.delete(f"/api/rooms/{room.id}/delete").status_code == 200
+    assert ("request", "DELETE", f"/services/{service_id}", None) in unsandbox.calls
+    assert Sandbox.query.count() == 0
+
+
+def test_a_new_sandbox_for_an_old_chat_brings_its_setup_steps(unsandbox, room):
+    from models import Message, Sandbox, db
+
+    trail = [
+        {"tool": "offered", "names": ["sandbox_shell"], "status": "done"},
+        {
+            "tool": "sandbox_shell",
+            "status": "done",
+            "label": "clone",
+            "detail": {
+                "input": "git clone https://git.unturf.com/python/ago.git",
+                "exit_code": 0,
+            },
+        },
+        {
+            "tool": "sandbox_shell",
+            "status": "done",
+            "label": "bad",
+            "detail": {"input": "make nope", "exit_code": 2},
+        },
+        {
+            "tool": "sandbox_write_file",
+            "status": "done",
+            "label": "/root/ago/t.py",
+            "detail": {"input": "print(1)"},
+        },
+        {
+            "tool": "sandbox_shell",
+            "status": "done",
+            "label": "deps",
+            "detail": {"input": "cd ago && make env", "exit_code": 0},
+        },
+    ]
+    reply = Message(username="qwen", content="Set up.", room_id=room.id)
+    reply.tool_trail = json.dumps(trail)
+    db.session.add(reply)
+    db.session.commit()
+    sandbox = make_sandbox(unsandbox, room)
+    sandbox.state = "destroyed"
+    db.session.commit()
+
+    first = tools.run(fox_in(room), "sandbox_shell", {"command": "ls"})
+    note = first["sandbox_note"]
+    assert "NEW & EMPTY" in note
+    assert note.index("git clone https://git.unturf.com/python/ago.git") < note.index(
+        "cd ago && make env"
+    )
+    assert "(wrote /root/ago/t.py)" in note and "make nope" not in note
+    assert len([c for c in unsandbox.calls if c[0] == "create"]) == 2
+    assert Sandbox.query.one().state == "running"  # the same row, remade
+    second = tools.run(fox_in(room), "sandbox_shell", {"command": "ls"})
+    assert "sandbox_note" not in second  # said once
+
+
+def test_delegate_in_a_remade_sandbox_hands_uncloseai_cli_the_history(unsandbox, room):
+    from models import Sandbox, db
+
+    sandbox = make_sandbox(unsandbox, room)
+    sandbox.state = "destroyed"
+    db.session.commit()
+    result = delegate(room, unsandbox, task="run the tests")
+    command = unsandbox.commands()[-1]
+    assert "NEW & EMPTY" in command and "Task: run the tests" in command
+    assert "sandbox_note" in result

@@ -395,6 +395,11 @@ def delete_room(room_id):
     # Delete its files, & bytes no other room names
     delete_room_attachments(room.id)
 
+    # Destroy its sandbox (tools/sandbox.py), if it ever had one
+    from tools import sandbox as tool_sandbox
+
+    tool_sandbox.forget_room(room.id)
+
     # Delete the room
     db.session.delete(room)
     db.session.commit()

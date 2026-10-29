@@ -10,8 +10,12 @@
     delegate        a task for uncloseai-cli (`unclose -p`) in that sandbox.
 
 Every call spends this server's unsandbox account (un.py reads
-UNSANDBOX_PUBLIC_KEY & UNSANDBOX_SECRET_KEY). We never delete a sandbox:
-idle ones freeze, & a frozen one costs no RAM.
+UNSANDBOX_PUBLIC_KEY & UNSANDBOX_SECRET_KEY). Idle sandboxes freeze (no
+RAM, disk kept). A sandbox is destroyed only when its chat is deleted, or
+once frozen & unused for OPENCOMPLETION_SANDBOX_RETENTION_DAYS (an hourly
+sweep); its row stays, state "destroyed", & the chat's next sandbox call
+makes it a new one. unsandbox gates destroy behind sudo: turn sudo off for
+this server's key, or destroys answer 428 & the sandbox is kept & logged.
 
 uncloseai-cli needs a model. Its sandbox never holds our model keys:
 anything model-written runs there with network, so whatever it can read
@@ -24,6 +28,8 @@ sandbox is running.
 
 import base64
 import hashlib
+import json
+import os
 import secrets
 import shlex
 import time
@@ -32,7 +38,7 @@ import gevent
 
 import un
 from blob_store import max_bytes, save_attachment
-from models import Sandbox, db
+from models import Message, Sandbox, db
 from tools import policy
 
 OUTPUT_CHARS = 8000
@@ -148,7 +154,7 @@ def _wait_running(service_id):
     raise RuntimeError("sandbox did not start in time")
 
 
-def _create(context):
+def _new_service(context):
     name = f"oc-{context.room_id}-{secrets.token_hex(3)}"
     service = un.create_service(
         name=name, network_mode="semitrusted", golden_image=policy.sandbox_image()
@@ -156,6 +162,11 @@ def _create(context):
     service_id = service.get("service_id") or service.get("id")
     if not service_id:
         raise RuntimeError("unsandbox made no sandbox")
+    return service_id, name
+
+
+def _create(context):
+    service_id, name = _new_service(context)
     sandbox = Sandbox(
         room_id=context.room_id,
         service_id=service_id,
@@ -168,6 +179,84 @@ def _create(context):
     return sandbox
 
 
+def _recreate(sandbox, context):
+    """A chat whose sandbox was destroyed gets a fresh one, in its row, &
+    the first result from it says so (see `fresh_note`)."""
+    fresh = _new_service(context)
+    sandbox.service_id, sandbox.name = fresh
+    sandbox.state = "running"
+    sandbox.token_sha256 = None
+    sandbox.model = None
+    db.session.commit()
+    _fresh[sandbox.id] = True
+    return sandbox
+
+
+# Sandboxes remade this process, until their first result has said so.
+_fresh = {}
+SETUP_COMMANDS = 20
+
+
+def setup_history(room_id):
+    """What set up this chat's last sandbox, oldest first: each shell
+    command that succeeded & each file written, from its replies' saved
+    tool lines (Message.tool_trail), at most SETUP_COMMANDS."""
+    steps = []
+    replies = (
+        Message.visible(room_id)
+        .filter(Message.tool_trail.isnot(None))
+        .order_by(Message.id)
+        .all()
+    )
+    for reply in replies:
+        try:
+            trail = json.loads(reply.tool_trail)
+        except ValueError:
+            continue
+        for entry in trail:
+            detail = entry.get("detail") or {}
+            if entry.get("status") != "done" or not detail.get("input"):
+                continue
+            if entry.get("tool") == "sandbox_shell" and detail.get("exit_code") in (
+                0,
+                None,
+            ):
+                step = detail["input"].strip()
+            elif entry.get("tool") == "sandbox_write_file":
+                step = f"(wrote {entry.get('label')})"
+            else:
+                continue
+            if step not in steps:
+                steps.append(step)
+    return steps[-SETUP_COMMANDS:]
+
+
+def fresh_note(sandbox):
+    """For a sandbox remade after its chat's old one was destroyed: a note
+    for the model, once, so it rebuilds from the chat's own history instead
+    of finding the old files gone mid-task. None otherwise."""
+    if not _fresh.pop(sandbox.id, None):
+        return None
+    steps = setup_history(sandbox.room_id)
+    note = (
+        "This chat's sandbox is NEW & EMPTY: its old one was destroyed after "
+        "going unused, so earlier files, clones & installs are gone."
+    )
+    if steps:
+        note += (
+            " These steps set the old one up, oldest first; re-run what this "
+            "task needs (one command can chain several):\n" + "\n".join(steps)
+        )
+    return note
+
+
+def _with_fresh_note(sandbox, result):
+    note = fresh_note(sandbox)
+    if note:
+        result["sandbox_note"] = note
+    return result
+
+
 def ready(context):
     """This chat's sandbox, made or unfrozen as needed, running."""
     if context.room_id is None:
@@ -175,6 +264,8 @@ def ready(context):
     sandbox = Sandbox.query.filter_by(room_id=context.room_id).first()
     if sandbox is None:
         sandbox = _create(context)
+    elif sandbox.state == "destroyed":
+        sandbox = _recreate(sandbox, context)
     elif sandbox.state == "frozen":
         un.unfreeze_service(sandbox.service_id)
         sandbox.state = "running"
@@ -205,13 +296,77 @@ def freeze_if_idle(sandbox_id, app=None):
         db.session.commit()
 
 
+def destroy(sandbox, why):
+    """Destroy a sandbox's unsandbox service & mark its row destroyed. A
+    plain signed DELETE: un.delete_service would ask for a sudo code on a
+    428 with input(), which a server can't answer. True when it went."""
+    try:
+        un._make_request("DELETE", f"/services/{sandbox.service_id}", *_keys())
+    except Exception as e:  # noqa: BLE001 — kept, & said so
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        hint = " (turn sudo off for this key)" if status == 428 else ""
+        print(f"[WARN] could not destroy sandbox {sandbox.name} ({why}): {e}{hint}")
+        return False
+    print(f"[INFO] destroyed sandbox {sandbox.name} {sandbox.service_id} ({why})")
+    sandbox.state = "destroyed"
+    sandbox.token_sha256 = None
+    db.session.commit()
+    return True
+
+
+def forget_room(room_id):
+    """A chat is being deleted: destroy its sandbox & drop the row (it
+    points at the room). One that won't destroy is logged with its id, so
+    it can be destroyed by hand."""
+    sandbox = Sandbox.query.filter_by(room_id=room_id).first()
+    if sandbox is None:
+        return
+    if sandbox.state != "destroyed" and not destroy(sandbox, "its chat was deleted"):
+        print(
+            f"[WARN] sandbox {sandbox.service_id} outlives its chat: destroy it by hand"
+        )
+    db.session.delete(sandbox)
+    db.session.commit()
+
+
+def sweep(app=None):
+    """Destroy sandboxes frozen & unused past the retention window."""
+    days = policy.sandbox_retention_days()
+    app = app or _app
+    if not days or app is None:
+        return 0
+    cutoff = time.time() - days * 86400
+    destroyed = 0
+    with app.app_context():
+        stale = Sandbox.query.filter(
+            Sandbox.state == "frozen", Sandbox.last_used_at < cutoff
+        ).all()
+        for sandbox in stale:
+            destroyed += destroy(sandbox, f"unused for {days:g} days")
+    return destroyed
+
+
+SWEEP_EVERY_S = 3600
+
+
+def _sweep_forever():
+    while True:
+        gevent.sleep(SWEEP_EVERY_S)
+        try:
+            sweep()
+        except Exception as e:  # noqa: BLE001 — try again next hour
+            print(f"[WARN] sandbox sweep failed: {e}")
+
+
 _app = None
 
 
 def init_app(app):
-    """The Flask app our idle timers open a context on."""
+    """The Flask app our idle timers & hourly sweep open a context on."""
     global _app
     _app = app
+    if policy.sandbox_enabled() and not os.environ.get("TESTING"):
+        gevent.spawn(_sweep_forever)
 
 
 def _execute(sandbox, command, timeout_s):
@@ -238,7 +393,9 @@ def shell(context, command):
     if not command:
         return {"error": "command required"}
     sandbox = ready(context)
-    return _finished(_execute(sandbox, command, policy.sandbox_timeout()))
+    return _with_fresh_note(
+        sandbox, _finished(_execute(sandbox, command, policy.sandbox_timeout()))
+    )
 
 
 def write_file(context, path, content):
@@ -251,10 +408,11 @@ def write_file(context, path, content):
         f'mkdir -p "$(dirname {quoted})" && '
         f"printf %s {shlex.quote(encoded)} | base64 -d > {quoted} && wc -c < {quoted}"
     )
-    result = _finished(_execute(ready(context), command, policy.sandbox_timeout()))
+    sandbox = ready(context)
+    result = _finished(_execute(sandbox, command, policy.sandbox_timeout()))
     if result.get("exit_code") == 0:
-        return {"path": path, "bytes": int((result["stdout"] or "0").strip() or 0)}
-    return result
+        result = {"path": path, "bytes": int((result["stdout"] or "0").strip() or 0)}
+    return _with_fresh_note(sandbox, result)
 
 
 # -- uncloseai-cli in the sandbox --------------------------------------------
@@ -291,6 +449,17 @@ def delegate(context, task):
         "PATH=/root/.local/bin:$PATH unclose -p --no-markdown "
         f"--model {shlex.quote(model)} {shlex.quote(task)}"
     )
+    note = fresh_note(sandbox)
+    if note:
+        # uncloseai-cli starts in the new sandbox: it needs the history too.
+        task = f"{note}\n\nTask: {task}"
+        command = (
+            ". /run/unsandbox/vault.sh 2>/dev/null; "
+            "PATH=/root/.local/bin:$PATH unclose -p --no-markdown "
+            f"--model {shlex.quote(model)} {shlex.quote(task)}"
+        )
     result = _finished(_execute(sandbox, command, policy.delegate_timeout()))
     result["answer"] = result.pop("stdout")
+    if note:
+        result["sandbox_note"] = note
     return result

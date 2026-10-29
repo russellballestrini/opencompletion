@@ -73,13 +73,21 @@ runs; `create_service`, `get_service`, `execute_in_service` +
 for sandboxes. Nothing is uploaded: `sandbox_write_file` sends its file
 base64 inside one command, & a sandbox fetches the rest itself (git, pip).
 
-**What ends a sandbox.** We never delete one. Idle, it freezes (disk kept,
-RAM freed) & wakes on the next call. On unsandbox's side a service is
-destroyed only by an explicit (sudo-gated) destroy, or by its ghost reaper
-once the container has been unreachable for an hour on a healthy node,
-i.e. already gone. An expired unsandbox key deep-freezes services, never
-deletes them; extending the key lets them wake. Limit: 21 services per
-concurrency slot on our account.
+**What ends a sandbox.** Idle, it freezes (disk kept, RAM freed) & wakes
+on the next call. We destroy it when its chat is deleted, or once frozen &
+unused for `OPENCOMPLETION_SANDBOX_RETENTION_DAYS` (default 14, 0 = never;
+an hourly sweep). Its row stays, state `destroyed`, & that chat's next
+sandbox call makes a new one, whose first result carries `sandbox_note`:
+the sandbox is new & empty, plus the steps that set up the old one (each
+succeeding shell command & file written, from the chat's own tool lines),
+so the model rebuilds in a step instead of rediscovering; `delegate`
+hands uncloseai-cli the same note. unsandbox gates destroy behind sudo:
+**turn sudo off for this server's key**, or every destroy answers 428 &
+the sandbox is kept & logged. Destroys are a plain signed DELETE (un.py's
+`delete_service` prompts for a sudo code with `input()`, which a server
+can't answer). On unsandbox's side a service also ends only on a destroy,
+or by its ghost reaper once its container is already gone; an expired key
+deep-freezes. Limit: 21 services per concurrency slot on our account.
 
 ### uncloseai-cli's model key
 
@@ -119,6 +127,7 @@ export OPENCOMPLETION_SANDBOX=on         # off: no sandbox tools
 export OPENCOMPLETION_SANDBOX_IMAGE=golden-...   # unset: unsandbox-ubuntu
 export OPENCOMPLETION_SANDBOX_IDLE_S=600
 export OPENCOMPLETION_SANDBOX_TIMEOUT_S=120   # one shell command
+export OPENCOMPLETION_SANDBOX_RETENTION_DAYS=14  # frozen & unused: destroyed
 export OPENCOMPLETION_DELEGATE=on        # off: no uncloseai-cli
 export OPENCOMPLETION_DELEGATE_TIMEOUT_S=900
 export OPENCOMPLETION_PUBLIC_URL=https://demo.opencompletion.com
