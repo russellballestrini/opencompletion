@@ -312,3 +312,32 @@ def _api_says(error):
         pass
     text = str(text).strip()
     return f" ({text[:300]})" if text else ""
+
+
+GUIDANCE = (
+    "Today is {today}. You can call these tools: {names}. Use them to do "
+    "things, never imagine their results: when the person asks you to "
+    "run, test, build, install, clone, fetch, search or check something, "
+    "call the tool that does it. Never say code ran, passed, built or "
+    "works unless a tool result in this conversation shows it; if you "
+    "only wrote code, say it is untested. If the person asks for a tool "
+    "that is not in this list, say it is not available here."
+)
+GUIDANCE_DELEGATE = (
+    " For a multi-step coding task (change a repo until its tests pass), "
+    "call delegate with the whole task rather than many shell commands."
+)
+
+
+def guidance(context):
+    """The system message a reply that may call tools starts with, or None
+    when it is offered none."""
+    import time
+
+    names = list(offered(context))
+    if not names:
+        return None
+    text = GUIDANCE.format(today=time.strftime("%Y-%m-%d"), names=", ".join(names))
+    if "delegate" in names:
+        text += GUIDANCE_DELEGATE
+    return {"role": "system", "content": text}

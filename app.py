@@ -1812,6 +1812,8 @@ def chat_gpt(
     tool_schemas = tools.schemas(tool_context)
     if tool_schemas:
         create_kwargs["tools"] = tool_schemas
+        # Which tools it has & that it never claims a run it did not make.
+        chat_history.insert(0, tools.guidance(tool_context))
     # The calls the model streams in its current ask, when it may call any.
     tool_calls = tools.ToolCallCollector() if tool_schemas else None
 

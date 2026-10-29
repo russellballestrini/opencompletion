@@ -443,3 +443,22 @@ def test_a_signed_in_message_carries_its_email_so_egress_users_get_our_network(
     context = kwargs["tool_context"]
     assert context.email == "fox@unturf.com"
     assert tools.offered(context) == {"web_search": "server", "web_fetch": "server"}
+
+
+def test_a_reply_with_tools_is_told_them_and_never_to_claim_a_run(harness):
+    harness.model.scripts = [[chunk(content="Hi!")]]
+    harness.app.chat_gpt(
+        "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext("s")
+    )
+    first = harness.model.asks[0]["messages"][0]
+    assert first["role"] == "system"
+    assert "You can call these tools: web_search." in first["content"]
+    assert "Never say code ran" in first["content"]
+    assert "not available here" in first["content"]
+    assert "delegate" not in first["content"]
+
+
+def test_a_reply_without_tools_gets_no_tool_note(harness):
+    harness.model.scripts = [[chunk(content="Hi!")]]
+    harness.app.chat_gpt("ada", "muppets", model_name="qwen")
+    assert all(m["role"] != "system" for m in harness.model.asks[0]["messages"])

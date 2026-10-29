@@ -511,3 +511,10 @@ def test_shell_and_write_file_lines_show_their_command_and_file(unsandbox, room)
     assert wrote["language"] == "py" and wrote["input"] == "print(1)"
     long = detail_of("run_code", {"code": "x" * 9000}, {"stdout": "y" * 9000})
     assert len(long["input"]) == 6000 and len(long["stdout"]) == 4000
+
+
+def test_an_egress_users_note_names_delegate_for_multi_step_work(unsandbox, room):
+    note = tools.guidance(fox_in(room))["content"]
+    assert "run_code, sandbox_shell, sandbox_write_file, delegate" in note
+    assert "call delegate with the whole task" in note
+    assert tools.guidance(None) is None
