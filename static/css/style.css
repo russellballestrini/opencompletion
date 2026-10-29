@@ -332,6 +332,9 @@ body.chat-page {
 .message-body {
     width: 100%;
     display: grid;
+    /* One column no wider than the reply: wide content (a tool's code)
+       scrolls inside itself instead of widening the page. */
+    grid-template-columns: minmax(0, 1fr);
     overflow-wrap: break-word;
     min-width: 0;
 }
@@ -2043,6 +2046,7 @@ a:hover {
     margin: 0 0 var(--space-2);
     padding: 0;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-1);
     font-size: 13px;
     color: var(--text-secondary);
@@ -2050,6 +2054,7 @@ a:hover {
 }
 
 .message-tool {
+    min-width: 0;
     overflow-wrap: anywhere;
 }
 
@@ -2079,6 +2084,8 @@ a:hover {
 /* A code tool's code & output, folded under its line. */
 .message-tool-detail {
     margin-top: var(--space-1);
+    min-width: 0;
+    max-width: 100%;
 }
 
 .message-tool-detail summary {
@@ -2087,6 +2094,8 @@ a:hover {
 }
 
 .message-tool-detail pre {
+    max-width: 100%;
+    box-sizing: border-box;
     margin: var(--space-1) 0 0;
     padding: var(--space-2);
     max-height: 320px;

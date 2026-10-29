@@ -153,6 +153,23 @@ window.addEventListener('load', async () => {
         deliver('previous_messages', {id: 13, username: 'qwen', content: 'Done.', tools: [
             {tool: 'sandbox_shell', label: 'ls', where: 'sandbox', asker: username, status: 'done', detail: {language: 'bash', input: 'ls', stdout: 'a.py'}}]});
         check(document.querySelector('#message-13 .message-tool-detail .message-tool-output').textContent === 'a.py', 'history keeps code & output');
+        // A long line scrolls inside its block, live & in history, never the page.
+        const wide = 'x = "' + 'w'.repeat(600) + '"';
+        deliver('tool_activity', {id: 14, tool: 'run_code', label: 'python', where: 'unsandbox', asker: username, status: 'done',
+            detail: {language: 'python', input: wide, stdout: wide}});
+        deliver('message_chunk', {id: 14, content: 'Done.', username: 'ada', model_name: 'qwen', is_first_chunk: true});
+        deliver('previous_messages', {id: 15, username: 'qwen', content: 'Done.', tools: [
+            {tool: 'run_code', label: 'python', where: 'unsandbox', asker: username, status: 'done', detail: {language: 'python', input: wide}}]});
+        for (const id of [14, 15]) {
+            const fold = document.querySelector(`#message-${id} .message-tool-detail`);
+            fold.open = true;
+            const box = fold.querySelector('.message-tool-input');
+            const chatBox = document.getElementById('chat').getBoundingClientRect();
+            check(box.getBoundingClientRect().right <= chatBox.right + 1, `code stays inside the chat (${id})`);
+            // The block, or highlight.js's .hljs inside it, scrolls sideways.
+            const scrolls = (el) => el.scrollWidth > el.clientWidth + 1;
+            check(scrolls(box) || scrolls(box.querySelector('code')), `long code scrolls in its block (${id})`);
+        }
         deliver('previous_messages', {id: 9, username: 'qwen', content: 'Plain.', tools: null});
         check(!document.querySelector('#message-9 .message-tools'), 'no trail, no lines');
         check(document.documentElement.scrollWidth <= innerWidth, 'no sideways scroll');
