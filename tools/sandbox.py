@@ -44,6 +44,12 @@ from tools import policy
 OUTPUT_CHARS = 8000
 LANGUAGES_FREEBSD = ("bash", "sh", "python", "perl", "lua", "c", "cpp")
 READY_TIMEOUT_S = 180
+# A service unsandbox is upgrading (onto a new golden image) answers
+# "Cannot unfreeze service in state: upgrading" & comes back by itself;
+# we wait for it, longer than for a start (2026-10-30, demo: a delegate
+# failed on that 400 right after the golden rollout).
+UPGRADE_TIMEOUT_S = 600
+ASLEEP = ("frozen", "stopped", "deep_frozen")
 
 
 def _keys():
@@ -186,10 +192,28 @@ def _state(service):
     return str(service.get("state") or service.get("status") or "").lower()
 
 
+def _unfreeze(service_id):
+    """Ask unsandbox to wake a service. One it says it cannot wake from the
+    state it is in (upgrading, starting: it lost a race with our look) is
+    left to come up by itself; _wait_running waits for it."""
+    try:
+        un.unfreeze_service(service_id)
+    except Exception as e:  # noqa: BLE001 — only "not from this state" is ours
+        response = getattr(e, "response", None)
+        said = getattr(response, "text", "") or ""
+        if getattr(response, "status_code", None) != 400 or (
+            "Cannot unfreeze" not in said
+        ):
+            raise
+        print(f"[WARN] sandbox {service_id}: {said.strip()[:200]}; waiting")
+
+
 def _wait_running(service_id):
-    """Until the service is running. One unsandbox froze or stopped on its
-    own (our row may still say running) is woken here, once."""
-    deadline = time.time() + READY_TIMEOUT_S
+    """Until the service is running. One asleep (frozen or stopped by
+    unsandbox, whatever our row says) is woken, once; any other state
+    (upgrading, starting, unfreezing) is waited out, an upgrade longer."""
+    start = time.time()
+    deadline = start + READY_TIMEOUT_S
     woken = False
     while time.time() < deadline:
         state = _state(_patiently(un.get_service, deadline, service_id))
@@ -197,12 +221,14 @@ def _wait_running(service_id):
             return
         if state in ("error", "failed", "destroyed"):
             raise RuntimeError(f"sandbox {state}")
-        if state in ("frozen", "stopped", "deep_frozen") and not woken:
+        if state in ASLEEP and not woken:
             print(f"[WARN] sandbox {service_id} was {state}; waking it")
-            un.unfreeze_service(service_id)
+            _unfreeze(service_id)
             woken = True
+        if state == "upgrading":
+            deadline = max(deadline, start + UPGRADE_TIMEOUT_S)
         gevent.sleep(2)
-    raise RuntimeError("sandbox did not start in time")
+    raise RuntimeError(f"sandbox did not start in time (last state: {state})")
 
 
 def _new_service(context):
@@ -318,7 +344,8 @@ def ready(context):
     elif sandbox.state == "destroyed":
         sandbox = _recreate(sandbox, context)
     elif sandbox.state == "frozen":
-        un.unfreeze_service(sandbox.service_id)
+        # Our row says frozen; _wait_running asks unsandbox what it really
+        # is & wakes it only if it is asleep (not mid-upgrade).
         sandbox.state = "running"
     _wait_running(sandbox.service_id)
     sandbox.last_used_at = time.time()
@@ -439,7 +466,6 @@ def _execute(sandbox, command, timeout_s):
             # "Service is not running. Wake it first.": it stopped under
             # us (frozen, or its host restarted). Wake it & try once more.
             print(f"[WARN] sandbox {sandbox.name} was not running; waking it")
-            un.unfreeze_service(sandbox.service_id)
             sandbox.state = "running"
             db.session.commit()
             _wait_running(sandbox.service_id)

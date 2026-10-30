@@ -70,11 +70,26 @@ class Fakeunsandbox:
         return {"service_id": service_id}
 
     def get_service(self, service_id):
+        """The next of `states_ahead[service_id]` (then that state stays),
+        else what services says."""
+        ahead = self.states_ahead.get(service_id)
+        if ahead:
+            self.services[service_id] = ahead.pop(0)
         return {"state": self.services[service_id]}
 
     def unfreeze_service(self, service_id):
         self.calls.append(("unfreeze", service_id))
+        if self.unfreeze_refuses:
+            import requests
+
+            response = requests.Response()
+            response.status_code = 400
+            response._content = self.unfreeze_refuses.encode()
+            raise requests.HTTPError("400 Client Error: Bad Request", response=response)
         self.services[service_id] = "running"
+
+    states_ahead = {}
+    unfreeze_refuses = ""
 
     def freeze_service(self, service_id):
         self.calls.append(("freeze", service_id))
@@ -303,6 +318,73 @@ def test_a_frozen_sandbox_is_woken_not_remade(unsandbox, room):
     assert ("unfreeze", sandbox.service_id) in unsandbox.calls
     assert len([c for c in unsandbox.calls if c[0] == "create"]) == 1
     assert Sandbox.query.one().state == "running"
+
+
+def _frozen_sandbox(unsandbox, room):
+    """A chat whose sandbox our row calls frozen."""
+    from models import Sandbox, db
+
+    tools.run(fox_in(room), "sandbox_shell", {"command": "true"})
+    sandbox = Sandbox.query.one()
+    sandbox.state = "frozen"
+    db.session.commit()
+    unsandbox.states_ahead = {}
+    return sandbox
+
+
+def test_a_sandbox_mid_upgrade_is_waited_for_not_unfrozen(unsandbox, room):
+    # 2026-10-30, demo: "Cannot unfreeze service in state: upgrading" failed
+    # a delegate right after the golden rollout.
+    sandbox = _frozen_sandbox(unsandbox, room)
+    unsandbox.states_ahead[sandbox.service_id] = ["upgrading", "upgrading", "running"]
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "echo hi"})
+    assert "error" not in result
+    assert ("unfreeze", sandbox.service_id) not in unsandbox.calls
+    assert unsandbox.commands()[-1] == "echo hi"
+
+
+def test_an_unfreeze_that_loses_a_race_with_an_upgrade_waits(unsandbox, room):
+    sandbox = _frozen_sandbox(unsandbox, room)
+    unsandbox.states_ahead[sandbox.service_id] = ["frozen", "upgrading", "running"]
+    unsandbox.unfreeze_refuses = (
+        '{"error":"Cannot unfreeze service in state: upgrading"}'
+    )
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "echo hi"})
+    assert "error" not in result
+    assert ("unfreeze", sandbox.service_id) in unsandbox.calls
+
+
+def test_any_other_unfreeze_refusal_still_fails(unsandbox, room):
+    sandbox = _frozen_sandbox(unsandbox, room)
+    unsandbox.services[sandbox.service_id] = "frozen"
+    unsandbox.unfreeze_refuses = '{"error":"quota exceeded"}'
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "echo hi"})
+    assert "quota exceeded" in result["error"]
+
+
+def test_an_upgrade_may_take_longer_than_a_start(unsandbox, room, monkeypatch):
+    sandbox = _frozen_sandbox(unsandbox, room)
+    clock = [1000.0]
+    monkeypatch.setattr(tool_sandbox.time, "time", lambda: clock[0])
+    monkeypatch.setattr(
+        tool_sandbox.gevent, "sleep", lambda s: clock.__setitem__(0, clock[0] + 60)
+    )
+    # 5 minutes upgrading: past READY_TIMEOUT_S (180s), inside UPGRADE_TIMEOUT_S
+    unsandbox.states_ahead[sandbox.service_id] = ["upgrading"] * 5 + ["running"]
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "echo hi"})
+    assert "error" not in result
+
+
+def test_an_upgrade_that_never_ends_says_so(unsandbox, room, monkeypatch):
+    sandbox = _frozen_sandbox(unsandbox, room)
+    clock = [1000.0]
+    monkeypatch.setattr(tool_sandbox.time, "time", lambda: clock[0])
+    monkeypatch.setattr(
+        tool_sandbox.gevent, "sleep", lambda s: clock.__setitem__(0, clock[0] + 60)
+    )
+    unsandbox.services[sandbox.service_id] = "upgrading"
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "echo hi"})
+    assert "last state: upgrading" in result["error"]
 
 
 def test_write_file_survives_any_quoting(unsandbox, room):
@@ -885,6 +967,7 @@ def test_a_sandbox_stopped_under_a_command_is_woken_and_retried(
 
     def execute(service_id, command, timeout=30000):
         if not refused:
+            unsandbox.services[service_id] = "frozen"  # unsandbox stopped it
             response = requests.Response()
             response.status_code = 409
             refused.append(command)
