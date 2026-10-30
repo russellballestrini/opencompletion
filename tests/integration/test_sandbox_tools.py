@@ -471,7 +471,8 @@ def test_delegate_runs_unclose_with_a_token_only_its_vault_holds(unsandbox, room
     token = env["MODEL_API_KEY_0"]
     assert env["MODEL_ENDPOINT_0"] == "https://chat.example.org/api/sandbox/v1"
     assert env["MODEL_ID_0"] == "qwen" and token.startswith("ocsb-")
-    assert sandbox.token_sha256 == tool_sandbox.token_hash(token)
+    # The run is over, so its token is too (revoked on the way out).
+    assert sandbox.token_sha256 is None
     assert sandbox.model == "qwen"
     (start,), polls = unsandbox.delegate_commands()
     assert polls  # it was polled until it wrote its exit code
@@ -535,10 +536,11 @@ def proxy(unsandbox, room, test_app, monkeypatch):
 
     monkeypatch.setitem(routes.DEPS, "get_openai_client_and_model", lookup)
     sandbox_proxy.proxy_limit.reset()
-    delegate(room, unsandbox)
-    from models import Sandbox
-
-    token = unsandbox.env[Sandbox.query.one().service_id]["MODEL_API_KEY_0"]
+    # A token as a delegate run holds it while it runs (a finished run's
+    # token is revoked: test_a_finished_runs_token_is_refused).
+    sandbox = tool_sandbox.ready(fox_in(room))
+    tool_sandbox.arm_proxy(sandbox, "qwen")
+    token = unsandbox.env[sandbox.service_id]["MODEL_API_KEY_0"]
     return SimpleNamespace(
         http=test_app.test_client(),
         token=token,
@@ -565,6 +567,45 @@ def test_the_proxy_answers_only_a_live_sandbox_token(proxy):
         proxy.http.get("/api/sandbox/v1/models", headers=proxy.headers).status_code
         == 401
     )
+
+
+def test_a_finished_runs_token_is_refused(unsandbox, room, test_app):
+    delegate(room, unsandbox)
+    from models import Sandbox
+
+    token = unsandbox.env[Sandbox.query.one().service_id]["MODEL_API_KEY_0"]
+    got = test_app.test_client().post(
+        "/api/sandbox/v1/chat/completions",
+        json={"messages": [{"role": "user", "content": "hi"}]},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert got.status_code == 401
+
+
+def test_a_run_that_raises_still_revokes_its_token(unsandbox, room, monkeypatch):
+    from models import Sandbox
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("unsandbox fell over")
+
+    monkeypatch.setattr(tool_sandbox, "fresh_note", boom)
+    result = delegate(room, unsandbox)
+    assert "unsandbox fell over" in result["error"]
+    assert Sandbox.query.one().token_sha256 is None
+
+
+def test_an_older_run_ending_leaves_a_newer_runs_token(unsandbox, room):
+    from models import Sandbox, db
+
+    sandbox = tool_sandbox.ready(fox_in(room))
+    tool_sandbox.arm_proxy(sandbox, "qwen")
+    older = sandbox.token_sha256
+    tool_sandbox.arm_proxy(sandbox, "qwen")  # a newer run armed its own
+    newer = sandbox.token_sha256
+    tool_sandbox.revoke_proxy(sandbox.id, older)
+    assert db.session.get(Sandbox, sandbox.id).token_sha256 == newer
+    tool_sandbox.revoke_proxy(sandbox.id, newer)
+    assert db.session.get(Sandbox, sandbox.id).token_sha256 is None
 
 
 def test_the_proxy_answers_with_its_chats_model_and_our_client(proxy):

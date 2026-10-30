@@ -547,6 +547,35 @@ ANSI = r"s/\x1b\[[0-9;?]*[A-Za-z]//g"
 
 
 def delegate(context, task):
+    """_delegate, with its proxy token revoked however the run ends
+    (finished, stopped, failed, timed out, raised): a token that outlived
+    its run let anything left in the sandbox keep calling our model while
+    the sandbox ran, & came back to life when it was unfrozen (2026-10-30)."""
+    armed = {}
+    try:
+        return _delegate(context, task, armed)
+    finally:
+        revoke_proxy(armed.get("sandbox_id"), armed.get("token_sha256"))
+
+
+def revoke_proxy(sandbox_id, armed_hash):
+    """Forget a run's proxy token, unless a newer run has armed its own
+    since (that run's token stays good). Never raises: it runs on every
+    way out of a delegate."""
+    if not sandbox_id or not armed_hash:
+        return
+    try:
+        db.session.rollback()  # a failed run may have left one open
+        sandbox = db.session.get(Sandbox, sandbox_id)
+        if sandbox is not None and sandbox.token_sha256 == armed_hash:
+            sandbox.token_sha256 = None
+            db.session.commit()
+    except Exception as e:  # noqa: BLE001 — revocation must not mask the result
+        db.session.rollback()
+        print(f"[WARN] could not revoke sandbox {sandbox_id}'s proxy token: {e}")
+
+
+def _delegate(context, task, armed):
     """uncloseai-cli (`unclose -p`) on a task in this chat's sandbox, run in
     the background: we poll it every DELEGATE_POLL_S with a short command,
     showing `unclose --peek`'s view of its session as progress, until it
@@ -561,6 +590,7 @@ def delegate(context, task):
     # Armed afresh for every run: a new token, & the vault's settings as
     # this server has them now (an older sandbox catches up).
     arm_proxy(sandbox, model)
+    armed.update(sandbox_id=sandbox.id, token_sha256=sandbox.token_sha256)
     note = fresh_note(sandbox)
     if note:
         # uncloseai-cli starts in the new sandbox: it needs the history too.
