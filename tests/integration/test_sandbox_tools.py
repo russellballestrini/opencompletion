@@ -869,3 +869,38 @@ def test_progress_reaches_the_room_as_the_running_line(unsandbox, room):
     running = [e for e in events if e["status"] == "running"]
     assert running[-1]["progress"] == "● bash make test"
     assert running[-1]["tool"] == "delegate" and running[-1]["where"] == "sandbox"
+
+
+def test_a_sandbox_stopped_under_a_command_is_woken_and_retried(
+    unsandbox, room, monkeypatch
+):
+    import requests
+    import un
+    from models import Sandbox
+
+    make_sandbox(unsandbox, room)
+    real = unsandbox.execute_in_service
+    refused = []
+
+    def execute(service_id, command, timeout=30000):
+        if not refused:
+            response = requests.Response()
+            response.status_code = 409
+            refused.append(command)
+            raise requests.HTTPError(
+                "409 Service is not running. Wake it first.", response=response
+            )
+        return real(service_id, command, timeout)
+
+    monkeypatch.setattr(un, "execute_in_service", execute)
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "ls"})
+    assert result["exit_code"] == 0 and refused == ["ls"]
+    assert ("unfreeze", Sandbox.query.one().service_id) in unsandbox.calls
+
+
+def test_a_delegate_whose_sandbox_restarted_says_its_run_was_lost(unsandbox, room):
+    unsandbox.polls = ["__LOST__\nKilled"]
+    result = delegate(room, unsandbox)
+    assert result["status"] == "lost" and "stopped mid-run" in result["error"]
+    _, polls = unsandbox.delegate_commands()
+    assert "kill -0" in polls[0]

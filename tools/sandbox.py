@@ -336,6 +336,8 @@ def freeze_if_idle(sandbox_id, app=None):
         except Exception as e:  # noqa: BLE001 — try again on its next use
             print(f"[WARN] could not freeze sandbox {sandbox.name}: {e}")
             return
+        idle = time.time() - (sandbox.last_used_at or 0)
+        print(f"[INFO] froze sandbox {sandbox.name} after {idle:.0f}s idle")
         sandbox.state = "frozen"
         db.session.commit()
 
@@ -420,9 +422,23 @@ def _execute(sandbox, command, timeout_s):
     sandbox.last_used_at = time.time() + timeout_s
     db.session.commit()
     try:
-        job = un.execute_in_service(
-            sandbox.service_id, command, timeout=timeout_s * 1000
-        )
+        try:
+            job = un.execute_in_service(
+                sandbox.service_id, command, timeout=timeout_s * 1000
+            )
+        except Exception as e:  # noqa: BLE001 — one kind is ours to fix
+            if getattr(getattr(e, "response", None), "status_code", None) != 409:
+                raise
+            # "Service is not running. Wake it first.": it stopped under
+            # us (frozen, or its host restarted). Wake it & try once more.
+            print(f"[WARN] sandbox {sandbox.name} was not running; waking it")
+            un.unfreeze_service(sandbox.service_id)
+            sandbox.state = "running"
+            db.session.commit()
+            _wait_running(sandbox.service_id)
+            job = un.execute_in_service(
+                sandbox.service_id, command, timeout=timeout_s * 1000
+            )
         if job.get("job_id"):
             return _wait_job(job["job_id"], timeout_s + 30)
         return job
@@ -532,6 +548,8 @@ def delegate(context, task):
     poll = (
         f"if [ -f {run_dir}/exit ]; then echo __EXIT__$(cat {run_dir}/exit); "
         f"cat {run_dir}/answer; echo __STDERR__; tail -c 3000 {run_dir}/stderr; "
+        f"elif ! kill -0 $(cat {run_dir}/pid 2>/dev/null) 2>/dev/null; then "
+        f"echo __LOST__; tail -c 2000 {run_dir}/stderr 2>/dev/null; "
         f"else timeout 6 unclose --peek $(cat {run_dir}/pid) 2>&1 | sed -E '{ANSI}' "
         f"| tail -n 12; fi"
     )
@@ -557,6 +575,15 @@ def delegate(context, task):
                 continue
             raise
         out = polled.get("stdout") or ""
+        if out.startswith("__LOST__"):
+            # No exit code & no process: the sandbox stopped under it (a
+            # freeze or a host restart ends every process in it).
+            return {
+                "status": "lost",
+                "error": "uncloseai-cli's run was lost: the sandbox stopped mid-run "
+                "(it is running again; delegate again to retry)",
+                "stderr": _clip(out[len("__LOST__") :].strip()),
+            }
         if out.startswith("__EXIT__"):
             head, _, rest = out.partition("\n")
             answer, _, stderr = rest.partition("__STDERR__\n")
