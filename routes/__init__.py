@@ -1,4 +1,5 @@
-"""Our HTTP routes, as blueprints: pages, accounts, rooms, code & speech.
+"""Our HTTP routes, as blueprints: pages, accounts, rooms, code, speech,
+files, the sandbox proxy & status (/version, /health).
 
 app.py keeps chat itself (the /chat page, Socket.IO events & model
 streaming) and calls register() once. The few helpers these routes share
@@ -19,7 +20,25 @@ def register(app, **deps):
     room's title).
     """
     DEPS.update(deps)
-    from routes import accounts, code, files, pages, rooms, sandbox_proxy, speech
+    from routes import (
+        accounts,
+        code,
+        files,
+        pages,
+        rooms,
+        sandbox_proxy,
+        speech,
+        status,
+    )
 
-    for module in (pages, accounts, rooms, code, speech, files, sandbox_proxy):
+    for module in (
+        pages,
+        accounts,
+        rooms,
+        code,
+        speech,
+        files,
+        sandbox_proxy,
+        status,
+    ):
         app.register_blueprint(module.bp)
