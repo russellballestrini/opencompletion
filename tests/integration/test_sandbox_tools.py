@@ -387,6 +387,37 @@ def test_an_upgrade_that_never_ends_says_so(unsandbox, room, monkeypatch):
     assert "last state: upgrading" in result["error"]
 
 
+def test_an_unreachable_sandbox_is_woken(unsandbox, room):
+    sandbox = _frozen_sandbox(unsandbox, room)
+    unsandbox.services[sandbox.service_id] = "unreachable"
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "echo hi"})
+    assert "error" not in result
+    assert ("unfreeze", sandbox.service_id) in unsandbox.calls
+
+
+def test_a_deep_upgrade_may_take_longer_than_a_start(unsandbox, room, monkeypatch):
+    sandbox = _frozen_sandbox(unsandbox, room)
+    clock = [1000.0]
+    monkeypatch.setattr(tool_sandbox.time, "time", lambda: clock[0])
+    monkeypatch.setattr(
+        tool_sandbox.gevent, "sleep", lambda s: clock.__setitem__(0, clock[0] + 60)
+    )
+    unsandbox.states_ahead[sandbox.service_id] = ["deep_upgrading"] * 5 + ["running"]
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "echo hi"})
+    assert "error" not in result
+
+
+def test_a_busy_code_from_the_api_contract_waits_too(unsandbox, room):
+    sandbox = _frozen_sandbox(unsandbox, room)
+    unsandbox.states_ahead[sandbox.service_id] = ["frozen", "upgrading", "running"]
+    unsandbox.unfreeze_refuses = (
+        '{"error":"Cannot unfreeze service in state: upgrading",'
+        '"code":"service_busy","state":"upgrading","retryable":true}'
+    )
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "echo hi"})
+    assert "error" not in result
+
+
 def test_write_file_survives_any_quoting(unsandbox, room):
     content = "print('it\\'s \"quoted\"; $(rm -rf /)')\n"
     unsandbox.next_result = {"status": "completed", "exit_code": 0, "stdout": "37\n"}

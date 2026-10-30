@@ -49,7 +49,10 @@ READY_TIMEOUT_S = 180
 # we wait for it, longer than for a start (2026-10-30, demo: a delegate
 # failed on that 400 right after the golden rollout).
 UPGRADE_TIMEOUT_S = 600
-ASLEEP = ("frozen", "stopped", "deep_frozen")
+UPGRADING = ("upgrading", "deep_upgrading")
+# What unsandbox's unfreeze wakes (audit 2026-10-30): frozen, & unreachable
+# (its host came back). "failed" stays an error: waking it repairs nothing.
+ASLEEP = ("frozen", "unreachable")
 
 
 def _keys():
@@ -201,9 +204,12 @@ def _unfreeze(service_id):
     except Exception as e:  # noqa: BLE001 — only "not from this state" is ours
         response = getattr(e, "response", None)
         said = getattr(response, "text", "") or ""
-        if getattr(response, "status_code", None) != 400 or (
-            "Cannot unfreeze" not in said
-        ):
+        # Today a 400 "Cannot unfreeze service in state: X"; the API's error
+        # contract adds code "service_busy" (& later answers 409) for it.
+        busy = '"service_busy"' in said or (
+            getattr(response, "status_code", None) == 400 and "Cannot unfreeze" in said
+        )
+        if not busy:
             raise
         print(f"[WARN] sandbox {service_id}: {said.strip()[:200]}; waiting")
 
@@ -225,7 +231,7 @@ def _wait_running(service_id):
             print(f"[WARN] sandbox {service_id} was {state}; waking it")
             _unfreeze(service_id)
             woken = True
-        if state == "upgrading":
+        if state in UPGRADING:
             deadline = max(deadline, start + UPGRADE_TIMEOUT_S)
         gevent.sleep(2)
     raise RuntimeError(f"sandbox did not start in time (last state: {state})")
