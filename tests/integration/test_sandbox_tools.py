@@ -822,7 +822,8 @@ def test_delegate_shows_its_progress_while_it_runs(unsandbox, room):
     ]
     assert result["answer"] == "Added 3 tests; 45 passed." and result["exit_code"] == 0
     _, polls = unsandbox.delegate_commands()
-    assert "unclose --peek $(cat" in polls[0]
+    # unclose lives in /root/.local/bin, which a bare poll's PATH lacks.
+    assert "PATH=/root/.local/bin:$PATH timeout 6 unclose --peek" in polls[0]
 
 
 def test_a_failing_uncloseai_cli_says_so(unsandbox, room):

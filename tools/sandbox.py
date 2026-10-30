@@ -566,7 +566,8 @@ def delegate(context, task):
         f"cat {run_dir}/answer; echo __STDERR__; tail -c 3000 {run_dir}/stderr; "
         f"elif ! kill -0 $(cat {run_dir}/pid 2>/dev/null) 2>/dev/null; then "
         f"echo __LOST__; tail -c 2000 {run_dir}/stderr 2>/dev/null; "
-        f"else timeout 6 unclose --peek $(cat {run_dir}/pid) 2>&1 | sed -E '{ANSI}' "
+        f"else PATH=/root/.local/bin:$PATH timeout 6 unclose --peek "
+        f"$(cat {run_dir}/pid) 2>&1 | sed -E '{ANSI}' "
         f"| tail -n 12; fi"
     )
     stop = f"kill $(cat {run_dir}/pid) 2>/dev/null; echo stopped"
