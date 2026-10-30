@@ -898,9 +898,34 @@ def test_a_sandbox_stopped_under_a_command_is_woken_and_retried(
     assert ("unfreeze", Sandbox.query.one().service_id) in unsandbox.calls
 
 
-def test_a_delegate_whose_sandbox_restarted_says_its_run_was_lost(unsandbox, room):
-    unsandbox.polls = ["__LOST__\nKilled"]
+def test_a_run_lost_to_a_stopped_sandbox_is_started_again(unsandbox, room):
+    unsandbox.polls = ["__LOST__\nKilled"]  # then it finishes: Done.
+    seen = []
+    context = tools.ToolContext(
+        sid="s", email=FOX, room_id=room.id, model="qwen", progress=seen.append
+    )
+    result = delegate(room, unsandbox, context=context)
+    assert result["answer"] == "Done." and result["exit_code"] == 0
+    starts, polls = unsandbox.delegate_commands()
+    assert len(starts) == 2 and "kill -0" in polls[0]
+    assert any("starting uncloseai-cli again" in s for s in seen)
+
+
+def test_a_run_lost_twice_says_so(unsandbox, room):
+    unsandbox.polls = ["__LOST__", "__LOST__"]
     result = delegate(room, unsandbox)
-    assert result["status"] == "lost" and "stopped mid-run" in result["error"]
-    _, polls = unsandbox.delegate_commands()
-    assert "kill -0" in polls[0]
+    assert result["status"] == "lost" and "lost twice" in result["error"]
+
+
+def test_a_sandbox_unsandbox_froze_is_woken_though_our_row_says_running(
+    unsandbox, room
+):
+    from models import Sandbox
+
+    make_sandbox(unsandbox, room)
+    sandbox = Sandbox.query.one()
+    assert sandbox.state == "running"
+    unsandbox.services[sandbox.service_id] = "frozen"  # unsandbox's doing
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "ls"})
+    assert result["exit_code"] == 0
+    assert ("unfreeze", sandbox.service_id) in unsandbox.calls

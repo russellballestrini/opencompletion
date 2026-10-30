@@ -187,13 +187,20 @@ def _state(service):
 
 
 def _wait_running(service_id):
+    """Until the service is running. One unsandbox froze or stopped on its
+    own (our row may still say running) is woken here, once."""
     deadline = time.time() + READY_TIMEOUT_S
+    woken = False
     while time.time() < deadline:
         state = _state(_patiently(un.get_service, deadline, service_id))
         if state == "running":
             return
         if state in ("error", "failed", "destroyed"):
             raise RuntimeError(f"sandbox {state}")
+        if state in ("frozen", "stopped", "deep_frozen") and not woken:
+            print(f"[WARN] sandbox {service_id} was {state}; waking it")
+            un.unfreeze_service(service_id)
+            woken = True
         gevent.sleep(2)
     raise RuntimeError("sandbox did not start in time")
 
@@ -502,6 +509,7 @@ def arm_proxy(sandbox, model):
 
 
 DELEGATE_POLL_S = 15
+DELEGATE_RESTARTS = 1  # a run lost to a stopped sandbox is started again
 DELEGATE_DIR = "/root/.opencompletion"
 ANSI = r"s/\x1b\[[0-9;?]*[A-Za-z]//g"
 
@@ -537,14 +545,22 @@ def delegate(context, task):
         f"setsid nohup bash -c {shlex.quote(inner)} > /dev/null 2>&1 < /dev/null & "
         f"sleep 1; cat {run_dir}/pid"
     )
-    started = _execute(sandbox, start, 60)
-    if (
-        started.get("status") != "completed"
-        or not (started.get("stdout") or "").strip()
-    ):
-        result = _finished(started)
-        result.setdefault("error", "uncloseai-cli did not start")
-        return result
+
+    def launch():
+        started = _execute(sandbox, start, 60)
+        if (
+            started.get("status") != "completed"
+            or not (started.get("stdout") or "").strip()
+        ):
+            result = _finished(started)
+            result.setdefault("error", "uncloseai-cli did not start")
+            return result
+        return None
+
+    failed = launch()
+    if failed:
+        return failed
+    restarts = 0
     poll = (
         f"if [ -f {run_dir}/exit ]; then echo __EXIT__$(cat {run_dir}/exit); "
         f"cat {run_dir}/answer; echo __STDERR__; tail -c 3000 {run_dir}/stderr; "
@@ -575,13 +591,25 @@ def delegate(context, task):
                 continue
             raise
         out = polled.get("stdout") or ""
+        if out.startswith("__LOST__") and restarts < DELEGATE_RESTARTS:
+            # The sandbox stopped under it (a freeze or a host restart ends
+            # every process in it): wake it & start the run again, once.
+            restarts += 1
+            if context.progress:
+                context.progress(
+                    "The sandbox stopped mid-run; starting uncloseai-cli again."
+                )
+            _wait_running(sandbox.service_id)
+            failed = launch()
+            if failed:
+                return failed
+            continue
         if out.startswith("__LOST__"):
-            # No exit code & no process: the sandbox stopped under it (a
-            # freeze or a host restart ends every process in it).
+            # Lost again: say so rather than loop.
             return {
                 "status": "lost",
-                "error": "uncloseai-cli's run was lost: the sandbox stopped mid-run "
-                "(it is running again; delegate again to retry)",
+                "error": "uncloseai-cli's run was lost twice: the sandbox stopped "
+                "mid-run & again after a restart",
                 "stderr": _clip(out[len("__LOST__") :].strip()),
             }
         if out.startswith("__EXIT__"):
