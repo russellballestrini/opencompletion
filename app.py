@@ -2706,6 +2706,76 @@ def generate_dalle_image(room_name, message, username):
         )
 
 
+def startup_summary():
+    """What this server offers beside its models, one line a part, for the
+    log on start: tools, chat settings & the site. Counts & names only:
+    never a key, an email or a database password."""
+    from repetition_guard import repeat_limit
+    from sqlalchemy.engine import make_url
+
+    policy = tools.policy
+    on = lambda flag: "on" if flag else "off"  # noqa: E731
+    egress = len(policy.egress_users())
+    parts = []
+    if policy.web_search_enabled():
+        parts.append(
+            f"web_search (our server for {egress} egress user"
+            f"{'' if egress == 1 else 's'}, everyone else's own browser)"
+        )
+    if policy.web_crawl_enabled():
+        parts.append("web_fetch (egress users)")
+    if policy.unsandbox_configured():
+        guests = policy.run_code_enabled(signed_in=False)
+        parts.append(f"run_code ({'everyone' if guests else 'signed in only'})")
+    if policy.sandbox_enabled():
+        parts.append(
+            f"sandbox ({policy.sandbox_image() or 'unsandbox default image'}, "
+            f"frozen idle {policy.sandbox_idle()}s, kept "
+            f"{policy.sandbox_retention_days() or 'forever'}d) + sandbox_share_file"
+        )
+        if policy.delegate_enabled():
+            parts.append(
+                f"delegate (summaries {on(policy.delegate_summaries_enabled())})"
+            )
+        else:
+            parts.append("delegate off (needs OPENCOMPLETION_PUBLIC_URL)")
+    elif not policy.unsandbox_configured():
+        parts.append("no unsandbox tools (UNSANDBOX keys unset)")
+    lines = [
+        "Loaded tools: "
+        + (", ".join(parts) if parts else "none")
+        + f"; up to {policy.max_rounds()} rounds a reply"
+    ]
+
+    sampling = chat_sampling("model")
+    lines.append(
+        f"Loaded chat settings: temperature {sampling.get('temperature')}, "
+        f"top_p {sampling.get('top_p')}, "
+        f"top_k {(sampling.get('extra_body') or {}).get('top_k', 'off')}, "
+        f"max_tokens {sampling.get('max_tokens', 'no cap')}, "
+        f"thinking budget {thinking_budget() or 'off'}, "
+        f"repeat limit {repeat_limit() or 'off'}, "
+        f"follow-ups {on(followups_enabled())}, "
+        f"uploads {max_upload_bytes() // (1024 * 1024)} MB"
+    )
+
+    database = make_url(app.config["SQLALCHEMY_DATABASE_URI"])
+    try:
+        with app.app_context():
+            revision = db.session.execute(
+                db.text("SELECT version_num FROM alembic_version")
+            ).scalar()
+    except Exception:  # noqa: BLE001 — a fresh database has no stamp yet
+        revision = None
+    lines.append(
+        f"Loaded site: {os.environ.get('OPENCOMPLETION_BRAND') or 'OpenCompletion'}"
+        f", public url {policy.public_url() or 'unset'}"
+        f", database {database.render_as_string(hide_password=True)}"
+        f" at migration {revision or 'unstamped'}"
+    )
+    return lines
+
+
 def backfill_blobs():
     """Move every base64 image kept inside a message (DALL-E replies &
     vision images from before blob_store) into our blob store, the message
@@ -3022,6 +3092,8 @@ if __name__ == "__main__":
         print("Loaded", classifier_line)
     else:
         print("Loaded classifier: none configured")
+    for line in startup_summary():
+        print(line)
     # Set profile_name and other configurations as global attributes of the app object
     app.config["PROFILE_NAME"] = args.profile
     app.config["LOCAL_ACTIVITIES"] = args.local_activities

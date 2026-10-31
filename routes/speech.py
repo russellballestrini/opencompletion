@@ -12,6 +12,7 @@ our mic's recordings to /audio/transcriptions the same way.
 """
 
 import os
+import re
 import time
 
 import requests
@@ -31,6 +32,11 @@ AUDIO_TIMEOUT_S = (5, 300)
 
 # {"at": monotonic time, "data": merged model list, "routes": {model: [endpoint]}}
 _voices_cache = {}
+# {"at": monotonic time, "ids": [every model id our endpoints list]}
+_models_cache = {}
+# A transcription model by its id: stt-1-parakeet, whisper-1, ...transcribe.
+STT_MODEL = re.compile(r"^(stt|whisper)|transcri|parakeet|asr", re.I)
+DEFAULT_STT_MODEL = "whisper-1"
 
 
 def speech_endpoints(env=None):
@@ -85,7 +91,7 @@ def _load_voices(verbose=False):
                 if isinstance(m, dict) and m.get("id")
             }
             print(
-                f"[DEBUG] {base_url} returned speech models: "
+                f"[DEBUG] {base_url} returned voices: "
                 + ", ".join(f"{k} ({n} voices)" for k, n in listed.items())
             )
         for model in models:
@@ -101,13 +107,67 @@ def _load_voices(verbose=False):
     return _voices_cache
 
 
+def _load_models(verbose=False):
+    """Every model id our speech endpoints list at /models (speech &
+    transcription alike), cached VOICES_TTL_S; [] when none answered."""
+    cached = _models_cache.get("at")
+    if not verbose and cached is not None and time.monotonic() - cached < VOICES_TTL_S:
+        return _models_cache["ids"]
+    ids = []
+    for base_url, api_key in speech_endpoints():
+        try:
+            response = requests.get(
+                f"{base_url}/models",
+                headers=_headers(api_key),
+                timeout=VOICES_TIMEOUT_S,
+            )
+            response.raise_for_status()
+            listed = [
+                m.get("id")
+                for m in response.json().get("data") or []
+                if isinstance(m, dict) and m.get("id")
+            ]
+        except (requests.RequestException, ValueError, AttributeError) as exc:
+            if verbose:
+                print(f"[WARN] speech models from {base_url} failed: {exc}")
+            continue
+        if verbose:
+            print(f"[DEBUG] {base_url} returned speech models: {listed}")
+        ids += [i for i in listed if i not in ids]
+    _models_cache.update(at=time.monotonic(), ids=ids)
+    return ids
+
+
+def stt_model():
+    """(model, why): SPEECH_STT_MODEL when set, else the transcription model
+    our speech endpoint lists (stt-1-parakeet today), else whisper-1, the
+    OpenAI-style name most whisper servers answer to."""
+    named = (os.environ.get("SPEECH_STT_MODEL") or "").strip()
+    if named:
+        return named, "SPEECH_STT_MODEL"
+    for model_id in _load_models():
+        if STT_MODEL.search(model_id):
+            return model_id, "listed by our speech endpoint"
+    return DEFAULT_STT_MODEL, "default; no endpoint lists one"
+
+
 def log_startup():
-    """Load & print our speech models once at startup."""
+    """Load & print what speech offers once at startup: voices for each
+    speech model & the model our mic's recordings are transcribed with."""
+    _load_models(verbose=True)
     voices = _load_voices(verbose=True)
     if voices is None:
-        print("[WARN] Loaded speech models: none (no speech endpoint answered)")
+        print("[WARN] Loaded speech: none (no speech endpoint answered)")
     else:
-        print("Loaded speech models:", list(voices["routes"]))
+        print(
+            "Loaded speech:",
+            ", ".join(
+                f"{m.get('id')} ({len(m.get('voices') or [])} voices)"
+                for m in voices["data"]
+            ),
+        )
+    model, why = stt_model()
+    print(f"Loaded transcription: {model} ({why})")
 
 
 @bp.route("/speech/voices", methods=["GET"])
@@ -171,9 +231,9 @@ def speech_audio():
 
 
 # Voice input: speech to text through the same endpoints, so audio goes to
-# our speech service, never a browser vendor's. SPEECH_STT_MODEL names the
-# transcription model (default whisper-1, the OpenAI-style name most
-# whisper servers answer to).
+# our speech service, never a browser vendor's. The transcription model is
+# SPEECH_STT_MODEL, else the one our speech endpoint lists (stt_model), else
+# whisper-1.
 TRANSCRIBE_TIMEOUT_S = (5, 120)
 TRANSCRIBE_THROTTLE = Throttle("OPENCOMPLETION_TRANSCRIBE_LIMIT", default=(30, 600))
 
@@ -203,7 +263,7 @@ def speech_transcribe():
         response.headers["Retry-After"] = str(retry_after)
         return response, 429
 
-    model = os.environ.get("SPEECH_STT_MODEL") or "whisper-1"
+    model, _ = stt_model()
     last_error = "no speech endpoint configured"
     for base_url, api_key in speech_endpoints():
         try:

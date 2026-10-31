@@ -461,9 +461,48 @@ def test_voice_is_transcribed_by_our_speech_service(test_app, monkeypatch):
 
     monkeypatch.setenv("SPEECH_ENDPOINT_1", "http://stt.example.test/v1")
     monkeypatch.setattr(speech.requests, "post", post)
+    monkeypatch.setattr(speech, "_models_cache", {})
+    listed = {"data": [{"id": "tts-1-f5"}, {"id": "stt-1-parakeet"}]}
+    monkeypatch.setattr(
+        speech.requests,
+        "get",
+        lambda url, headers, timeout: SimpleNamespace(
+            raise_for_status=lambda: None, json=lambda: listed
+        ),
+    )
     response = transcribe(client_for(test_app))
     assert response.json == {"text": "hello muppets"}
-    assert calls == [("http://stt.example.test/v1/audio/transcriptions", "whisper-1")]
+    # The model our speech endpoint lists, not a name it may not know.
+    assert calls == [
+        ("http://stt.example.test/v1/audio/transcriptions", "stt-1-parakeet")
+    ]
+    # SPEECH_STT_MODEL still wins; with nothing listed, whisper-1.
+    monkeypatch.setenv("SPEECH_STT_MODEL", "my-whisper")
+    assert speech.stt_model() == ("my-whisper", "SPEECH_STT_MODEL")
+    monkeypatch.delenv("SPEECH_STT_MODEL")
+    listed["data"] = [{"id": "tts-1-f5"}]
+    monkeypatch.setattr(speech, "_models_cache", {})
+    assert speech.stt_model()[0] == "whisper-1"
+
+
+def test_startup_names_tools_settings_and_site_never_secrets(test_app, monkeypatch):
+    import app as app_module
+
+    monkeypatch.setenv("UNSANDBOX_PUBLIC_KEY", "unsb-pk-secret")
+    monkeypatch.setenv("UNSANDBOX_SECRET_KEY", "unsb-sk-secret")
+    monkeypatch.setenv("OPENCOMPLETION_SERVER_EGRESS_USERS", "fox@unturf.com,a@b.c")
+    monkeypatch.setitem(
+        app_module.app.config,
+        "SQLALCHEMY_DATABASE_URI",
+        "postgresql://oc:hunter2@db.example/oc",
+    )
+    text = "\n".join(app_module.startup_summary())
+    assert "run_code (everyone)" in text and "sandbox (" in text
+    assert "delegate" in text and "max_tokens 24576" in text
+    assert "thinking budget 16384" in text
+    for secret in ("unsb-pk-secret", "unsb-sk-secret", "hunter2", "fox@unturf.com"):
+        assert secret not in text
+    assert "postgresql://oc:***@db.example/oc" in text
 
 
 def test_voice_input_says_when_no_service_transcribes(test_app, monkeypatch):
