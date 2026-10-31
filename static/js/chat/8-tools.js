@@ -308,12 +308,11 @@ function toolPlan(vitals) {
     return box;
 }
 
-// A delegate is one card, its parts ordered by how often they change:
-// who, what & the task it was handed (never) at the top, then the summary
-// (a sentence now & then), the plan (each step), the vitals (each 15s
-// poll), & the job & log folds last, where an opened log grows. Chat
-// follows the bottom of the page, so the eye rests on what moves most
-// (fox, 2026-10-31).
+// A delegate is one card: what never changes (who, what, the task it was
+// handed) on top; under it what each 15s poll updates, read top-down as
+// where it is (plan), how it runs (vitals), the detail (job & log folds),
+// & last the sentence that sums it up, where chat's scroll & the eye
+// land (fox, 2026-10-31).
 function drawDelegateCard(line, data, verbs, open) {
     const running = data.status === "running";
     const add = (className, child) => {
@@ -345,7 +344,6 @@ function drawDelegateCard(line, data, verbs, open) {
         fold.open = open.detail;
         add("tool-card-task", fold);
     }
-    if (data.summary && running) add("message-tool-summary", div(data.summary));
     if (running) add("tool-card-plan-row", toolPlan(data.vitals));
     if (data.vitals) add("tool-card-vitals", toolVitals(data.vitals, running));
     const folds = div();
@@ -357,6 +355,7 @@ function drawDelegateCard(line, data, verbs, open) {
     }
     if (data.progress && running) folds.appendChild(toolLog(data.progress, open.log));
     if (folds.children.length) line.appendChild(folds);
+    if (data.summary && running) add("message-tool-summary", div(data.summary));
     const sources = toolSources(data.sources);
     if (sources) add("tool-card-sources", sources);
 }

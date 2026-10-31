@@ -251,8 +251,8 @@ window.addEventListener('load', async () => {
         // A summary is the line's first word on how it goes.
         deliver('tool_activity', {id: 21, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             summary: 'Cloned ago and ran its suite: 42 pass.', progress: '[bash] make test'});
-        const said = document.querySelector('#message-21 .tool-card-title + .message-tool-summary');
-        check(said && said.textContent === 'Cloned ago and ran its suite: 42 pass.', 'summary right under what it was asked');
+        const said = document.querySelector('#message-21 .message-tool > :last-child');
+        check(said && said.classList.contains('message-tool-summary') && said.textContent === 'Cloned ago and ran its suite: 42 pass.', 'the summary is the card\'s last word');
         // Play reads the human words only: never code, tool lines or folds,
         // and the glow lights those same words (fox, 2026-10-31).
         const said24 = document.createElement('div');

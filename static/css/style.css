@@ -2150,21 +2150,21 @@ a:hover {
     color: var(--text-error);
 }
 
-/* A delegate is one card. Its rows run from what never changes to what
-   changes most (8-tools.js drawDelegateCard): who & where with a live
-   clock, what it was asked & its task, the summary, the plan, the
-   vitals, then the job & log folds, where an opened log grows. Reorder by
-   editing the areas only. */
+/* A delegate is one card (8-tools.js drawDelegateCard): what never
+   changes on top (who & where with a live clock, what it was asked, its
+   task), then what each poll updates, read top-down: the plan, the
+   vitals, the job & log folds, & the summary last, where the eye lands.
+   Reorder by editing the areas only. */
 .message-tool.is-card {
     grid-template-columns: 12px minmax(0, 1fr) auto;
     grid-template-areas:
         "dot head    clock"
         ".   title   title"
         ".   task    task"
-        ".   summary summary"
         ".   plan    plan"
         ".   vitals  vitals"
         ".   folds   folds"
+        ".   summary summary"
         ".   sources sources";
     /* Margins, not row-gap: a row a card leaves empty (no summary yet, a
        finished run's plan) must not leave a gap. */

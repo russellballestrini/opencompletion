@@ -66,16 +66,15 @@ are 16px on phones so iOS never zooms into them.
   running pulses in our accent, done green, `.is-error` red) & the line.
   `.message-tool-head` says what & where in quiet text with
   `.message-tool-label` (what it was about) in full colour. A delegate is
-  one card (`.is-card`, `drawDelegateCard`) whose `grid-template-areas`
-  run from what never changes to what changes most, so the eye rests at
-  the bottom, where chat scrolls: head (verb · where) & `.tool-card-clock`,
-  `.tool-card-title`, `.tool-card-task` (the task it was handed, a fold
-  that reads as prose), `.message-tool-summary` (a sentence now &
-  then), `.tool-card-plan` (bar + step, each step), `.tool-card-vitals`
-  (each 15s poll), then `.tool-card-folds`: pills (job, log) whose
-  opened panel takes the full width below them, where a log grows. Reorder
-  by editing the areas only. Short facts are `.message-tool-chip`s (the
-  tools offered, vitals; `.is-meter` fills to `--pct`,
+  one card (`.is-card`, `drawDelegateCard`): what never changes on top
+  (head: verb · where, `.tool-card-clock`; `.tool-card-title`;
+  `.tool-card-task`, the task it was handed, a fold that reads as prose),
+  then what each 15s poll updates, read top-down: `.tool-card-plan` (bar
+  + step), `.tool-card-vitals`, `.tool-card-folds` (job & log pills; an
+  opened panel takes the full width below them), & `.message-tool-summary`
+  last, where chat's scroll & the eye land. Reorder
+  by editing the areas only. Short facts are `.message-tool-chip`s
+  (vitals; `.is-meter` fills to `--pct`,
   `.is-warn` for retries & empty replies) that wrap, never scroll.
   Prose (a delegate's task) & output wrap; code keeps its lines inside
   its box. Pages & files found are `.message-tool-sources`. A reply that
