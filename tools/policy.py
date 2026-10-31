@@ -26,7 +26,7 @@ without a restart.
                                          deleted chat's sandbox goes at once
     OPENCOMPLETION_DELEGATE=on|off       uncloseai-cli in that sandbox
                                          (needs OPENCOMPLETION_PUBLIC_URL)
-    OPENCOMPLETION_DELEGATE_TIMEOUT_S=900
+    OPENCOMPLETION_DELEGATE_TIMEOUT_S=3600 a delegate run's time limit (60 min)
     OPENCOMPLETION_DELEGATE_SUMMARIES=on|off  a sentence or two on how a
                                          delegate is going, about every 15s
                                          (one short call to the chat's model)
@@ -155,4 +155,4 @@ def sandbox_retention_days():
 
 
 def delegate_timeout():
-    return _positive_int("OPENCOMPLETION_DELEGATE_TIMEOUT_S", 900)
+    return _positive_int("OPENCOMPLETION_DELEGATE_TIMEOUT_S", 3600)
