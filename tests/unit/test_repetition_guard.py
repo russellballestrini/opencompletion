@@ -327,3 +327,45 @@ def test_servers_that_refuse_top_k_or_a_large_cap_still_answer(monkeypatch):
             ),
             {"model": "m", "messages": []},
         )
+
+
+def test_a_cap_past_the_context_is_fitted_and_remembered(monkeypatch):
+    """A 64k model with a 41k prompt refused our 24576 cap on every tool
+    round (2026-10-31): it is asked again for what fits, & the next ask
+    fits first time."""
+    import httpx
+    import openai
+
+    import app as app_module
+
+    monkeypatch.setattr(app_module, "CONTEXT_WINDOWS", {})
+    calls = []
+
+    def create(**kwargs):
+        calls.append(kwargs)
+        if kwargs.get("max_tokens", 0) > 65536 - 40961:
+            request = httpx.Request("POST", "http://model.test/v1/chat/completions")
+            raise openai.BadRequestError(
+                "Error code: 400 - This model's maximum context length is 65536 "
+                "tokens. However, you requested 24576 output tokens and your "
+                "prompt contains at least 40961 input tokens",
+                response=httpx.Response(400, request=request),
+                body=None,
+            )
+        return "stream"
+
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+    )
+    prompt = [{"role": "user", "content": "x" * 120000}]  # ~40k tokens
+    kwargs = {"model": "q", "messages": prompt, "max_tokens": 24576}
+    assert app_module.open_completion(client, kwargs) == "stream"
+    assert [c["max_tokens"] for c in calls] == [24576, 65536 - 40961 - 256]
+    calls.clear()
+    assert app_module.open_completion(client, kwargs) == "stream"
+    assert len(calls) == 1 and calls[0]["max_tokens"] <= 65536 - 40961
+    # A short prompt keeps the whole cap.
+    calls.clear()
+    short = {"model": "q", "messages": [{"role": "user", "content": "hi"}]}
+    app_module.open_completion(client, short | {"max_tokens": 24576})
+    assert calls[0]["max_tokens"] == 24576

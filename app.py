@@ -1656,16 +1656,81 @@ def answer_tokens():
 TOOL_REFUSAL_WORDS = ("tool", "function", "jinja")
 
 
+# What a server's 400 says about its context: "maximum context length is
+# 65536 tokens ... your prompt contains at least 40961 input tokens".
+CONTEXT_LENGTH = re.compile(r"maximum context length is (\d+)")
+PROMPT_TOKENS = re.compile(r"(\d+) input tokens|prompt contains (?:at least )?(\d+)")
+# Each model's context length & how many prompt characters a token held,
+# learned from its first such refusal, so later asks fit max_tokens to the
+# room left & are not refused every tool round.
+CONTEXT_WINDOWS = {}
+# Room kept between our guess of a prompt's tokens & a server's count.
+CONTEXT_MARGIN = 256
+# Below this much room an answer cannot fit; max_tokens is dropped instead
+# & the server stops at its context, as before.
+MIN_ANSWER_TOKENS = 512
+# Characters a token holds before a server has told us (more tokens than
+# most text holds, so the guess errs short of the window).
+CHARS_PER_TOKEN = 3.0
+
+
+def prompt_chars(kwargs):
+    """How long an ask's prompt is: its messages & tool schemas as sent."""
+    return len(json.dumps(kwargs.get("messages") or [], ensure_ascii=False)) + len(
+        json.dumps(kwargs.get("tools") or [], ensure_ascii=False)
+    )
+
+
+def fit_max_tokens(kwargs):
+    """Lower kwargs' max_tokens to what the model's learned context leaves
+    after its prompt."""
+    learned = CONTEXT_WINDOWS.get(kwargs.get("model"))
+    if not learned or "max_tokens" not in kwargs:
+        return
+    window, per_token = learned
+    room = int(window - prompt_chars(kwargs) / per_token) - CONTEXT_MARGIN
+    if room < kwargs["max_tokens"]:
+        kwargs["max_tokens"] = max(room, MIN_ANSWER_TOKENS)
+
+
+def room_from_refusal(kwargs, text):
+    """The max_tokens that fits, from a refusal naming the context length &
+    the prompt's tokens (both remembered for the model), else None."""
+    model = kwargs.get("model")
+    length = CONTEXT_LENGTH.search(text)
+    if not length:
+        return None
+    window = int(length.group(1))
+    used = PROMPT_TOKENS.search(text)
+    used = int(used.group(1) or used.group(2)) if used else 0
+    per_token = CHARS_PER_TOKEN
+    if used:
+        # 10% fewer characters a token than measured: a later prompt of
+        # other text may tokenize a little denser.
+        per_token = min(CHARS_PER_TOKEN, 0.9 * prompt_chars(kwargs) / used)
+    if model:
+        if model not in CONTEXT_WINDOWS:
+            print(f"[INFO] {model}: {window}-token context; fitting max_tokens to it")
+        CONTEXT_WINDOWS[model] = (window, max(per_token, 1.0))
+    if not used:
+        return None
+    room = window - used - CONTEXT_MARGIN
+    return room if room >= MIN_ANSWER_TOKENS else None
+
+
 def open_completion(client, kwargs, skip_thinking=False, refusals=None):
     """Start a streamed chat completion, forgiving the asks a server may
     refuse with a 400: an unknown `top_k` (dropped), a max_tokens past what
-    its context has room for (dropped: the server then stops at its context,
-    & our loop guard & thinking budget still hold) & `tools` on a server or
+    its context has room for (cut to the room its refusal names, & the
+    context remembered so the next ask fits first time; dropped when the
+    refusal names no room, & the server then stops at its context, our loop
+    guard & thinking budget still holding) & `tools` on a server or
     model that says it can't call them (dropped, with the note telling the
     model it has them, & the reason added to `refusals` so the reply says
     it went without). Any other 400 is raised: a reply never loses its
     tools to an error that was about something else."""
     kwargs = dict(kwargs)
+    fit_max_tokens(kwargs)
     for _ in range(4):
         try:
             if skip_thinking:
@@ -1684,6 +1749,11 @@ def open_completion(client, kwargs, skip_thinking=False, refusals=None):
             if "max_tokens" in kwargs and (
                 "context" in text or "max_tokens" in text or "maximum" in text
             ):
+                room = room_from_refusal(kwargs, str(e))
+                if room is not None and room < kwargs["max_tokens"]:
+                    # Ask again for what fits: the cap still holds.
+                    kwargs["max_tokens"] = room
+                    continue
                 print(f"[WARN] {kwargs.get('model')} refused max_tokens: {e}")
                 kwargs.pop("max_tokens")
                 continue
