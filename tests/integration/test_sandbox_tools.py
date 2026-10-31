@@ -1897,3 +1897,49 @@ def test_a_session_that_will_not_resume_falls_back_to_fresh(unsandbox, room):
     starts = unsandbox.delegate_commands()[0]
     assert "--resume gone-1" in starts[0] and "--resume" not in starts[1]
     assert db.session.get(Sandbox, sandbox.id).delegate_session_id is None
+
+
+def test_the_delegate_tool_names_what_uncloseai_cli_can_use(
+    unsandbox, room, monkeypatch
+):
+    """Learned from a sandbox (`unclose --tools --json`), so the chat model
+    knows a delegate can research & use services, not only code (fox)."""
+    import un
+
+    monkeypatch.setattr(tool_sandbox, "_toolset", {"names": [], "at": 0.0})
+    listed = {
+        "schema": "unclose-tools/1",
+        "tools": [{"name": "bash"}, {"name": "web_search"}, {"name": "arborist"}],
+    }
+    real = unsandbox.execute_in_service
+
+    def execute(service_id, command, timeout=30000):
+        if "unclose --tools --json" in command:
+            unsandbox.calls.append(("execute", service_id, command, timeout))
+            out = {"status": "completed", "exit_code": 0, "stdout": json.dumps(listed)}
+            return {"job_id": unsandbox._job(out)}
+        return real(service_id, command, timeout)
+
+    monkeypatch.setattr(un, "execute_in_service", execute)
+    described = lambda: {  # noqa: E731
+        s["function"]["name"]: s["function"]["description"]
+        for s in tools.schemas(fox_in(room))
+    }["delegate"]
+    assert "It can use" not in described()  # nothing learned yet
+    run_delegate(room)
+    assert described().endswith("It can use: bash, web_search, arborist.")
+    asked = [c for c in unsandbox.commands() if "unclose --tools" in c]
+    run_delegate(room)  # fresh for 6h: not asked again
+    assert (
+        len([c for c in unsandbox.commands() if "unclose --tools" in c])
+        == len(asked)
+        == 1
+    )
+
+
+def test_an_older_uncloseai_cli_leaves_the_delegate_tool_as_it_was(
+    unsandbox, room, monkeypatch
+):
+    monkeypatch.setattr(tool_sandbox, "_toolset", {"names": [], "at": 0.0})
+    run_delegate(room)  # the fake answers "ok": not the unclose-tools/1 shape
+    assert tools.schema_for("delegate") == tools.DELEGATE

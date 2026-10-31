@@ -113,6 +113,14 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   within 2 minutes) is forgotten & the run starts fresh, once. The card
   says "continuing its session".
 
+  **What a delegate can use.** When a delegate starts & our answer is
+  over 6 hours old, the sandbox's uncloseai-cli is asked
+  `unclose --tools --json` (`unclose-tools/1`); `tools.schema_for` then
+  ends the delegate tool's description with one line, "It can use: bash,
+  web_search, arborist, …", so the chat model knows a delegate can
+  research & use services, not only code. An uncloseai-cli without the
+  flag leaves the description as it was.
+
 Every call goes through our vendored SDK, `un.py`: `/execute` (via
 `un._make_request`, for `return_artifact` & `os`) & `wait_for_job` for
 runs; `create_service`, `get_service`, `execute_in_service` +

@@ -236,7 +236,23 @@ def offered(context):
 
 
 def schemas(context):
-    return [SCHEMAS[name] for name in offered(context)]
+    return [schema_for(name) for name in offered(context)]
+
+
+def schema_for(name):
+    """A tool's schema; delegate's names what uncloseai-cli can use, once a
+    sandbox has told us (tools/sandbox.py delegate_toolset)."""
+    schema = SCHEMAS[name]
+    if name != "delegate":
+        return schema
+    from tools.sandbox import delegate_toolset
+
+    names = delegate_toolset()
+    if not names:
+        return schema
+    function = dict(schema["function"])
+    function["description"] += " It can use: " + ", ".join(names) + "."
+    return dict(schema, function=function)
 
 
 def label_for(name, arguments):

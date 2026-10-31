@@ -665,6 +665,44 @@ def arm_proxy(sandbox, model):
 
 
 DELEGATE_POLL_S = 15
+# What uncloseai-cli can use (`unclose --tools --json`), learned from a
+# sandbox & named in the delegate tool's description, so the chat model
+# knows a delegate can research & use services, not only code. Refreshed
+# when a delegate starts & this is older than TOOLSET_TTL_S.
+TOOLSET_TTL_S = 6 * 3600
+_toolset = {"names": [], "at": 0.0}
+
+
+def delegate_toolset():
+    """The tool names uncloseai-cli offered last we asked, or []."""
+    return list(_toolset["names"])
+
+
+def refresh_toolset(sandbox):
+    """Ask this sandbox's uncloseai-cli what it can use, when our answer is
+    stale. An older uncloseai-cli without --tools (exit 2) leaves it empty.
+    Best effort: a failure never holds up a delegate."""
+    if time.time() - _toolset["at"] < TOOLSET_TTL_S:
+        return
+    _toolset["at"] = time.time()
+    try:
+        asked = _execute(
+            sandbox,
+            "PATH=/root/.local/bin:$PATH timeout 10 unclose --tools --json 2>/dev/null",
+            20,
+        )
+        listed = json.loads(asked.get("stdout") or "{}")
+        names = [
+            str(tool["name"])[:40]
+            for tool in listed.get("tools") or []
+            if isinstance(tool, dict) and tool.get("name")
+        ]
+        if listed.get("schema") == "unclose-tools/1" and names:
+            _toolset["names"] = names[:40]
+    except Exception as e:  # noqa: BLE001 — optional
+        print(f"[WARN] could not learn uncloseai-cli's tools: {e}")
+
+
 # A review waits this long for its overseer, then lets the run go on.
 OVERSEER_TIMEOUT_S = 30
 DELEGATE_RESTARTS = 1  # a run lost to a stopped sandbox is started again
@@ -797,6 +835,7 @@ def _delegate(context, task, armed):
         run_dir = resumed["run_dir"]
     else:
         sandbox = ready(context)
+        refresh_toolset(sandbox)
         model = context.model or sandbox.model
         # Armed afresh for every run: a new token, & the vault's settings
         # as this server has them now (an older sandbox catches up).
