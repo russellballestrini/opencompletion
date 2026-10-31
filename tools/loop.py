@@ -298,7 +298,9 @@ def run_round(context, calls, content, notify=lambda event: None):
                 due = time.monotonic() - last.get("summarized_at", 0) >= SUMMARY_EVERY_S
                 if context.summarize and grew and due:
                     fresh = "\n".join(log[last.get("summarized_upto", 0) :])[-6000:]
-                    last.update(summarized_upto=len(log), summarized_at=time.monotonic())
+                    last.update(
+                        summarized_upto=len(log), summarized_at=time.monotonic()
+                    )
                     summarize(fresh)
                 if log or shaped:
                     notify(running_event())
