@@ -756,7 +756,7 @@ def test_a_sudo_gated_destroy_keeps_the_sandbox_and_says_why(
     assert "turn sudo off for this key" in capsys.readouterr().out
 
 
-def test_the_sweep_destroys_only_long_frozen_sandboxes(
+def test_the_sweep_destroys_only_long_unused_sandboxes(
     unsandbox, test_app, monkeypatch
 ):
     from models import Room, Sandbox, db
@@ -790,12 +790,14 @@ def test_the_sweep_destroys_only_long_frozen_sandboxes(
     ]
     db.session.add_all(rows)
     db.session.commit()
-    assert tool_sandbox.sweep(app=test_app) == 1
+    # A long-unused row that still says running (its idle freeze failed,
+    # e.g. mid-upgrade) is destroyed too (2026-10-31).
+    assert tool_sandbox.sweep(app=test_app) == 2
     db.session.expire_all()
     assert [s.state for s in Sandbox.query.order_by(Sandbox.id)] == [
         "destroyed",
         "frozen",
-        "running",
+        "destroyed",
     ]
     monkeypatch.setenv("OPENCOMPLETION_SANDBOX_RETENTION_DAYS", "0")
     assert tool_sandbox.sweep(app=test_app) == 0
@@ -818,6 +820,67 @@ def test_deleting_a_chat_destroys_its_sandbox(unsandbox, test_app):
     assert http.delete(f"/api/rooms/{room.id}/delete").status_code == 200
     assert ("request", "DELETE", f"/services/{service_id}", None) in unsandbox.calls
     assert Sandbox.query.count() == 0
+
+
+def _refuse_deletes(monkeypatch, status):
+    import requests
+    import un
+
+    response = requests.Response()
+    response.status_code = status
+
+    def refuse(method, path, *a, **k):
+        raise requests.HTTPError(f"{status} Client Error", response=response)
+
+    monkeypatch.setattr(un, "_make_request", refuse)
+
+
+def test_a_chats_sandbox_that_wont_destroy_is_kept_for_the_sweep(
+    unsandbox, test_app, monkeypatch
+):
+    from models import Room, Sandbox, db
+
+    room = Room(name="gone")
+    db.session.add(room)
+    db.session.commit()
+    sandbox = make_sandbox(unsandbox, room)
+    sandbox.token_sha256 = "live"
+    db.session.commit()
+    _refuse_deletes(monkeypatch, 409)  # busy: mid-upgrade
+    tool_sandbox.forget_room(room.id)
+    kept = Sandbox.query.one()
+    assert kept.state == "destroy_pending" and kept.room_id is None
+    assert kept.token_sha256 is None
+    service_id = kept.service_id
+    db.session.delete(room)  # the chat itself goes
+    db.session.commit()
+
+    monkeypatch.undo()
+    unsandbox.install(monkeypatch)  # deletes work again
+    monkeypatch.setenv("OPENCOMPLETION_SANDBOX_RETENTION_DAYS", "0")
+    assert tool_sandbox.sweep(app=test_app) == 1  # retried even with retention off
+    assert Sandbox.query.count() == 0
+    assert (
+        "request",
+        "DELETE",
+        f"/services/{service_id}",
+        None,
+    ) in unsandbox.calls
+
+
+def test_an_already_gone_sandbox_counts_as_destroyed(unsandbox, room, monkeypatch):
+    sandbox = make_sandbox(unsandbox, room)
+    _refuse_deletes(monkeypatch, 404)
+    assert tool_sandbox.destroy(sandbox, "test") is True
+    assert sandbox.state == "destroyed"
+
+
+def test_a_busy_destroy_waits_for_the_sweep(unsandbox, room, monkeypatch, capsys):
+    sandbox = make_sandbox(unsandbox, room)
+    _refuse_deletes(monkeypatch, 409)
+    assert tool_sandbox.destroy(sandbox, "test") is False
+    assert sandbox.state == "running"
+    assert "retried by the hourly sweep" in capsys.readouterr().out
 
 
 def test_a_new_sandbox_for_an_old_chat_brings_its_setup_steps(unsandbox, room):

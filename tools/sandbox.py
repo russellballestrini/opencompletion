@@ -385,14 +385,28 @@ def freeze_if_idle(sandbox_id, app=None):
 def destroy(sandbox, why):
     """Destroy a sandbox's unsandbox service & mark its row destroyed. A
     plain signed DELETE: un.delete_service would ask for a sudo code on a
-    428 with input(), which a server can't answer. True when it went."""
+    428 with input(), which a server can't answer. True when it went (or
+    was already gone); False leaves it for the hourly sweep to retry."""
     try:
         un._make_request("DELETE", f"/services/{sandbox.service_id}", *_keys())
     except Exception as e:  # noqa: BLE001 — kept, & said so
-        status = getattr(getattr(e, "response", None), "status_code", None)
-        hint = " (turn sudo off for this key)" if status == 428 else ""
-        print(f"[WARN] could not destroy sandbox {sandbox.name} ({why}): {e}{hint}")
-        return False
+        response = getattr(e, "response", None)
+        status = getattr(response, "status_code", None)
+        if status != 404:
+            if status == 428:
+                hint = (
+                    " (turn sudo off for this key on unsandbox: no destroy"
+                    " can succeed until it is)"
+                )
+            elif status == 409:
+                # The API refuses while the sandbox is upgrading, unfreezing
+                # or migrating (service_busy, 2026-10-30): the sweep retries.
+                hint = " (busy; retried by the hourly sweep)"
+            else:
+                hint = ""
+            print(f"[WARN] could not destroy sandbox {sandbox.name} ({why}): {e}{hint}")
+            return False
+        print(f"[INFO] sandbox {sandbox.name} was already gone ({why})")
     print(f"[INFO] destroyed sandbox {sandbox.name} {sandbox.service_id} ({why})")
     sandbox.state = "destroyed"
     sandbox.token_sha256 = None
@@ -401,31 +415,45 @@ def destroy(sandbox, why):
 
 
 def forget_room(room_id):
-    """A chat is being deleted: destroy its sandbox & drop the row (it
-    points at the room). One that won't destroy is logged with its id, so
-    it can be destroyed by hand."""
+    """A chat is being deleted: destroy its sandbox & drop the row. One that
+    won't destroy now (busy, a sudo-gated key, unsandbox down) is kept as
+    destroy_pending, detached from the chat & its token dead, so the hourly
+    sweep retries it: it used to be logged & forgotten, left running with
+    nothing on our side that knew it existed (2026-10-31)."""
     sandbox = Sandbox.query.filter_by(room_id=room_id).first()
     if sandbox is None:
         return
-    if sandbox.state != "destroyed" and not destroy(sandbox, "its chat was deleted"):
-        print(
-            f"[WARN] sandbox {sandbox.service_id} outlives its chat: destroy it by hand"
-        )
-    db.session.delete(sandbox)
+    if sandbox.state == "destroyed" or destroy(sandbox, "its chat was deleted"):
+        db.session.delete(sandbox)
+    else:
+        sandbox.room_id = None
+        sandbox.state = "destroy_pending"
+        sandbox.token_sha256 = None
     db.session.commit()
 
 
 def sweep(app=None):
-    """Destroy sandboxes frozen & unused past the retention window."""
+    """Retry destroying deleted chats' sandboxes (destroy_pending), then
+    destroy sandboxes unused past the retention window, frozen or not: one
+    whose idle freeze failed (it was mid-upgrade) still says running."""
     days = policy.sandbox_retention_days()
     app = app or _app
-    if not days or app is None:
+    if app is None:
         return 0
-    cutoff = time.time() - days * 86400
     destroyed = 0
     with app.app_context():
+        pending = Sandbox.query.filter_by(state="destroy_pending").all()
+        for sandbox in pending:
+            if destroy(sandbox, "its chat was deleted (retry)"):
+                db.session.delete(sandbox)
+                db.session.commit()
+                destroyed += 1
+        if not days:
+            return destroyed
+        cutoff = time.time() - days * 86400
         stale = Sandbox.query.filter(
-            Sandbox.state == "frozen", Sandbox.last_used_at < cutoff
+            Sandbox.state.in_(("frozen", "running")),
+            Sandbox.last_used_at < cutoff,
         ).all()
         for sandbox in stale:
             destroyed += destroy(sandbox, f"unused for {days:g} days")

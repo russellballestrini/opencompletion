@@ -256,8 +256,10 @@ class Sandbox(db.Model):
     env vault."""
 
     id = db.Column(db.Integer, primary_key=True)
+    # Empty only for a deleted chat's sandbox whose destroy failed: kept as
+    # state "destroy_pending" so the hourly sweep retries it (2026-10-31).
     room_id = db.Column(
-        db.Integer, db.ForeignKey("room.id"), nullable=False, unique=True
+        db.Integer, db.ForeignKey("room.id"), nullable=True, unique=True
     )
     service_id = db.Column(db.String(128), nullable=False)
     name = db.Column(db.String(64), nullable=False)
