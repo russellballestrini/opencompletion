@@ -196,16 +196,23 @@ window.addEventListener('load', async () => {
             progress: '[bash] git clone', detail: {language: '', input: 'make tests pass\nall of them'}});
         deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
             progress: '[bash] make test', detail: {language: '', input: 'make tests pass\nall of them'}});
-        // A fold the reader opened stays open through the next report.
-        document.querySelector('#message-18 .message-tool-detail').open = true;
+        // A delegate's task folds open first; the reader's choice then holds.
+        check(document.querySelector('#message-18 .message-tool-detail').open, 'a delegate shows its task open first');
+        document.querySelector('#message-18 .message-tool-detail').open = false;
         deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
             progress: '[bash] make test', detail: {language: '', input: 'make tests pass\nall of them'}});
-        check(document.querySelector('#message-18 .message-tool-detail').open, 'an opened fold stays open across updates');
+        check(!document.querySelector('#message-18 .message-tool-detail').open, 'a closed fold stays closed across updates');
+        const logFold = document.querySelector('#message-18 .message-tool-log');
+        check(logFold && !logFold.open && /^log · 1 line$/.test(logFold.querySelector('summary').textContent), 'the log starts closed');
+        logFold.open = true;
+        deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
+            progress: '[bash] make test\n↳ 45 passed', detail: {language: '', input: 'make tests pass\nall of them'}});
+        check(document.querySelector('#message-18 .message-tool-log').open, 'an opened log stays open');
         const order = [...document.querySelector('#message-18 .message-tool').children].map((el) => el.className);
-        check(order.indexOf('message-tool-detail') < order.indexOf('message-tool-progress'), 'the fold stays above the log: ' + order.join(','));
+        check(order.indexOf('message-tool-detail') < order.indexOf('message-tool-log'), 'the fold stays above the log: ' + order.join(','));
         const w15 = document.querySelectorAll('#message-18 .message-tool');
         check(w15.length === 1, 'progress updates one delegate line, not ' + w15.length);
-        check(w15[0].querySelector('.message-tool-progress').textContent === '[bash] make test', 'newest progress shown');
+        check(w15[0].querySelector('.message-tool-progress').textContent === '[bash] make test\n↳ 45 passed', 'newest progress shown');
         check(!w15[0].querySelector('.message-tool-preview'), 'a delegate line does not repeat its task');
         // Vitals: one quiet row under the line, live while it runs.
         deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
@@ -213,7 +220,7 @@ window.addEventListener('load', async () => {
             vitals: {turn: 7, max_turns: 100, context: {used: 18234, peak: 21000, window: 82000}, tools: {total: 23, by_name: {bash: 15}},
                      activity: {label: 'in tool: bash', elapsed_s: 8.2}}});
         const kids = [...document.querySelector('#message-18 .message-tool').children].map((el) => el.className);
-        check(kids.indexOf('message-tool-vitals') === kids.length - 1 && kids.indexOf('message-tool-progress') < kids.indexOf('message-tool-vitals'),
+        check(kids.indexOf('message-tool-vitals') === kids.length - 1 && kids.indexOf('message-tool-log') < kids.indexOf('message-tool-vitals'),
             'vitals under the log: ' + kids.join(','));
         const live = document.querySelector('#message-18 .message-tool-vitals');
         check(live && live.textContent === 'turn 7/100 · context 18.2k / 82.0k · 23 tool calls · in tool: bash 8s', 'live vitals: ' + (live && live.textContent));
@@ -225,12 +232,12 @@ window.addEventListener('load', async () => {
         const row20 = document.querySelector('#message-20 .message-tool-vitals').textContent;
         check(row20 === 'step 3/5: run tests · turn 3 · 2 retries · 1 empty reply · 4m 1s', 'plan & health row: ' + row20);
         const job = document.querySelector('#message-20 .message-tool-job');
-        check(job && !job.open && /files changed \(1\)/.test(job.textContent) && /ago\/tests\/test_new\.py/.test(job.textContent), 'job fold lists files');
+        check(job && job.open && /files changed \(1\)/.test(job.textContent) && /ago\/tests\/test_new\.py/.test(job.textContent), 'job fold lists files');
         check(/last error: empty_delivery/.test(job.textContent) && /50\.0k in · 3\.0k out/.test(job.textContent), 'job fold: model & tokens');
-        job.open = true;
+        job.open = false;
         deliver('tool_activity', {id: 20, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             vitals: {turn: 4, plan: {done: 2, total: 5}, context: {}, tools: {}, activity: {}, files: {changed: [], count: 0}}});
-        check(document.querySelector('#message-20 .message-tool-job').open, 'an opened job fold stays open');
+        check(!document.querySelector('#message-20 .message-tool-job').open, 'a closed job fold stays closed');
         // The finished line keeps the delegation log in its fold.
         deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'done',
             detail: {language: '', input: 'make tests pass', answer: 'Done.', log: '[bash] git clone\n[bash] make test'}});

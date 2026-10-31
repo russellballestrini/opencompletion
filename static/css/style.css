@@ -2177,6 +2177,12 @@ a:hover {
     overflow-wrap: anywhere;
 }
 
+.message-tool-log > summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
 .message-tool-log-title {
     margin: var(--space-2) 0 var(--space-1);
     font-size: 12px;

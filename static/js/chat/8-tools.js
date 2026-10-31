@@ -276,10 +276,19 @@ function drawToolLine(line, data) {
         return;
     }
     const verbs = TOOL_VERBS[data.tool] || [`Running ${data.tool}`, `Ran ${data.tool}`];
-    // Every report redraws the line; a fold the reader opened stays open
-    // (it snapped shut on each delegate progress update, 2026-10-31).
-    const wasOpen = !!line.querySelector(".message-tool-detail:not(.message-tool-job)[open]");
-    const jobWasOpen = !!line.querySelector(".message-tool-job[open]");
+    // Every report redraws the line; each fold keeps the state the reader
+    // left it in (they snapped shut on each delegate update, 2026-10-31).
+    // First drawn, a delegate shows its task & job open and its log
+    // closed: the summaries tell how the work goes, the log is a click
+    // away (fox, 2026-10-31).
+    const delegating = data.tool === "delegate";
+    const kept = (selector, first) => {
+        const fold = line.querySelector(selector);
+        return fold ? fold.open : first;
+    };
+    const wasOpen = kept(".message-tool-detail:not(.message-tool-job)", delegating);
+    const jobWasOpen = kept(".message-tool-job", delegating);
+    const logWasOpen = kept(".message-tool-log", false);
     line.replaceChildren();
     line.classList.toggle("is-running", data.status === "running");
     line.classList.toggle("is-error", data.status === "error");
@@ -318,11 +327,18 @@ function drawToolLine(line, data) {
     // How a long call (delegate) is getting on: the newest lines of its
     // session, while it runs.
     if (data.progress && data.status === "running") {
+        const log = document.createElement("details");
+        log.className = "message-tool-log";
+        const summary = document.createElement("summary");
+        const count = data.progress.split("\n").length;
+        summary.textContent = `log · ${count} line${count === 1 ? "" : "s"}`;
+        log.appendChild(summary);
         const progress = document.createElement("pre");
         progress.className = "message-tool-progress";
         progress.textContent = data.progress;
-        progress.title = "delegation log";
-        line.appendChild(progress);
+        log.appendChild(progress);
+        log.open = logWasOpen;
+        line.appendChild(log);
     }
     // The vitals row sits under the log: the log grows down the page & the
     // chat follows its newest rows, so the vitals stay in view beside them.
