@@ -1140,7 +1140,11 @@ def test_delegate_shows_its_progress_while_it_runs(unsandbox, room):
     unsandbox.answer = "Added 3 tests; 45 passed."
     seen = []
     context = tools.ToolContext(
-        sid="s", email=FOX, room_id=room.id, model="qwen", progress=seen.append
+        sid="s",
+        email=FOX,
+        room_id=room.id,
+        model="qwen",
+        progress=lambda text, **k: seen.append(text),
     )
     result = delegate(room, unsandbox, context=context)
     assert seen == [
@@ -1507,7 +1511,11 @@ def test_a_run_lost_to_a_stopped_sandbox_is_started_again(unsandbox, room):
     unsandbox.polls = ["__LOST__\nKilled"]  # then it finishes: Done.
     seen = []
     context = tools.ToolContext(
-        sid="s", email=FOX, room_id=room.id, model="qwen", progress=seen.append
+        sid="s",
+        email=FOX,
+        room_id=room.id,
+        model="qwen",
+        progress=lambda text, **k: seen.append(text),
     )
     result = delegate(room, unsandbox, context=context)
     assert result["answer"] == "Done." and result["exit_code"] == 0

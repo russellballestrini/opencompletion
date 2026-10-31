@@ -2246,7 +2246,7 @@ a:hover {
     background:
         linear-gradient(var(--button-primary), var(--button-primary)) 0 0 / var(--pct, 0%) 100% no-repeat,
         var(--bg-tertiary);
-    transition: background-size 0.4s ease;
+    transition: background-size 0.8s ease;
 }
 
 /* How a long call is going, in a sentence or two. */
@@ -2258,15 +2258,27 @@ a:hover {
     color: var(--text-primary);
 }
 
-/* One tick, one update: a running card's live parts are drawn afresh
-   together each 15s & fade in together, never one by one. */
-.message-tool.is-card.is-running > :is(.tool-card-plan-row, .tool-card-vitals, .message-tool-summary) {
-    animation: tool-fade-in 0.35s ease;
+/* One tick, one update, & only what changed moves: a new summary slides
+   in, a changed number flashes once, the plan bar glides (8-tools.js
+   drawDelegateCard compares with the tick before). */
+.message-tool-summary.is-new {
+    animation: tool-summary-in 0.45s ease-out;
 }
 
-@keyframes tool-fade-in {
-    from { opacity: 0.4; }
-    to { opacity: 1; }
+@keyframes tool-summary-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+
+.message-tool-chip.is-changed {
+    animation: tool-chip-flash 1.2s ease-out;
+}
+
+@keyframes tool-chip-flash {
+    from {
+        border-color: var(--button-primary);
+        background-color: color-mix(in srgb, var(--button-primary) 22%, var(--bg-tertiary));
+    }
 }
 
 /* Fixed fills for /styleguide's examples (chat sets --pct from vitals). */
@@ -2322,6 +2334,15 @@ a:hover {
     background:
         linear-gradient(color-mix(in srgb, var(--button-primary) 18%, transparent), color-mix(in srgb, var(--button-primary) 18%, transparent)) 0 0 / var(--pct, 0%) 100% no-repeat,
         var(--bg-tertiary);
+}
+
+.message-tool-chip.is-good {
+    border-color: color-mix(in srgb, var(--text-success) 55%, var(--border-color));
+    color: var(--text-success);
+}
+
+.message-tool-chip.is-quiet {
+    border-style: dashed;
 }
 
 .message-tool-chip.is-warn {

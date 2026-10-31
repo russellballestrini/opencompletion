@@ -180,7 +180,25 @@ const TOOL_VERBS = {
 // 18234 -> "18.2k": token counts read at a glance.
 function shortCount(n) {
     if (!Number.isFinite(n)) return "";
+    if (n >= 1e6) return `${(n / 1e6).toFixed(n >= 1e8 ? 0 : 1)}M`;
     return n >= 1000 ? `${(n / 1000).toFixed(n >= 100000 ? 0 : 1)}k` : String(n);
+}
+
+// A changed file as a person reads it: under its home (uncloseai-cli works
+// from /root, so "ago/x.py" & "/root/ago/x.py" are one file, shown once).
+function homePath(path) {
+    const p = String(path);
+    if (p.startsWith("/root/")) return "~/" + p.slice(6);
+    return p.startsWith("/") ? p : "~/" + p;
+}
+
+// The newest pytest tally in a log: "76 passed · 2 failed", or "".
+function testTally(text) {
+    const lines = String(text || "").split("\n").filter((l) => /\d+ (passed|failed)\b/.test(l));
+    if (!lines.length) return "";
+    const last = lines[lines.length - 1];
+    const counts = [...last.matchAll(/(\d+) (passed|failed|errors?)\b/g)].map((m) => `${m[1]} ${m[2]}`);
+    return counts.join(" · ");
 }
 
 // 241 -> "4m 1s": how long a job has run.
@@ -202,8 +220,8 @@ function toolJob(vitals) {
     const time = vitals.time || {};
     if (plan.total) rows.push(["plan", `${plan.done || 0}/${plan.total} done${plan.current ? " · now: " + plan.current : ""}`]);
     if (files.count !== undefined && files.count !== null) {
-        const listed = (files.changed || []).join("\n");
-        rows.push([`files changed (${files.count})`, listed || "none"]);
+        const listed = [...new Set((files.changed || []).map(homePath))];
+        rows.push([`files changed (${listed.length || files.count})`, listed.join("\n") || "none"]);
     }
     if (llm.calls !== undefined && llm.calls !== null) {
         let health = `${llm.calls} calls · ${llm.retries || 0} retries · ${llm.empty || 0} empty`;
@@ -237,7 +255,6 @@ function toolChip(text, extra) {
     const chip = document.createElement("span");
     chip.className = "message-tool-chip" + (extra ? " " + extra : "");
     chip.textContent = text;
-    chip.title = text;
     return chip;
 }
 
@@ -246,54 +263,72 @@ const TURN_LIMIT_SHOWN = 1000;
 
 // A running agent's vitals (uncloseai-cli unclose-vitals/1, shaped by
 // tools/loop.py) as a row of chips that wraps: live while it runs, a
-// summary after.
-function toolVitals(vitals, running) {
+// summary after. Each chip has a key, so a redraw can tell which changed.
+// `extra`: the card's own facts (the log's test tally, its heartbeat).
+function toolVitals(vitals, running, extra = {}) {
     const parts = [];
+    const put = (key, text, className = "", pct = null) => parts.push({key, text, className, pct});
     const ctx = vitals.context || {};
     const tools = vitals.tools || {};
     const plan = vitals.plan || {};
     const llm = vitals.llm || {};
     if (running) {
         const limit = vitals.max_turns && vitals.max_turns < TURN_LIMIT_SHOWN ? "/" + vitals.max_turns : "";
-        if (vitals.turn) parts.push(`turn ${vitals.turn}${limit}`);
+        if (vitals.turn) put("turn", `turn ${vitals.turn}${limit}`);
         if (ctx.used) {
-            const meter = [`context ${shortCount(ctx.used)}${ctx.window ? " / " + shortCount(ctx.window) : ""}`, "is-meter"];
-            if (ctx.window) meter.push(Math.min(100, Math.round((100 * ctx.used) / ctx.window)));
-            parts.push(meter);
+            const pct = ctx.window ? Math.min(100, Math.round((100 * ctx.used) / ctx.window)) : null;
+            put("context", `context ${shortCount(ctx.used)}${ctx.window ? " / " + shortCount(ctx.window) : ""}`, "is-meter", pct);
         }
-        if (tools.total) parts.push(`${tools.total} tool call${tools.total === 1 ? "" : "s"}`);
+        if (tools.total) put("tools", `${tools.total} tool call${tools.total === 1 ? "" : "s"}`);
+        // What it spends its calls on: its three busiest tools.
+        const mix = Object.entries(tools.by_name || {}).sort((a, b) => b[1] - a[1]).slice(0, 3);
+        if (mix.length > 1) put("mix", mix.map(([name, n]) => `${name} ${n}`).join(" · "), "is-quiet");
+        if (extra.tests) put("tests", "tests " + extra.tests, /failed|error/.test(extra.tests) ? "is-warn" : "is-good");
         const act = vitals.activity || {};
-        if (act.label) parts.push(act.label + (Number.isFinite(act.elapsed_s) ? ` ${Math.round(act.elapsed_s)}s` : ""));
-        if (llm.retries) parts.push([`${llm.retries} retr${llm.retries === 1 ? "y" : "ies"}`, "is-warn"]);
-        if (llm.empty) parts.push([`${llm.empty} empty repl${llm.empty === 1 ? "y" : "ies"}`, "is-warn"]);
+        if (act.label) put("activity", act.label + (Number.isFinite(act.elapsed_s) ? ` ${Math.round(act.elapsed_s)}s` : ""));
+        if (llm.retries) put("retries", `${llm.retries} retr${llm.retries === 1 ? "y" : "ies"}`, "is-warn");
+        if (llm.empty) put("empty", `${llm.empty} empty repl${llm.empty === 1 ? "y" : "ies"}`, "is-warn");
+        const pulse = extra.pulse || {};
+        if (Number.isFinite(pulse.moved_s)) put("moved", pulse.moved_s < 20 ? "moving" : `moved ${shortDuration(pulse.moved_s)} ago`, pulse.moved_s >= 300 ? "is-warn" : "is-quiet");
+        if (Number.isFinite(pulse.review_in_s)) put("review", `review in ${shortDuration(pulse.review_in_s)}`, "is-quiet");
     } else {
-        if (plan.total) parts.push(`${plan.done || 0}/${plan.total} steps`);
-        if (vitals.turn) parts.push(`${vitals.turn} turn${vitals.turn === 1 ? "" : "s"}`);
-        if (ctx.peak) parts.push(`peak context ${shortCount(ctx.peak)}`);
-        if (tools.total) parts.push(`${tools.total} tool call${tools.total === 1 ? "" : "s"}`);
+        if (plan.total) put("steps", `${plan.done || 0}/${plan.total} steps`);
+        if (vitals.turn) put("turn", `${vitals.turn} turn${vitals.turn === 1 ? "" : "s"}`);
+        if (ctx.peak) put("peak", `peak context ${shortCount(ctx.peak)}`);
+        if (tools.total) put("tools", `${tools.total} tool call${tools.total === 1 ? "" : "s"}`);
+        if (extra.tests) put("tests", "tests " + extra.tests, /failed|error/.test(extra.tests) ? "is-warn" : "is-good");
     }
     if (!parts.length) return null;
     const row = document.createElement("div");
     row.className = "message-tool-vitals";
     for (const part of parts) {
-        const [text, extra, pct] = Array.isArray(part) ? part : [part, ""];
-        const chip = toolChip(text, extra);
-        if (Number.isFinite(pct)) chip.style.setProperty("--pct", pct + "%");
+        const chip = toolChip(part.text, part.className);
+        chip.dataset.key = part.key;
+        if (Number.isFinite(part.pct)) chip.style.setProperty("--pct", part.pct + "%");
         row.appendChild(chip);
     }
     return row;
 }
 
 // A running agent's plan as a progress bar: "step 4 of 9 · what it does".
-function toolPlan(vitals) {
+function toolPlan(vitals, fromPct) {
     const plan = (vitals || {}).plan || {};
     if (!plan.total) return null;
     const done = Math.min(plan.done || 0, plan.total);
+    const pct = Math.round((100 * done) / plan.total);
     const box = document.createElement("div");
     box.className = "tool-card-plan";
+    box.dataset.pct = String(pct);
     const bar = document.createElement("div");
     bar.className = "tool-card-bar";
-    bar.style.setProperty("--pct", Math.round((100 * done) / plan.total) + "%");
+    // Drawn at its last width, then moved: the fill glides to the new step.
+    const from = Number(fromPct);
+    bar.style.setProperty("--pct", (Number.isFinite(from) ? from : pct) + "%");
+    if (Number.isFinite(from) && from !== pct) {
+        requestAnimationFrame(() => requestAnimationFrame(() => bar.style.setProperty("--pct", pct + "%")));
+    } else {
+        bar.style.setProperty("--pct", pct + "%");
+    }
     bar.setAttribute("role", "progressbar");
     bar.setAttribute("aria-valuemin", "0");
     bar.setAttribute("aria-valuemax", String(plan.total));
@@ -315,6 +350,13 @@ function toolPlan(vitals) {
 // land (fox, 2026-10-31).
 function drawDelegateCard(line, data, verbs, open) {
     const running = data.status === "running";
+    // What the last tick showed, so this one moves only what changed: a new
+    // summary slides in, a changed number flashes, the plan bar glides.
+    const before = {
+        summary: line.dataset.summary,
+        pct: line.dataset.planPct,
+        chips: JSON.parse(line.dataset.chips || "{}"),
+    };
     const add = (className, child) => {
         if (!child) return null;
         child.classList.add(className);
@@ -343,14 +385,31 @@ function drawDelegateCard(line, data, verbs, open) {
     // The task never changes: it sits with the title.
     if (data.detail) {
         const fold = toolDetail(data.detail, running, data.tool);
-        fold.open = open.detail;
+        // Open while the sandbox & uncloseai-cli start, closed once its
+        // summaries tell how it goes, like the log; a reader's own choice
+        // wins after that (fox, 2026-10-31).
+        fold.open = line.dataset.taskTouched ? open.detail : running && !data.summary;
+        fold.querySelector("summary").addEventListener("click", () => { line.dataset.taskTouched = "1"; });
         add("tool-card-task", fold);
     }
     // Its overseer's latest review (every few minutes): continue, steered
     // with a note, or stopped & why.
     add("tool-card-oversight", toolOversight(data.oversight));
-    if (running) add("tool-card-plan-row", toolPlan(data.vitals));
-    if (data.vitals) add("tool-card-vitals", toolVitals(data.vitals, running));
+    if (running) {
+        const plan = add("tool-card-plan-row", toolPlan(data.vitals, before.pct));
+        if (plan) line.dataset.planPct = plan.dataset.pct;
+    }
+    const tests = testTally(data.progress || (data.detail || {}).log || "");
+    if (data.vitals) {
+        const row = add("tool-card-vitals", toolVitals(data.vitals, running, {tests, pulse: data.pulse}));
+        const now = {};
+        for (const chip of row ? row.children : []) {
+            now[chip.dataset.key] = chip.textContent;
+            const was = before.chips[chip.dataset.key];
+            if (was !== undefined && was !== chip.textContent) chip.classList.add("is-changed");
+        }
+        line.dataset.chips = JSON.stringify(now);
+    }
     const folds = div();
     folds.className = "tool-card-folds";
     const job = data.vitals ? toolJob(data.vitals) : null;
@@ -360,7 +419,11 @@ function drawDelegateCard(line, data, verbs, open) {
     }
     if (data.progress && running) folds.appendChild(toolLog(data.progress, open.log));
     if (folds.children.length) line.appendChild(folds);
-    if (data.summary && running) add("message-tool-summary", div(data.summary));
+    if (data.summary && running) {
+        const said = add("message-tool-summary", div(data.summary));
+        if (data.summary !== before.summary) said.classList.add("is-new");
+        line.dataset.summary = data.summary;
+    }
     const sources = toolSources(data.sources);
     if (sources) add("tool-card-sources", sources);
 }

@@ -873,7 +873,6 @@ def _delegate(context, task, armed):
     )
     stop = stop_command(run_dir)
     next_tick = time.monotonic() + DELEGATE_POLL_S
-    shown = None
     last_vitals = None
     watch = oversight.Watch(time.monotonic())
     card = {"session": {"resumed": session["resumed"]}}
@@ -974,8 +973,8 @@ def _delegate(context, task, armed):
             if note:
                 result["sandbox_note"] = note
             if last_vitals is not None and context.progress:
-                extra = {"card": card} if card.get("oversight") else {}
-                context.progress("", vitals=last_vitals, **extra)  # final numbers
+                card.pop("pulse", None)  # it has stopped: no heartbeat
+                context.progress("", vitals=last_vitals, card=card)  # final numbers
             return result
         progress = out.strip()
         now = time.monotonic()
@@ -1001,14 +1000,16 @@ def _delegate(context, task, armed):
                     "status": "stopped",
                     "error": f"stopped by its overseer: {verdict['note']}",
                 }
-        seen = (
-            progress,
-            json.dumps(vitals, sort_keys=True) if vitals else "",
-            json.dumps(card, sort_keys=True),
-        )
-        if (progress or vitals) and seen != shown and context.progress:
+        # Its heartbeat, for whoever waits: how long since it last moved &
+        # when its overseer looks next.
+        card["pulse"] = {
+            "moved_s": round(now - watch.last_progress),
+            "review_in_s": (
+                max(0, round(watch.next_review - now))
+                if context.oversee and policy.delegate_review_s()
+                else None
+            ),
+        }
+        if (progress or vitals) and context.progress:
             extra = {"vitals": vitals} if vitals is not None else {}
-            if card.get("oversight") or card["session"].get("resumed"):
-                extra["card"] = card
-            context.progress(progress, **extra)
-            shown = seen
+            context.progress(progress, card=card, **extra)

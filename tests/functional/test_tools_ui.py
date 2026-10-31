@@ -212,7 +212,7 @@ window.addEventListener('load', async () => {
             progress: '[bash] make test', detail: {language: '', input: 'make tests pass\nall of them'}});
         // A delegate's task folds open first; the reader's choice then holds.
         check(document.querySelector('#message-18 .message-tool-detail').open, 'a delegate shows its task open first');
-        document.querySelector('#message-18 .message-tool-detail').open = false;
+        document.querySelector('#message-18 .message-tool-detail > summary').click();  // a reader closes it
         deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
             progress: '[bash] make test', detail: {language: '', input: 'make tests pass\nall of them'}});
         check(!document.querySelector('#message-18 .message-tool-detail').open, 'a closed fold stays closed across updates');
@@ -288,6 +288,31 @@ window.addEventListener('load', async () => {
         const slidePaneMid = (slidePane.left + slidePane.right) / 2, slideMid = (slideBox.left + slideBox.right) / 2;
         check(Math.abs(slidePaneMid - slideMid) < 24, `wide image centred on the pane (${slideMid} vs ${slidePaneMid})`);
         check(Math.abs(slideBox.width / slideBox.height - 4) < 0.05, 'wide image keeps its proportions');
+        // The task is open while it starts, closed once summaries come;
+        // only a new summary animates; a changed number flashes; the
+        // log's test tally & the run's heartbeat show as chips.
+        const tick28 = (extra) => deliver('tool_activity', Object.assign({id: 28, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
+            detail: {language: '', input: 'add parse'}}, extra));
+        tick28({progress: '[bash] git clone', vitals: {turn: 1, context: {}, tools: {total: 3, by_name: {bash: 2, read: 1}}, activity: {}}});
+        const card28 = () => document.querySelector('#message-28 .message-tool');
+        check(card28().querySelector('.tool-card-task').open, 'task open while it starts');
+        tick28({progress: '[bash] pytest -q\n=== 45 passed in 2.1s ===', summary: 'Cloned it.', pulse: {moved_s: 4, review_in_s: 240},
+              vitals: {turn: 2, context: {}, tools: {total: 9, by_name: {bash: 6, read: 3}}, activity: {}}});
+        check(!card28().querySelector('.tool-card-task').open, 'task closed once summaries come');
+        check(card28().querySelector('.message-tool-summary').classList.contains('is-new'), 'a new summary slides in');
+        check(card28().querySelector('[data-key="tools"]').classList.contains('is-changed'), 'a changed number flashes');
+        check(card28().querySelector('[data-key="tests"]').textContent === 'tests 45 passed', 'test tally: ' + (card28().querySelector('[data-key="tests"]') || {}).textContent);
+        check(card28().querySelector('[data-key="mix"]').textContent === 'bash 6 · read 3', 'tool mix');
+        check(card28().querySelector('[data-key="moved"]').textContent === 'moving' && card28().querySelector('[data-key="review"]').textContent === 'review in 4m 0s', 'heartbeat chips');
+        tick28({progress: '[bash] pytest -q\n=== 45 passed in 2.1s ===', summary: 'Cloned it.', pulse: {moved_s: 19, review_in_s: 225},
+              vitals: {turn: 2, context: {}, tools: {total: 9, by_name: {bash: 6, read: 3}}, activity: {}}});
+        check(!card28().querySelector('.message-tool-summary').classList.contains('is-new'), 'the same summary stays still');
+        check(!card28().querySelector('[data-key="tools"]').classList.contains('is-changed'), 'an unchanged number stays still');
+        // One file named two ways is listed once, under ~; big counts read as M.
+        tick28({vitals: {turn: 3, context: {}, tools: {}, activity: {}, files: {count: 2, changed: ['ago/bench.py', '/root/ago/bench.py']},
+              tokens: {input: 6409000, output: 65500}}});
+        const job28 = card28().querySelector('.message-tool-job').textContent;
+        check(/files changed \(1\)/.test(job28) && /~\/ago\/bench\.py/.test(job28) && /6\.4M in/.test(job28), 'files once & tokens in M: ' + job28);
         // A resumed session & its overseer's call show on the card.
         deliver('tool_activity', {id: 27, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             session: {resumed: true}, oversight: {decision: 'steer', note: 'use 30-day months', at: '25m', undelivered: true}});
