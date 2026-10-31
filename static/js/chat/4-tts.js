@@ -155,6 +155,66 @@ async function fetchTTSStreaming(cleanText, model, voice) {
 // We wrap the rendered message into sentence spans and light the active one by
 // comparing audio.currentTime to those boundaries. No Web Audio / RMS heuristics.
 
+// What Play reads: a reply's human words, never its code, tables, tool
+// lines (delegate & friends), folds (thinking, tool detail) or buttons
+// (fox, 2026-10-31: it read code & delegation aloud). The glow walks the
+// same nodes, so spoken & lit sentences stay in step.
+const UNSPOKEN = "pre, code, kbd, samp, table, button, details, .message-tools, " +
+    ".code-block-button-container, .followups, .message-header, script, style";
+
+function speakableNodes(container, skip) {
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+            if (skip && skip.contains(node)) return NodeFilter.FILTER_REJECT;
+            const parent = node.parentElement;
+            if (parent && parent.closest(UNSPOKEN)) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
+    const nodes = [];
+    let t;
+    while ((t = walker.nextNode())) { if (t.nodeValue && t.nodeValue.trim()) nodes.push(t); }
+    return nodes;
+}
+
+// The same rule for raw markdown, when the reply is not on the page.
+function speakableMarkdown(text) {
+    return String(text || "")
+        .replace(/```[\s\S]*?(```|$)/g, " ")          // fenced code (even unclosed)
+        .replace(/`[^`\n]*`/g, " ")                      // inline code
+        .replace(/^\s*\|.*\|\s*$/gm, " ")              // table rows
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")       // images
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")      // links: their words
+        .replace(/https?:\/\/\S+/g, " ")                // bare URLs
+        .replace(/<[^>]+>/g, " ");                         // HTML
+}
+
+// A reply's speakable text: from its rendered content when on the page
+// (same nodes the glow lights), else from its markdown.
+function speakableText(text, messageId) {
+    const wrapper = messageId !== undefined && document.getElementById("message-" + messageId);
+    const container = wrapper && wrapper.querySelector(".message-content");
+    if (container) {
+        const nodes = speakableNodes(container, glowHeader(container));
+        if (nodes.length) return nodes.map((n) => n.nodeValue).join(" ");
+    }
+    return speakableMarkdown(text);
+}
+
+// chat_message inlines "<p><strong>[name](link):</strong></p>" as the first
+// paragraph: the sender, not something to read or light.
+function glowHeader(container) {
+    const first = container.firstElementChild;
+    if (first && first.tagName === 'P' &&
+        first.children.length === 1 &&
+        first.firstElementChild &&
+        first.firstElementChild.tagName === 'STRONG' &&
+        first.textContent.trim().endsWith(':')) {
+        return first;
+    }
+    return null;
+}
+
 function wrapSentencesForGlow(container) {
     if (!container) return;
     // Skip only if the previous wrap survives. innerHTML overwrites (streaming
@@ -169,24 +229,7 @@ function wrapSentencesForGlow(container) {
     // highlights the sender name instead of the actual first sentence. Detect
     // the pattern (top-level <p> with one <strong> child, text ending in ":")
     // and exclude it from the walk.
-    let headerParagraph = null;
-    const first = container.firstElementChild;
-    if (first && first.tagName === 'P' &&
-        first.children.length === 1 &&
-        first.firstElementChild &&
-        first.firstElementChild.tagName === 'STRONG' &&
-        first.textContent.trim().endsWith(':')) {
-        headerParagraph = first;
-    }
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-        acceptNode(node) {
-            if (headerParagraph && headerParagraph.contains(node)) return NodeFilter.FILTER_REJECT;
-            return NodeFilter.FILTER_ACCEPT;
-        }
-    });
-    const nodes = [];
-    let t;
-    while ((t = walker.nextNode())) { if (t.nodeValue && t.nodeValue.trim()) nodes.push(t); }
+    const nodes = speakableNodes(container, glowHeader(container));
     if (!nodes.length) return;
     const full = nodes.map(function (x) { return x.nodeValue; }).join('');
     const parts = full.match(/[^.!?]+[.!?]*\s*/g) || [full];
@@ -397,7 +440,7 @@ async function speakText(text, playButton, messageId) {
     const cacheKey = `${messageId}-${voiceSelectValue}`; // Unique cache key for each message and voice
 
     // Clean the text to include only alphanumeric characters, spaces, and key punctuation
-    const cleanText = text.replace(/[^a-zA-Z0-9\s.,!?]/g, '');
+    const cleanText = speakableText(text, messageId).replace(/[^a-zA-Z0-9\s.,!?]/g, '');
 
     // Wire button + glow to THIS audio while it owns playback. While live, clicks
     // toggle pause/resume on this audio (via toggleAudioPlayback for cross-message
@@ -487,7 +530,7 @@ async function speakTextQueued(text, playButton, messageId) {
         // Parse model and voice from the dropdown value (format: "model:voice")
         const [model, voice] = voiceSelectValue.includes(':') ? voiceSelectValue.split(':') : ['tts-1', voiceSelectValue];
         const cacheKey = `${messageId}-${voiceSelectValue}`;
-        const cleanText = text.replace(/[^a-zA-Z0-9\s.,!?]/g, '');
+        const cleanText = speakableText(text, messageId).replace(/[^a-zA-Z0-9\s.,!?]/g, '');
 
         function bindLifecycle(audio) {
             currentQueuedAudio = audio;

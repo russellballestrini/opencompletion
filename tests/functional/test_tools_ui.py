@@ -229,6 +229,22 @@ window.addEventListener('load', async () => {
             summary: 'Cloned ago and ran its suite: 42 pass.', progress: '[bash] make test'});
         const said = document.querySelector('#message-21 .message-tool > :nth-child(2)');
         check(said && said.className === 'message-tool-summary' && said.textContent === 'Cloned ago and ran its suite: 42 pass.', 'summary right under the line');
+        // Play reads the human words only: never code, tool lines or folds,
+        // and the glow lights those same words (fox, 2026-10-31).
+        const said24 = document.createElement('div');
+        said24.className = 'message-wrapper';
+        said24.id = 'message-24';
+        said24.innerHTML = '<div class="message-content"><p>I cloned it.</p>' +
+            '<ul class="message-tools"><li class="message-tool">uncloseai-cli worked: make tests pass</li></ul>' +
+            '<pre><code>make test</code></pre><p>All 45 pass. Run <code>make test</code> again.</p>' +
+            '<details><summary>thinking</summary>secret plan</details></div>';
+        document.getElementById('chat').appendChild(said24);
+        const spoken = speakableText('', 24);
+        check(/I cloned it\./.test(spoken) && /All 45 pass\./.test(spoken), 'prose spoken: ' + spoken);
+        check(!/make test|uncloseai-cli|secret plan/.test(spoken), 'no code, tool line or fold spoken: ' + spoken);
+        wrapSentencesForGlow(said24.querySelector('.message-content'));
+        check(!said24.querySelector('pre .tts-sentence, .message-tools .tts-sentence, details .tts-sentence'), 'glow skips what is not spoken');
+        check(said24.querySelectorAll('.tts-sentence').length > 0, 'glow lights the prose');
         // The plan step leads; model trouble & time show; the job folds open.
         deliver('tool_activity', {id: 20, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             vitals: {turn: 3, plan: {done: 2, total: 5, current: 'run tests'}, context: {}, tools: {}, activity: {},
