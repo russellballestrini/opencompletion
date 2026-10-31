@@ -574,6 +574,20 @@ DELEGATE_DIR = "/root/.opencompletion"
 ANSI = r"s/\x1b\[[0-9;?]*[A-Za-z]//g"
 
 
+def stop_command(run_dir):
+    """Kill a delegate run & everything it started: uncloseai-cli runs its
+    commands in their own sessions, so killing its pid alone left a long
+    `make test` running on (2026-10-31). The tree is walked through
+    parent pids (pgrep -P), TERM first, then KILL for what ignored it."""
+    return (
+        f"P=$(cat {run_dir}/pid 2>/dev/null); "
+        'if [ -n "$P" ]; then T=$P; N=$P; '
+        'while [ -n "$N" ]; do N=$(for p in $N; do pgrep -P "$p"; done); T="$T $N"; done; '
+        "kill -TERM $T 2>/dev/null; sleep 2; kill -KILL $T 2>/dev/null; fi; "
+        "echo stopped"
+    )
+
+
 def delegate(context, task):
     """_delegate, with its proxy token revoked however the run ends
     (finished, stopped, failed, timed out, raised): a token that outlived
@@ -670,7 +684,7 @@ def _delegate(context, task, armed):
         f"$(cat {run_dir}/pid) 2>&1 | sed -E '{ANSI}' "
         f"| tail -n 12; fi"
     )
-    stop = f"kill $(cat {run_dir}/pid) 2>/dev/null; echo stopped"
+    stop = stop_command(run_dir)
     deadline = time.time() + policy.delegate_timeout()
     shown = None
     last_vitals = None
@@ -685,7 +699,14 @@ def _delegate(context, task, armed):
                 "error": f"uncloseai-cli did not finish within "
                 f"{policy.delegate_timeout()}s (OPENCOMPLETION_DELEGATE_TIMEOUT_S)",
             }
-        gevent.sleep(DELEGATE_POLL_S)
+        # Between polls, look for Stop every second: it used to wait out
+        # the whole poll interval (up to 15s) before the run was killed.
+        for _ in range(DELEGATE_POLL_S):
+            if (context.stopped and context.stopped()) or time.time() > deadline:
+                break
+            gevent.sleep(1)
+        if (context.stopped and context.stopped()) or time.time() > deadline:
+            continue  # the top of the loop stops it & says why
         try:
             polled = _execute(sandbox, poll, 30)
         except Exception as e:  # noqa: BLE001 — a blip costs one poll

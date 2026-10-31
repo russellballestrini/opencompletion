@@ -108,7 +108,7 @@ class Fakeunsandbox:
                 else (f"__EXIT__{self.delegate_exit}\n{self.answer}\n__STDERR__\n")
             )
             return {"job_id": self._job({"status": "completed", "stdout": out})}
-        if command.startswith("kill "):
+        if command.rstrip().endswith("echo stopped"):
             return {"job_id": self._job({"status": "completed", "stdout": "stopped"})}
         return {"job_id": self._job()}
 
@@ -1069,6 +1069,11 @@ def test_a_failing_uncloseai_cli_says_so(unsandbox, room):
     assert result["error"] == "uncloseai-cli exited 3" and result["exit_code"] == 3
 
 
+def assert_tree_killed(unsandbox):
+    stops = [c for c in unsandbox.commands() if c.rstrip().endswith("echo stopped")]
+    assert stops and "pgrep -P" in stops[0] and "kill -KILL" in stops[0]
+
+
 def test_stop_kills_a_running_delegate(unsandbox, room):
     unsandbox.polls = ["working..."] * 5
     pressed = iter([False, True])
@@ -1081,7 +1086,68 @@ def test_stop_kills_a_running_delegate(unsandbox, room):
     )
     result = delegate(room, unsandbox, context=context)
     assert result["status"] == "stopped" and "Stop was pressed" in result["error"]
-    assert any(c.startswith("kill $(cat") for c in unsandbox.commands())
+    assert_tree_killed(unsandbox)
+
+
+def test_stop_between_polls_ends_the_run_without_waiting_for_one(unsandbox, room):
+    # Pressed during the wait between polls: no further poll runs.
+    unsandbox.polls = ["working..."] * 5
+    pressed = iter([False, False, True])
+    context = tools.ToolContext(
+        sid="s",
+        email=FOX,
+        room_id=room.id,
+        model="qwen",
+        stopped=lambda: next(pressed, True),
+    )
+    result = delegate(room, unsandbox, context=context)
+    assert result["status"] == "stopped"
+    _, polls = unsandbox.delegate_commands()
+    assert polls == []
+
+
+def test_the_stop_command_kills_the_whole_tree(tmp_path):
+    """Run for real: a parent, its child in a new session (as uncloseai-cli
+    starts commands), & a grandchild all die."""
+    import subprocess
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    script = (
+        "setsid bash -c 'sleep 300 & echo $! > "
+        + str(run_dir)
+        + "/grandchild; wait' & echo $! > "
+        + str(run_dir)
+        + "/child; wait"
+    )
+    parent = subprocess.Popen(["bash", "-c", script])
+    (run_dir / "pid").write_text(str(parent.pid))
+    for _ in range(50):
+        if (run_dir / "grandchild").exists() and (run_dir / "child").exists():
+            break
+        time.sleep(0.1)
+    pids = [
+        parent.pid,
+        int((run_dir / "child").read_text()),
+        int((run_dir / "grandchild").read_text()),
+    ]
+    out = subprocess.run(
+        ["bash", "-c", tool_sandbox.stop_command(str(run_dir))],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert out.stdout.strip() == "stopped"
+    parent.wait(timeout=10)
+
+    def alive(pid):
+        try:
+            state = open(f"/proc/{pid}/stat").read().split()[2]
+        except FileNotFoundError:
+            return False
+        return state != "Z"
+
+    assert not any(alive(p) for p in pids)
 
 
 def test_a_delegate_past_its_time_limit_is_killed(unsandbox, room, monkeypatch):
@@ -1094,7 +1160,7 @@ def test_a_delegate_past_its_time_limit_is_killed(unsandbox, room, monkeypatch):
         result["status"] == "timeout"
         and "OPENCOMPLETION_DELEGATE_TIMEOUT_S" in result["error"]
     )
-    assert any(c.startswith("kill $(cat") for c in unsandbox.commands())
+    assert_tree_killed(unsandbox)
 
 
 def test_progress_reaches_the_room_as_the_running_line(unsandbox, room):
