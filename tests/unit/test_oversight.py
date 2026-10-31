@@ -57,3 +57,14 @@ def test_the_overseers_call_is_read_safely():
     assert oversight.parse_decision("I think it's fine?")[0] == "continue"
     assert oversight.parse_decision("STOP")[0] == "continue"
     assert oversight.parse_decision(None)[0] == "continue"
+
+
+def test_a_summary_is_shown_whole_never_cut_mid_word():
+    from tools.loop import SUMMARY_CHARS, whole_sentences
+
+    cut = "It re-ran the suite: 66 passed. The parser has 15,836 misparses due to fou"
+    assert whole_sentences(cut) == "It re-ran the suite: 66 passed."
+    assert whole_sentences("Done.") == "Done."
+    assert whole_sentences("no full stop at all") == "no full stop at all"
+    long = whole_sentences("A finding here. " * 100)
+    assert len(long) <= SUMMARY_CHARS and long.endswith("here.")

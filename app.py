@@ -2475,14 +2475,14 @@ def summarize_delegate(openai_client, model_name, previous, fresh):
                 },
             ],
             temperature=0.3,
-            max_tokens=120,
+            max_tokens=220,
             timeout=20,
         )
         said = strip_reasoning(response.choices[0].message.content or "").strip()
     except Exception as e:  # noqa: BLE001 — the log still shows
         print(f"[WARN] delegate summary failed: {e}")
         return None
-    return said[:400] or None
+    return said or None
 
 
 def suggest_followups(openai_client, model_name, room_name, msg_id, question, answer):

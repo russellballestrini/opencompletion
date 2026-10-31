@@ -67,6 +67,24 @@ def _seconds(value):
     return round(float(value), 1) if ok else None
 
 
+# A summary is shown whole: a cut "...due to fou" read as broken (fox,
+# 2026-10-31). Longer than this it ends at its last full sentence.
+SUMMARY_CHARS = 900
+SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
+
+
+def whole_sentences(text, limit=SUMMARY_CHARS):
+    """`text` on one line, ending at a full sentence: a reply the model's
+    token cap cut mid-sentence loses that half sentence, one too long is
+    trimmed to its last sentence within `limit`."""
+    text = " ".join(str(text).split())
+    head = text[:limit]
+    ends = [m.end() for m in SENTENCE_END.finditer(head)]
+    if ends and (len(text) > limit or not SENTENCE_END.search(text[-1:])):
+        return head[: ends[-1]]
+    return head if len(text) <= limit else clip_words(text, limit)
+
+
 def clip_words(text, limit):
     """`text` on one line, cut at a word boundary to `limit` characters
     with an ellipsis ("...spanning seco" read as a defect, 2026-10-31)."""
@@ -294,7 +312,7 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                     print(f"[WARN] delegate summary skipped: {e or 'timed out'}")
                     said = None
                 if said:
-                    last["summary"] = str(said).strip()[:400]
+                    last["summary"] = whole_sentences(str(said))
 
             def progress(text, vitals=None, card=None, log=log, last=last):
                 """One tick: the log, the vitals & (when the log grew) a

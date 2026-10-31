@@ -1504,7 +1504,7 @@ def test_summarize_delegate_is_best_effort():
         def create(self, **kwargs):
             if self.fail:
                 raise RuntimeError("down")
-            assert kwargs["max_tokens"] == 120 and kwargs["timeout"] == 20
+            assert kwargs["max_tokens"] == 220 and kwargs["timeout"] == 20
             message = SimpleNamespace(content=self.reply)
             return SimpleNamespace(choices=[SimpleNamespace(message=message)])
 
