@@ -46,6 +46,101 @@ def log_text(log):
     return "\n".join(log)[-LOG_CHARS:]
 
 
+def _count(value):
+    return (
+        value
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        else None
+    )
+
+
+def _seconds(value):
+    ok = isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0
+    return round(float(value), 1) if ok else None
+
+
+def shape_vitals(raw):
+    """A running agent's vitals (uncloseai-cli's unclose-vitals/1 file),
+    cut to what the room is shown: known fields only, numbers as numbers,
+    text short. It comes from inside a sandbox, so nothing else passes."""
+    if not isinstance(raw, dict) or raw.get("schema") != "unclose-vitals/1":
+        return None
+    context = raw.get("context") if isinstance(raw.get("context"), dict) else {}
+    tools = raw.get("tools") if isinstance(raw.get("tools"), dict) else {}
+    activity = raw.get("activity") if isinstance(raw.get("activity"), dict) else {}
+    by_name = tools.get("by_name") if isinstance(tools.get("by_name"), dict) else {}
+    top = sorted(
+        ((str(k)[:40], v) for k, v in by_name.items() if _count(v)),
+        key=lambda kv: -kv[1],
+    )[:8]
+    elapsed = activity.get("elapsed_s")
+    shaped = {
+        "status": (
+            raw.get("status")
+            if raw.get("status") in ("working", "done", "error")
+            else None
+        ),
+        "turn": _count(raw.get("turn")),
+        "max_turns": _count(raw.get("max_turns")),
+        "context": {
+            "used": _count(context.get("used")),
+            "peak": _count(context.get("peak")),
+            "window": _count(context.get("window")),
+        },
+        "tools": {"total": _count(tools.get("total")), "by_name": dict(top)},
+        "activity": {
+            "label": str(activity["label"])[:80] if activity.get("label") else None,
+            "elapsed_s": (
+                round(float(elapsed), 1)
+                if isinstance(elapsed, (int, float))
+                and not isinstance(elapsed, bool)
+                and elapsed >= 0
+                else None
+            ),
+        },
+        "exit_code": (
+            raw.get("exit_code") if isinstance(raw.get("exit_code"), int) else None
+        ),
+    }
+    plan = raw.get("plan") if isinstance(raw.get("plan"), dict) else None
+    if plan:
+        shaped["plan"] = {
+            "done": _count(plan.get("done")),
+            "total": _count(plan.get("total")),
+            "current": str(plan["current"])[:120] if plan.get("current") else None,
+        }
+    files = raw.get("files") if isinstance(raw.get("files"), dict) else None
+    if files:
+        changed = files.get("changed") if isinstance(files.get("changed"), list) else []
+        shaped["files"] = {
+            "changed": [str(f)[:200] for f in changed[:40]],
+            "count": _count(files.get("count")),
+        }
+    llm = raw.get("llm") if isinstance(raw.get("llm"), dict) else None
+    if llm:
+        shaped["llm"] = {
+            "calls": _count(llm.get("calls")),
+            "retries": _count(llm.get("retries")),
+            "empty": _count(llm.get("empty")),
+            "last_error": (
+                str(llm["last_error"])[:200] if llm.get("last_error") else None
+            ),
+        }
+    tokens = raw.get("tokens") if isinstance(raw.get("tokens"), dict) else None
+    if tokens:
+        shaped["tokens"] = {
+            "input": _count(tokens.get("input")),
+            "output": _count(tokens.get("output")),
+        }
+    when = raw.get("time") if isinstance(raw.get("time"), dict) else None
+    if when:
+        shaped["time"] = {
+            "elapsed_s": _seconds(when.get("elapsed_s")),
+            "budget_s": _seconds(when.get("budget_s")),
+        }
+    return shaped
+
+
 class ToolCallCollector:
     def __init__(self):
         self._calls = {}
@@ -124,6 +219,7 @@ def run_round(context, calls, content, notify=lambda event: None):
     messages = [assistant_turn(content, calls)]
     for call in calls:
         log = []
+        last = {}  # the newest vitals a long call reported
         arguments = parse_arguments(call["arguments"])
         label = label_for(call["name"], arguments or {})
         where = offered(context).get(call["name"])
@@ -144,16 +240,24 @@ def run_round(context, calls, content, notify=lambda event: None):
             # A long call reports how it is getting on as its running line:
             # a log, new lines pushed under the old, the whole log each time
             # (anyone joining the room mid-run sees all of it).
-            def progress(text, running=running, log=log):
-                log[:] = merge_log(log, text)
-                if log:
-                    notify(dict(running, progress=log_text(log)))
+            def progress(text, vitals=None, running=running, log=log, last=last):
+                log[:] = merge_log(log, text or "")
+                shaped = shape_vitals(vitals)
+                if shaped:
+                    last["vitals"] = shaped
+                if log or shaped:
+                    event = dict(running, progress=log_text(log))
+                    if last.get("vitals"):
+                        event["vitals"] = last["vitals"]
+                    notify(event)
 
             result = run(replace(context, progress=progress), call["name"], arguments)
         done = {"tool": call["name"], "label": label, "where": where}
         shown = detail_of(call["name"], arguments or {}, result)
         if shown and arguments is not None and log:
             shown["log"] = log_text(log)  # kept with the reply, in its fold
+        if last.get("vitals"):
+            done["vitals"] = last["vitals"]  # the run's final numbers
         if shown:
             done["detail"] = shown
         if result.get("error"):

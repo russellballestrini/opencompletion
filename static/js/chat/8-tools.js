@@ -176,6 +176,96 @@ const TOOL_VERBS = {
     delegate: ["uncloseai-cli is working", "uncloseai-cli worked"],
 };
 
+// 18234 -> "18.2k": token counts read at a glance.
+function shortCount(n) {
+    if (!Number.isFinite(n)) return "";
+    return n >= 1000 ? `${(n / 1000).toFixed(n >= 100000 ? 0 : 1)}k` : String(n);
+}
+
+// 241 -> "4m 1s": how long a job has run.
+function shortDuration(s) {
+    s = Math.round(s);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    return m < 60 ? `${m}m ${s % 60}s` : `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
+// A running agent's job in full, folded: files it changed, its plan, the
+// model's health (calls, retries, empty replies, last error), tokens, time.
+function toolJob(vitals) {
+    const rows = [];
+    const files = vitals.files || {};
+    const plan = vitals.plan || {};
+    const llm = vitals.llm || {};
+    const tokens = vitals.tokens || {};
+    const time = vitals.time || {};
+    if (plan.total) rows.push(["plan", `${plan.done || 0}/${plan.total} done${plan.current ? " · now: " + plan.current : ""}`]);
+    if (files.count !== undefined && files.count !== null) {
+        const listed = (files.changed || []).join("\n");
+        rows.push([`files changed (${files.count})`, listed || "none"]);
+    }
+    if (llm.calls !== undefined && llm.calls !== null) {
+        let health = `${llm.calls} calls · ${llm.retries || 0} retries · ${llm.empty || 0} empty`;
+        if (llm.last_error) health += `\nlast error: ${llm.last_error}`;
+        rows.push(["model", health]);
+    }
+    if (tokens.input || tokens.output) rows.push(["tokens", `${shortCount(tokens.input || 0)} in · ${shortCount(tokens.output || 0)} out`]);
+    if (Number.isFinite(time.elapsed_s)) {
+        rows.push(["time", shortDuration(time.elapsed_s) + (Number.isFinite(time.budget_s) ? ` of ${shortDuration(time.budget_s)}` : "")]);
+    }
+    if (!rows.length) return null;
+    const block = document.createElement("details");
+    block.className = "message-tool-detail message-tool-job";
+    const summary = document.createElement("summary");
+    summary.textContent = "job";
+    block.appendChild(summary);
+    const list = document.createElement("dl");
+    for (const [name, value] of rows) {
+        const dt = document.createElement("dt");
+        dt.textContent = name;
+        const dd = document.createElement("dd");
+        dd.textContent = value;
+        list.append(dt, dd);
+    }
+    block.appendChild(list);
+    return block;
+}
+
+// A running agent's vitals (uncloseai-cli unclose-vitals/1, shaped by
+// tools/loop.py) as one quiet row: live while it runs, a summary after.
+function toolVitals(vitals, running) {
+    const parts = [];
+    const ctx = vitals.context || {};
+    const tools = vitals.tools || {};
+    const plan = vitals.plan || {};
+    const llm = vitals.llm || {};
+    if (running) {
+        if (plan.total) {
+            const step = Math.min((plan.done || 0) + 1, plan.total);
+            parts.push(`step ${step}/${plan.total}${plan.current ? ": " + plan.current : ""}`);
+        }
+        if (vitals.turn) parts.push(`turn ${vitals.turn}${vitals.max_turns ? "/" + vitals.max_turns : ""}`);
+        if (ctx.used) parts.push(`context ${shortCount(ctx.used)}${ctx.window ? " / " + shortCount(ctx.window) : ""}`);
+        if (tools.total) parts.push(`${tools.total} tool call${tools.total === 1 ? "" : "s"}`);
+        const act = vitals.activity || {};
+        if (act.label) parts.push(act.label + (Number.isFinite(act.elapsed_s) ? ` ${Math.round(act.elapsed_s)}s` : ""));
+        if (llm.retries) parts.push(`${llm.retries} retr${llm.retries === 1 ? "y" : "ies"}`);
+        if (llm.empty) parts.push(`${llm.empty} empty repl${llm.empty === 1 ? "y" : "ies"}`);
+        const elapsed = (vitals.time || {}).elapsed_s;
+        if (Number.isFinite(elapsed)) parts.push(shortDuration(elapsed));
+    } else {
+        if (plan.total) parts.push(`${plan.done || 0}/${plan.total} steps`);
+        if (vitals.turn) parts.push(`${vitals.turn} turn${vitals.turn === 1 ? "" : "s"}`);
+        if (ctx.peak) parts.push(`peak context ${shortCount(ctx.peak)}`);
+        if (tools.total) parts.push(`${tools.total} tool call${tools.total === 1 ? "" : "s"}`);
+    }
+    if (!parts.length) return null;
+    const row = document.createElement("div");
+    row.className = "message-tool-vitals";
+    row.textContent = parts.join(" · ");
+    return row;
+}
+
 // One tool's line, drawn from a tool_activity event or a saved trail entry.
 function drawToolLine(line, data) {
     if (data.tool === "offered") {
@@ -188,7 +278,8 @@ function drawToolLine(line, data) {
     const verbs = TOOL_VERBS[data.tool] || [`Running ${data.tool}`, `Ran ${data.tool}`];
     // Every report redraws the line; a fold the reader opened stays open
     // (it snapped shut on each delegate progress update, 2026-10-31).
-    const wasOpen = !!line.querySelector(".message-tool-detail[open]");
+    const wasOpen = !!line.querySelector(".message-tool-detail:not(.message-tool-job)[open]");
+    const jobWasOpen = !!line.querySelector(".message-tool-job[open]");
     line.replaceChildren();
     line.classList.toggle("is-running", data.status === "running");
     line.classList.toggle("is-error", data.status === "error");
@@ -205,6 +296,10 @@ function drawToolLine(line, data) {
         why.textContent = ` (failed: ${data.error})`;
         line.appendChild(why);
     }
+    if (data.vitals) {
+        const row = toolVitals(data.vitals, data.status === "running");
+        if (row) line.appendChild(row);
+    }
     // A delegate's task is long prose already folded under "code": its line
     // keeps the room for progress instead of repeating the task.
     if (data.detail && data.detail.input && data.tool !== "delegate") {
@@ -216,6 +311,13 @@ function drawToolLine(line, data) {
         const fold = toolDetail(data.detail, data.status === "running");
         fold.open = wasOpen;
         line.appendChild(fold);
+    }
+    if (data.vitals) {
+        const job = toolJob(data.vitals);
+        if (job) {
+            job.open = jobWasOpen;
+            line.appendChild(job);
+        }
     }
     // How a long call (delegate) is getting on: the newest lines of its
     // session, while it runs.

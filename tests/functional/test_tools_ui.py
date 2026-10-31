@@ -207,12 +207,37 @@ window.addEventListener('load', async () => {
         check(w15.length === 1, 'progress updates one delegate line, not ' + w15.length);
         check(w15[0].querySelector('.message-tool-progress').textContent === '[bash] make test', 'newest progress shown');
         check(!w15[0].querySelector('.message-tool-preview'), 'a delegate line does not repeat its task');
+        // Vitals: one quiet row under the line, live while it runs.
+        deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
+            progress: '[bash] make test', detail: {language: '', input: 'make tests pass'},
+            vitals: {turn: 7, max_turns: 100, context: {used: 18234, peak: 21000, window: 82000}, tools: {total: 23, by_name: {bash: 15}},
+                     activity: {label: 'in tool: bash', elapsed_s: 8.2}}});
+        const live = document.querySelector('#message-18 .message-tool-vitals');
+        check(live && live.textContent === 'turn 7/100 · context 18.2k / 82.0k · 23 tool calls · in tool: bash 8s', 'live vitals: ' + (live && live.textContent));
+        // The plan step leads; model trouble & time show; the job folds open.
+        deliver('tool_activity', {id: 20, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
+            vitals: {turn: 3, plan: {done: 2, total: 5, current: 'run tests'}, context: {}, tools: {}, activity: {},
+                     llm: {calls: 9, retries: 2, empty: 1, last_error: 'empty_delivery'}, tokens: {input: 50000, output: 3000},
+                     files: {changed: ['ago/tests/test_new.py'], count: 1}, time: {elapsed_s: 241.4, budget_s: null}}});
+        const row20 = document.querySelector('#message-20 .message-tool-vitals').textContent;
+        check(row20 === 'step 3/5: run tests · turn 3 · 2 retries · 1 empty reply · 4m 1s', 'plan & health row: ' + row20);
+        const job = document.querySelector('#message-20 .message-tool-job');
+        check(job && !job.open && /files changed \(1\)/.test(job.textContent) && /ago\/tests\/test_new\.py/.test(job.textContent), 'job fold lists files');
+        check(/last error: empty_delivery/.test(job.textContent) && /50\.0k in · 3\.0k out/.test(job.textContent), 'job fold: model & tokens');
+        job.open = true;
+        deliver('tool_activity', {id: 20, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
+            vitals: {turn: 4, plan: {done: 2, total: 5}, context: {}, tools: {}, activity: {}, files: {changed: [], count: 0}}});
+        check(document.querySelector('#message-20 .message-tool-job').open, 'an opened job fold stays open');
         // The finished line keeps the delegation log in its fold.
         deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'done',
             detail: {language: '', input: 'make tests pass', answer: 'Done.', log: '[bash] git clone\n[bash] make test'}});
         const d18 = document.querySelectorAll('#message-18 .message-tool');
         check(d18.length === 1 && !d18[0].querySelector('.message-tool-progress'), 'finished in place, box gone');
         check(d18[0].querySelector('.is-log').textContent === '[bash] git clone\n[bash] make test', 'log kept in the fold');
+        deliver('tool_activity', {id: 19, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'done',
+            vitals: {turn: 9, context: {used: 1, peak: 21000, window: 82000}, tools: {total: 23, by_name: {}}, activity: {}}});
+        const summary = document.querySelector('#message-19 .message-tool-vitals');
+        check(summary && summary.textContent === '9 turns · peak context 21.0k · 23 tool calls', 'finished vitals: ' + (summary && summary.textContent));
         // A code tool's line folds open to its code & output, as text.
         deliver('tool_activity', {id: 12, tool: 'run_code', label: 'python', where: 'unsandbox', asker: username, status: 'done',
             detail: {language: 'python', input: 'print("<b>hi</b>")', stdout: '<b>hi</b>\n', stderr: 'oops', exit_code: 1}});

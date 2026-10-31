@@ -1134,6 +1134,77 @@ def test_a_delegates_progress_is_a_log_that_grows(unsandbox, room):
     assert done["status"] == "done" and done["detail"]["log"] == logs[-1]
 
 
+VITALS = {
+    "schema": "unclose-vitals/1",
+    "pid": 4242,
+    "status": "working",
+    "turn": 7,
+    "max_turns": 100,
+    "context": {"used": 18234, "peak": 21000, "window": 82000},
+    "tools": {"total": 23, "by_name": {"bash": 15, "read": 6, "edit": 2}},
+    "activity": {"label": "in tool: bash", "elapsed_s": 8.24},
+    "exit_code": None,
+    "plan": {"done": 2, "total": 5, "current": "run tests"},
+    "files": {"changed": ["ago/tests/test_new.py"], "count": 1},
+    "llm": {"calls": 9, "retries": 2, "empty": 1, "last_error": "empty_delivery"},
+    "tokens": {"input": 50000, "output": 3000},
+    "time": {"elapsed_s": 241.37, "budget_s": None},
+    "secret": "never shown",
+}
+
+
+def test_a_delegates_vitals_reach_the_room_shaped(unsandbox, room):
+    """uncloseai-cli's unclose-vitals/1 (turn, context, tools, activity)
+    rides the running line, cut to known fields; the finished line keeps
+    the last of them (fox, 2026-10-31)."""
+    final = dict(VITALS, status="done", turn=9, exit_code=0)
+    unsandbox.polls = [
+        f"__VITALS__ {json.dumps(VITALS)}\n[bash] make test",
+        "__VITALS__ {not json\n[bash] still going",
+        f"__VITALS__ {json.dumps(final)}\n__EXIT__0\nDone.\n__STDERR__\n",
+    ]
+    events = []
+    calls = [{"id": "c1", "name": "delegate", "arguments": json.dumps({"task": "t"})}]
+    tools.run_round(fox_in(room), calls, "", events.append)
+    vitals = [
+        e["vitals"] for e in events if e["status"] == "running" and e.get("vitals")
+    ]
+    first = vitals[0]
+    assert first["turn"] == 7 and first["max_turns"] == 100
+    assert first["context"] == {"used": 18234, "peak": 21000, "window": 82000}
+    assert first["tools"] == {
+        "total": 23,
+        "by_name": {"bash": 15, "read": 6, "edit": 2},
+    }
+    assert first["activity"] == {"label": "in tool: bash", "elapsed_s": 8.2}
+    assert "secret" not in json.dumps(first) and "pid" not in first
+    assert first["plan"] == {"done": 2, "total": 5, "current": "run tests"}
+    assert first["files"] == {"changed": ["ago/tests/test_new.py"], "count": 1}
+    assert first["llm"]["empty"] == 1 and first["tokens"]["input"] == 50000
+    assert first["time"] == {"elapsed_s": 241.4, "budget_s": None}
+    done = events[-1]
+    assert done["status"] == "done" and done["vitals"]["turn"] == 9
+    assert done["vitals"]["exit_code"] == 0
+
+
+def test_the_poll_asks_unclose_for_its_vitals_like_peek(unsandbox, room):
+    delegate(room, unsandbox)
+    _, polls = unsandbox.delegate_commands()
+    assert polls and all("timeout 4 unclose --vitals" in p for p in polls)
+    assert all("__VITALS__" in p for p in polls)
+
+
+def test_vitals_of_another_schema_are_ignored():
+    from tools.loop import shape_vitals
+
+    assert shape_vitals({"turn": 3}) is None
+    assert shape_vitals("x") is None
+    shaped = shape_vitals(
+        {"schema": "unclose-vitals/1", "turn": -1, "tools": {"total": True}}
+    )
+    assert shaped["turn"] is None and shaped["tools"]["total"] is None
+
+
 def test_merge_log_keeps_order_and_drops_peek_noise():
     from tools.loop import merge_log
 

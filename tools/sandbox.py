@@ -651,7 +651,14 @@ def _delegate(context, task, armed):
     if failed:
         return failed
     restarts = 0
+    # First line: uncloseai-cli's vitals (`unclose --vitals <pid>`, the
+    # unclose-vitals/1 JSON: plan, turn, context, tools, files, model
+    # health, tokens, time), asked like peek; an older uncloseai-cli
+    # without it prints nothing here.
     poll = (
+        f"V=$(PATH=/root/.local/bin:$PATH timeout 4 unclose --vitals "
+        f"$(cat {run_dir}/pid 2>/dev/null) 2>/dev/null | head -c 20000 | tr -d '\\n'); "
+        f'[ -n "$V" ] && printf \'__VITALS__ %s\\n\' "$V"; '
         f"if [ -f {run_dir}/exit ]; then echo __EXIT__$(cat {run_dir}/exit); "
         f"cat {run_dir}/answer; echo __STDERR__; tail -c 3000 {run_dir}/stderr; "
         f"elif ! kill -0 $(cat {run_dir}/pid 2>/dev/null) 2>/dev/null; then "
@@ -665,7 +672,8 @@ def _delegate(context, task, armed):
     )
     stop = f"kill $(cat {run_dir}/pid) 2>/dev/null; echo stopped"
     deadline = time.time() + policy.delegate_timeout()
-    shown = ""
+    shown = None
+    last_vitals = None
     while True:
         if context.stopped and context.stopped():
             _execute(sandbox, stop, 30)
@@ -685,6 +693,15 @@ def _delegate(context, task, armed):
                 continue
             raise
         out = polled.get("stdout") or ""
+        vitals = None
+        if out.startswith("__VITALS__ "):
+            line, _, out = out.partition("\n")
+            try:
+                vitals = json.loads(line[len("__VITALS__ ") :])
+            except ValueError:
+                vitals = None
+            if vitals is not None:
+                last_vitals = vitals
         if out.startswith("__LOST__") and restarts < DELEGATE_RESTARTS:
             # The sandbox stopped under it (a freeze or a host restart ends
             # every process in it): wake it & start the run again, once.
@@ -723,8 +740,14 @@ def _delegate(context, task, armed):
                 result["error"] = f"uncloseai-cli exited {code}"
             if note:
                 result["sandbox_note"] = note
+            if last_vitals is not None and context.progress:
+                context.progress("", vitals=last_vitals)  # the final numbers
             return result
         progress = out.strip()
-        if progress and progress != shown and context.progress:
-            context.progress(progress)
-            shown = progress
+        seen = (progress, json.dumps(vitals, sort_keys=True) if vitals else "")
+        if (progress or vitals) and seen != shown and context.progress:
+            if vitals is None:
+                context.progress(progress)
+            else:
+                context.progress(progress, vitals=vitals)
+            shown = seen
