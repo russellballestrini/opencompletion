@@ -65,6 +65,18 @@ def _seconds(value):
     return round(float(value), 1) if ok else None
 
 
+def clip_words(text, limit):
+    """`text` on one line, cut at a word boundary to `limit` characters
+    with an ellipsis ("...spanning seco" read as a defect, 2026-10-31)."""
+    text = " ".join(str(text).split())
+    if len(text) <= limit:
+        return text
+    cut = text[: limit - 1]
+    if text[limit - 1] != " ":  # the cut lands inside a word: drop it
+        cut = cut.rsplit(" ", 1)[0] or cut
+    return cut.rstrip(" ,;:") + "…"
+
+
 def shape_vitals(raw):
     """A running agent's vitals (uncloseai-cli's unclose-vitals/1 file),
     cut to what the room is shown: known fields only, numbers as numbers,
@@ -95,7 +107,9 @@ def shape_vitals(raw):
         },
         "tools": {"total": _count(tools.get("total")), "by_name": dict(top)},
         "activity": {
-            "label": str(activity["label"])[:80] if activity.get("label") else None,
+            "label": (
+                clip_words(activity["label"], 80) if activity.get("label") else None
+            ),
             "elapsed_s": (
                 round(float(elapsed), 1)
                 if isinstance(elapsed, (int, float))
@@ -113,7 +127,9 @@ def shape_vitals(raw):
         shaped["plan"] = {
             "done": _count(plan.get("done")),
             "total": _count(plan.get("total")),
-            "current": str(plan["current"])[:120] if plan.get("current") else None,
+            "current": (
+                clip_words(plan["current"], 120) if plan.get("current") else None
+            ),
         }
     files = raw.get("files") if isinstance(raw.get("files"), dict) else None
     if files:

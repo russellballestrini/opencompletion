@@ -138,9 +138,10 @@ window.addEventListener('load', async () => {
         // A reply's first line names the tools it may call.
         deliver('tool_activity', {id: 30, tool: 'offered', names: ['web_search', 'delegate'], status: 'done', asker: username});
         const offeredLine = document.querySelector('#message-30 .message-tool');
-        check(offeredLine && offeredLine.textContent === 'Tools: web_search, delegate' && offeredLine.classList.contains('is-offered'), 'offered line: ' + (offeredLine || {}).textContent);
+        const chips = (el) => [...el.querySelectorAll('.message-tool-chip')].map((c) => c.textContent).join(' · ');
+        check(offeredLine && chips(offeredLine) === 'web_search · delegate' && offeredLine.classList.contains('is-offered'), 'offered chips: ' + (offeredLine ? chips(offeredLine) : ''));
         deliver('previous_messages', {id: 31, username: 'qwen', content: 'Hi', tools: [{tool: 'offered', names: ['run_code'], status: 'done'}]});
-        check(document.querySelector('#message-31 .message-tool').textContent === 'Tools: run_code', 'history keeps the offered line');
+        check(chips(document.querySelector('#message-31 .message-tool')) === 'run_code', 'history keeps the offered line');
         // A tool's line inside a reply, & whose network it ran on.
         deliver('tool_activity', {id: 7, tool: 'web_search', label: 'elmo', where: 'browser', asker: username, status: 'running'});
         const line = () => document.querySelector('#message-7 .message-tool:last-child');
@@ -223,7 +224,12 @@ window.addEventListener('load', async () => {
         check(kids.indexOf('message-tool-vitals') === kids.length - 1 && kids.indexOf('message-tool-log') < kids.indexOf('message-tool-vitals'),
             'vitals under the log: ' + kids.join(','));
         const live = document.querySelector('#message-18 .message-tool-vitals');
-        check(live && live.textContent === 'turn 7/100 · context 18.2k / 82.0k · 23 tool calls · in tool: bash 8s', 'live vitals: ' + (live && live.textContent));
+        check(live && chips(live) === 'turn 7/100 · context 18.2k / 82.0k · 23 tool calls · in tool: bash 8s', 'live vitals: ' + (live && chips(live)));
+        // uncloseai-cli's "no limit" (9001 turns) is never shown as a limit.
+        deliver('tool_activity', {id: 26, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
+            vitals: {turn: 30, max_turns: 9001, context: {}, tools: {}, activity: {}}});
+        check(chips(document.querySelector('#message-26 .message-tool-vitals')) === 'turn 30', 'no huge turn limit');
+        check(document.querySelector('#message-26 .message-tool').classList.contains('is-card'), 'a delegate is a card');
         // A summary is the line's first word on how it goes.
         deliver('tool_activity', {id: 21, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             summary: 'Cloned ago and ran its suite: 42 pass.', progress: '[bash] make test'});
@@ -269,7 +275,7 @@ window.addEventListener('load', async () => {
             vitals: {turn: 3, plan: {done: 2, total: 5, current: 'run tests'}, context: {}, tools: {}, activity: {},
                      llm: {calls: 9, retries: 2, empty: 1, last_error: 'empty_delivery'}, tokens: {input: 50000, output: 3000},
                      files: {changed: ['ago/tests/test_new.py'], count: 1}, time: {elapsed_s: 241.4, budget_s: null}}});
-        const row20 = document.querySelector('#message-20 .message-tool-vitals').textContent;
+        const row20 = chips(document.querySelector('#message-20 .message-tool-vitals'));
         check(row20 === 'step 3/5: run tests · turn 3 · 2 retries · 1 empty reply · 4m 1s', 'plan & health row: ' + row20);
         const job = document.querySelector('#message-20 .message-tool-job');
         check(job && job.open && /files changed \(1\)/.test(job.textContent) && /ago\/tests\/test_new\.py/.test(job.textContent), 'job fold lists files');
@@ -296,7 +302,7 @@ window.addEventListener('load', async () => {
             detail: {language: '', input: 't', stderr: 'Traceback', exit_code: 4}});
         check(document.querySelector('#message-23 .is-stderr'), 'a failed run: stderr in red');
         const summary = document.querySelector('#message-19 .message-tool-vitals');
-        check(summary && summary.textContent === '9 turns · peak context 21.0k · 23 tool calls', 'finished vitals: ' + (summary && summary.textContent));
+        check(summary && chips(summary) === '9 turns · peak context 21.0k · 23 tool calls', 'finished vitals: ' + (summary && chips(summary)));
         // A code tool's line folds open to its code & output, as text.
         deliver('tool_activity', {id: 12, tool: 'run_code', label: 'python', where: 'unsandbox', asker: username, status: 'done',
             detail: {language: 'python', input: 'print("<b>hi</b>")', stdout: '<b>hi</b>\n', stderr: 'oops', exit_code: 1}});

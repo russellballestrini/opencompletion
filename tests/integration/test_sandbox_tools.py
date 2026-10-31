@@ -1373,6 +1373,20 @@ def test_vitals_of_another_schema_are_ignored():
     assert shaped["turn"] is None and shaped["tools"]["total"] is None
 
 
+def test_a_plan_step_is_cut_at_a_word_never_mid_word():
+    from tools.loop import clip_words, shape_vitals
+
+    step = "Write pytest tests:\n   a. A round-trip test: generate at least 30 timedeltas spanning seconds through years"
+    shaped = shape_vitals({"schema": "unclose-vitals/1", "plan": {"current": step}})
+    current = shaped["plan"]["current"]
+    assert "\n" not in current and len(current) <= 120
+    assert (
+        clip_words(step, 60)
+        == "Write pytest tests: a. A round-trip test: generate at least…"
+    )
+    assert clip_words("short", 60) == "short"
+
+
 def test_a_delegate_is_summarized_as_it_goes(unsandbox, room, monkeypatch):
     """A sentence or two on how it goes, asked of the chat's model when the
     log grew (fox, 2026-10-31); a late one never reopens a finished line."""

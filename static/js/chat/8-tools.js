@@ -232,8 +232,21 @@ function toolJob(vitals) {
     return block;
 }
 
+// A small rounded label: a tool offered, or one of a long call's vitals.
+function toolChip(text, extra) {
+    const chip = document.createElement("span");
+    chip.className = "message-tool-chip" + (extra ? " " + extra : "");
+    chip.textContent = text;
+    chip.title = text;
+    return chip;
+}
+
+// uncloseai-cli's "no turn limit" is a huge number: shown, it is noise.
+const TURN_LIMIT_SHOWN = 1000;
+
 // A running agent's vitals (uncloseai-cli unclose-vitals/1, shaped by
-// tools/loop.py) as one quiet row: live while it runs, a summary after.
+// tools/loop.py) as a row of chips that wraps: live while it runs, a
+// summary after.
 function toolVitals(vitals, running) {
     const parts = [];
     const ctx = vitals.context || {};
@@ -243,15 +256,16 @@ function toolVitals(vitals, running) {
     if (running) {
         if (plan.total) {
             const step = Math.min((plan.done || 0) + 1, plan.total);
-            parts.push(`step ${step}/${plan.total}${plan.current ? ": " + plan.current : ""}`);
+            parts.push([`step ${step}/${plan.total}${plan.current ? ": " + plan.current : ""}`, "is-step"]);
         }
-        if (vitals.turn) parts.push(`turn ${vitals.turn}${vitals.max_turns ? "/" + vitals.max_turns : ""}`);
+        const limit = vitals.max_turns && vitals.max_turns < TURN_LIMIT_SHOWN ? "/" + vitals.max_turns : "";
+        if (vitals.turn) parts.push(`turn ${vitals.turn}${limit}`);
         if (ctx.used) parts.push(`context ${shortCount(ctx.used)}${ctx.window ? " / " + shortCount(ctx.window) : ""}`);
         if (tools.total) parts.push(`${tools.total} tool call${tools.total === 1 ? "" : "s"}`);
         const act = vitals.activity || {};
         if (act.label) parts.push(act.label + (Number.isFinite(act.elapsed_s) ? ` ${Math.round(act.elapsed_s)}s` : ""));
-        if (llm.retries) parts.push(`${llm.retries} retr${llm.retries === 1 ? "y" : "ies"}`);
-        if (llm.empty) parts.push(`${llm.empty} empty repl${llm.empty === 1 ? "y" : "ies"}`);
+        if (llm.retries) parts.push([`${llm.retries} retr${llm.retries === 1 ? "y" : "ies"}`, "is-warn"]);
+        if (llm.empty) parts.push([`${llm.empty} empty repl${llm.empty === 1 ? "y" : "ies"}`, "is-warn"]);
         const elapsed = (vitals.time || {}).elapsed_s;
         if (Number.isFinite(elapsed)) parts.push(shortDuration(elapsed));
     } else {
@@ -263,7 +277,10 @@ function toolVitals(vitals, running) {
     if (!parts.length) return null;
     const row = document.createElement("div");
     row.className = "message-tool-vitals";
-    row.textContent = parts.join(" · ");
+    for (const part of parts) {
+        const [text, extra] = Array.isArray(part) ? part : [part, ""];
+        row.appendChild(toolChip(text, extra));
+    }
     return row;
 }
 
@@ -273,7 +290,11 @@ function drawToolLine(line, data) {
         // The reply's first line: the tools it may call (app.chat_gpt).
         line.replaceChildren();
         line.classList.add("is-offered");
-        line.textContent = "Tools: " + (data.names || []).join(", ");
+        const label = document.createElement("span");
+        label.className = "message-tool-chips-label";
+        label.textContent = "Tools";
+        line.appendChild(label);
+        for (const name of data.names || []) line.appendChild(toolChip(name));
         return;
     }
     const verbs = TOOL_VERBS[data.tool] || [`Running ${data.tool}`, `Ran ${data.tool}`];
@@ -293,12 +314,18 @@ function drawToolLine(line, data) {
     line.replaceChildren();
     line.classList.toggle("is-running", data.status === "running");
     line.classList.toggle("is-error", data.status === "error");
+    line.classList.toggle("is-card", delegating);
     const where = toolWhere(data);
     const verb = verbs[data.status === "running" ? 0 : 1];
-    const head = document.createElement("span");
+    const head = document.createElement("div");
     head.className = "message-tool-head";
-    head.textContent = `${verb}${where ? " " + where : ""}: ${data.label}` +
-        (data.status === "running" ? "…" : "");
+    // What & where in quiet text, what it was about in full colour.
+    head.append(`${verb}${where ? " " + where : ""}: `);
+    const about = document.createElement("span");
+    about.className = "message-tool-label";
+    about.textContent = data.label;
+    head.appendChild(about);
+    if (data.status === "running") head.append("…");
     line.appendChild(head);
     // How a long call is going, in a sentence or two (tools/loop.py): read
     // first, the job & log below it for detail.
@@ -312,7 +339,7 @@ function drawToolLine(line, data) {
         const why = document.createElement("span");
         why.className = "message-tool-error";
         why.textContent = ` (failed: ${data.error})`;
-        line.appendChild(why);
+        head.appendChild(why);
     }
     // A delegate's task is long prose already folded under "code": its line
     // keeps the room for progress instead of repeating the task.
@@ -422,8 +449,10 @@ function toolDetail(detail, running, tool) {
         block.appendChild(box);
         return code;
     };
-    const input = pre(detail.input || "", "message-tool-input");
     const language = String(detail.language || "").toLowerCase();
+    // A delegate's task is prose: it wraps; code keeps its lines.
+    const prose = tool === "delegate" || !language;
+    const input = pre(detail.input || "", "message-tool-input" + (prose ? " is-prose" : ""));
     if (window.hljs && language && hljs.getLanguage(language)) {
         input.className = "language-" + language;
         hljs.highlightElement(input);

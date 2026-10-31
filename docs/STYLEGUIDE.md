@@ -62,12 +62,20 @@ are 16px on phones so iOS never zooms into them.
 - **Follow-ups** `.followups` of `.followup-chip`s under our newest reply;
   `.scroll-bottom` (↓) floats above the composer once you scroll up.
 - **Tool lines** `.message-tools` of `.message-tool`s inside a reply
-  (`8-tools.js`): what a tool did & whose network it ran on ("Searched
-  the web from your browser: …"), its pages in `.message-tool-sources`; a
-  code tool's `.message-tool-detail` folds open to its code & output. A
-  reply that used tools reads in order: its `.message-content` holds
-  `.message-part`s (text) & `.message-tools` lists as they came, live &
-  from history (each trail entry keeps `at`, its offset in the text).
+  (`8-tools.js`), each a two-column grid: a status dot (`::before`:
+  running pulses in our accent, done green, `.is-error` red) & the line.
+  `.message-tool-head` says what & where in quiet text with
+  `.message-tool-label` (what it was about) in full colour. A delegate is
+  a card (`.is-card`): `.message-tool-summary` (accent bar) first, then
+  folds as pill `summary`s (code, `.message-tool-job`'s key/value panel,
+  `.message-tool-log`), then `.message-tool-vitals`. Short facts are
+  `.message-tool-chip`s (the tools offered, vitals; `.is-step` leads,
+  `.is-warn` for retries & empty replies) that wrap, never scroll.
+  Prose (a delegate's task) & output wrap; code keeps its lines inside
+  its box. Pages & files found are `.message-tool-sources`. A reply that
+  used tools reads in order: its `.message-content` holds `.message-part`s
+  (text) & `.message-tools` lists as they came, live & from history (each
+  trail entry keeps `at`, its offset in the text).
 - **Tabs** `.tabs` > `.room-tab` with `role="tab"` & `aria-selected`.
 - **Empty states** `.empty-state` say what is missing & offer the next step.
 

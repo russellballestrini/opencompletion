@@ -92,4 +92,67 @@
         <p>Say what is missing & offer the next step.</p>
     </div>
 </section>
+<section class="card" aria-labelledby="sg-tools">
+    <h2 id="sg-tools">Tool lines</h2>
+    <p class="muted">What a reply's tools did, drawn by <code>static/js/chat/8-tools.js</code>: a status dot (running pulses, done is green, failed is red), what & where in quiet text, what it was about in full colour. Folds are pills; chips wrap on a phone, never scroll sideways.</p>
+    <ul class="message-tools">
+        <li class="message-tool is-offered"><span class="message-tool-chips-label">Tools</span><span class="message-tool-chip" title="web_search">web_search</span><span class="message-tool-chip" title="sandbox_shell">sandbox_shell</span><span class="message-tool-chip" title="sandbox_share_file">sandbox_share_file</span><span class="message-tool-chip" title="delegate">delegate</span></li>
+        <li class="message-tool">
+            <div class="message-tool-head">Searched the web from our server: <span class="message-tool-label">ago python library human readable timedeltas</span></div>
+            <ol class="message-tool-sources">
+                <li><a href="#sg-tools">ago 0.0.95 : Python Package Index</a></li>
+                <li><a href="#sg-tools">python / ago · GitLab</a></li>
+            </ol>
+        </li>
+        <li class="message-tool is-running">
+            <div class="message-tool-head">Running in this chat's sandbox: <span class="message-tool-label">python -m pytest -q</span>…</div>
+            <pre class="message-tool-preview">cd /root/work/ago
+python -m pytest -q</pre>
+        </li>
+        <li class="message-tool is-error">
+            <div class="message-tool-head">Read from our server: <span class="message-tool-label">https://example.org/</span><span class="message-tool-error"> (failed: timed out after 30s)</span></div>
+        </li>
+        <li class="message-tool is-running is-card">
+            <div class="message-tool-head">uncloseai-cli is working in this chat's sandbox: <span class="message-tool-label">Add parse() to ago with round-trip tests</span>…</div>
+            <div class="message-tool-summary">It added parse() and 12 focused tests; the round-trip test now runs 30 generated values and two fail on months.</div>
+            <details class="message-tool-detail" open>
+                <summary>code</summary>
+                <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago, the inverse of human(). Done means: a round-trip test over 30 generated timedeltas, 10 focused tests, the full suite green, bench.png & PARSE.md.</code></pre>
+            </details>
+            <details class="message-tool-detail message-tool-job" open>
+                <summary>job</summary>
+                <dl>
+                    <dt>plan</dt><dd>3/9 done · now: write the round-trip test</dd>
+                    <dt>files changed (2)</dt><dd>/root/work/ago/ago/parse.py
+/root/work/ago/ago/__init__.py</dd>
+                    <dt>model</dt><dd>42 calls · 0 retries · 0 empty</dd>
+                    <dt>tokens</dt><dd>687k in · 15.2k out</dd>
+                    <dt>time</dt><dd>6m 15s</dd>
+                </dl>
+            </details>
+            <details class="message-tool-log">
+                <summary>log · 37 lines</summary>
+                <pre class="message-tool-progress">[bash] git clone https://git.unturf.com/python/ago
+[write] ago/parse.py
+[bash] python -m pytest -q · 45 passed</pre>
+            </details>
+            <div class="message-tool-vitals"><span class="message-tool-chip is-step" title="step 4/9: write the round-trip test">step 4/9: write the round-trip test</span><span class="message-tool-chip">turn 30</span><span class="message-tool-chip">context 30.5k / 64.0k</span><span class="message-tool-chip">38 tool calls</span><span class="message-tool-chip is-warn">1 retry</span><span class="message-tool-chip">6m 15s</span></div>
+        </li>
+        <li class="message-tool is-card">
+            <div class="message-tool-head">uncloseai-cli worked in this chat's sandbox: <span class="message-tool-label">Add parse() to ago with round-trip tests</span></div>
+            <details class="message-tool-detail">
+                <summary>code &amp; output</summary>
+                <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago…</code></pre>
+                <div class="message-tool-log-title">delegation log <button type="button" class="copy-button message-tool-copy">Copy</button></div>
+                <pre class="message-tool-output is-log"><code>[bash] python -m pytest -q · 57 passed</code></pre>
+                <div class="message-tool-exit">exit code 0</div>
+            </details>
+            <div class="message-tool-vitals"><span class="message-tool-chip">9/9 steps</span><span class="message-tool-chip">52 turns</span><span class="message-tool-chip">peak context 41.2k</span><span class="message-tool-chip">71 tool calls</span></div>
+        </li>
+        <li class="message-tool">
+            <div class="message-tool-head">Shared in this chat's sandbox: <span class="message-tool-label">/root/work/ago/bench.png</span></div>
+            <ol class="message-tool-sources"><li><a href="#sg-tools">bench.png</a></li></ol>
+        </li>
+    </ul>
+</section>
 {% endblock %}

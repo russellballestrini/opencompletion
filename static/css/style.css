@@ -2063,72 +2063,220 @@ a:hover {
     background-color: var(--bg-hover);
 }
 
-/* Tools inside a reply (static/js/chat/8-tools.js): one line per call,
-   saying whose network it ran on, & the pages it found. */
+/* ========================================
+   TOOL LINES (static/js/chat/8-tools.js)
+   One grid per call: a status dot in its own
+   column, everything else in the second, so
+   the words line up however much a line grows.
+   ======================================== */
 .message-tools {
     list-style: none;
     margin: 0 0 var(--space-2);
     padding: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-1);
+    gap: var(--space-2);
     font-size: 13px;
     color: var(--text-secondary);
     min-width: 0;
 }
 
+.message-content > .message-tools {
+    margin: var(--space-2) 0;
+}
+
+.message-content > .message-part + .message-part {
+    margin-top: var(--space-2);
+}
+
 .message-tool {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr);
+    column-gap: var(--space-2);
+    row-gap: var(--space-1);
+    align-items: start;
     min-width: 0;
     overflow-wrap: anywhere;
 }
 
-.message-tool.is-running .message-tool-head {
-    font-style: italic;
+.message-tool > * {
+    grid-column: 2;
+    min-width: 0;
+}
+
+/* Status: running pulses in our accent, done is green, failed is red. */
+.message-tool::before {
+    content: "";
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: center;
+    width: 8px;
+    height: 8px;
+    margin-top: 6px;
+    border-radius: 50%;
+    background-color: var(--text-success);
+}
+
+.message-tool.is-running::before {
+    background-color: var(--button-primary);
+    animation: tool-pulse 1.4s ease-in-out infinite;
+}
+
+.message-tool.is-error::before {
+    background-color: var(--text-error);
+}
+
+@keyframes tool-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.7); }
+}
+
+/* "Searched the web from our server: elmo": what & where quiet, what
+   about in full colour. */
+.message-tool-head {
+    line-height: 20px;
+}
+
+.message-tool-label {
+    color: var(--text-primary);
 }
 
 .message-tool-error {
     color: var(--text-error);
 }
 
-.message-tool-sources {
-    margin: var(--space-1) 0 0;
-    padding-left: var(--space-6);
+/* A long call (delegate) is a card: its summary, folds & vitals together. */
+.message-tool.is-card {
+    padding: var(--space-3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-secondary);
 }
 
-.message-tool-sources a {
-    color: var(--text-secondary);
-    overflow-wrap: anywhere;
+.message-tool.is-card .message-tool-head {
+    font-weight: 500;
 }
 
-.message-tool-sources a:hover,
-.message-tool-sources a:focus-visible {
+/* How a long call is going, in a sentence or two: read first. */
+.message-tool-summary {
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--button-primary);
+    font-size: 14px;
+    line-height: 1.5;
     color: var(--text-primary);
 }
 
-/* A code tool's code & output, folded under its line. */
+/* The tools a reply may call: chips, wrapping on a phone. */
+.message-tool.is-offered {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: 12px;
+}
+
+.message-tool.is-offered::before {
+    content: none;
+}
+
+.message-tool-chips-label {
+    margin-right: var(--space-1);
+}
+
+/* Chips: the tools offered & a long call's vitals. */
+.message-tool-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 1px var(--space-2);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 18px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.message-tool-chip.is-step {
+    color: var(--text-primary);
+}
+
+.message-tool-chip.is-warn {
+    border-color: var(--text-warning);
+    color: var(--text-warning);
+}
+
+.message-tool-vitals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+/* Folds (code, job, log): a quiet pill that opens in place. */
+.message-tool details > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 24px;
+    padding: 0 var(--space-2);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.message-tool details > summary::-webkit-details-marker {
+    display: none;
+}
+
+.message-tool details > summary::before {
+    content: "▸";
+    font-size: 10px;
+    transition: transform 0.15s ease;
+}
+
+.message-tool details[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.message-tool details > summary:hover,
+.message-tool details > summary:focus-visible {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
 .message-tool-detail {
-    margin-top: var(--space-1);
     min-width: 0;
     max-width: 100%;
 }
 
-.message-tool-detail summary {
-    cursor: pointer;
-    color: var(--text-secondary);
-}
-
+/* A code tool's code & output. Code keeps its lines (scrolling inside
+   its box); prose (a delegate's task) & output wrap. */
 .message-tool-detail pre {
     max-width: 100%;
     box-sizing: border-box;
     margin: var(--space-1) 0 0;
-    padding: var(--space-2);
+    padding: var(--space-2) var(--space-3);
     max-height: min(480px, 60vh);
     overflow: auto;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    background-color: var(--bg-secondary);
+    background-color: var(--bg-code);
     font-size: 12px;
+    line-height: 1.5;
     white-space: pre;
+}
+
+.message-tool-detail pre.is-prose,
+.message-tool-detail pre.message-tool-output {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .message-tool-output.is-stderr {
@@ -2143,7 +2291,7 @@ a:hover {
 /* The first lines of a code tool's code, in view without opening it;
    each line is cut to the reply's width. */
 .message-tool-preview {
-    margin: var(--space-1) 0 0;
+    margin: 0;
     padding: var(--space-1) var(--space-2);
     max-width: 100%;
     overflow: hidden;
@@ -2156,71 +2304,56 @@ a:hover {
     text-overflow: ellipsis;
 }
 
-/* A reply's first tool line: the tools it may call. */
-.message-tool.is-offered {
-    font-size: 12px;
-    color: var(--text-secondary);
-    opacity: 0.8;
-}
-
-/* A reply that used tools: text parts & tool lists in the order they
-   came (5-messages.js replyFlow, 8-tools.js renderFlow). */
-.message-content > .message-tools {
-    margin: var(--space-2) 0;
-}
-
-.message-content > .message-part + .message-part {
-    margin-top: var(--space-2);
-}
-
-/* A long tool's progress (delegate: uncloseai-cli's session so far). */
-.message-tool-summary {
-    margin: var(--space-1) 0 0;
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--text-primary);
-}
-
-.message-tool-vitals {
-    margin: var(--space-1) 0 0;
-    font-size: 12px;
-    color: var(--text-secondary);
-    font-variant-numeric: tabular-nums;
-}
-
+/* A running agent's job: a key/value panel. */
 .message-tool-job dl {
     display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: var(--space-1) var(--space-3);
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--space-1) var(--space-4);
     margin: var(--space-1) 0 0;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-tertiary);
     font-size: 12px;
+    font-variant-numeric: tabular-nums;
 }
 
 .message-tool-job dt {
     color: var(--text-secondary);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 18px;
 }
 
 .message-tool-job dd {
     margin: 0;
+    color: var(--text-primary);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+    line-height: 18px;
 }
 
-.message-tool-log-title .message-tool-copy {
-    margin-left: var(--space-2);
-    font-size: 11px;
-}
-
-.message-tool-log > summary {
-    cursor: pointer;
-    font-size: 12px;
-    color: var(--text-secondary);
-}
-
+/* Titles inside the code fold (delegation log, uncloseai-cli notes). */
 .message-tool-log-title {
-    margin: var(--space-2) 0 var(--space-1);
-    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 0;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: var(--text-secondary);
+}
+
+.message-tool-copy,
+#chat .message-tool-copy {
+    min-height: 24px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    font-size: 11px;
+    text-transform: none;
+    letter-spacing: 0;
 }
 
 /* A delegate's log grows down the page as it runs, unboxed (fox,
@@ -2231,8 +2364,42 @@ a:hover {
     padding: 0 0 0 var(--space-3);
     max-width: 100%;
     border-left: 2px solid var(--border-color);
-    font-size: 13px;
-    line-height: 1.5;
+    font-size: 12px;
+    line-height: 1.55;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+}
+
+/* What a call found or made: pages, & files (our attachments) as chips
+   in a grid that wraps. */
+.message-tool-sources {
+    margin: 0;
+    padding-left: var(--space-5);
+    display: grid;
+    gap: 2px;
+}
+
+.message-tool-sources a {
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.message-tool-sources a:hover,
+.message-tool-sources a:focus-visible {
+    color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+    .message-tool.is-card {
+        padding: var(--space-2);
+    }
+
+    .message-tool-job dl {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+    }
+
+    .message-tool-job dd + dt {
+        margin-top: var(--space-1);
+    }
 }
