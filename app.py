@@ -1836,6 +1836,15 @@ def chat_gpt(
             room_id=room_id,
             model=model_name,
             stopped=lambda: room_name in stop_requests,
+            summarize=(
+                (
+                    lambda previous, fresh: summarize_delegate(
+                        openai_client, model_name, previous, fresh
+                    )
+                )
+                if tools.policy.delegate_summaries_enabled()
+                else None
+            ),
         )
     tool_schemas = tools.schemas(tool_context)
     if tool_schemas:
@@ -2191,6 +2200,40 @@ def parse_followups(text):
         if len(suggestions) == FOLLOWUP_MAX:
             break
     return suggestions
+
+
+DELEGATE_SUMMARY_PROMPT = (
+    "You watch a coding agent work in a sandbox. From its earlier summary & "
+    "the new lines of its log, say in one or two plain sentences what it "
+    "has done & what it is doing now. Name concrete results (tests passed, "
+    "files written, errors). No preamble, no markdown, no speculation."
+)
+
+
+def summarize_delegate(openai_client, model_name, previous, fresh):
+    """A sentence or two on how a delegate is going (tools/loop.py asks
+    about every 15s while its log grows). Best effort: None on failure."""
+    try:
+        response = create_completion_skip_thinking(
+            openai_client,
+            model=model_name,
+            messages=[
+                {"role": "system", "content": DELEGATE_SUMMARY_PROMPT},
+                {
+                    "role": "user",
+                    "content": f"Earlier summary:\n{str(previous)[:1000] or '(none)'}"
+                    f"\n\nNew log lines:\n{str(fresh)[-6000:]}",
+                },
+            ],
+            temperature=0.3,
+            max_tokens=120,
+            timeout=20,
+        )
+        said = strip_reasoning(response.choices[0].message.content or "").strip()
+    except Exception as e:  # noqa: BLE001 — the log still shows
+        print(f"[WARN] delegate summary failed: {e}")
+        return None
+    return said[:400] or None
 
 
 def suggest_followups(openai_client, model_name, room_name, msg_id, question, answer):

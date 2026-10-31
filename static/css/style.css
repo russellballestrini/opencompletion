@@ -2152,6 +2152,13 @@ a:hover {
 }
 
 /* A long tool's progress (delegate: uncloseai-cli's session so far). */
+.message-tool-summary {
+    margin: var(--space-1) 0 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
 .message-tool-vitals {
     margin: var(--space-1) 0 0;
     font-size: 12px;

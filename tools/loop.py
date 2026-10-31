@@ -11,11 +11,17 @@ without a tool (or OPENCOMPLETION_TOOL_ROUNDS runs out).
 
 import json
 import re
+import time
 from dataclasses import replace
+
+import gevent
 
 # A long call's progress is a log: each report's new lines pushed under the
 # old ones (fox, 2026-10-31: a delegate's box was overwritten every poll).
 LOG_CHARS = 12000
+# A long call's log is summarized in a sentence or two at most this often
+# (fox, 2026-10-31: learn how the work goes without reading the log).
+SUMMARY_EVERY_S = 15
 GAP = "⋯"
 # What `unclose --peek` prints that is not the session: its read-only
 # banner, quiet heartbeats, join notices & its own stop line.
@@ -240,18 +246,46 @@ def run_round(context, calls, content, notify=lambda event: None):
             # A long call reports how it is getting on as its running line:
             # a log, new lines pushed under the old, the whole log each time
             # (anyone joining the room mid-run sees all of it).
-            def progress(text, vitals=None, running=running, log=log, last=last):
+            def running_event(running=running, log=log, last=last):
+                event = dict(running, progress=log_text(log))
+                for key in ("vitals", "summary"):
+                    if last.get(key):
+                        event[key] = last[key]
+                return event
+
+            def summarize(fresh, running_event=running_event, last=last):
+                try:
+                    said = context.summarize(last.get("summary", ""), fresh)
+                except Exception as e:  # noqa: BLE001 — a summary is optional
+                    print(f"[WARN] delegate summary failed: {e}")
+                    said = None
+                last["summarizing"] = False
+                if said and not last.get("finished"):
+                    last["summary"] = str(said).strip()[:400]
+                    notify(running_event())
+
+            def progress(text, vitals=None, log=log, last=last):
                 log[:] = merge_log(log, text or "")
                 shaped = shape_vitals(vitals)
                 if shaped:
                     last["vitals"] = shaped
                 if log or shaped:
-                    event = dict(running, progress=log_text(log))
-                    if last.get("vitals"):
-                        event["vitals"] = last["vitals"]
-                    notify(event)
+                    notify(running_event())
+                # A sentence or two on how it goes, in the background, when
+                # the log grew & the last one is SUMMARY_EVERY_S old.
+                grew = len(log) > last.get("summarized_upto", 0)
+                due = time.monotonic() - last.get("summarized_at", 0) >= SUMMARY_EVERY_S
+                if context.summarize and grew and due and not last.get("summarizing"):
+                    fresh = "\n".join(log[last.get("summarized_upto", 0) :])[-6000:]
+                    last.update(
+                        summarizing=True,
+                        summarized_upto=len(log),
+                        summarized_at=time.monotonic(),
+                    )
+                    gevent.spawn(summarize, fresh)
 
             result = run(replace(context, progress=progress), call["name"], arguments)
+            last["finished"] = True  # a summary landing late never reopens it
         done = {"tool": call["name"], "label": label, "where": where}
         shown = detail_of(call["name"], arguments or {}, result)
         if shown and arguments is not None and log:

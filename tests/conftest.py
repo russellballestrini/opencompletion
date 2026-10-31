@@ -97,6 +97,7 @@ os.environ["OPENCOMPLETION_CLASSIFIER"] = "off"
 # Follow-up suggestions are one more completion per reply; tests that want
 # them (tests/unit/test_followups.py) turn them on.
 os.environ["OPENCOMPLETION_FOLLOWUPS"] = "off"
+os.environ["OPENCOMPLETION_DELEGATE_SUMMARIES"] = "off"
 # Tools (web search & fetch) are on by default; offered to a test's fake
 # model they would change every create call & could reach a real vendor.
 # tests/unit/test_tools.py & tests/integration/test_tools_chat.py turn them on.

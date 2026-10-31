@@ -3,6 +3,7 @@ uncloseai-cli calls (routes/sandbox_proxy.py). A fake unsandbox stands in
 for un.py, so no test reaches the real API or spends its account."""
 
 import base64
+import dataclasses
 import json
 import time
 from types import SimpleNamespace
@@ -1269,6 +1270,59 @@ def test_vitals_of_another_schema_are_ignored():
         {"schema": "unclose-vitals/1", "turn": -1, "tools": {"total": True}}
     )
     assert shaped["turn"] is None and shaped["tools"]["total"] is None
+
+
+def test_a_delegate_is_summarized_as_it_goes(unsandbox, room, monkeypatch):
+    """A sentence or two on how it goes, asked of the chat's model when the
+    log grew (fox, 2026-10-31); a late one never reopens a finished line."""
+    from tools import loop
+
+    monkeypatch.setattr(loop, "SUMMARY_EVERY_S", 0)
+    monkeypatch.setattr(loop.gevent, "spawn", lambda fn, *a: fn(*a))
+    unsandbox.polls = [
+        "[bash] git clone",
+        "[bash] git clone",  # nothing new: no second summary
+        "[bash] git clone\n[bash] make test · 42 passed",
+    ]
+    asked = []
+
+    def summarize(previous, fresh):
+        asked.append((previous, fresh))
+        return f"summary {len(asked)}"
+
+    context = dataclasses.replace(fox_in(room), summarize=summarize)
+    events = []
+    calls = [{"id": "c1", "name": "delegate", "arguments": json.dumps({"task": "t"})}]
+    tools.run_round(context, calls, "", events.append)
+    assert asked == [
+        ("", "[bash] git clone"),
+        ("summary 1", "[bash] make test · 42 passed"),
+    ]
+    said = [e.get("summary") for e in events if e["status"] == "running"]
+    assert "summary 1" in said and "summary 2" in said
+    assert "summary" not in events[-1]  # the finished line carries none
+
+
+def test_summarize_delegate_is_best_effort():
+    import app as app_module
+
+    class Client:
+        def __init__(self, reply=None, fail=False):
+            self.reply, self.fail = reply, fail
+            self.chat = SimpleNamespace(completions=self)
+
+        def create(self, **kwargs):
+            if self.fail:
+                raise RuntimeError("down")
+            assert kwargs["max_tokens"] == 120 and kwargs["timeout"] == 20
+            message = SimpleNamespace(content=self.reply)
+            return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+    said = app_module.summarize_delegate(
+        Client("  Cloned ago; 42 pass.  "), "m", "", "x"
+    )
+    assert said == "Cloned ago; 42 pass."
+    assert app_module.summarize_delegate(Client(fail=True), "m", "", "x") is None
 
 
 def test_merge_log_keeps_order_and_drops_peek_noise():

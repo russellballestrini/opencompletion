@@ -27,6 +27,9 @@ without a restart.
     OPENCOMPLETION_DELEGATE=on|off       uncloseai-cli in that sandbox
                                          (needs OPENCOMPLETION_PUBLIC_URL)
     OPENCOMPLETION_DELEGATE_TIMEOUT_S=900
+    OPENCOMPLETION_DELEGATE_SUMMARIES=on|off  a sentence or two on how a
+                                         delegate is going, about every 15s
+                                         (one short call to the chat's model)
     OPENCOMPLETION_PUBLIC_URL=           our address as a sandbox reaches it,
                                          e.g. https://demo.opencompletion.com
 
@@ -109,6 +112,10 @@ def sandbox_enabled():
 
 def public_url():
     return os.environ.get("OPENCOMPLETION_PUBLIC_URL", "").strip().rstrip("/")
+
+
+def delegate_summaries_enabled():
+    return _flag("OPENCOMPLETION_DELEGATE_SUMMARIES")
 
 
 def delegate_enabled():

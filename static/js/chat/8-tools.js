@@ -299,6 +299,14 @@ function drawToolLine(line, data) {
     head.textContent = `${verb}${where ? " " + where : ""}: ${data.label}` +
         (data.status === "running" ? "…" : "");
     line.appendChild(head);
+    // How a long call is going, in a sentence or two (tools/loop.py): read
+    // first, the job & log below it for detail.
+    if (data.summary && data.status === "running") {
+        const said = document.createElement("div");
+        said.className = "message-tool-summary";
+        said.textContent = data.summary;
+        line.appendChild(said);
+    }
     if (data.status === "error") {
         const why = document.createElement("span");
         why.className = "message-tool-error";

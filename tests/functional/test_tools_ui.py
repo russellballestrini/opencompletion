@@ -224,6 +224,11 @@ window.addEventListener('load', async () => {
             'vitals under the log: ' + kids.join(','));
         const live = document.querySelector('#message-18 .message-tool-vitals');
         check(live && live.textContent === 'turn 7/100 · context 18.2k / 82.0k · 23 tool calls · in tool: bash 8s', 'live vitals: ' + (live && live.textContent));
+        // A summary is the line's first word on how it goes.
+        deliver('tool_activity', {id: 21, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
+            summary: 'Cloned ago and ran its suite: 42 pass.', progress: '[bash] make test'});
+        const said = document.querySelector('#message-21 .message-tool > :nth-child(2)');
+        check(said && said.className === 'message-tool-summary' && said.textContent === 'Cloned ago and ran its suite: 42 pass.', 'summary right under the line');
         // The plan step leads; model trouble & time show; the job folds open.
         deliver('tool_activity', {id: 20, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             vitals: {turn: 3, plan: {done: 2, total: 5, current: 'run tests'}, context: {}, tools: {}, activity: {},

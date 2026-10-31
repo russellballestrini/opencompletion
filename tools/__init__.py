@@ -174,6 +174,11 @@ class ToolContext:
     # running call is getting on, under its line.
     stopped: Optional[Callable[[], bool]] = field(default=None, compare=False)
     progress: Optional[Callable[[str], None]] = field(default=None, compare=False)
+    # Set by chat_gpt: summarize(previous, new_log) -> a sentence or two on
+    # how a long call is going (tools/loop.py), or None.
+    summarize: Optional[Callable[[str, str], Optional[str]]] = field(
+        default=None, compare=False
+    )
 
     @property
     def server_egress(self):
