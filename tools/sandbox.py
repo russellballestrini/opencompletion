@@ -29,6 +29,7 @@ sandbox is running.
 import base64
 import hashlib
 import json
+import mimetypes
 import os
 import re
 import secrets
@@ -541,6 +542,86 @@ def write_file(context, path, content):
     if result.get("exit_code") == 0:
         result = {"path": path, "bytes": int((result["stdout"] or "0").strip() or 0)}
     return _with_fresh_note(sandbox, result)
+
+
+# A file leaves a sandbox as base64 on stdout, this many bytes a command,
+# so no one job's output grows past what unsandbox returns comfortably.
+SHARE_CHUNK_BYTES = 1024 * 1024
+
+
+def share_file(context, path):
+    """A file in this chat's sandbox, kept as an attachment in its chat:
+    what a model hands the person (a deck, a build, an image) since the
+    sandbox's disk is never theirs to browse. Read in chunks & checked
+    against its sha256, under the upload size limit."""
+    path = str(path or "").strip()
+    if not path:
+        return {"error": "path required"}
+    if context.room_id is None:
+        return {"error": "no chat to keep a file in"}
+    quoted = shlex.quote(path)
+    sandbox = ready(context)
+    probe = _execute(
+        sandbox,
+        f'p={quoted}; if [ -d "$p" ]; then echo __DIR__; '
+        f'elif [ ! -f "$p" ]; then echo __MISSING__; '
+        f'else stat -c %s "$p" && sha256sum "$p" | cut -d" " -f1 && '
+        f'(file -b --mime-type "$p" 2>/dev/null || echo); fi',
+        policy.sandbox_timeout(),
+    )
+    lines = str(probe.get("stdout") or "").splitlines()
+    if probe.get("status") not in ("completed", None) or not lines:
+        return _finished(probe) | {"error": "could not read the sandbox"}
+    if lines[0] == "__DIR__":
+        return {
+            "error": f"{path} is a folder: zip it first (cd {quoted} && "
+            "zip -qr /root/out.zip .) & share the zip"
+        }
+    if lines[0] == "__MISSING__" or not lines[0].isdigit():
+        return {"error": f"no file at {path} in this chat's sandbox"}
+    size, digest = int(lines[0]), (lines[1] if len(lines) > 1 else "")
+    mime = lines[2].strip() if len(lines) > 2 else ""
+    if size > max_bytes():
+        return {
+            "error": f"{path} is {size} bytes; files up to {max_bytes()} bytes "
+            "can be shared (compress it or make it smaller)"
+        }
+    data = b""
+    while len(data) < size:
+        chunk = _execute(
+            sandbox,
+            f"tail -c +{len(data) + 1} {quoted} | head -c {SHARE_CHUNK_BYTES} "
+            "| base64 -w0",
+            policy.sandbox_timeout(),
+        )
+        try:
+            piece = base64.b64decode(str(chunk.get("stdout") or "").strip())
+        except ValueError:
+            piece = b""
+        if chunk.get("exit_code") not in (0, None) or not piece:
+            return {"error": f"reading {path} stopped at byte {len(data)}"}
+        data += piece
+    if hashlib.sha256(data).hexdigest() != digest:
+        return {"error": f"{path} changed while it was read; share it again"}
+    name = path.rstrip("/").rsplit("/", 1)[-1] or "file"
+    attachment = save_attachment(
+        context.room_id,
+        data,
+        name,
+        mimetypes.guess_type(name)[0] or mime,
+        "sandbox",
+    )
+    item = {
+        "name": attachment.filename,
+        "url": attachment.url,
+        "mime_type": attachment.mime_type,
+        "size": attachment.size,
+    }
+    return {
+        "path": path,
+        "artifacts": [item],
+        "note": "link it for the person as [name](url); show an image as ![name](url)",
+    }
 
 
 # -- uncloseai-cli in the sandbox --------------------------------------------

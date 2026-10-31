@@ -432,6 +432,91 @@ def test_write_file_survives_any_quoting(unsandbox, room):
     assert "'/root/a b.py'" in command
 
 
+# -- handing a sandbox's file to the person ----------------------------------
+
+
+@pytest.fixture
+def sandbox_disk(unsandbox, monkeypatch, tmp_path):
+    """The sandbox's commands run in a real local shell, so a file in
+    tmp_path is a file in the sandbox: what share_file asks of `stat`,
+    `tail`, `head` & `base64` is what it gets."""
+    import subprocess
+
+    import un
+
+    real = unsandbox.execute_in_service
+
+    def execute(service_id, command, timeout=30000):
+        if command == "true":  # the sandbox being made
+            return real(service_id, command, timeout)
+        unsandbox.calls.append(("execute", service_id, command, timeout))
+        done = subprocess.run(["bash", "-c", command], capture_output=True, text=True)
+        result = {"status": "completed", "exit_code": done.returncode}
+        result |= {"stdout": done.stdout, "stderr": done.stderr}
+        return {"job_id": unsandbox._job(result)}
+
+    monkeypatch.setattr(un, "execute_in_service", execute)
+    return tmp_path
+
+
+def test_a_sandbox_file_becomes_a_link_in_its_chat(sandbox_disk, room, monkeypatch):
+    from models import Attachment
+    from blob_store import read_attachment
+
+    monkeypatch.setattr(tool_sandbox, "SHARE_CHUNK_BYTES", 1000)  # several reads
+    deck = bytes(range(256)) * 20  # 5120 bytes, every byte value
+    (sandbox_disk / "my deck.pptx").write_bytes(deck)
+    path = str(sandbox_disk / "my deck.pptx")
+    result = tools.run(fox_in(room), "sandbox_share_file", {"path": path})
+    (item,) = result["artifacts"]
+    attachment = Attachment.query.one()
+    assert read_attachment(attachment) == deck
+    assert attachment.room_id == room.id
+    assert item["url"] == attachment.url and item["size"] == len(deck)
+    assert item["mime_type"] == (
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    )
+    assert "[name](url)" in result["note"]
+    # its tool line links the file, as a run_code artifact's does
+    from tools.loop import sources_of
+
+    assert sources_of(result) == [{"url": attachment.url, "title": item["name"]}]
+
+
+def test_sharing_says_what_is_wrong_with_a_path(sandbox_disk, room, monkeypatch):
+    missing = tools.run(
+        fox_in(room), "sandbox_share_file", {"path": str(sandbox_disk / "nope")}
+    )
+    assert "no file at" in missing["error"]
+    folder = tools.run(fox_in(room), "sandbox_share_file", {"path": str(sandbox_disk)})
+    assert "zip it first" in folder["error"]
+    monkeypatch.setenv("OPENCOMPLETION_UPLOAD_MAX_MB", "0.001")  # ~1 KB
+    (sandbox_disk / "big.bin").write_bytes(b"x" * 5000)
+    big = tools.run(
+        fox_in(room), "sandbox_share_file", {"path": str(sandbox_disk / "big.bin")}
+    )
+    assert "5000 bytes" in big["error"]
+    from models import Attachment
+
+    assert Attachment.query.count() == 0
+
+
+def test_a_shared_path_never_runs_as_shell(sandbox_disk, room):
+    odd = sandbox_disk / "it's $(touch pwned) a;b.txt"
+    odd.write_text("hello")
+    result = tools.run(fox_in(room), "sandbox_share_file", {"path": str(odd)})
+    assert result["artifacts"][0]["size"] == 5
+    assert not (sandbox_disk / "pwned").exists()  # nor in the sandbox's cwd:
+    assert not (sandbox_disk.parent / "pwned").exists()
+
+
+def test_the_model_is_told_files_reach_the_person_by_sharing(unsandbox, room):
+    assert tools.offered(fox_in(room))["sandbox_share_file"] == "sandbox"
+    assert "sandbox_share_file" in tools.guidance(fox_in(room))["content"]
+    guest = tools.ToolContext(sid="s", room_id=room.id, model="qwen")
+    assert "sandbox_share_file" not in tools.offered(guest)
+
+
 def test_idle_sandboxes_freeze_and_busy_ones_do_not(unsandbox, room, test_app):
     from models import Sandbox, db
 
@@ -727,7 +812,10 @@ def test_shell_and_write_file_lines_show_their_command_and_file(unsandbox, room)
 
 def test_an_egress_users_note_names_delegate_for_multi_step_work(unsandbox, room):
     note = tools.guidance(fox_in(room))["content"]
-    assert "run_code, sandbox_shell, sandbox_write_file, delegate" in note
+    assert (
+        "run_code, sandbox_shell, sandbox_write_file, sandbox_share_file, delegate"
+        in note
+    )
     assert "call delegate with the whole task" in note
     assert tools.guidance(None) is None
 

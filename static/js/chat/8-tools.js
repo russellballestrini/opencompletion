@@ -173,6 +173,7 @@ const TOOL_VERBS = {
     run_code: ["Running", "Ran"],
     sandbox_shell: ["Running", "Ran"],
     sandbox_write_file: ["Writing", "Wrote"],
+    sandbox_share_file: ["Sharing", "Shared"],
     delegate: ["uncloseai-cli is working", "uncloseai-cli worked"],
 };
 

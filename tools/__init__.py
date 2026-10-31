@@ -10,7 +10,7 @@ Each is opt-out from vars.sh (tools/policy.py):
                  tools/crawler/). Server only, so egress users only.
     run_code     one-off code on unsandbox, no network (tools/sandbox.py):
                  anyone allowed to run code.
-    sandbox_shell, sandbox_write_file, delegate
+    sandbox_shell, sandbox_write_file, sandbox_share_file, delegate
                  this chat's own unsandbox sandbox & the uncloseai-cli in
                  it (tools/sandbox.py, routes/sandbox_proxy.py): egress
                  users only.
@@ -131,6 +131,27 @@ SANDBOX_WRITE_FILE = {
     },
 }
 
+SANDBOX_SHARE_FILE = {
+    "type": "function",
+    "function": {
+        "name": "sandbox_share_file",
+        "description": (
+            "Hand the person a file from this chat's sandbox (a document, "
+            "deck, spreadsheet, image, archive): the person cannot see the "
+            "sandbox, so this is how anything made there, by you or by "
+            "delegate, reaches them. Returns a url; link it as [name](url) "
+            "or show an image as ![name](url). Zip a folder first."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "e.g. /root/work/deck.pptx"},
+            },
+            "required": ["path"],
+        },
+    },
+}
+
 DELEGATE = {
     "type": "function",
     "function": {
@@ -155,6 +176,7 @@ SCHEMAS = {
     "run_code": RUN_CODE,
     "sandbox_shell": SANDBOX_SHELL,
     "sandbox_write_file": SANDBOX_WRITE_FILE,
+    "sandbox_share_file": SANDBOX_SHARE_FILE,
     "delegate": DELEGATE,
 }
 
@@ -206,6 +228,7 @@ def offered(context):
         tools["run_code"] = "unsandbox"
     if policy.sandbox_enabled() and context.server_egress:
         tools["sandbox_shell"] = tools["sandbox_write_file"] = "sandbox"
+        tools["sandbox_share_file"] = "sandbox"
         if policy.delegate_enabled() and context.model:
             tools["delegate"] = "sandbox"
     return tools
@@ -276,6 +299,8 @@ def run(context, name, arguments):
                 return sandbox.write_file(
                     context, arguments.get("path"), arguments.get("content")
                 )
+            if name == "sandbox_share_file":
+                return sandbox.share_file(context, arguments.get("path"))
             if name == "delegate":
                 return sandbox.delegate(context, arguments.get("task"))
     except Exception as e:  # noqa: BLE001 — the model reads why
@@ -338,6 +363,12 @@ GUIDANCE = (
     "only wrote code, say it is untested. If the person asks for a tool "
     "that is not in this list, say it is not available here."
 )
+GUIDANCE_SHARE = (
+    " The person never sees the sandbox's files: when you or delegate make "
+    "a file for them there, call sandbox_share_file with its path & link "
+    "the url it returns; never give them a sandbox path as if they could "
+    "open it."
+)
 GUIDANCE_DELEGATE = (
     " For a multi-step coding task (change a repo until its tests pass), "
     "call delegate with the whole task rather than many shell commands."
@@ -353,6 +384,8 @@ def guidance(context):
     if not names:
         return None
     text = GUIDANCE.format(today=time.strftime("%Y-%m-%d"), names=", ".join(names))
+    if "sandbox_share_file" in names:
+        text += GUIDANCE_SHARE
     if "delegate" in names:
         text += GUIDANCE_DELEGATE
     return {"role": "system", "content": text}

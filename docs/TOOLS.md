@@ -18,7 +18,7 @@ guest's tools never run on it.
 | `web_search` | **in their own browser**, from their address | on our server |
 | `web_fetch` | not offered | on our server |
 | `run_code` | on unsandbox, once, **no network** | on unsandbox, once, no network |
-| `sandbox_shell`, `sandbox_write_file` | not offered | this chat's own unsandbox sandbox, with network |
+| `sandbox_shell`, `sandbox_write_file`, `sandbox_share_file` | not offered | this chat's own unsandbox sandbox, with network |
 | `delegate` (uncloseai-cli) | not offered | in that sandbox |
 
 An egress user is a signed-in email on
@@ -64,6 +64,14 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   `OPENCOMPLETION_SANDBOX_IDLE_S` it is **frozen**, never deleted, & the
   next call unfreezes it. A command counts as in use until its time limit,
   so a long one is never frozen under itself.
+- **`sandbox_share_file`**: hands the person a file from that sandbox (a
+  deck, a build, an image; a folder is zipped first), since nobody can
+  browse a sandbox's disk. It is read as base64 on stdout,
+  `SHARE_CHUNK_BYTES` (1 MiB) a command, checked against its sha256 &
+  kept as an attachment in the chat under `OPENCOMPLETION_UPLOAD_MAX_MB`,
+  so its line links it & the model links it or shows an image inline. The
+  tool guidance tells the model to share a file it or `delegate` made
+  rather than name a sandbox path.
 - **`delegate`**: `unclose -p` in that sandbox, for multi-step work.
 
 Every call goes through our vendored SDK, `un.py`: `/execute` (via
