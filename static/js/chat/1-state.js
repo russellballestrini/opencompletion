@@ -75,6 +75,8 @@ let isPlayingTTS = false;
 // fallback, any reasoning_content that still arrives is dropped client-side
 // (see message_chunk handler). Toggle persists to localStorage.
 let enableThinking = localStorage.getItem('enableThinking') !== 'false';
+// A soft chime when replies finish after a wait (on by default).
+let doneChime = localStorage.getItem('doneChime') !== 'false';
 
 // Vision model state for auto alt-text
 let visionAvailable = false;

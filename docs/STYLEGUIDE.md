@@ -81,6 +81,14 @@ are 16px on phones so iOS never zooms into them.
   used tools reads in order: its `.message-content` holds `.message-part`s
   (text) & `.message-tools` lists as they came, live & from history (each
   trail entry keeps `at`, its offset in the text).
+- **Messages** `.message-wrapper` carries who it is from
+  (`markSender` in `5-messages.js`): `.is-person` words sit in a bubble,
+  `.is-mine` on the right in our accent's tint; `.is-model` replies are
+  plain text across the pane, so who said what reads at a glance.
+- **Done chime** a soft two-note chime (Web Audio, no file) when the
+  last reply streaming in a room ends after 15s or more, or while the tab
+  is in the background; `#done-chime-btn` mutes it (localStorage
+  `doneChime`, on by default).
 - **Tabs** `.tabs` > `.room-tab` with `role="tab"` & `aria-selected`.
 - **Empty states** `.empty-state` say what is missing & offer the next step.
 

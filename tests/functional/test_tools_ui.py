@@ -313,6 +313,30 @@ window.addEventListener('load', async () => {
               tokens: {input: 6409000, output: 65500}}});
         const job28 = card28().querySelector('.message-tool-job').textContent;
         check(/files changed \(1\)/.test(job28) && /~\/ago\/bench\.py/.test(job28) && /6\.4M in/.test(job28), 'files once & tokens in M: ' + job28);
+        // A soft chime when replies end after a wait, never after a quick one.
+        let chimed = 0;
+        playDoneChime = () => { chimed++; };
+        deliver('replies_streaming', {count: 1});
+        streamingSince = Date.now() - 20000;
+        deliver('replies_streaming', {count: 0});
+        check(chimed === 1, 'a long reply chimes when done');
+        deliver('replies_streaming', {count: 1});
+        deliver('replies_streaming', {count: 0});
+        check(chimed === 1, 'a quick one does not');
+        doneChime = false;
+        deliver('replies_streaming', {count: 1});
+        streamingSince = Date.now() - 20000;
+        deliver('replies_streaming', {count: 0});
+        check(chimed === 1, 'muted, it stays quiet');
+        doneChime = true;
+        // A person's words are a bubble (ours marked); a reply is plain text.
+        deliver('previous_messages', {id: 60, username: username, content: 'mine', from_model: false});
+        deliver('previous_messages', {id: 61, username: 'group3r', content: 'theirs', from_model: false});
+        deliver('previous_messages', {id: 62, username: 'qwen', content: 'a reply', from_model: true});
+        const cls = (id) => document.getElementById('message-' + id).className;
+        check(/is-person/.test(cls(60)) && /is-mine/.test(cls(60)), 'ours: ' + cls(60));
+        check(/is-person/.test(cls(61)) && !/is-mine/.test(cls(61)), 'theirs: ' + cls(61));
+        check(/is-model/.test(cls(62)) && !/is-person/.test(cls(62)), 'a reply: ' + cls(62));
         // A resumed session & its overseer's call show on the card.
         deliver('tool_activity', {id: 27, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             session: {resumed: true}, oversight: {decision: 'steer', note: 'use 30-day months', at: '25m', undelivered: true}});

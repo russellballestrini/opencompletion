@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     // Initialize thinking button state from localStorage
     updateThinkingDisplay();
+    updateDoneChimeDisplay();
 
     // Check for vision model availability (enables image hover descriptions)
     initVisionCapability();
@@ -329,8 +330,19 @@ async function sendMessage() {
 
 // Our Stop button shows while a reply streams in this room (the server
 // counts them) & ends them all; what they wrote so far stays.
+// When the last reply streaming here ends after a wait (15s or more), or
+// while this tab is in the background, a soft chime says it is done.
+let streamingSince = null;
+const CHIME_AFTER_MS = 15000;
 socket.on("replies_streaming", (data) => {
-    document.getElementById("stop-button").hidden = !(data && data.count);
+    const count = data && data.count;
+    document.getElementById("stop-button").hidden = !count;
+    if (count && streamingSince === null) streamingSince = Date.now();
+    if (!count && streamingSince !== null) {
+        const took = Date.now() - streamingSince;
+        streamingSince = null;
+        if (doneChime && (took >= CHIME_AFTER_MS || document.hidden)) playDoneChime();
+    }
 });
 
 function stopReplies() {

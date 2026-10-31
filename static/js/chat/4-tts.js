@@ -701,6 +701,41 @@ function toggleThinking() {
     updateThinkingDisplay();
 }
 
+function updateDoneChimeDisplay() {
+    setToggle("done-chime-btn", doneChime, "Mute the done chime", "Chime when a reply is done");
+}
+
+function toggleDoneChime() {
+    doneChime = !doneChime;
+    localStorage.setItem('doneChime', doneChime.toString());
+    updateDoneChimeDisplay();
+    if (doneChime) playDoneChime();  // a sample, & unlocks audio on this click
+}
+
+// The done chime: two soft notes made here (Web Audio), no sound file.
+let chimeAudio = null;
+function playDoneChime() {
+    try {
+        chimeAudio = chimeAudio || new (window.AudioContext || window.webkitAudioContext)();
+        if (chimeAudio.state === "suspended") chimeAudio.resume();
+        const start = chimeAudio.currentTime + 0.02;
+        [[659.25, 0], [880, 0.14]].forEach(([freq, at]) => {
+            const tone = chimeAudio.createOscillator();
+            const level = chimeAudio.createGain();
+            tone.type = "sine";
+            tone.frequency.value = freq;
+            level.gain.setValueAtTime(0.0001, start + at);
+            level.gain.exponentialRampToValueAtTime(0.09, start + at + 0.02);
+            level.gain.exponentialRampToValueAtTime(0.0001, start + at + 0.6);
+            tone.connect(level).connect(chimeAudio.destination);
+            tone.start(start + at);
+            tone.stop(start + at + 0.65);
+        });
+    } catch (e) {
+        // No audio here (or not allowed yet): a chime is never essential.
+    }
+}
+
 function updateAutoPlayTTSDisplay() {
     setToggle("auto-play-tts-btn", autoPlayTTS, "Stop reading replies aloud", "Read replies aloud");
     if (!autoPlayTTS) {
