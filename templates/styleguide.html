@@ -113,41 +113,53 @@ python -m pytest -q</pre>
             <div class="message-tool-head">Read from our server: <span class="message-tool-label">https://example.org/</span><span class="message-tool-error"> (failed: timed out after 30s)</span></div>
         </li>
         <li class="message-tool is-running is-card">
-            <div class="message-tool-head">uncloseai-cli is working in this chat's sandbox: <span class="message-tool-label">Add parse() to ago with round-trip tests</span>…</div>
+            <div class="tool-card-head message-tool-head">uncloseai-cli is working · in this chat's sandbox</div>
+            <div class="tool-card-clock">6m 15s</div>
+            <div class="tool-card-title message-tool-label">Add parse() to ago with round-trip tests</div>
             <div class="message-tool-summary">It added parse() and 12 focused tests; the round-trip test now runs 30 generated values and two fail on months.</div>
-            <details class="message-tool-detail" open>
-                <summary>code</summary>
-                <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago, the inverse of human(). Done means: a round-trip test over 30 generated timedeltas, 10 focused tests, the full suite green, bench.png & PARSE.md.</code></pre>
-            </details>
-            <details class="message-tool-detail message-tool-job" open>
-                <summary>job</summary>
-                <dl>
-                    <dt>plan</dt><dd>3/9 done · now: write the round-trip test</dd>
-                    <dt>files changed (2)</dt><dd>/root/work/ago/ago/parse.py
+            <div class="tool-card-plan tool-card-plan-row">
+                <div class="tool-card-bar sg-pct-33" role="progressbar" aria-valuemin="0" aria-valuemax="9" aria-valuenow="3"></div>
+                <div class="tool-card-step">step 4 of 9 · write the round-trip test</div>
+            </div>
+            <div class="message-tool-vitals tool-card-vitals"><span class="message-tool-chip">turn 30</span><span class="message-tool-chip is-meter sg-pct-48">context 30.5k / 64.0k</span><span class="message-tool-chip">38 tool calls</span><span class="message-tool-chip">in tool: bash 8s</span><span class="message-tool-chip is-warn">1 retry</span></div>
+            <div class="tool-card-folds">
+                <details class="message-tool-detail">
+                    <summary>code</summary>
+                    <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago, the inverse of human(). Done means: a round-trip test over 30 generated timedeltas, 10 focused tests, the full suite green, bench.png &amp; PARSE.md.</code></pre>
+                </details>
+                <details class="message-tool-detail message-tool-job" open>
+                    <summary>job</summary>
+                    <dl>
+                        <dt>plan</dt><dd>3/9 done · now: write the round-trip test</dd>
+                        <dt>files changed (2)</dt><dd>/root/work/ago/ago/parse.py
 /root/work/ago/ago/__init__.py</dd>
-                    <dt>model</dt><dd>42 calls · 0 retries · 0 empty</dd>
-                    <dt>tokens</dt><dd>687k in · 15.2k out</dd>
-                    <dt>time</dt><dd>6m 15s</dd>
-                </dl>
-            </details>
-            <details class="message-tool-log">
-                <summary>log · 37 lines</summary>
-                <pre class="message-tool-progress">[bash] git clone https://git.unturf.com/python/ago
+                        <dt>model</dt><dd>42 calls · 0 retries · 0 empty</dd>
+                        <dt>tokens</dt><dd>687k in · 15.2k out</dd>
+                        <dt>time</dt><dd>6m 15s</dd>
+                    </dl>
+                </details>
+                <details class="message-tool-log">
+                    <summary>log · 37 lines</summary>
+                    <pre class="message-tool-progress">[bash] git clone https://git.unturf.com/python/ago
 [write] ago/parse.py
 [bash] python -m pytest -q · 45 passed</pre>
-            </details>
-            <div class="message-tool-vitals"><span class="message-tool-chip is-step" title="step 4/9: write the round-trip test">step 4/9: write the round-trip test</span><span class="message-tool-chip">turn 30</span><span class="message-tool-chip">context 30.5k / 64.0k</span><span class="message-tool-chip">38 tool calls</span><span class="message-tool-chip is-warn">1 retry</span><span class="message-tool-chip">6m 15s</span></div>
+                </details>
+            </div>
         </li>
         <li class="message-tool is-card">
-            <div class="message-tool-head">uncloseai-cli worked in this chat's sandbox: <span class="message-tool-label">Add parse() to ago with round-trip tests</span></div>
-            <details class="message-tool-detail">
-                <summary>code &amp; output</summary>
-                <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago…</code></pre>
-                <div class="message-tool-log-title">delegation log <button type="button" class="copy-button message-tool-copy">Copy</button></div>
-                <pre class="message-tool-output is-log"><code>[bash] python -m pytest -q · 57 passed</code></pre>
-                <div class="message-tool-exit">exit code 0</div>
-            </details>
-            <div class="message-tool-vitals"><span class="message-tool-chip">9/9 steps</span><span class="message-tool-chip">52 turns</span><span class="message-tool-chip">peak context 41.2k</span><span class="message-tool-chip">71 tool calls</span></div>
+            <div class="tool-card-head message-tool-head">uncloseai-cli worked · in this chat's sandbox</div>
+            <div class="tool-card-clock">14m 54s</div>
+            <div class="tool-card-title message-tool-label">Add parse() to ago with round-trip tests</div>
+            <div class="message-tool-vitals tool-card-vitals"><span class="message-tool-chip">9/9 steps</span><span class="message-tool-chip">52 turns</span><span class="message-tool-chip">peak context 41.2k</span><span class="message-tool-chip">71 tool calls</span></div>
+            <div class="tool-card-folds">
+                <details class="message-tool-detail">
+                    <summary>code &amp; output</summary>
+                    <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago…</code></pre>
+                    <div class="message-tool-log-title">delegation log <button type="button" class="copy-button message-tool-copy">Copy</button></div>
+                    <pre class="message-tool-output is-log"><code>[bash] python -m pytest -q · 57 passed</code></pre>
+                    <div class="message-tool-exit">exit code 0</div>
+                </details>
+            </div>
         </li>
         <li class="message-tool">
             <div class="message-tool-head">Shared in this chat's sandbox: <span class="message-tool-label">/root/work/ago/bench.png</span></div>

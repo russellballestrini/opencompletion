@@ -254,20 +254,18 @@ function toolVitals(vitals, running) {
     const plan = vitals.plan || {};
     const llm = vitals.llm || {};
     if (running) {
-        if (plan.total) {
-            const step = Math.min((plan.done || 0) + 1, plan.total);
-            parts.push([`step ${step}/${plan.total}${plan.current ? ": " + plan.current : ""}`, "is-step"]);
-        }
         const limit = vitals.max_turns && vitals.max_turns < TURN_LIMIT_SHOWN ? "/" + vitals.max_turns : "";
         if (vitals.turn) parts.push(`turn ${vitals.turn}${limit}`);
-        if (ctx.used) parts.push(`context ${shortCount(ctx.used)}${ctx.window ? " / " + shortCount(ctx.window) : ""}`);
+        if (ctx.used) {
+            const meter = [`context ${shortCount(ctx.used)}${ctx.window ? " / " + shortCount(ctx.window) : ""}`, "is-meter"];
+            if (ctx.window) meter.push(Math.min(100, Math.round((100 * ctx.used) / ctx.window)));
+            parts.push(meter);
+        }
         if (tools.total) parts.push(`${tools.total} tool call${tools.total === 1 ? "" : "s"}`);
         const act = vitals.activity || {};
         if (act.label) parts.push(act.label + (Number.isFinite(act.elapsed_s) ? ` ${Math.round(act.elapsed_s)}s` : ""));
         if (llm.retries) parts.push([`${llm.retries} retr${llm.retries === 1 ? "y" : "ies"}`, "is-warn"]);
         if (llm.empty) parts.push([`${llm.empty} empty repl${llm.empty === 1 ? "y" : "ies"}`, "is-warn"]);
-        const elapsed = (vitals.time || {}).elapsed_s;
-        if (Number.isFinite(elapsed)) parts.push(shortDuration(elapsed));
     } else {
         if (plan.total) parts.push(`${plan.done || 0}/${plan.total} steps`);
         if (vitals.turn) parts.push(`${vitals.turn} turn${vitals.turn === 1 ? "" : "s"}`);
@@ -278,10 +276,123 @@ function toolVitals(vitals, running) {
     const row = document.createElement("div");
     row.className = "message-tool-vitals";
     for (const part of parts) {
-        const [text, extra] = Array.isArray(part) ? part : [part, ""];
-        row.appendChild(toolChip(text, extra));
+        const [text, extra, pct] = Array.isArray(part) ? part : [part, ""];
+        const chip = toolChip(text, extra);
+        if (Number.isFinite(pct)) chip.style.setProperty("--pct", pct + "%");
+        row.appendChild(chip);
     }
     return row;
+}
+
+// A running agent's plan as a progress bar: "step 4 of 9 · what it does".
+function toolPlan(vitals) {
+    const plan = (vitals || {}).plan || {};
+    if (!plan.total) return null;
+    const done = Math.min(plan.done || 0, plan.total);
+    const box = document.createElement("div");
+    box.className = "tool-card-plan";
+    const bar = document.createElement("div");
+    bar.className = "tool-card-bar";
+    bar.style.setProperty("--pct", Math.round((100 * done) / plan.total) + "%");
+    bar.setAttribute("role", "progressbar");
+    bar.setAttribute("aria-valuemin", "0");
+    bar.setAttribute("aria-valuemax", String(plan.total));
+    bar.setAttribute("aria-valuenow", String(done));
+    const text = document.createElement("div");
+    text.className = "tool-card-step";
+    const step = Math.min(done + 1, plan.total);
+    text.textContent = done >= plan.total
+        ? `all ${plan.total} steps done`
+        : `step ${step} of ${plan.total}${plan.current ? " · " + plan.current : ""}`;
+    box.append(bar, text);
+    return box;
+}
+
+// A delegate is one card, its parts ordered by how often they change:
+// who & what (never) at the top, then the summary (a sentence, now &
+// then), the plan (each step), the vitals (each 15s poll), & the folds
+// last, where an opened log grows. Chat follows the bottom of the page,
+// so the eye rests on what moves most (fox, 2026-10-31).
+function drawDelegateCard(line, data, verbs, open) {
+    const running = data.status === "running";
+    const add = (className, child) => {
+        if (!child) return null;
+        child.classList.add(className);
+        line.appendChild(child);
+        return child;
+    };
+    const div = (text) => {
+        const el = document.createElement("div");
+        if (text !== undefined) el.textContent = text;
+        return el;
+    };
+    const where = toolWhere(data);
+    const head = add("tool-card-head", div(`${verbs[running ? 0 : 1]}${where ? " · " + where : ""}`));
+    head.classList.add("message-tool-head");
+    if (data.status === "error") {
+        const why = document.createElement("span");
+        why.className = "message-tool-error";
+        why.textContent = ` (failed: ${data.error})`;
+        head.appendChild(why);
+    }
+    const elapsed = ((data.vitals || {}).time || {}).elapsed_s;
+    if (Number.isFinite(elapsed)) add("tool-card-clock", div(shortDuration(elapsed)));
+    add("tool-card-title", div(data.label)).classList.add("message-tool-label");
+    if (data.summary && running) add("message-tool-summary", div(data.summary));
+    if (running) add("tool-card-plan-row", toolPlan(data.vitals));
+    if (data.vitals) add("tool-card-vitals", toolVitals(data.vitals, running));
+    const folds = div();
+    folds.className = "tool-card-folds";
+    if (data.detail) {
+        const fold = toolDetail(data.detail, running, data.tool);
+        fold.open = open.detail;
+        folds.appendChild(fold);
+    }
+    const job = data.vitals ? toolJob(data.vitals) : null;
+    if (job) {
+        job.open = open.job;
+        folds.appendChild(job);
+    }
+    if (data.progress && running) folds.appendChild(toolLog(data.progress, open.log));
+    if (folds.children.length) line.appendChild(folds);
+    const sources = toolSources(data.sources);
+    if (sources) add("tool-card-sources", sources);
+}
+
+// A delegate's newest session lines, folded; it grows as the run goes.
+function toolLog(progress, open) {
+    const log = document.createElement("details");
+    log.className = "message-tool-log";
+    const summary = document.createElement("summary");
+    const count = progress.split("\n").length;
+    summary.textContent = `log · ${count} line${count === 1 ? "" : "s"}`;
+    log.appendChild(summary);
+    const body = document.createElement("pre");
+    body.className = "message-tool-progress";
+    body.textContent = progress;
+    log.appendChild(body);
+    log.open = open;
+    return log;
+}
+
+// Pages a call found, or files it made (our own /attachments/ links).
+function toolSources(found) {
+    const sources = (found || []).filter(
+        (s) => /^https?:\/\//.test(s.url) || /^\/attachments\/[0-9a-f]{32}\//.test(s.url));
+    if (!sources.length) return null;
+    const list = document.createElement("ol");
+    list.className = "message-tool-sources";
+    for (const source of sources) {
+        const item = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = source.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = source.title || source.url;
+        item.appendChild(link);
+        list.appendChild(item);
+    }
+    return list;
 }
 
 // One tool's line, drawn from a tool_activity event or a saved trail entry.
@@ -315,6 +426,10 @@ function drawToolLine(line, data) {
     line.classList.toggle("is-running", data.status === "running");
     line.classList.toggle("is-error", data.status === "error");
     line.classList.toggle("is-card", delegating);
+    if (delegating) {
+        drawDelegateCard(line, data, verbs, {detail: wasOpen, job: jobWasOpen, log: logWasOpen});
+        return;
+    }
     const where = toolWhere(data);
     const verb = verbs[data.status === "running" ? 0 : 1];
     const head = document.createElement("div");
@@ -327,79 +442,20 @@ function drawToolLine(line, data) {
     head.appendChild(about);
     if (data.status === "running") head.append("…");
     line.appendChild(head);
-    // How a long call is going, in a sentence or two (tools/loop.py): read
-    // first, the job & log below it for detail.
-    if (data.summary && data.status === "running") {
-        const said = document.createElement("div");
-        said.className = "message-tool-summary";
-        said.textContent = data.summary;
-        line.appendChild(said);
-    }
     if (data.status === "error") {
         const why = document.createElement("span");
         why.className = "message-tool-error";
         why.textContent = ` (failed: ${data.error})`;
         head.appendChild(why);
     }
-    // A delegate's task is long prose already folded under "code": its line
-    // keeps the room for progress instead of repeating the task.
-    if (data.detail && data.detail.input && data.tool !== "delegate") {
-        line.appendChild(toolPreview(data.detail.input));
-    }
-    // The fold sits under the line, above the log: the log grows down the
-    // page & must not push it out of reach (2026-10-31).
+    if (data.detail && data.detail.input) line.appendChild(toolPreview(data.detail.input));
     if (data.detail) {
         const fold = toolDetail(data.detail, data.status === "running", data.tool);
         fold.open = wasOpen;
         line.appendChild(fold);
     }
-    if (data.vitals) {
-        const job = toolJob(data.vitals);
-        if (job) {
-            job.open = jobWasOpen;
-            line.appendChild(job);
-        }
-    }
-    // How a long call (delegate) is getting on: the newest lines of its
-    // session, while it runs.
-    if (data.progress && data.status === "running") {
-        const log = document.createElement("details");
-        log.className = "message-tool-log";
-        const summary = document.createElement("summary");
-        const count = data.progress.split("\n").length;
-        summary.textContent = `log · ${count} line${count === 1 ? "" : "s"}`;
-        log.appendChild(summary);
-        const progress = document.createElement("pre");
-        progress.className = "message-tool-progress";
-        progress.textContent = data.progress;
-        log.appendChild(progress);
-        log.open = logWasOpen;
-        line.appendChild(log);
-    }
-    // The vitals row sits under the log: the log grows down the page & the
-    // chat follows its newest rows, so the vitals stay in view beside them.
-    if (data.vitals) {
-        const row = toolVitals(data.vitals, data.status === "running");
-        if (row) line.appendChild(row);
-    }
-    // Pages it found, or files it made (our own /attachments/ links).
-    const sources = (data.sources || []).filter(
-        (s) => /^https?:\/\//.test(s.url) || /^\/attachments\/[0-9a-f]{32}\//.test(s.url));
-    if (sources.length) {
-        const list = document.createElement("ol");
-        list.className = "message-tool-sources";
-        for (const source of sources) {
-            const item = document.createElement("li");
-            const link = document.createElement("a");
-            link.href = source.url;
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-            link.textContent = source.title || source.url;
-            item.appendChild(link);
-            list.appendChild(item);
-        }
-        line.appendChild(list);
-    }
+    const sources = toolSources(data.sources);
+    if (sources) line.appendChild(sources);
 }
 
 // The first lines of a code tool's code or command, always in view.

@@ -188,7 +188,9 @@ window.addEventListener('load', async () => {
         const made = ran.querySelectorAll('a');
         check(made.length === 1 && made[0].getAttribute('href') === '/attachments/0123456789abcdef0123456789abcdef/plot.png', 'artifacts linked, nothing else');
         deliver('tool_activity', {id: 11, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running'});
-        check(/^uncloseai-cli is working in this chat's sandbox: make tests pass…$/.test(document.querySelector('#message-11 .message-tool:last-child').textContent), 'delegate line');
+        const card11 = document.querySelector('#message-11 .message-tool:last-child');
+        check(card11.querySelector('.tool-card-head').textContent === "uncloseai-cli is working · in this chat's sandbox" &&
+            card11.querySelector('.tool-card-title').textContent === 'make tests pass', 'delegate card: ' + card11.textContent);
         // Progress updates the delegate's running line in place: one line,
         // the newest progress, & no repeat of the task above it.
         deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
@@ -209,8 +211,8 @@ window.addEventListener('load', async () => {
         deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
             progress: '[bash] make test\n↳ 45 passed', detail: {language: '', input: 'make tests pass\nall of them'}});
         check(document.querySelector('#message-18 .message-tool-log').open, 'an opened log stays open');
-        const order = [...document.querySelector('#message-18 .message-tool').children].map((el) => el.className);
-        check(order.indexOf('message-tool-detail') < order.indexOf('message-tool-log'), 'the fold stays above the log: ' + order.join(','));
+        const order = [...document.querySelector('#message-18 .tool-card-folds').children].map((el) => el.className);
+        check(order.indexOf('message-tool-detail') < order.indexOf('message-tool-log'), 'the task fold comes before the log: ' + order.join(','));
         const w15 = document.querySelectorAll('#message-18 .message-tool');
         check(w15.length === 1, 'progress updates one delegate line, not ' + w15.length);
         check(w15[0].querySelector('.message-tool-progress').textContent === '[bash] make test\n↳ 45 passed', 'newest progress shown');
@@ -220,9 +222,12 @@ window.addEventListener('load', async () => {
             progress: '[bash] make test', detail: {language: '', input: 'make tests pass'},
             vitals: {turn: 7, max_turns: 100, context: {used: 18234, peak: 21000, window: 82000}, tools: {total: 23, by_name: {bash: 15}},
                      activity: {label: 'in tool: bash', elapsed_s: 8.2}}});
-        const kids = [...document.querySelector('#message-18 .message-tool').children].map((el) => el.className);
-        check(kids.indexOf('message-tool-vitals') === kids.length - 1 && kids.indexOf('message-tool-log') < kids.indexOf('message-tool-vitals'),
-            'vitals under the log: ' + kids.join(','));
+        // The card runs from what never changes to what changes most:
+        // who & what, the summary, the plan, the vitals, the folds last.
+        const kids = [...document.querySelector('#message-18 .message-tool').children].map((el) => el.classList[0]);
+        const at = (name) => kids.indexOf(name);
+        check(at('tool-card-head') < at('tool-card-title') && at('tool-card-title') < at('message-tool-vitals') &&
+            at('message-tool-vitals') < at('tool-card-folds') && at('tool-card-folds') === kids.length - 1, 'card order: ' + kids.join(','));
         const live = document.querySelector('#message-18 .message-tool-vitals');
         check(live && chips(live) === 'turn 7/100 · context 18.2k / 82.0k · 23 tool calls · in tool: bash 8s', 'live vitals: ' + (live && chips(live)));
         // uncloseai-cli's "no limit" (9001 turns) is never shown as a limit.
@@ -233,8 +238,8 @@ window.addEventListener('load', async () => {
         // A summary is the line's first word on how it goes.
         deliver('tool_activity', {id: 21, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             summary: 'Cloned ago and ran its suite: 42 pass.', progress: '[bash] make test'});
-        const said = document.querySelector('#message-21 .message-tool > :nth-child(2)');
-        check(said && said.className === 'message-tool-summary' && said.textContent === 'Cloned ago and ran its suite: 42 pass.', 'summary right under the line');
+        const said = document.querySelector('#message-21 .tool-card-title + .message-tool-summary');
+        check(said && said.textContent === 'Cloned ago and ran its suite: 42 pass.', 'summary right under what it was asked');
         // Play reads the human words only: never code, tool lines or folds,
         // and the glow lights those same words (fox, 2026-10-31).
         const said24 = document.createElement('div');
@@ -276,7 +281,13 @@ window.addEventListener('load', async () => {
                      llm: {calls: 9, retries: 2, empty: 1, last_error: 'empty_delivery'}, tokens: {input: 50000, output: 3000},
                      files: {changed: ['ago/tests/test_new.py'], count: 1}, time: {elapsed_s: 241.4, budget_s: null}}});
         const row20 = chips(document.querySelector('#message-20 .message-tool-vitals'));
-        check(row20 === 'step 3/5: run tests · turn 3 · 2 retries · 1 empty reply · 4m 1s', 'plan & health row: ' + row20);
+        check(row20 === 'turn 3 · 2 retries · 1 empty reply', 'health chips: ' + row20);
+        check(document.querySelector('#message-20 .tool-card-step').textContent === 'step 3 of 5 · run tests', 'plan step');
+        const bar20 = document.querySelector('#message-20 .tool-card-bar');
+        check(bar20.style.getPropertyValue('--pct') === '40%' && bar20.getAttribute('aria-valuenow') === '2', 'plan bar 2 of 5');
+        check(document.querySelector('#message-20 .tool-card-clock').textContent === '4m 1s', 'the clock in the corner');
+        const summaryAt = [...document.querySelector('#message-20 .message-tool').children].map((el) => el.classList[0]);
+        check(summaryAt.indexOf('tool-card-plan-row') < summaryAt.indexOf('message-tool-vitals'), 'plan above vitals: ' + summaryAt.join(','));
         const job = document.querySelector('#message-20 .message-tool-job');
         check(job && job.open && /files changed \(1\)/.test(job.textContent) && /ago\/tests\/test_new\.py/.test(job.textContent), 'job fold lists files');
         check(/last error: empty_delivery/.test(job.textContent) && /50\.0k in · 3\.0k out/.test(job.textContent), 'job fold: model & tokens');

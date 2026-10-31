@@ -2145,24 +2145,107 @@ a:hover {
     color: var(--text-error);
 }
 
-/* A long call (delegate) is a card: its summary, folds & vitals together. */
+/* A delegate is one card. Its rows run from what never changes to what
+   changes most (8-tools.js drawDelegateCard): who & where with a live
+   clock, what it was asked, the summary, the plan, the vitals, then the
+   folds, where an opened log grows. Reorder by editing the areas only. */
 .message-tool.is-card {
-    padding: var(--space-3);
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+    grid-template-areas:
+        "dot head    clock"
+        ".   title   title"
+        ".   summary summary"
+        ".   plan    plan"
+        ".   vitals  vitals"
+        ".   folds   folds"
+        ".   sources sources";
+    /* Margins, not row-gap: a row a card leaves empty (no summary yet, a
+       finished run's plan) must not leave a gap. */
+    row-gap: 0;
+    padding: var(--space-3) var(--space-4);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     background-color: var(--bg-secondary);
+    box-shadow: var(--shadow-sm);
 }
 
-.message-tool.is-card .message-tool-head {
-    font-weight: 500;
+.message-tool.is-card::before { grid-area: dot; }
+.message-tool.is-card > .tool-card-title { margin-top: var(--space-1); }
+.message-tool.is-card > :is(.message-tool-summary, .tool-card-plan-row, .tool-card-vitals, .tool-card-folds, .tool-card-sources) {
+    margin-top: var(--space-2);
+}
+.message-tool.is-card > .tool-card-head { grid-area: head; }
+.message-tool.is-card > .tool-card-clock { grid-area: clock; }
+.message-tool.is-card > .tool-card-title { grid-area: title; }
+.message-tool.is-card > .message-tool-summary { grid-area: summary; }
+.message-tool.is-card > .tool-card-plan-row { grid-area: plan; }
+.message-tool.is-card > .tool-card-vitals { grid-area: vitals; }
+.message-tool.is-card > .tool-card-folds { grid-area: folds; }
+.message-tool.is-card > .tool-card-sources { grid-area: sources; }
+
+.message-tool.is-card.is-running {
+    border-color: color-mix(in srgb, var(--button-primary) 35%, var(--border-color));
 }
 
-/* How a long call is going, in a sentence or two: read first. */
+.message-tool.is-card.is-error {
+    border-color: color-mix(in srgb, var(--text-error) 45%, var(--border-color));
+}
+
+.tool-card-head {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.tool-card-clock {
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.tool-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--text-primary);
+}
+
+/* The plan: a thin bar & the step it is on. */
+.tool-card-plan {
+    display: grid;
+    gap: var(--space-1);
+}
+
+.tool-card-bar {
+    height: 4px;
+    border-radius: 999px;
+    background:
+        linear-gradient(var(--button-primary), var(--button-primary)) 0 0 / var(--pct, 0%) 100% no-repeat,
+        var(--bg-tertiary);
+    transition: background-size 0.4s ease;
+}
+
+/* How a long call is going, in a sentence or two; fades in when new. */
 .message-tool-summary {
     padding-left: var(--space-3);
     border-left: 2px solid var(--button-primary);
     font-size: 14px;
     line-height: 1.5;
+    color: var(--text-primary);
+    animation: tool-fade-in 0.3s ease;
+}
+
+@keyframes tool-fade-in {
+    from { opacity: 0.4; }
+    to { opacity: 1; }
+}
+
+/* Fixed fills for /styleguide's examples (chat sets --pct from vitals). */
+.sg-pct-33 { --pct: 33%; }
+.sg-pct-48 { --pct: 48%; }
+
+.tool-card-step {
+    font-size: 13px;
     color: var(--text-primary);
 }
 
@@ -2203,6 +2286,13 @@ a:hover {
 
 .message-tool-chip.is-step {
     color: var(--text-primary);
+}
+
+/* A chip that is also a gauge (context used of its window). */
+.message-tool-chip.is-meter {
+    background:
+        linear-gradient(color-mix(in srgb, var(--button-primary) 18%, transparent), color-mix(in srgb, var(--button-primary) 18%, transparent)) 0 0 / var(--pct, 0%) 100% no-repeat,
+        var(--bg-tertiary);
 }
 
 .message-tool-chip.is-warn {
@@ -2254,6 +2344,34 @@ a:hover {
 .message-tool-detail {
     min-width: 0;
     max-width: 100%;
+}
+
+.tool-card-folds {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-1);
+    min-width: 0;
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border-color);
+}
+
+.tool-card-folds > details {
+    min-width: 0;
+}
+
+.tool-card-folds > details > summary {
+    border: 1px solid var(--border-color);
+}
+
+.tool-card-folds > details[open] {
+    order: 1;
+    flex-basis: 100%;
+}
+
+.tool-card-folds > details[open] > summary {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
 }
 
 /* A code tool's code & output. Code keeps its lines (scrolling inside
@@ -2391,7 +2509,7 @@ a:hover {
 
 @media (max-width: 768px) {
     .message-tool.is-card {
-        padding: var(--space-2);
+        padding: var(--space-2) var(--space-3);
     }
 
     .message-tool-job dl {
