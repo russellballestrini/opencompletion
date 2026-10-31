@@ -16,6 +16,15 @@ function senderLabel(name) {
     return name === username ? `**[${safe}](/profile):**` : `**${safe}:**`;
 }
 
+// Who a message is from, as classes its look follows: a person's words in
+// a bubble (ours on the right), a model's reply as plain text across the
+// pane, so the two never read alike (group3r, 2026-10-31).
+function markSender(wrapper, name, fromModel) {
+    wrapper.classList.toggle("is-model", Boolean(fromModel));
+    wrapper.classList.toggle("is-person", !fromModel);
+    wrapper.classList.toggle("is-mine", !fromModel && name === username);
+}
+
 // Fork, on a model's reply: hover (or focus) says what it makes; a click
 // calls forkFromMessage() in base.html & opens the new chat.
 function addForkButton(buttonContainer, messageId) {
@@ -42,6 +51,7 @@ socket.on("chat_message", (data) => {
     const messageWrapper = document.createElement("div");
     messageWrapper.className = "message-wrapper";
     messageWrapper.id = "message-" + data.id;
+    if (stored && data.username) markSender(messageWrapper, data.username, data.from_model);
 
     const newMessage = document.createElement("div");
     newMessage.className = "message-content";
@@ -195,6 +205,7 @@ socket.on("previous_messages", (data) => {
     const messageWrapper = document.createElement("div");
     messageWrapper.className = "message-wrapper";
     messageWrapper.id = "message-" + data.id;
+    markSender(messageWrapper, data.username, data.from_model);
 
     const newMessage = document.createElement("div");
     newMessage.className = "message-content";
@@ -339,7 +350,7 @@ socket.on("message_chunk", (data) => {
     // If the message wrapper doesn't exist, create it
     if (!messageWrapper) {
         messageWrapper = document.createElement("div");
-        messageWrapper.className = "message-wrapper";
+        messageWrapper.className = "message-wrapper is-model";
         messageWrapper.id = wrapperId;
         document.getElementById("chat").appendChild(messageWrapper);
     }

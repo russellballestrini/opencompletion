@@ -292,6 +292,42 @@ body.chat-page {
     min-width: 0;
 }
 
+/* A person's words sit in a bubble, ours on the right; a model's reply is
+   plain text across the pane (5-messages.js markSender), so who said what
+   reads at a glance (group3r, 2026-10-31). */
+.message-wrapper.is-person > .message-content {
+    width: fit-content;
+    max-width: min(100%, 680px);
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-tertiary);
+}
+
+.message-wrapper.is-mine {
+    align-items: flex-end;
+}
+
+.message-wrapper.is-mine > .message-content {
+    border-color: color-mix(in srgb, var(--button-primary) 30%, var(--border-color));
+    background-color: color-mix(in srgb, var(--button-primary) 9%, var(--bg-secondary));
+}
+
+/* The sender's name inside a bubble is a quiet label, not a heading. */
+.message-wrapper.is-person > .message-content > p:first-child > strong:only-child {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.message-wrapper.is-person > .message-content > p:first-child {
+    margin: 0 0 var(--space-1);
+}
+
+.message-wrapper.is-person > .message-content > :last-child {
+    margin-bottom: 0;
+}
+
 .message-wrapper > .button-container {
     order: 2;
     display: flex;

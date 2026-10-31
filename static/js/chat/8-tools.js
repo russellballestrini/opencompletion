@@ -681,7 +681,7 @@ socket.on("tool_activity", (data) => {
     let messageWrapper = document.getElementById(wrapperId);
     if (!messageWrapper) {
         messageWrapper = document.createElement("div");
-        messageWrapper.className = "message-wrapper";
+        messageWrapper.className = "message-wrapper is-model";
         messageWrapper.id = wrapperId;
         document.getElementById("chat").appendChild(messageWrapper);
     }
