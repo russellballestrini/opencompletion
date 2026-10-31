@@ -216,7 +216,12 @@ def label_for(name, arguments):
         if arguments.get("os") == "freebsd":
             label += " on FreeBSD"
         return str(label)[:200]
-    for key in ("query", "url", "command", "path", "task"):
+    if arguments.get("task"):
+        # A delegate's task is paragraphs; its line names it in a glance and
+        # the whole task stays in the line's fold.
+        first = str(arguments["task"]).strip().splitlines()[0]
+        return first if len(first) <= 80 else first[:79].rstrip() + "…"
+    for key in ("query", "url", "command", "path"):
         if arguments.get(key):
             return str(arguments[key]).splitlines()[0][:200]
     return name

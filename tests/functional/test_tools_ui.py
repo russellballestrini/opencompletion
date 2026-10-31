@@ -188,6 +188,18 @@ window.addEventListener('load', async () => {
         check(made.length === 1 && made[0].getAttribute('href') === '/attachments/5/plot.png', 'artifacts linked, nothing else');
         deliver('tool_activity', {id: 11, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running'});
         check(/^uncloseai-cli is working in this chat's sandbox: make tests pass…$/.test(document.querySelector('#message-11 .message-tool:last-child').textContent), 'delegate line');
+        // Progress updates the delegate's running line in place: one line,
+        // the newest progress, & no repeat of the task above it.
+        deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
+            detail: {language: '', input: 'make tests pass\nall of them'}});
+        deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
+            progress: '[bash] git clone', detail: {language: '', input: 'make tests pass\nall of them'}});
+        deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
+            progress: '[bash] make test', detail: {language: '', input: 'make tests pass\nall of them'}});
+        const w15 = document.querySelectorAll('#message-18 .message-tool');
+        check(w15.length === 1, 'progress updates one delegate line, not ' + w15.length);
+        check(w15[0].querySelector('.message-tool-progress').textContent === '[bash] make test', 'newest progress shown');
+        check(!w15[0].querySelector('.message-tool-preview'), 'a delegate line does not repeat its task');
         // A code tool's line folds open to its code & output, as text.
         deliver('tool_activity', {id: 12, tool: 'run_code', label: 'python', where: 'unsandbox', asker: username, status: 'done',
             detail: {language: 'python', input: 'print("<b>hi</b>")', stdout: '<b>hi</b>\n', stderr: 'oops', exit_code: 1}});

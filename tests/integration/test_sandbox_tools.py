@@ -486,6 +486,13 @@ def test_delegate_runs_unclose_with_a_token_only_its_vault_holds(unsandbox, room
     assert not any("MODEL_API_KEY_1" in k or "sk-" in v for k, v in env.items())
 
 
+def test_a_delegate_line_names_its_task_in_a_glance():
+    long_task = "In this sandbox, clone https://git.unturf.com/python/ago.git " * 3
+    label = tools.label_for("delegate", {"task": long_task + "\nmore lines"})
+    assert len(label) == 80 and label.endswith("…")
+    assert tools.label_for("delegate", {"task": "make tests pass"}) == "make tests pass"
+
+
 def test_the_progress_peek_is_unbuffered(unsandbox, room):
     # timeout kills the following peek; a block-buffered pipe loses every
     # row it printed, so progress never showed (2026-10-31).

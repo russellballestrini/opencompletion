@@ -202,7 +202,11 @@ function drawToolLine(line, data) {
         why.textContent = ` (failed: ${data.error})`;
         line.appendChild(why);
     }
-    if (data.detail && data.detail.input) line.appendChild(toolPreview(data.detail.input));
+    // A delegate's task is long prose already folded under "code": its line
+    // keeps the room for progress instead of repeating the task.
+    if (data.detail && data.detail.input && data.tool !== "delegate") {
+        line.appendChild(toolPreview(data.detail.input));
+    }
     // How a long call (delegate) is getting on: the newest lines of its
     // session, while it runs.
     if (data.progress && data.status === "running") {
@@ -210,6 +214,7 @@ function drawToolLine(line, data) {
         progress.className = "message-tool-progress";
         progress.textContent = data.progress;
         line.appendChild(progress);
+        progress.scrollTop = progress.scrollHeight;  // newest rows in view
     }
     if (data.detail) line.appendChild(toolDetail(data.detail, data.status === "running"));
     // Pages it found, or files it made (our own /attachments/ links).
@@ -325,11 +330,18 @@ socket.on("tool_activity", (data) => {
     }
     const lines = toolLines(messageWrapper, data);
     let line = lines.lastElementChild;
-    if (data.status === "running" || !line || !line.classList.contains("is-running")) {
+    // A running line is updated in place by its own later events: its end,
+    // & a long call's progress (also "running"), which used to start a
+    // second line for the same delegate (2026-10-31).
+    const key = `${data.tool}\u0000${data.label || ""}`;
+    const same = line && line.classList.contains("is-running") &&
+        (data.status !== "running" || line.dataset.toolKey === key);
+    if (!same) {
         line = document.createElement("li");
         line.className = "message-tool";
         lines.appendChild(line);
     }
+    line.dataset.toolKey = key;
     drawToolLine(line, data);
     if (!userHasScrolledUp) {
         document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
