@@ -212,6 +212,9 @@ window.addEventListener('load', async () => {
             progress: '[bash] make test', detail: {language: '', input: 'make tests pass'},
             vitals: {turn: 7, max_turns: 100, context: {used: 18234, peak: 21000, window: 82000}, tools: {total: 23, by_name: {bash: 15}},
                      activity: {label: 'in tool: bash', elapsed_s: 8.2}}});
+        const kids = [...document.querySelector('#message-18 .message-tool').children].map((el) => el.className);
+        check(kids.indexOf('message-tool-vitals') === kids.length - 1 && kids.indexOf('message-tool-progress') < kids.indexOf('message-tool-vitals'),
+            'vitals under the log: ' + kids.join(','));
         const live = document.querySelector('#message-18 .message-tool-vitals');
         check(live && live.textContent === 'turn 7/100 · context 18.2k / 82.0k · 23 tool calls · in tool: bash 8s', 'live vitals: ' + (live && live.textContent));
         // The plan step leads; model trouble & time show; the job folds open.

@@ -296,10 +296,6 @@ function drawToolLine(line, data) {
         why.textContent = ` (failed: ${data.error})`;
         line.appendChild(why);
     }
-    if (data.vitals) {
-        const row = toolVitals(data.vitals, data.status === "running");
-        if (row) line.appendChild(row);
-    }
     // A delegate's task is long prose already folded under "code": its line
     // keeps the room for progress instead of repeating the task.
     if (data.detail && data.detail.input && data.tool !== "delegate") {
@@ -327,6 +323,12 @@ function drawToolLine(line, data) {
         progress.textContent = data.progress;
         progress.title = "delegation log";
         line.appendChild(progress);
+    }
+    // The vitals row sits under the log: the log grows down the page & the
+    // chat follows its newest rows, so the vitals stay in view beside them.
+    if (data.vitals) {
+        const row = toolVitals(data.vitals, data.status === "running");
+        if (row) line.appendChild(row);
     }
     // Pages it found, or files it made (our own /attachments/ links).
     const sources = (data.sources || []).filter(
