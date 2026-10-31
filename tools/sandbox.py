@@ -730,16 +730,28 @@ def _review(context, sandbox, run_dir, task, watch, vitals, log_tail):
     decision, note = oversight.parse_decision(said)
     verdict = {"decision": decision, "note": note, "at": digest["elapsed"]}
     if decision == "steer":
+        # By its session id when the vitals gave one (the durable handle),
+        # else its pid. The note joins its conversation at its next model
+        # call, as a note typed into the interactive REPL does.
+        target = (
+            shlex.quote(watch.session_id)
+            if watch.session_id
+            else f"$(cat {run_dir}/pid)"
+        )
         steered = _execute(
             sandbox,
             "PATH=/root/.local/bin:$PATH unclose --steer "
-            f"$(cat {run_dir}/pid) {shlex.quote(note)} 2>&1",
+            f"{target} {shlex.quote(note)} 2>&1",
             30,
         )
-        if steered.get("exit_code") not in (0, None):
-            # An uncloseai-cli without a steering inbox (older image): the
-            # note is shown, not delivered.
-            verdict["undelivered"] = True
+        code = steered.get("exit_code")
+        if code == 2:
+            # An uncloseai-cli without the steering inbox (an older image)
+            # refuses the flag: the note is shown, not delivered.
+            verdict["undelivered"] = "this sandbox's uncloseai-cli takes no notes yet"
+        elif code not in (0, None):
+            # 3: no running agent matched; 4: empty note.
+            verdict["undelivered"] = (steered.get("stdout") or "refused").strip()[:120]
     return verdict
 
 

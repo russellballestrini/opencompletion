@@ -436,7 +436,10 @@ function toolOversight(review) {
     const said = {continue: "continue", steer: "steered", stop: "stopped"}[review.decision] || review.decision;
     let text = `Overseer${review.at ? " · " + review.at : ""}: ${said}`;
     if (review.note) text += ` — ${review.note}`;
-    if (review.undelivered) text += " (not delivered: this sandbox's uncloseai-cli takes no notes yet)";
+    if (review.undelivered) {
+        const why = typeof review.undelivered === "string" ? review.undelivered : "this sandbox's uncloseai-cli takes no notes yet";
+        text += ` (not delivered: ${why})`;
+    }
     box.textContent = text;
     return box;
 }

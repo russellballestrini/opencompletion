@@ -1147,6 +1147,9 @@ def test_delegate_shows_its_progress_while_it_runs(unsandbox, room):
         progress=lambda text, **k: seen.append(text),
     )
     result = delegate(room, unsandbox, context=context)
+    # Each tick reports (its heartbeat moves on); the log itself changes
+    # only when the run shows something new.
+    seen = [text for n, text in enumerate(seen) if n == 0 or text != seen[n - 1]]
     assert seen == [
         "● bash git clone https://git.unturf.com/python/ago.git",
         "● bash make test\n42 passed",
