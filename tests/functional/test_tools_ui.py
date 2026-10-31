@@ -245,6 +245,25 @@ window.addEventListener('load', async () => {
         wrapSentencesForGlow(said24.querySelector('.message-content'));
         check(!said24.querySelector('pre .tts-sentence, .message-tools .tts-sentence, details .tts-sentence'), 'glow skips what is not spoken');
         check(said24.querySelectorAll('.tts-sentence').length > 0, 'glow lights the prose');
+        // A wide image in a reply is never cut off: it fits the chat pane,
+        // centred on it (fox, 2026-10-31: a slide ran off the right edge).
+        const slideCanvas = document.createElement('canvas');
+        slideCanvas.width = 2400; slideCanvas.height = 600;
+        const slidePic = document.createElement('img');
+        slidePic.src = slideCanvas.toDataURL();
+        const slideMsg = document.createElement('div');
+        slideMsg.className = 'message-wrapper';
+        slideMsg.id = 'message-25';
+        slideMsg.innerHTML = '<div class="message-content"><p>Slide 2</p></div>';
+        slideMsg.querySelector('.message-content').appendChild(slidePic);
+        document.getElementById('chat').appendChild(slideMsg);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const slidePane = document.getElementById('chat').getBoundingClientRect();
+        const slideBox = slidePic.getBoundingClientRect();
+        check(slideBox.left >= slidePane.left - 1 && slideBox.right <= slidePane.right + 1, `wide image inside the pane (${slideBox.left}..${slideBox.right} in ${slidePane.left}..${slidePane.right})`);
+        const slidePaneMid = (slidePane.left + slidePane.right) / 2, slideMid = (slideBox.left + slideBox.right) / 2;
+        check(Math.abs(slidePaneMid - slideMid) < 24, `wide image centred on the pane (${slideMid} vs ${slidePaneMid})`);
+        check(Math.abs(slideBox.width / slideBox.height - 4) < 0.05, 'wide image keeps its proportions');
         // The plan step leads; model trouble & time show; the job folds open.
         deliver('tool_activity', {id: 20, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             vitals: {turn: 3, plan: {done: 2, total: 5, current: 'run tests'}, context: {}, tools: {}, activity: {},

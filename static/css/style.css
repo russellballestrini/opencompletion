@@ -265,6 +265,9 @@ body.chat-page {
     overflow-x: hidden;
     padding: var(--space-6) var(--space-4);
     color: var(--text-primary);
+    /* Media in a reply sizes against the whole chat pane (cqw), not the
+       760px text column: see .message-content img below. */
+    container-type: inline-size;
 }
 
 #chat > *,
@@ -353,6 +356,25 @@ body.chat-page {
     overflow-wrap: break-word;
     word-break: break-word;
     min-width: 0;
+}
+
+/* Images & video in a reply: never cut off, & a wide one uses the whole
+   chat pane, centred, instead of overflowing the text column to the right
+   (fox, 2026-10-31: a slide image ran off the right edge, clipped, beside
+   empty space on the left). Centred on the column, which is centred in the
+   pane; capped to the pane less its gutters; scaled, never stretched. */
+.message-content img,
+.message-content video {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: calc(100cqw - 2 * var(--space-4));
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: var(--radius-md);
 }
 
 .message-content p:last-child {
