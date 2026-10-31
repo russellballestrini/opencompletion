@@ -476,11 +476,12 @@ def test_a_sandbox_file_becomes_a_link_in_its_chat(sandbox_disk, room, monkeypat
     assert item["mime_type"] == (
         "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     )
-    assert "[name](url)" in result["note"]
+    assert item["markdown"].startswith("[📎 my deck\\.pptx · 5 KB](/attachments/")
+    assert "markdown" in result["note"]
     # its tool line links the file, as a run_code artifact's does
     from tools.loop import sources_of
 
-    assert sources_of(result) == [{"url": attachment.url, "title": item["name"]}]
+    assert sources_of(result) == [{"url": attachment.url, "title": item["filename"]}]
 
 
 def test_sharing_says_what_is_wrong_with_a_path(sandbox_disk, room, monkeypatch):

@@ -256,7 +256,11 @@ def fork_conversation(source_room, up_to=None):
         content = copy_attachments(msg.content, source_room.id, new_room.id, relinked)
         copy = Message(username=msg.username, content=content, room_id=new_room.id)
         copy.thinking = msg.thinking
-        copy.tool_trail = msg.tool_trail
+        # A trail's file links (run_code, sandbox_share_file) get the
+        # fork's copies too, so they outlive the original chat.
+        copy.tool_trail = msg.tool_trail and copy_attachments(
+            msg.tool_trail, source_room.id, new_room.id, relinked
+        )
         db.session.add(copy)
     db.session.commit()
 

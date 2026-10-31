@@ -346,7 +346,7 @@ def sources_of(result):
     """The pages a result came from, as [{url, title}] for the room."""
     if result.get("artifacts"):
         return [
-            {"url": item["url"], "title": item["name"]}
+            {"url": item["url"], "title": item["filename"]}
             for item in result["artifacts"]
             if item.get("url")
         ]

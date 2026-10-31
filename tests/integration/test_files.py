@@ -157,6 +157,101 @@ def test_a_solo_chats_files_are_its_owners_alone(test_app):
     assert client_for(test_app, owner).get(url).data == b"diary"
 
 
+def test_a_file_is_found_by_its_random_id_and_name_together(test_app):
+    make_room("lobby")
+    client = client_for(test_app)
+    body = upload(client, "lobby", b"public notes", "notes.txt", "text/plain").json
+    assert client.get(body["url"]).status_code == 200
+    from models import Attachment
+
+    row = Attachment.query.one()
+    # Its address carries a random id, never the row id that counts up.
+    assert len(body["id"]) == 32 and body["id"] in body["url"]
+    assert client.get(f"/attachments/{row.id}/notes.txt").status_code == 404
+    assert client.get(f"/attachments/{'0' * 32}/notes.txt").status_code == 404
+    # & the name must match too.
+    assert client.get(f"/attachments/{body['id']}/x").status_code == 404
+    assert client.get(f"/attachments/{body['id']}/notes.TXT").status_code == 404
+
+
+def test_every_file_reads_as_the_markdown_our_composer_writes(test_app):
+    from blob_store import attachment_markdown
+    from models import Attachment, db
+
+    make_room("lobby")
+    client = client_for(test_app)
+    image = upload(client, "lobby", PNG, "a (b).png", "image/png").json
+    text = upload(client, "lobby", b"x" * 2048, "*notes*.txt", "text/plain").json
+    assert (
+        image["markdown"]
+        == f"![a \\(b\\)\\.png](/attachments/{image['id']}/a%20%28b%29.png)"
+    )
+    # (an upload's name loses * on the way in; the label escapes _ & .)
+    assert text["markdown"] == (
+        f"[📎 \\_notes\\_\\.txt · 2 KB](/attachments/{text['id']}/_notes_.txt)"
+    )
+    # The link it writes opens the file.
+    link = image["markdown"].split("](")[1].rstrip(")")
+    assert client.get(link).data == PNG
+    attachment = Attachment.query.filter_by(public_id=image["id"]).one()
+    assert attachment_markdown(attachment, "a [label]") == (
+        f"![a \\[label\\]](/attachments/{image['id']}/a%20%28b%29.png)"
+    )
+
+
+def test_base64_images_inside_messages_move_to_the_blob_store(test_app):
+    import base64
+
+    import app as app_module
+    from models import Attachment, Message, db
+
+    room = make_room("lobby")
+    encoded = base64.b64encode(PNG).decode()
+    old = Message(
+        username="dall-e",
+        room_id=room.id,
+        content=f'<img src="data:image/png;base64,{encoded}" alt="a &amp; cat"><p>p</p>',
+    )
+    plain = Message(username="fox", room_id=room.id, content="no images here")
+    db.session.add_all([old, plain])
+    db.session.commit()
+    assert app_module.backfill_blobs() == (1, 1)
+    attachment = Attachment.query.one()
+    assert attachment.room_id == room.id and attachment.mime_type == "image/png"
+    content = db.session.get(Message, old.id).content
+    assert (
+        content == f"![a & cat](/attachments/{attachment.public_id}/image.png)<p>p</p>"
+    )
+    assert client_for(test_app).get(attachment.url).data == PNG
+    assert app_module.backfill_blobs() == (0, 0)  # twice changes nothing
+
+
+def test_dalle_images_are_kept_as_attachments(test_app, monkeypatch):
+    import base64
+
+    import app as app_module
+    from models import Attachment, Message
+
+    make_room("lobby")
+    image = SimpleNamespace(
+        b64_json=base64.b64encode(PNG).decode(), revised_prompt="A cat <b>"
+    )
+    fake = SimpleNamespace(
+        images=SimpleNamespace(generate=lambda **k: SimpleNamespace(data=[image]))
+    )
+    monkeypatch.setattr(app_module, "OpenAI", lambda: fake)
+    sent = []
+    monkeypatch.setattr(app_module.socketio, "emit", lambda *a, **k: sent.append(a))
+    app_module.generate_dalle_image("lobby", "a cat", "fox")
+    attachment = Attachment.query.one()
+    message = Message.query.one()
+    assert message.content == (
+        f"![a cat](/attachments/{attachment.public_id}/dall-e.png)\n\nA cat &lt;b&gt;"
+    )
+    assert "base64" not in message.content
+    assert client_for(test_app).get(attachment.url).data == PNG
+
+
 def test_uploads_are_limited_per_address(test_app):
     from routes import files
 
@@ -210,7 +305,10 @@ def test_a_fork_keeps_its_own_copies_of_files(test_app):
     db.session.add(
         Message(username="ada", content=f"see [data]({url})", room_id=room.id)
     )
-    db.session.add(Message(username="hermes", content="ok", room_id=room.id))
+    trail = f'[{{"tool": "run_code", "sources": [{{"url": "{url}"}}]}}]'
+    answer = Message(username="hermes", content="ok", room_id=room.id)
+    answer.tool_trail = trail
+    db.session.add(answer)
     db.session.commit()
     reply = Message.query.filter_by(username="hermes").one()
     fork_name = client.post(f"/api/messages/{reply.id}/fork", json={}).json["room"][
@@ -221,6 +319,9 @@ def test_a_fork_keeps_its_own_copies_of_files(test_app):
     copy = Attachment.query.filter_by(room_id=fork.id).one()
     assert copy.url in copied and url not in copied
     assert client.get(copy.url).data == b"data"
+    # A reply's tool line links the fork's copy too (one copy for both).
+    copied_trail = Message.query.filter_by(room_id=fork.id, username="hermes").one()
+    assert copy.url in copied_trail.tool_trail and url not in copied_trail.tool_trail
 
 
 # --- what a model reads ---------------------------------------------------

@@ -13,6 +13,7 @@ import hashlib
 import mimetypes
 import os
 import re
+from urllib.parse import quote
 
 from models import Attachment, Blob, db
 
@@ -121,25 +122,101 @@ def save_attachment(room_id, data, filename, mime_type, username, source_url=Non
     return attachment
 
 
+def format_size(size):
+    """1536 -> "2 KB", as composer.js's formatSize says it."""
+    if size < 1024:
+        return f"{size} B"
+    if size < 1024 * 1024:
+        return f"{round(size / 1024)} KB"
+    return f"{size / (1024 * 1024):.1f} MB"
+
+
+MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()#+\-.!<>|~])")
+
+
+def attachment_markdown(attachment, label=None):
+    """How a file reads in a message, exactly as composer.js's
+    attachmentMarkdown writes an upload: an image shows, anything else is a
+    📎 link with its size. The label is escaped so it can't add markup."""
+    name = MARKDOWN_SPECIAL.sub(r"\\\1", str(label or attachment.filename))
+    url = quote(attachment.url, safe="/").replace("(", "%28").replace(")", "%29")
+    if attachment.mime_type in IMAGE_TYPES:
+        return f"![{name}]({url})"
+    return f"[📎 {name} · {format_size(attachment.size)}]({url})"
+
+
+def attachment_json(attachment):
+    """A file as our API & our tools describe it, with the markdown that
+    shows it, so a model pastes the link instead of composing one."""
+    return {
+        "id": attachment.public_id,
+        "url": attachment.url,
+        "filename": attachment.filename,
+        "mime_type": attachment.mime_type,
+        "size": attachment.size,
+        "is_image": attachment.mime_type in IMAGE_TYPES,
+        "markdown": attachment_markdown(attachment),
+    }
+
+
+# An image kept inside a message as base64 (DALL-E replies & vision images
+# before blob_store), the whole <img> tag.
+INLINE_IMAGE = re.compile(
+    r'<img\b[^>]*?src="data:(image/(?:jpeg|png|gif|webp));base64,([A-Za-z0-9+/=\s]+)"[^>]*>'
+)
+IMG_ALT = re.compile(r'\balt="([^"]*)"')
+
+
+def inline_images_to_attachments(content, room_id, username):
+    """`content` with every base64 <img> in it saved to our blob store as an
+    attachment of `room_id` & replaced by its markdown; (content, count)."""
+    import html
+
+    count = 0
+
+    def save(match):
+        nonlocal count
+        try:
+            data = base64.b64decode(match.group(2))
+        except ValueError:
+            return match.group(0)
+        alt = IMG_ALT.search(match.group(0))
+        label = html.unescape(alt.group(1)) if alt else ""
+        ext = match.group(1).split("/")[1].replace("jpeg", "jpg")
+        attachment = save_attachment(
+            room_id, data, f"image.{ext}", match.group(1), username
+        )
+        count += 1
+        return attachment_markdown(attachment, label[:200] or None)
+
+    return INLINE_IMAGE.sub(save, content or ""), count
+
+
 def read_attachment(attachment):
     """An attachment's bytes (None if its blob has gone)."""
     return store.get(attachment.sha256)
 
 
-# How a message points at a file: our own path, never a full URL.
-ATTACHMENT_LINK = re.compile(r"/attachments/(\d+)/")
+# How a message points at a file: our own path, never a full URL, by the
+# file's random public_id.
+ATTACHMENT_LINK = re.compile(r"/attachments/([0-9a-f]{32})/")
+
+
+def find_attachment(public_id):
+    """The attachment a link names, or None."""
+    return Attachment.query.filter_by(public_id=public_id).first()
 
 
 def copy_attachments(content, source_room_id, new_room_id, copied):
     """`content` with every link to `source_room_id`'s files pointing at a
     copy in `new_room_id` (a fork keeps its files when the original goes).
-    Copies share bytes, so they cost a row each. `copied` maps old ids to
-    new across one fork's messages; the caller commits."""
+    Copies share bytes, so they cost a row each. `copied` maps old public ids
+    to new across one fork's messages; the caller commits."""
 
     def relink(match):
-        old_id = int(match.group(1))
+        old_id = match.group(1)
         if old_id not in copied:
-            original = db.session.get(Attachment, old_id)
+            original = find_attachment(old_id)
             if original is None or original.room_id != source_room_id:
                 copied[old_id] = old_id
             else:
@@ -154,7 +231,7 @@ def copy_attachments(content, source_room_id, new_room_id, copied):
                 )
                 db.session.add(copy)
                 db.session.flush()
-                copied[old_id] = copy.id
+                copied[old_id] = copy.public_id
         return f"/attachments/{copied[old_id]}/"
 
     return ATTACHMENT_LINK.sub(relink, content)
@@ -186,11 +263,11 @@ def room_attachments(content, room_id):
     room's file id must never pull that file into a model's context."""
     seen, found = set(), []
     for match in ATTACHMENT_LINK.finditer(content or ""):
-        attachment_id = int(match.group(1))
-        if attachment_id in seen:
+        public_id = match.group(1)
+        if public_id in seen:
             continue
-        seen.add(attachment_id)
-        attachment = db.session.get(Attachment, attachment_id)
+        seen.add(public_id)
+        attachment = find_attachment(public_id)
         if attachment is not None and attachment.room_id == room_id:
             found.append(attachment)
     return found

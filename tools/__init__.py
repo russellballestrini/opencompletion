@@ -79,8 +79,8 @@ RUN_CODE = {
             "output: for calculations, checking code, or making a file "
             "(an image, a CSV). Only files saved under /tmp/artifacts/ come "
             "back (e.g. plt.savefig('/tmp/artifacts/plot.png')); each comes "
-            "back with a url, show an image with ![name](url). Never link a "
-            "file that did not come back."
+            "back with markdown: paste it into your reply to show or link "
+            "the file. Never link a file that did not come back."
         ),
         "parameters": {
             "type": "object",
@@ -139,8 +139,8 @@ SANDBOX_SHARE_FILE = {
             "Hand the person a file from this chat's sandbox (a document, "
             "deck, spreadsheet, image, archive): the person cannot see the "
             "sandbox, so this is how anything made there, by you or by "
-            "delegate, reaches them. Returns a url; link it as [name](url) "
-            "or show an image as ![name](url). Zip a folder first."
+            "delegate, reaches them. Returns markdown: paste it into your "
+            "reply (an image shows, other files link). Zip a folder first."
         ),
         "parameters": {
             "type": "object",
@@ -365,8 +365,8 @@ GUIDANCE = (
 )
 GUIDANCE_SHARE = (
     " The person never sees the sandbox's files: when you or delegate make "
-    "a file for them there, call sandbox_share_file with its path & link "
-    "the url it returns; never give them a sandbox path as if they could "
+    "a file for them there, call sandbox_share_file with its path & paste "
+    "the markdown it returns; never give them a sandbox path as if they could "
     "open it."
 )
 GUIDANCE_DELEGATE = (

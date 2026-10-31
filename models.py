@@ -4,6 +4,7 @@ from sqlalchemy.engine import Engine
 import sqlite3
 from datetime import datetime, timedelta, timezone
 import time
+import uuid
 
 import os
 
@@ -227,9 +228,19 @@ class Blob(db.Model):
 
 class Attachment(db.Model):
     """One file as posted in one room: who, what name & type, which bytes.
-    Served at /attachments/<id>/<filename> under the room's access rule."""
+    Served at /attachments/<public_id>/<filename> under the room's access
+    rule."""
 
     id = db.Column(db.Integer, primary_key=True)
+    # What its address carries instead of `id`: random, so knowing one
+    # file's link never leads to another's (ids count up).
+    public_id = db.Column(
+        db.String(32),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: uuid.uuid4().hex,
+    )
     room_id = db.Column(
         db.Integer, db.ForeignKey("room.id"), nullable=False, index=True
     )
@@ -245,7 +256,7 @@ class Attachment(db.Model):
 
     @property
     def url(self):
-        return f"/attachments/{self.id}/{self.filename}"
+        return f"/attachments/{self.public_id}/{self.filename}"
 
 
 class Sandbox(db.Model):

@@ -357,7 +357,7 @@ function drawToolLine(line, data) {
     }
     // Pages it found, or files it made (our own /attachments/ links).
     const sources = (data.sources || []).filter(
-        (s) => /^https?:\/\//.test(s.url) || /^\/attachments\/\d+\//.test(s.url));
+        (s) => /^https?:\/\//.test(s.url) || /^\/attachments\/[0-9a-f]{32}\//.test(s.url));
     if (sources.length) {
         const list = document.createElement("ol");
         list.className = "message-tool-sources";

@@ -1,10 +1,12 @@
 """File uploads: post a file into a room, fetch it back.
 
 POST /api/rooms/<room_name>/attachments  (multipart, field "file")
-GET  /attachments/<id>/<filename>
+GET  /attachments/<public_id>/<filename>
 
 Both follow the room's rule (room_access_denied): a private room's files
-are its owner's alone & answer 404 to anyone else. Bytes live in
+are its owner's alone & answer 404 to anyone else. A file's address
+carries a random public_id (never its row id, which counts up) & its name;
+either wrong is a 404. Bytes live in
 blob_store (SQLite today). Limits: OPENCOMPLETION_UPLOAD_MAX_MB per file
 (default 7) & OPENCOMPLETION_UPLOAD_LIMIT uploads per address
 ("count/seconds", default 30/600).
@@ -17,13 +19,14 @@ from werkzeug.exceptions import RequestEntityTooLarge
 
 import auth
 from blob_store import (
-    IMAGE_TYPES,
     INLINE_TYPES,
+    attachment_json,
+    find_attachment,
     max_bytes,
     read_attachment,
     save_attachment,
 )
-from models import Attachment, Room, db
+from models import Room, db
 from routes.rooms import room_access_denied
 from throttle import Throttle, client_ip
 
@@ -37,17 +40,6 @@ MULTIPART_OVERHEAD = 64 * 1024
 def _too_big():
     mb = max_bytes() / (1024 * 1024)
     return jsonify({"error": f"Files are limited to {mb:g} MB each."}), 413
-
-
-def attachment_json(attachment):
-    return {
-        "id": attachment.id,
-        "url": attachment.url,
-        "filename": attachment.filename,
-        "mime_type": attachment.mime_type,
-        "size": attachment.size,
-        "is_image": attachment.mime_type in IMAGE_TYPES,
-    }
 
 
 @bp.route("/api/rooms/<room_name>/attachments", methods=["POST"])
@@ -95,13 +87,15 @@ def upload_attachment(room_name):
     return jsonify(attachment_json(attachment)), 201
 
 
-@bp.route("/attachments/<int:attachment_id>/<path:filename>")
-def serve_attachment(attachment_id, filename):
+@bp.route("/attachments/<public_id>/<path:filename>")
+def serve_attachment(public_id, filename):
     """A file, under its room's access rule. Safe types (images, audio,
     video, PDF, plain text) show inline; anything else, SVG & HTML
     included, downloads, so an upload never runs script on our origin."""
-    attachment = db.session.get(Attachment, attachment_id)
-    room = db.session.get(Room, attachment.room_id) if attachment else None
+    attachment = find_attachment(public_id)
+    if attachment is None or attachment.filename != filename:
+        return jsonify({"error": "File not found"}), 404
+    room = db.session.get(Room, attachment.room_id)
     if room is None or room_access_denied(room, auth.get_current_user()):
         return jsonify({"error": "File not found"}), 404
 

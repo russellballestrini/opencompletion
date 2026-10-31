@@ -39,7 +39,7 @@ import time
 import gevent
 
 import un
-from blob_store import max_bytes, save_attachment
+from blob_store import attachment_json, max_bytes, save_attachment
 from models import Message, Sandbox, db
 from tools import policy
 
@@ -164,8 +164,8 @@ def run_code(context, language, code, os_name="linux"):
 
 
 def keep_artifacts(context, artifacts):
-    """A run's files, kept as attachments in its chat: [{name, url,
-    mime_type, size}] (a model embeds an image as ![name](url))."""
+    """A run's files, kept as attachments in its chat, each described by
+    blob_store.attachment_json (its `markdown` is what a reply pastes)."""
     kept = []
     for artifact in artifacts[:10]:
         name = artifact.get("filename") or "artifact"
@@ -174,19 +174,12 @@ def keep_artifacts(context, artifacts):
         except ValueError:
             continue
         if not data or len(data) > max_bytes() or context.room_id is None:
-            kept.append({"name": name, "skipped": "too large or empty"})
+            kept.append({"filename": name, "skipped": "too large or empty"})
             continue
         attachment = save_attachment(
             context.room_id, data, name, artifact.get("mime_type"), "unsandbox"
         )
-        kept.append(
-            {
-                "name": attachment.filename,
-                "url": attachment.url,
-                "mime_type": attachment.mime_type,
-                "size": attachment.size,
-            }
-        )
+        kept.append(attachment_json(attachment))
     return kept
 
 
@@ -611,16 +604,10 @@ def share_file(context, path):
         mimetypes.guess_type(name)[0] or mime,
         "sandbox",
     )
-    item = {
-        "name": attachment.filename,
-        "url": attachment.url,
-        "mime_type": attachment.mime_type,
-        "size": attachment.size,
-    }
     return {
         "path": path,
-        "artifacts": [item],
-        "note": "link it for the person as [name](url); show an image as ![name](url)",
+        "artifacts": [attachment_json(attachment)],
+        "note": "paste its markdown into your reply to give the person the file",
     }
 
 

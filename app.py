@@ -20,8 +20,10 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from models import db, Room, UserSession, Message, ActivityState, User, Attachment
 from blob_store import (
     attachment_context,
+    attachment_markdown,
     data_url as attachment_data_url,
     has_image_attachment,
+    inline_images_to_attachments,
     max_bytes as max_upload_bytes,
     save_attachment,
 )
@@ -2665,53 +2667,64 @@ def generate_new_title(room_name, username):
 
 
 def generate_dalle_image(room_name, message, username):
-
-    openai_client = OpenAI()
-    # Initialize the content variable to hold either the image tag or an error message
-    content = ""
+    """A DALL-E 3 image for `message`, kept in our blob store as an
+    attachment of the room & posted as its markdown with the prompt DALL-E
+    revised, like any file in a chat (served under the room's rule)."""
+    import html
 
     try:
-        # Call the DALL-E 3 API to generate an image in base64 format
-        response = openai_client.images.generate(
+        response = OpenAI().images.generate(
             model="dall-e-3",
             prompt=message,
             n=1,
             size="1024x1024",
             response_format="b64_json",
         )
-
-        # Access the base64-encoded image data
-        image_data = response.data[0].b64_json
-        revised_prompt = response.data[0].revised_prompt
-
-        # Create an HTML img tag with the base64 data (escape user input for XSS protection)
-        import html
-
-        escaped_message = html.escape(message)
-        escaped_prompt = html.escape(revised_prompt)
-        content = f'<img src="data:image/jpeg;base64,{image_data}" alt="{escaped_message}"><p>{escaped_prompt}</p>'
-
+        image = base64.b64decode(response.data[0].b64_json)
+        revised_prompt = response.data[0].revised_prompt or ""
     except Exception as e:
-        # Set the content to an error message
-        content = f"Error generating image: {e}"
+        image, error = None, e
 
-    # Store the content in the database and emit to the frontend
     with app.app_context():
         room = get_room(room_name)
-        new_message = Message(
-            username=username,
-            content=content,  # Store the img tag or error message as the content
-            room_id=room.id,  # Make sure you have the room ID available
-        )
+        if image is None:
+            content = f"Error generating image: {html.escape(str(error))}"
+        else:
+            attachment = save_attachment(
+                room.id, image, "dall-e.png", "image/png", username
+            )
+            content = attachment_markdown(attachment, message[:200])
+            if revised_prompt:
+                content += "\n\n" + html.escape(revised_prompt)
+        new_message = Message(username=username, content=content, room_id=room.id)
         db.session.add(new_message)
         db.session.commit()
-
-        # Emit the message with the content to the frontend
         socketio.emit(
             "chat_message",
             {"id": new_message.id, "username": username, "content": content},
             room=room_name,
         )
+
+
+def backfill_blobs():
+    """Move every base64 image kept inside a message (DALL-E replies &
+    vision images from before blob_store) into our blob store, the message
+    linking it instead (`python app.py --backfill-blobs`). Returns
+    (images moved, messages changed)."""
+    moved = changed = 0
+    with app.app_context():
+        found = Message.query.filter(Message.content.contains(";base64,")).all()
+        for msg in found:
+            content, count = inline_images_to_attachments(
+                msg.content, msg.room_id, msg.username or "system"
+            )
+            if count:
+                msg.content = content
+                db.session.commit()
+                moved += count
+                changed += 1
+                print(f"[INFO] message {msg.id}: {count} image(s) -> blob store")
+    return moved, changed
 
 
 def find_most_recent_code_block(room_name):
@@ -2978,7 +2991,17 @@ if __name__ == "__main__":
         action="store_true",
         help="Title every untitled room that holds a conversation, then exit",
     )
+    parser.add_argument(
+        "--backfill-blobs",
+        action="store_true",
+        help="Move base64 images inside messages into our blob store, then exit",
+    )
     args = parser.parse_args()
+
+    if args.backfill_blobs:
+        moved, changed = backfill_blobs()
+        print(f"Moved {moved} image(s) out of {changed} message(s).")
+        raise SystemExit(0)
 
     if args.backfill_titles:
         titled, tried = backfill_titles()

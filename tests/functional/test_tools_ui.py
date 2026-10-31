@@ -181,11 +181,11 @@ window.addEventListener('load', async () => {
         check(tools8 && answer8 && tools8.compareDocumentPosition(answer8) & Node.DOCUMENT_POSITION_FOLLOWING && /Elmo is red/.test(answer8.textContent), 'history: answer under its tools');
         // unsandbox lines: whose machine, & files it made link to our attachments.
         deliver('tool_activity', {id: 11, tool: 'run_code', label: 'python', where: 'unsandbox', asker: username, status: 'done',
-            sources: [{url: '/attachments/5/plot.png', title: 'plot.png'}, {url: '/elsewhere/x', title: 'x'}]});
+            sources: [{url: '/attachments/0123456789abcdef0123456789abcdef/plot.png', title: 'plot.png'}, {url: '/elsewhere/x', title: 'x'}]});
         const ran = document.querySelector('#message-11 .message-tool');
         check(/^Ran on unsandbox: python/.test(ran.textContent), 'run_code line: ' + ran.textContent);
         const made = ran.querySelectorAll('a');
-        check(made.length === 1 && made[0].getAttribute('href') === '/attachments/5/plot.png', 'artifacts linked, nothing else');
+        check(made.length === 1 && made[0].getAttribute('href') === '/attachments/0123456789abcdef0123456789abcdef/plot.png', 'artifacts linked, nothing else');
         deliver('tool_activity', {id: 11, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running'});
         check(/^uncloseai-cli is working in this chat's sandbox: make tests pass…$/.test(document.querySelector('#message-11 .message-tool:last-child').textContent), 'delegate line');
         // Progress updates the delegate's running line in place: one line,
