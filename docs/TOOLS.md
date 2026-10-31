@@ -72,6 +72,13 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   so its line links it & the model links it or shows an image inline. The
   tool guidance tells the model to share a file it or `delegate` made
   rather than name a sandbox path.
+- **A full account waits.** Running sandboxes count toward the unsandbox
+  account's concurrency limit, so a new one past it is refused (503
+  "Failed to create service", retryable). Creating one then waits for a
+  slot, up to `SLOT_WAIT_S` (5 min), retrying as unsandbox's
+  `retry_after_s` says, & its tool line says "Waiting for a free sandbox
+  slot"; an idle sandbox frees its slot when it freezes. A refusal not
+  marked retryable fails at once.
 - **`delegate`**: `unclose -p` in that sandbox, for multi-step work.
   It runs detached (`setsid nohup`), so it outlives our server: when a
   reply launches one it saves a checkpoint on its message

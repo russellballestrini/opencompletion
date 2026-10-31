@@ -233,15 +233,61 @@ def _wait_running(service_id):
     raise RuntimeError(f"sandbox did not start in time (last state: {state})")
 
 
+# How long a new chat waits for a sandbox slot when the account is full:
+# running sandboxes count toward unsandbox's concurrency limit, & a create
+# past it answers 503 "Failed to create service" (retryable), as two busy
+# chats did to a third (2026-10-31). An idle sandbox frees its slot when
+# it freezes (OPENCOMPLETION_SANDBOX_IDLE_S).
+SLOT_WAIT_S = 300
+
+
 def _new_service(context):
     name = f"oc-{context.room_id}-{secrets.token_hex(3)}"
-    service = un.create_service(
-        name=name, network_mode="semitrusted", golden_image=policy.sandbox_image()
-    )
+    deadline = time.time() + SLOT_WAIT_S
+    told = False
+    while True:
+        try:
+            service = un.create_service(
+                name=name,
+                network_mode="semitrusted",
+                golden_image=policy.sandbox_image(),
+            )
+            break
+        except Exception as e:  # noqa: BLE001 — only a full account waits
+            wait = _slot_wait(e)
+            if wait is None or time.time() + wait > deadline:
+                raise
+            if not told and context.progress:
+                # Shown on the tool's line: what it waits for, not a hang.
+                context.progress(
+                    "Waiting for a free sandbox slot: this unsandbox account "
+                    "is running as many sandboxes as it may."
+                )
+                told = True
+            print(f"[WARN] no sandbox slot for {name}; retrying in {wait}s")
+            gevent.sleep(wait)
     service_id = service.get("service_id") or service.get("id")
     if not service_id:
         raise RuntimeError("unsandbox made no sandbox")
     return service_id, name
+
+
+def _slot_wait(error):
+    """Seconds to wait before asking again, when unsandbox refused a new
+    service as retryable (a full account, a busy pool); else None."""
+    response = getattr(error, "response", None)
+    if getattr(response, "status_code", None) not in (429, 503):
+        return None
+    try:
+        body = response.json()
+    except Exception:  # noqa: BLE001 — no body: not one to wait on
+        return None
+    if not isinstance(body, dict) or not body.get("retryable", False):
+        return None
+    try:
+        return min(60, max(5, int(body.get("retry_after_s") or 10)))
+    except (TypeError, ValueError):
+        return 10
 
 
 def _create(context):

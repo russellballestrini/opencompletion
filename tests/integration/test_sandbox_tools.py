@@ -1986,3 +1986,49 @@ def test_an_older_uncloseai_cli_leaves_the_delegate_tool_as_it_was(
     monkeypatch.setattr(tool_sandbox, "_toolset", {"names": [], "at": 0.0})
     run_delegate(room)  # the fake answers "ok": not the unclose-tools/1 shape
     assert tools.schema_for("delegate") == tools.DELEGATE
+
+
+def refusal(status, body):
+    import requests
+
+    response = requests.Response()
+    response.status_code = status
+    response._content = json.dumps(body).encode()
+    return requests.HTTPError(f"{status} Server Error", response=response)
+
+
+def test_a_new_sandbox_waits_for_a_free_slot(unsandbox, room, monkeypatch):
+    """Running sandboxes fill an account's concurrency limit; a new one is
+    refused as retryable until one freezes (2026-10-31): it waits, saying
+    so on its line, rather than failing the chat."""
+    full = {"code": "unavailable", "retryable": True, "retry_after_s": 10}
+    real = unsandbox.create_service
+    refused = []
+
+    def create_service(name, network_mode, golden_image=None, **kwargs):
+        if len(refused) < 2:
+            refused.append(name)
+            raise refusal(503, full)
+        return real(name, network_mode, golden_image, **kwargs)
+
+    import un
+
+    monkeypatch.setattr(un, "create_service", create_service)
+    said = []
+    context = dataclasses.replace(
+        fox_in(room), progress=lambda text, **k: said.append(text)
+    )
+    assert tools.run(context, "sandbox_shell", {"command": "true"})["exit_code"] == 0
+    assert len(refused) == 2
+    assert len([s for s in said if "Waiting for a free sandbox slot" in s]) == 1
+
+
+def test_a_refusal_that_is_not_retryable_fails_at_once(unsandbox, room, monkeypatch):
+    import un
+
+    def create_service(*a, **k):
+        raise refusal(503, {"error": "no", "retryable": False})
+
+    monkeypatch.setattr(un, "create_service", create_service)
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "true"})
+    assert "503" in result["error"]
