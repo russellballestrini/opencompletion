@@ -186,6 +186,9 @@ function drawToolLine(line, data) {
         return;
     }
     const verbs = TOOL_VERBS[data.tool] || [`Running ${data.tool}`, `Ran ${data.tool}`];
+    // Every report redraws the line; a fold the reader opened stays open
+    // (it snapped shut on each delegate progress update, 2026-10-31).
+    const wasOpen = !!line.querySelector(".message-tool-detail[open]");
     line.replaceChildren();
     line.classList.toggle("is-running", data.status === "running");
     line.classList.toggle("is-error", data.status === "error");
@@ -207,6 +210,13 @@ function drawToolLine(line, data) {
     if (data.detail && data.detail.input && data.tool !== "delegate") {
         line.appendChild(toolPreview(data.detail.input));
     }
+    // The fold sits under the line, above the log: the log grows down the
+    // page & must not push it out of reach (2026-10-31).
+    if (data.detail) {
+        const fold = toolDetail(data.detail, data.status === "running");
+        fold.open = wasOpen;
+        line.appendChild(fold);
+    }
     // How a long call (delegate) is getting on: the newest lines of its
     // session, while it runs.
     if (data.progress && data.status === "running") {
@@ -216,7 +226,6 @@ function drawToolLine(line, data) {
         progress.title = "delegation log";
         line.appendChild(progress);
     }
-    if (data.detail) line.appendChild(toolDetail(data.detail, data.status === "running"));
     // Pages it found, or files it made (our own /attachments/ links).
     const sources = (data.sources || []).filter(
         (s) => /^https?:\/\//.test(s.url) || /^\/attachments\/\d+\//.test(s.url));

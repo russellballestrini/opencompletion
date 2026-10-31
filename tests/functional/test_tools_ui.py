@@ -196,6 +196,13 @@ window.addEventListener('load', async () => {
             progress: '[bash] git clone', detail: {language: '', input: 'make tests pass\nall of them'}});
         deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
             progress: '[bash] make test', detail: {language: '', input: 'make tests pass\nall of them'}});
+        // A fold the reader opened stays open through the next report.
+        document.querySelector('#message-18 .message-tool-detail').open = true;
+        deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
+            progress: '[bash] make test', detail: {language: '', input: 'make tests pass\nall of them'}});
+        check(document.querySelector('#message-18 .message-tool-detail').open, 'an opened fold stays open across updates');
+        const order = [...document.querySelector('#message-18 .message-tool').children].map((el) => el.className);
+        check(order.indexOf('message-tool-detail') < order.indexOf('message-tool-progress'), 'the fold stays above the log: ' + order.join(','));
         const w15 = document.querySelectorAll('#message-18 .message-tool');
         check(w15.length === 1, 'progress updates one delegate line, not ' + w15.length);
         check(w15[0].querySelector('.message-tool-progress').textContent === '[bash] make test', 'newest progress shown');
