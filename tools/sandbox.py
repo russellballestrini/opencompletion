@@ -656,7 +656,10 @@ def _delegate(context, task, armed):
         f"cat {run_dir}/answer; echo __STDERR__; tail -c 3000 {run_dir}/stderr; "
         f"elif ! kill -0 $(cat {run_dir}/pid 2>/dev/null) 2>/dev/null; then "
         f"echo __LOST__; tail -c 2000 {run_dir}/stderr 2>/dev/null; "
-        f"else PATH=/root/.local/bin:$PATH timeout 6 unclose --peek "
+        # PYTHONUNBUFFERED: peek follows until `timeout` kills it, & a
+        # block-buffered pipe dies with it unflushed: every poll came back
+        # empty & the progress line never moved (2026-10-31).
+        f"else PATH=/root/.local/bin:$PATH PYTHONUNBUFFERED=1 timeout 6 unclose --peek "
         f"$(cat {run_dir}/pid) 2>&1 | sed -E '{ANSI}' "
         f"| tail -n 12; fi"
     )

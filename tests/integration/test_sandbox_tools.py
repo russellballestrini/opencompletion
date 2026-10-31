@@ -486,6 +486,16 @@ def test_delegate_runs_unclose_with_a_token_only_its_vault_holds(unsandbox, room
     assert not any("MODEL_API_KEY_1" in k or "sk-" in v for k, v in env.items())
 
 
+def test_the_progress_peek_is_unbuffered(unsandbox, room):
+    # timeout kills the following peek; a block-buffered pipe loses every
+    # row it printed, so progress never showed (2026-10-31).
+    delegate(room, unsandbox)
+    _, polls = unsandbox.delegate_commands()
+    assert polls and all(
+        "PYTHONUNBUFFERED=1 timeout 6 unclose --peek" in p for p in polls
+    )
+
+
 def test_every_delegate_arms_a_fresh_token_and_native_tools(unsandbox, room):
     from models import Sandbox
 
@@ -1040,7 +1050,10 @@ def test_delegate_shows_its_progress_while_it_runs(unsandbox, room):
     assert result["answer"] == "Added 3 tests; 45 passed." and result["exit_code"] == 0
     _, polls = unsandbox.delegate_commands()
     # unclose lives in /root/.local/bin, which a bare poll's PATH lacks.
-    assert "PATH=/root/.local/bin:$PATH timeout 6 unclose --peek" in polls[0]
+    assert (
+        "PATH=/root/.local/bin:$PATH PYTHONUNBUFFERED=1 timeout 6 unclose --peek"
+        in polls[0]
+    )
 
 
 def test_a_failing_uncloseai_cli_says_so(unsandbox, room):
