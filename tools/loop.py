@@ -22,6 +22,8 @@ LOG_CHARS = 12000
 # A long call's log is summarized in a sentence or two at most this often
 # (fox, 2026-10-31: learn how the work goes without reading the log).
 SUMMARY_EVERY_S = 15
+# A tick waits this long for its summary, then shows the rest without it.
+SUMMARY_TIMEOUT_S = 8
 GAP = "⋯"
 # What `unclose --peek` prints that is not the session: its read-only
 # banner, quiet heartbeats, join notices & its own stop line.
@@ -269,39 +271,39 @@ def run_round(context, calls, content, notify=lambda event: None):
                         event[key] = last[key]
                 return event
 
-            def summarize(fresh, running_event=running_event, last=last):
+            def summarize(fresh, last=last):
+                """A sentence or two on the newest log, within
+                SUMMARY_TIMEOUT_S, or the last one kept."""
                 try:
-                    said = context.summarize(last.get("summary", ""), fresh)
-                except Exception as e:  # noqa: BLE001 — a summary is optional
-                    print(f"[WARN] delegate summary failed: {e}")
+                    with gevent.Timeout(SUMMARY_TIMEOUT_S):
+                        said = context.summarize(last.get("summary", ""), fresh)
+                except BaseException as e:  # noqa: BLE001 — optional; Timeout too
+                    if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                        raise
+                    print(f"[WARN] delegate summary skipped: {e or 'timed out'}")
                     said = None
-                last["summarizing"] = False
-                if said and not last.get("finished"):
+                if said:
                     last["summary"] = str(said).strip()[:400]
-                    notify(running_event())
 
             def progress(text, vitals=None, log=log, last=last):
+                """One tick: the log, the vitals & (when the log grew) a
+                fresh summary are all gathered first, then shown as ONE
+                update, so the card changes once a tick, all together
+                (fox, 2026-10-31)."""
                 log[:] = merge_log(log, text or "")
                 shaped = shape_vitals(vitals)
                 if shaped:
                     last["vitals"] = shaped
-                if log or shaped:
-                    notify(running_event())
-                # A sentence or two on how it goes, in the background, when
-                # the log grew & the last one is SUMMARY_EVERY_S old.
                 grew = len(log) > last.get("summarized_upto", 0)
                 due = time.monotonic() - last.get("summarized_at", 0) >= SUMMARY_EVERY_S
-                if context.summarize and grew and due and not last.get("summarizing"):
+                if context.summarize and grew and due:
                     fresh = "\n".join(log[last.get("summarized_upto", 0) :])[-6000:]
-                    last.update(
-                        summarizing=True,
-                        summarized_upto=len(log),
-                        summarized_at=time.monotonic(),
-                    )
-                    gevent.spawn(summarize, fresh)
+                    last.update(summarized_upto=len(log), summarized_at=time.monotonic())
+                    summarize(fresh)
+                if log or shaped:
+                    notify(running_event())
 
             result = run(replace(context, progress=progress), call["name"], arguments)
-            last["finished"] = True  # a summary landing late never reopens it
         done = {"tool": call["name"], "label": label, "where": where}
         shown = detail_of(call["name"], arguments or {}, result)
         if shown and arguments is not None and log:

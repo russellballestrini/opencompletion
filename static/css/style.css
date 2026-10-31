@@ -2233,14 +2233,19 @@ a:hover {
     transition: background-size 0.4s ease;
 }
 
-/* How a long call is going, in a sentence or two; fades in when new. */
+/* How a long call is going, in a sentence or two. */
 .message-tool-summary {
     padding-left: var(--space-3);
     border-left: 2px solid var(--button-primary);
     font-size: 14px;
     line-height: 1.5;
     color: var(--text-primary);
-    animation: tool-fade-in 0.3s ease;
+}
+
+/* One tick, one update: a running card's live parts are drawn afresh
+   together each 15s & fade in together, never one by one. */
+.message-tool.is-card.is-running > :is(.tool-card-plan-row, .tool-card-vitals, .message-tool-summary) {
+    animation: tool-fade-in 0.35s ease;
 }
 
 @keyframes tool-fade-in {

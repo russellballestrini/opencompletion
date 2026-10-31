@@ -29,6 +29,7 @@ sandbox is running.
 import base64
 import hashlib
 import json
+import math
 import mimetypes
 import os
 import re
@@ -764,6 +765,7 @@ def _delegate(context, task, armed):
     )
     stop = stop_command(run_dir)
     deadline = time.time() + policy.delegate_timeout()
+    next_tick = time.monotonic() + DELEGATE_POLL_S
     shown = None
     last_vitals = None
     while True:
@@ -777,14 +779,17 @@ def _delegate(context, task, armed):
                 "error": f"uncloseai-cli did not finish within "
                 f"{policy.delegate_timeout()}s (OPENCOMPLETION_DELEGATE_TIMEOUT_S)",
             }
-        # Between polls, look for Stop every second: it used to wait out
-        # the whole poll interval (up to 15s) before the run was killed.
-        for _ in range(DELEGATE_POLL_S):
+        # One tick every DELEGATE_POLL_S, start to start: the poll & the
+        # summary it may wait for come out of the same 15s, so the card
+        # updates on a steady beat (fox, 2026-10-31). Between ticks, look
+        # for Stop every second.
+        for _ in range(math.ceil(max(0.0, next_tick - time.monotonic()))):
             if (context.stopped and context.stopped()) or time.time() > deadline:
                 break
-            gevent.sleep(1)
+            gevent.sleep(min(1, max(0.0, next_tick - time.monotonic())))
         if (context.stopped and context.stopped()) or time.time() > deadline:
             continue  # the top of the loop stops it & says why
+        next_tick = time.monotonic() + DELEGATE_POLL_S
         try:
             polled = _execute(sandbox, poll, 30)
         except Exception as e:  # noqa: BLE001 — a blip costs one poll
