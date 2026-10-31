@@ -102,7 +102,7 @@
         try {
             const [response, data] = await roomRequest(`/api/rooms/${roomId}/archive`, 'POST');
             if (response.ok) {
-                window.location.href = '/browse';
+                window.location.href = '/';
             } else {
                 alert(data.error || 'Failed to archive room');
             }
@@ -118,7 +118,7 @@
         try {
             const [response, data] = await roomRequest(`/api/rooms/${roomId}/delete`, 'DELETE');
             if (response.ok) {
-                window.location.href = '/browse';
+                window.location.href = '/';
             } else {
                 alert(data.error || 'Failed to delete room');
             }

@@ -140,3 +140,14 @@ def test_we_are_installable_as_an_app(test_app, monkeypatch):
         assert client.get(icon["src"]).status_code == 200
     page = client.get("/").get_data(as_text=True)
     assert 'rel="manifest"' in page and "apple-touch-icon" in page
+
+
+def test_deleting_or_archiving_the_open_room_goes_home(test_app):
+    # The room panel's Delete & Archive leave for our home (a new chat), as
+    # the chat menu's do: not the rooms list (fox, 2026-10-31).
+    ada = make_user("ada@example.test", "ada")
+    make_room("adas-room", owner=ada)
+    page = client_for(test_app, ada).get("/chat/adas-room").get_data(as_text=True)
+    assert "deleteRoom(" in page and "archiveRoom(" in page
+    assert "window.location.href = '/browse'" not in page
+    assert page.count("window.location.href = '/';") >= 2
