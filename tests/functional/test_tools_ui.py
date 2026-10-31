@@ -288,6 +288,13 @@ window.addEventListener('load', async () => {
         const slidePaneMid = (slidePane.left + slidePane.right) / 2, slideMid = (slideBox.left + slideBox.right) / 2;
         check(Math.abs(slidePaneMid - slideMid) < 24, `wide image centred on the pane (${slideMid} vs ${slidePaneMid})`);
         check(Math.abs(slideBox.width / slideBox.height - 4) < 0.05, 'wide image keeps its proportions');
+        // A resumed session & its overseer's call show on the card.
+        deliver('tool_activity', {id: 27, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
+            session: {resumed: true}, oversight: {decision: 'steer', note: 'use 30-day months', at: '25m', undelivered: true}});
+        const card27 = document.querySelector('#message-27 .message-tool');
+        check(/continuing its session$/.test(card27.querySelector('.tool-card-head').textContent), 'resumed session named');
+        const over27 = card27.querySelector('.tool-card-oversight');
+        check(over27 && over27.classList.contains('is-steer') && /^Overseer · 25m: steered — use 30-day months \(not delivered/.test(over27.textContent), 'overseer line: ' + (over27 && over27.textContent));
         // The plan step leads; model trouble & time show; the job folds open.
         deliver('tool_activity', {id: 20, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             vitals: {turn: 3, plan: {done: 2, total: 5, current: 'run tests'}, context: {}, tools: {}, activity: {},

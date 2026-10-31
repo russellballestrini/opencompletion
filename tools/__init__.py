@@ -197,6 +197,11 @@ class ToolContext:
     # call, is that saved run, reattached instead of started again.
     checkpoint: Optional[Callable[[dict], None]] = field(default=None, compare=False)
     resume_run: Optional[dict] = field(default=None, compare=False)
+    # Set by chat_gpt: oversee(digest) -> the overseer's one-line review of a
+    # long delegate ("continue" | "steer: note" | "stop: why"), or None.
+    oversee: Optional[Callable[[dict], Optional[str]]] = field(
+        default=None, compare=False
+    )
 
     @property
     def server_egress(self):

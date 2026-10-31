@@ -26,7 +26,15 @@ without a restart.
                                          deleted chat's sandbox goes at once
     OPENCOMPLETION_DELEGATE=on|off       uncloseai-cli in that sandbox
                                          (needs OPENCOMPLETION_PUBLIC_URL)
-    OPENCOMPLETION_DELEGATE_TIMEOUT_S=3600 a delegate run's time limit (60 min)
+    OPENCOMPLETION_DELEGATE_TIMEOUT_S=0  a delegate's clock limit; 0 (default):
+                                         none, progress decides (below)
+    OPENCOMPLETION_DELEGATE_STALL_S=600  a delegate with no progress (no plan
+                                         step, file change or new activity)
+                                         this long is stopped; 0 = never
+    OPENCOMPLETION_DELEGATE_REVIEW_S=300 how often its overseer (the chat's
+                                         model) reviews a run: continue,
+                                         steer it with a note, or stop it;
+                                         0 = no reviews
     OPENCOMPLETION_DELEGATE_SUMMARIES=on|off  a sentence or two on how a
                                          delegate is going, about every 15s
                                          (one short call to the chat's model)
@@ -154,5 +162,23 @@ def sandbox_retention_days():
         return 14
 
 
+def _seconds(name, default):
+    """A count of seconds, 0 allowed (0 = off)."""
+    try:
+        return max(0, int(os.environ.get(name, default)))
+    except ValueError:
+        return default
+
+
 def delegate_timeout():
-    return _positive_int("OPENCOMPLETION_DELEGATE_TIMEOUT_S", 3600)
+    """A delegate's clock limit in seconds; 0 (default) = none: a run goes
+    on while it makes progress & its overseer lets it (fox, 2026-10-31)."""
+    return _seconds("OPENCOMPLETION_DELEGATE_TIMEOUT_S", 0)
+
+
+def delegate_stall_s():
+    return _seconds("OPENCOMPLETION_DELEGATE_STALL_S", 600)
+
+
+def delegate_review_s():
+    return _seconds("OPENCOMPLETION_DELEGATE_REVIEW_S", 300)

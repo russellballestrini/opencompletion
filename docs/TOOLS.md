@@ -90,6 +90,29 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   Each 15s tick gathers the log, the vitals & (when the log grew) the
   summary (within 8s), then sends one update.
 
+  **No clock; progress & an overseer decide** (`tools/oversight.py`). A
+  delegate has no time limit by default (`OPENCOMPLETION_DELEGATE_TIMEOUT_S`
+  sets one; 0 = none). Each tick its `Watch` notes whether it moved: a
+  plan step done, files changed, or activity it had not shown before
+  (numbers masked, so a command re-run with new timings is no news). No
+  move for `OPENCOMPLETION_DELEGATE_STALL_S` (600) stops it as stalled,
+  which also catches a loop. Every `OPENCOMPLETION_DELEGATE_REVIEW_S` (300)
+  its overseer, the chat's model (`app.oversee_delegate`, a one-line
+  frame), reads the task, how long since it moved, its vitals & newest
+  activity & answers CONTINUE, STEER: note, or STOP: why. A steer goes in
+  through uncloseai-cli's steering inbox (`unclose --steer <pid> note`,
+  read at its next subturn); an older uncloseai-cli without it shows the
+  note on the card as not delivered. An unreadable or failed review is a
+  continue. The card shows the latest call under the task.
+
+  **One session per chat.** The first vitals carry uncloseai-cli's
+  `session_id`; the sandbox keeps it (`sandbox.delegate_session_id`,
+  migration `2026103104`) & the chat's next delegate resumes it
+  (`unclose --resume <sid> -p ...`), remembering the work before. A new
+  sandbox has none; a session that will not resume (it exits nonzero
+  within 2 minutes) is forgotten & the run starts fresh, once. The card
+  says "continuing its session".
+
 Every call goes through our vendored SDK, `un.py`: `/execute` (via
 `un._make_request`, for `return_artifact` & `os`) & `wait_for_job` for
 runs; `create_service`, `get_service`, `execute_in_service` +

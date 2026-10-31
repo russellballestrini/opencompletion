@@ -2161,6 +2161,7 @@ a:hover {
         "dot head    clock"
         ".   title   title"
         ".   task    task"
+        ".   oversight oversight"
         ".   plan    plan"
         ".   vitals  vitals"
         ".   folds   folds"
@@ -2178,13 +2179,14 @@ a:hover {
 
 .message-tool.is-card::before { grid-area: dot; }
 .message-tool.is-card > .tool-card-title { margin-top: var(--space-1); }
-.message-tool.is-card > :is(.tool-card-task, .message-tool-summary, .tool-card-plan-row, .tool-card-vitals, .tool-card-folds, .tool-card-sources) {
+.message-tool.is-card > :is(.tool-card-task, .tool-card-oversight, .message-tool-summary, .tool-card-plan-row, .tool-card-vitals, .tool-card-folds, .tool-card-sources) {
     margin-top: var(--space-2);
 }
 .message-tool.is-card > .tool-card-head { grid-area: head; }
 .message-tool.is-card > .tool-card-clock { grid-area: clock; }
 .message-tool.is-card > .tool-card-title { grid-area: title; }
 .message-tool.is-card > .tool-card-task { grid-area: task; }
+.message-tool.is-card > .tool-card-oversight { grid-area: oversight; }
 .message-tool.is-card > .message-tool-summary { grid-area: summary; }
 .message-tool.is-card > .tool-card-plan-row { grid-area: plan; }
 .message-tool.is-card > .tool-card-vitals { grid-area: vitals; }
@@ -2216,6 +2218,20 @@ a:hover {
     font-weight: 600;
     line-height: 1.35;
     color: var(--text-primary);
+}
+
+/* Its overseer's latest review: quiet when it lets the run go on. */
+.tool-card-oversight {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.tool-card-oversight.is-steer {
+    color: var(--text-warning);
+}
+
+.tool-card-oversight.is-stop {
+    color: var(--text-error);
 }
 
 /* The plan: a thin bar & the step it is on. */

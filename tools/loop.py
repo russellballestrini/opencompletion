@@ -279,6 +279,7 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                 for key in ("vitals", "summary"):
                     if last.get(key):
                         event[key] = last[key]
+                event.update(last.get("card") or {})  # session, oversight
                 return event
 
             def summarize(fresh, last=last):
@@ -295,7 +296,7 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                 if said:
                     last["summary"] = str(said).strip()[:400]
 
-            def progress(text, vitals=None, log=log, last=last):
+            def progress(text, vitals=None, card=None, log=log, last=last):
                 """One tick: the log, the vitals & (when the log grew) a
                 fresh summary are all gathered first, then shown as ONE
                 update, so the card changes once a tick, all together
@@ -304,6 +305,8 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                 shaped = shape_vitals(vitals)
                 if shaped:
                     last["vitals"] = shaped
+                if card:
+                    last["card"] = dict(card)
                 grew = len(log) > last.get("summarized_upto", 0)
                 due = time.monotonic() - last.get("summarized_at", 0) >= SUMMARY_EVERY_S
                 if context.summarize and grew and due:
@@ -334,6 +337,7 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
             shown["log"] = log_text(log)  # kept with the reply, in its fold
         if last.get("vitals"):
             done["vitals"] = last["vitals"]  # the run's final numbers
+        done.update(last.get("card") or {})  # its session & last review
         if shown:
             done["detail"] = shown
         if result.get("error"):

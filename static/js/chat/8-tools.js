@@ -327,7 +327,9 @@ function drawDelegateCard(line, data, verbs, open) {
         return el;
     };
     const where = toolWhere(data);
-    const head = add("tool-card-head", div(`${verbs[running ? 0 : 1]}${where ? " · " + where : ""}`));
+    // A chat's delegates share one session: say when this one carries on.
+    const resumed = data.session && data.session.resumed ? " · continuing its session" : "";
+    const head = add("tool-card-head", div(`${verbs[running ? 0 : 1]}${where ? " · " + where : ""}${resumed}`));
     head.classList.add("message-tool-head");
     if (data.status === "error") {
         const why = document.createElement("span");
@@ -344,6 +346,9 @@ function drawDelegateCard(line, data, verbs, open) {
         fold.open = open.detail;
         add("tool-card-task", fold);
     }
+    // Its overseer's latest review (every few minutes): continue, steered
+    // with a note, or stopped & why.
+    add("tool-card-oversight", toolOversight(data.oversight));
     if (running) add("tool-card-plan-row", toolPlan(data.vitals));
     if (data.vitals) add("tool-card-vitals", toolVitals(data.vitals, running));
     const folds = div();
@@ -358,6 +363,19 @@ function drawDelegateCard(line, data, verbs, open) {
     if (data.summary && running) add("message-tool-summary", div(data.summary));
     const sources = toolSources(data.sources);
     if (sources) add("tool-card-sources", sources);
+}
+
+// The overseer's latest call on a delegate (tools/oversight.py).
+function toolOversight(review) {
+    if (!review || !review.decision) return null;
+    const box = document.createElement("div");
+    box.className = "is-" + review.decision;
+    const said = {continue: "continue", steer: "steered", stop: "stopped"}[review.decision] || review.decision;
+    let text = `Overseer${review.at ? " · " + review.at : ""}: ${said}`;
+    if (review.note) text += ` — ${review.note}`;
+    if (review.undelivered) text += " (not delivered: this sandbox's uncloseai-cli takes no notes yet)";
+    box.textContent = text;
+    return box;
 }
 
 // A delegate's newest session lines, folded; it grows as the run goes.

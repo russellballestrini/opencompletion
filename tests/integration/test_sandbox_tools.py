@@ -1606,7 +1606,8 @@ def test_a_delegate_reply_keeps_a_checkpoint_while_its_run_goes(unsandbox, room,
         un.execute_in_service = real
     state = seen[0]
     assert state["calls"][0]["name"] == "delegate" and state["call_index"] == 0
-    assert state["run"]["run_dir"].startswith("/root/") and state["run"]["deadline"]
+    assert state["run"]["run_dir"].startswith("/root/")
+    assert state["run"]["deadline"] is None  # no clock: progress decides
     assert state["username"] == "russell" and state["email"] == FOX
     reply = Message.query.filter_by(username="qwen").one()
     assert reply.resume_state is None  # the round ended: nothing to pick up
@@ -1777,3 +1778,111 @@ def test_a_restart_mid_command_collects_its_job_never_runs_it_again(
     assert "57 passed" in trail[-1]["detail"]["stdout"]
     assert reply.resume_state is None
     assert "57 passed" in chat.asks[0]["messages"][-1]["content"]
+
+
+# -- no clock: progress, stalls, the overseer & a shared session ---------------
+
+
+class Clock:
+    """time.monotonic for the delegate loop: each read moves on `step`s."""
+
+    def __init__(self, step=5.0):
+        self.now, self.step = 1000.0, step
+
+    def __call__(self):
+        self.now += self.step
+        return self.now
+
+
+def run_delegate(room, oversee=None, task="t"):
+    context = tools.ToolContext(
+        sid="s", email=FOX, room_id=room.id, model="qwen", oversee=oversee
+    )
+    return tools.run(context, "delegate", {"task": task})
+
+
+def test_a_delegate_has_no_clock_limit_by_default(unsandbox, room, monkeypatch):
+    monkeypatch.delenv("OPENCOMPLETION_DELEGATE_TIMEOUT_S", raising=False)
+    assert policy.delegate_timeout() == 0
+    assert run_delegate(room)["status"] == "completed"
+
+
+def test_a_delegate_that_stops_moving_is_stopped_as_stalled(
+    unsandbox, room, monkeypatch
+):
+    monkeypatch.setenv("OPENCOMPLETION_DELEGATE_STALL_S", "60")
+    monkeypatch.setattr(tool_sandbox.time, "monotonic", Clock(step=10))
+    unsandbox.polls = ["[bash] python -c 'x'\n↳ bash ok · 9 bytes"] * 40
+    result = run_delegate(room)
+    assert result["status"] == "stalled" and "no progress for" in result["error"]
+    assert any("kill" in c or "pkill" in c for c in unsandbox.commands()[-3:])
+
+
+def test_its_overseer_can_stop_a_run(unsandbox, room, monkeypatch):
+    monkeypatch.setenv("OPENCOMPLETION_DELEGATE_REVIEW_S", "30")
+    monkeypatch.setattr(tool_sandbox.time, "monotonic", Clock(step=10))
+    unsandbox.polls = [f"[bash] step {chr(97 + i)}" for i in range(20)]
+    asked = []
+
+    def oversee(digest):
+        asked.append(digest)
+        return "STOP: it is rewriting the same file in circles"
+
+    result = run_delegate(room, oversee=oversee, task="add parse()")
+    assert result["status"] == "stopped"
+    assert (
+        result["error"]
+        == "stopped by its overseer: it is rewriting the same file in circles"
+    )
+    assert asked[0]["task"] == "add parse()" and asked[0]["elapsed"]
+
+
+def test_its_overseer_steers_a_run_with_a_note(unsandbox, room, monkeypatch):
+    monkeypatch.setenv("OPENCOMPLETION_DELEGATE_REVIEW_S", "30")
+    monkeypatch.setattr(tool_sandbox.time, "monotonic", Clock(step=10))
+    unsandbox.polls = [f"[bash] step {chr(97 + i)}" for i in range(6)]
+    seen = []
+    context = tools.ToolContext(
+        sid="s",
+        email=FOX,
+        room_id=room.id,
+        model="qwen",
+        oversee=lambda digest: "STEER: human() has no months; use 30-day days.",
+        progress=lambda *a, **k: seen.append(k.get("card")),
+    )
+    result = tools.run(context, "delegate", {"task": "t"})
+    assert result["status"] == "completed"
+    steer = [c for c in unsandbox.commands() if "unclose --steer" in c]
+    assert steer and "human() has no months; use 30-day days." in steer[0]
+    review = [c["oversight"] for c in seen if c and c.get("oversight")][0]
+    assert review["decision"] == "steer" and review["note"].startswith("human()")
+
+
+def test_a_chats_delegates_share_one_session(unsandbox, room):
+    from models import Sandbox, db
+
+    vitals = '__VITALS__ {"schema": "unclose-vitals/1", "session_id": "sess-42"}\n'
+    unsandbox.polls = [vitals + "[bash] git clone"]
+    run_delegate(room)
+    sandbox = Sandbox.query.one()
+    assert sandbox.delegate_session_id == "sess-42"
+    first_start = unsandbox.delegate_commands()[0][0]
+    assert "--resume" not in first_start
+    run_delegate(room, task="now add tests")
+    start = unsandbox.delegate_commands()[0][-1]
+    assert "--resume sess-42 -p" in start  # the second carries the first on
+
+
+def test_a_session_that_will_not_resume_falls_back_to_fresh(unsandbox, room):
+    from models import Sandbox, db
+
+    make_sandbox(unsandbox, room)
+    sandbox = Sandbox.query.one()
+    sandbox.delegate_session_id = "gone-1"
+    db.session.commit()
+    unsandbox.polls = ["__EXIT__1\n\n__STDERR__\nno such session: gone-1\n"]
+    result = run_delegate(room)
+    assert result["status"] == "completed" and result["exit_code"] == 0
+    starts = unsandbox.delegate_commands()[0]
+    assert "--resume gone-1" in starts[0] and "--resume" not in starts[1]
+    assert db.session.get(Sandbox, sandbox.id).delegate_session_id is None

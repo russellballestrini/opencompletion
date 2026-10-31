@@ -1997,6 +1997,7 @@ def chat_gpt(
                 else None
             ),
             checkpoint=lambda state: save_checkpoint(state),
+            oversee=lambda digest: oversee_delegate(openai_client, model_name, digest),
         )
     tool_schemas = tools.schemas(tool_context)
     if tool_schemas:
@@ -2416,6 +2417,46 @@ DELEGATE_SUMMARY_PROMPT = (
     "has done & what it is doing now. Name concrete results (tests passed, "
     "files written, errors). No preamble, no markdown, no speculation."
 )
+
+
+OVERSEER_PROMPT = (
+    "You handed a coding task to an agent & are checking on it. Answer in "
+    "one line: CONTINUE, or STEER: <a sentence or two it should act on>, "
+    "or STOP: <why it cannot finish>. Steer only when it is off track; "
+    "stop only when it is stuck for good."
+)
+
+
+def oversee_delegate(openai_client, model_name, digest):
+    """The overseer's one-line review of a delegate (tools/oversight.py):
+    the task, how long it has run & since it last moved, its vitals & its
+    newest activity."""
+    vitals = digest.get("vitals") or {}
+    plan = vitals.get("plan") or {}
+    files = vitals.get("files") or {}
+    facts = [
+        f"Running {digest.get('elapsed')}; last progress {digest.get('since_progress')} ago.",
+        f"Plan: {plan.get('done', '?')}/{plan.get('total', '?')} done"
+        + (f", now: {plan.get('current')}" if plan.get("current") else ""),
+        f"Turn {vitals.get('turn', '?')}; files changed: {files.get('count', 0)}.",
+    ]
+    response = create_completion_skip_thinking(
+        openai_client,
+        model=model_name,
+        messages=[
+            {"role": "system", "content": OVERSEER_PROMPT},
+            {
+                "role": "user",
+                "content": f"Task:\n{str(digest.get('task'))[:4000]}\n\n"
+                + "\n".join(facts)
+                + f"\n\nIts newest activity:\n{str(digest.get('log_tail'))[-4000:]}",
+            },
+        ],
+        temperature=0.2,
+        max_tokens=160,
+        timeout=25,
+    )
+    return strip_reasoning(response.choices[0].message.content or "").strip()
 
 
 def summarize_delegate(openai_client, model_name, previous, fresh):

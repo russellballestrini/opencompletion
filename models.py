@@ -287,6 +287,10 @@ class Sandbox(db.Model):
     created_by = db.Column(db.String(255))
     last_used_at = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    # The uncloseai-cli session its delegates share: each new delegate in
+    # this chat resumes it (`unclose --resume`), so it remembers the work
+    # before; empty for a new sandbox (its sessions went with the old one).
+    delegate_session_id = db.Column(db.String(128))
 
 
 class ActivityState(db.Model):

@@ -112,13 +112,14 @@ python -m pytest -q</pre>
             <div class="message-tool-head">Read from our server: <span class="message-tool-label">https://example.org/</span><span class="message-tool-error"> (failed: timed out after 30s)</span></div>
         </li>
         <li class="message-tool is-running is-card">
-            <div class="tool-card-head message-tool-head">uncloseai-cli is working · in this chat's sandbox</div>
+            <div class="tool-card-head message-tool-head">uncloseai-cli is working · in this chat's sandbox · continuing its session</div>
             <div class="tool-card-clock">6m 15s</div>
             <div class="tool-card-title message-tool-label">Add parse() to ago with round-trip tests</div>
             <details class="message-tool-detail tool-card-task">
                 <summary>task</summary>
                 <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago, the inverse of human(). Done means: a round-trip test over 30 generated timedeltas, 10 focused tests, the full suite green, bench.png &amp; PARSE.md.</code></pre>
             </details>
+            <div class="tool-card-oversight is-steer">Overseer · 25m: steered — human() has no month unit; treat a month as 30 days.</div>
             <div class="tool-card-plan tool-card-plan-row">
                 <div class="tool-card-bar sg-pct-33" role="progressbar" aria-valuemin="0" aria-valuemax="9" aria-valuenow="3"></div>
                 <div class="tool-card-step">step 4 of 9 · write the round-trip test</div>

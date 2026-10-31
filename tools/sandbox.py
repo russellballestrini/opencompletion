@@ -42,7 +42,7 @@ import gevent
 import un
 from blob_store import attachment_json, max_bytes, save_attachment
 from models import Message, Sandbox, db
-from tools import policy
+from tools import oversight, policy
 
 OUTPUT_CHARS = 8000
 LANGUAGES_FREEBSD = ("bash", "sh", "python", "perl", "lua", "c", "cpp")
@@ -665,6 +665,8 @@ def arm_proxy(sandbox, model):
 
 
 DELEGATE_POLL_S = 15
+# A review waits this long for its overseer, then lets the run go on.
+OVERSEER_TIMEOUT_S = 30
 DELEGATE_RESTARTS = 1  # a run lost to a stopped sandbox is started again
 DELEGATE_DIR = "/root/.opencompletion"
 ANSI = r"s/\x1b\[[0-9;?]*[A-Za-z]//g"
@@ -703,6 +705,42 @@ def delegate(context, task):
         return _delegate(context, task, armed)
     finally:
         revoke_proxy(armed.get("sandbox_id"), armed.get("token_sha256"))
+
+
+def _review(context, sandbox, run_dir, task, watch, vitals, log_tail):
+    """Ask the run's overseer (the chat's model) how it goes & act on it:
+    continue, steer (a note the run reads at its next turn, via
+    `unclose --steer`), or stop. A failed review is a continue."""
+    now = time.monotonic()
+    digest = {
+        "task": task,
+        "elapsed": oversight.minutes(now - watch.started),
+        "since_progress": oversight.minutes(now - watch.last_progress),
+        "vitals": vitals or {},
+        "log_tail": log_tail,
+    }
+    try:
+        with gevent.Timeout(OVERSEER_TIMEOUT_S):
+            said = context.oversee(digest)
+    except BaseException as e:  # noqa: BLE001 — a review is optional; Timeout too
+        if isinstance(e, (KeyboardInterrupt, SystemExit)):
+            raise
+        print(f"[WARN] overseer review skipped: {e or 'timed out'}")
+        said = None
+    decision, note = oversight.parse_decision(said)
+    verdict = {"decision": decision, "note": note, "at": digest["elapsed"]}
+    if decision == "steer":
+        steered = _execute(
+            sandbox,
+            "PATH=/root/.local/bin:$PATH unclose --steer "
+            f"$(cat {run_dir}/pid) {shlex.quote(note)} 2>&1",
+            30,
+        )
+        if steered.get("exit_code") not in (0, None):
+            # An uncloseai-cli without a steering inbox (older image): the
+            # note is shown, not delivered.
+            verdict["undelivered"] = True
+    return verdict
 
 
 def revoke_proxy(sandbox_id, armed_hash):
@@ -757,20 +795,33 @@ def _delegate(context, task, armed):
             # uncloseai-cli starts in the new sandbox: it needs the history.
             task = f"{note}\n\nTask: {task}"
         run_dir = shlex.quote(f"{DELEGATE_DIR}/delegate-{secrets.token_hex(4)}")
-    inner = (
-        ". /run/unsandbox/vault.sh 2>/dev/null; export PATH=/root/.local/bin:$PATH; "
-        f"unclose -p --no-markdown --model {shlex.quote(model)} {shlex.quote(task)} "
-        f"> {run_dir}/answer 2> {run_dir}/stderr & echo $! > {run_dir}/pid; "
-        f"wait $!; echo $? > {run_dir}/exit"
-    )
-    start = (
-        f"mkdir -p {run_dir} && cd /root && "
-        f"setsid nohup bash -c {shlex.quote(inner)} > /dev/null 2>&1 < /dev/null & "
-        f"sleep 1; cat {run_dir}/pid"
-    )
+    # A chat's delegates share one uncloseai-cli session: a new one resumes
+    # it, remembering the work before (fox, 2026-10-31). A new sandbox has
+    # none; one that will not resume falls back to a fresh start.
+    session = {
+        "id": None if (resumed or note) else sandbox.delegate_session_id,
+        "resumed": False,
+    }
+
+    def start_command():
+        resume = f"--resume {shlex.quote(session['id'])} " if session["id"] else ""
+        inner = (
+            ". /run/unsandbox/vault.sh 2>/dev/null; export PATH=/root/.local/bin:$PATH; "
+            f"unclose {resume}-p --no-markdown --model {shlex.quote(model)} "
+            f"{shlex.quote(task)} "
+            f"> {run_dir}/answer 2> {run_dir}/stderr & echo $! > {run_dir}/pid; "
+            f"wait $!; echo $? > {run_dir}/exit"
+        )
+        return (
+            f"mkdir -p {run_dir} && rm -f {run_dir}/exit && cd /root && "
+            f"setsid nohup bash -c {shlex.quote(inner)} > /dev/null 2>&1 < /dev/null & "
+            f"sleep 1; cat {run_dir}/pid"
+        )
 
     def launch():
-        started = _execute(sandbox, start, 60)
+        session["resumed"] = bool(session["id"])
+        session["launched_at"] = time.monotonic()
+        started = _execute(sandbox, start_command(), 60)
         if (
             started.get("status") != "completed"
             or not (started.get("stdout") or "").strip()
@@ -780,15 +831,16 @@ def _delegate(context, task, armed):
             return result
         return None
 
+    # No clock limit unless OPENCOMPLETION_DELEGATE_TIMEOUT_S sets one:
+    # progress & its overseer decide (tools/oversight.py).
+    limit = policy.delegate_timeout()
     if resumed:
-        deadline = float(resumed.get("deadline") or 0) or (
-            time.time() + policy.delegate_timeout()
-        )
+        deadline = float(resumed.get("deadline") or 0) or None
     else:
         failed = launch()
         if failed:
             return failed
-        deadline = time.time() + policy.delegate_timeout()
+        deadline = time.time() + limit if limit else None
         if context.checkpoint:
             # Where to find this run again if our server restarts.
             context.checkpoint(
@@ -823,26 +875,32 @@ def _delegate(context, task, armed):
     next_tick = time.monotonic() + DELEGATE_POLL_S
     shown = None
     last_vitals = None
+    watch = oversight.Watch(time.monotonic())
+    card = {"session": {"resumed": session["resumed"]}}
+
+    def over():
+        return bool(deadline) and time.time() > deadline
+
     while True:
         if context.stopped and context.stopped():
             _execute(sandbox, stop, 30)
             return {"status": "stopped", "error": "stopped: Stop was pressed"}
-        if time.time() > deadline:
+        if over():
             _execute(sandbox, stop, 30)
             return {
                 "status": "timeout",
                 "error": f"uncloseai-cli did not finish within "
-                f"{policy.delegate_timeout()}s (OPENCOMPLETION_DELEGATE_TIMEOUT_S)",
+                f"{limit}s (OPENCOMPLETION_DELEGATE_TIMEOUT_S)",
             }
         # One tick every DELEGATE_POLL_S, start to start: the poll & the
         # summary it may wait for come out of the same 15s, so the card
         # updates on a steady beat (fox, 2026-10-31). Between ticks, look
         # for Stop every second.
         for _ in range(math.ceil(max(0.0, next_tick - time.monotonic()))):
-            if (context.stopped and context.stopped()) or time.time() > deadline:
+            if (context.stopped and context.stopped()) or over():
                 break
             gevent.sleep(min(1, max(0.0, next_tick - time.monotonic())))
-        if (context.stopped and context.stopped()) or time.time() > deadline:
+        if (context.stopped and context.stopped()) or over():
             continue  # the top of the loop stops it & says why
         next_tick = time.monotonic() + DELEGATE_POLL_S
         try:
@@ -889,6 +947,22 @@ def _delegate(context, task, armed):
                 code = int(head[len("__EXIT__") :].strip())
             except ValueError:
                 code = None
+            if (
+                code != 0
+                and session["resumed"]
+                and time.monotonic() - session.get("launched_at", 0) < 120
+            ):
+                # Its session would not resume (gone, or unreadable): start
+                # fresh, once, & forget it.
+                print(f"[WARN] sandbox {sandbox.name}: session would not resume")
+                session["id"] = None
+                sandbox.delegate_session_id = None
+                db.session.commit()
+                failed = launch()
+                if failed:
+                    return failed
+                card["session"] = {"resumed": False}
+                continue
             result = {
                 "status": "completed",
                 "exit_code": code,
@@ -900,13 +974,41 @@ def _delegate(context, task, armed):
             if note:
                 result["sandbox_note"] = note
             if last_vitals is not None and context.progress:
-                context.progress("", vitals=last_vitals)  # the final numbers
+                extra = {"card": card} if card.get("oversight") else {}
+                context.progress("", vitals=last_vitals, **extra)  # final numbers
             return result
         progress = out.strip()
-        seen = (progress, json.dumps(vitals, sort_keys=True) if vitals else "")
+        now = time.monotonic()
+        watch.observe(vitals, progress, now)
+        if watch.session_id and watch.session_id != sandbox.delegate_session_id:
+            sandbox.delegate_session_id = watch.session_id  # the next resumes it
+            db.session.commit()
+        if watch.stalled(now):
+            _execute(sandbox, stop, 30)
+            return {
+                "status": "stalled",
+                "error": "stopped: no progress for "
+                f"{oversight.minutes(now - watch.last_progress)} (no plan step, "
+                "file change or new activity; OPENCOMPLETION_DELEGATE_STALL_S)",
+            }
+        if watch.review_due(now) and context.oversee:
+            watch.reviewed(now)
+            verdict = _review(context, sandbox, run_dir, task, watch, vitals, progress)
+            card["oversight"] = verdict
+            if verdict["decision"] == "stop":
+                _execute(sandbox, stop, 30)
+                return {
+                    "status": "stopped",
+                    "error": f"stopped by its overseer: {verdict['note']}",
+                }
+        seen = (
+            progress,
+            json.dumps(vitals, sort_keys=True) if vitals else "",
+            json.dumps(card, sort_keys=True),
+        )
         if (progress or vitals) and seen != shown and context.progress:
-            if vitals is None:
-                context.progress(progress)
-            else:
-                context.progress(progress, vitals=vitals)
+            extra = {"vitals": vitals} if vitals is not None else {}
+            if card.get("oversight") or card["session"].get("resumed"):
+                extra["card"] = card
+            context.progress(progress, **extra)
             shown = seen
