@@ -743,6 +743,49 @@ def test_the_proxy_streams(proxy):
     assert json.loads(lines[0][5:])["choices"][0]["delta"]["content"] == "Hi"
 
 
+def test_the_proxy_names_why_a_reply_was_thinking_only(proxy, monkeypatch, capsys):
+    """A reply with only thinking (no answer, no tool call) is logged with
+    what tells its causes apart: hitting the token cap, or a tool call
+    written inside the thinking (fox, 2026-10-31)."""
+    thought = 'I should list the files. <tool_call>{"name": "bash"}</tool_call>'
+
+    def create(**kwargs):
+        proxy.completions.asks.append(kwargs)
+        return SimpleNamespace(
+            model_dump=lambda: {
+                "choices": [
+                    {
+                        "message": {"content": None, "reasoning_content": thought},
+                        "finish_reason": "stop",
+                    }
+                ]
+            }
+        )
+
+    monkeypatch.setattr(proxy.completions, "create", create)
+    body = {
+        "messages": [{"role": "user", "content": "hi"}],
+        "tools": [{"type": "function", "function": {"name": "bash"}}],
+        "max_tokens": 4096,
+        "chat_template_kwargs": {"enable_thinking": True},
+    }
+    proxy.http.post(
+        "/api/sandbox/v1/chat/completions", json=body, headers=proxy.headers
+    )
+    line = [l for l in capsys.readouterr().out.splitlines() if "thinking-only" in l][0]
+    assert "finish=stop" in line and "max_tokens=4096" in line
+    assert "enable_thinking=True" in line and "tools=1" in line
+    assert "tool_call_in_thinking=True" in line
+    # an ordinary answer logs nothing
+    monkeypatch.undo()
+    proxy.http.post(
+        "/api/sandbox/v1/chat/completions",
+        json={"messages": [{"role": "user", "content": "hi"}]},
+        headers=proxy.headers,
+    )
+    assert "thinking-only" not in capsys.readouterr().out
+
+
 def test_the_proxy_limits_each_sandbox(proxy, monkeypatch):
     from routes import sandbox_proxy
 

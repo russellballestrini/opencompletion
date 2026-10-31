@@ -79,6 +79,27 @@ def models():
     )
 
 
+def note_thinking_only(sandbox, body, content, tool_calls, reasoning, finish):
+    """Log a reply that held only thinking: no answer & no tool call.
+    uncloseai-cli re-sends such a turn with thinking off, but each costs a
+    whole think; this line tells the causes apart (fox, 2026-10-31): the
+    model thinking to its token cap (finish "length"), or writing its tool
+    call inside its thinking (a <tool_call> in the tail), which vLLM's tool
+    parser never sees."""
+    if (content or "").strip() or tool_calls or not (reasoning or "").strip():
+        return
+    kwargs = body.get("chat_template_kwargs") or {}
+    tail = " ".join(str(reasoning).split())[-160:]
+    print(
+        f"[WARN] sandbox {sandbox.name}: thinking-only reply "
+        f"finish={finish} reasoning={len(reasoning)} chars "
+        f"max_tokens={body.get('max_tokens') or body.get('max_completion_tokens')} "
+        f"enable_thinking={kwargs.get('enable_thinking', 'unset')} "
+        f"tools={len(body.get('tools') or [])} "
+        f"tool_call_in_thinking={'<tool_call>' in str(reasoning)} tail={tail!r}"
+    )
+
+
 @bp.route("/api/sandbox/v1/chat/completions", methods=["POST"])
 def chat_completions():
     sandbox = _sandbox()
@@ -108,14 +129,37 @@ def chat_completions():
         status = getattr(e, "status_code", None) or 502
         return _error(status if 400 <= status < 600 else 502, str(e)[:500])
     if not ask.get("stream"):
-        return jsonify(answer.model_dump())
+        dumped = answer.model_dump()
+        message = ((dumped.get("choices") or [{}])[0] or {}).get("message") or {}
+        note_thinking_only(
+            sandbox,
+            body,
+            message.get("content"),
+            message.get("tool_calls"),
+            message.get("reasoning_content") or message.get("reasoning"),
+            ((dumped.get("choices") or [{}])[0] or {}).get("finish_reason"),
+        )
+        return jsonify(dumped)
 
     def events():
+        said, calls, thought, finish = [], False, [], None
         try:
             for chunk in answer:
-                yield f"data: {json.dumps(chunk.model_dump())}\n\n"
+                dumped = chunk.model_dump()
+                for choice in dumped.get("choices") or []:
+                    delta = choice.get("delta") or {}
+                    said.append(delta.get("content") or "")
+                    calls = calls or bool(delta.get("tool_calls"))
+                    thought.append(
+                        delta.get("reasoning_content") or delta.get("reasoning") or ""
+                    )
+                    finish = choice.get("finish_reason") or finish
+                yield f"data: {json.dumps(dumped)}\n\n"
         finally:
             getattr(answer, "close", lambda: None)()
+        note_thinking_only(
+            sandbox, body, "".join(said), calls, "".join(thought), finish
+        )
         yield "data: [DONE]\n\n"
 
     return Response(events(), mimetype="text/event-stream")
