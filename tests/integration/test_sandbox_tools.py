@@ -1109,6 +1109,41 @@ def test_progress_reaches_the_room_as_the_running_line(unsandbox, room):
     assert running[-1]["tool"] == "delegate" and running[-1]["where"] == "sandbox"
 
 
+def test_a_delegates_progress_is_a_log_that_grows(unsandbox, room):
+    """Each peek's new rows are pushed under the old ones; overlap is
+    dropped, peek's banner never shows, and the finished line keeps the
+    log in its fold (fox, 2026-10-31: the box was overwritten)."""
+    banner = "  🔒 peek  viewing pid 4242 — read-only, no key reaches it"
+    unsandbox.polls = [
+        f"{banner}\n[bash] git clone\n↳ bash ok",
+        f"{banner}\n[bash] git clone\n↳ bash ok\n[read] Makefile",
+        f"{banner}\n[bash] make test\n↳ bash ok · 45 passed",
+    ]
+    events = []
+    calls = [{"id": "c1", "name": "delegate", "arguments": json.dumps({"task": "t"})}]
+    tools.run_round(fox_in(room), calls, "", events.append)
+    logs = [e["progress"] for e in events if e.get("progress")]
+    assert logs[0] == "[bash] git clone\n↳ bash ok"
+    assert logs[1] == "[bash] git clone\n↳ bash ok\n[read] Makefile"
+    # No overlap with what came before: rows were missed, marked.
+    assert logs[2].endswith(
+        "[read] Makefile\n⋯\n[bash] make test\n↳ bash ok · 45 passed"
+    )
+    assert not any("🔒" in log for log in logs)
+    done = events[-1]
+    assert done["status"] == "done" and done["detail"]["log"] == logs[-1]
+
+
+def test_merge_log_keeps_order_and_drops_peek_noise():
+    from tools.loop import merge_log
+
+    log = merge_log([], "a\nb\n  … quiet 30s · 1 session(s) attached\nc")
+    assert log == ["a", "b", "c"]
+    assert merge_log(log, "b\nc\nd") == ["a", "b", "c", "d"]
+    assert merge_log(log, "") == log
+    assert merge_log(log, "  (peek stopped: session ended)") == log
+
+
 def test_a_sandbox_stopped_under_a_command_is_woken_and_retried(
     unsandbox, room, monkeypatch
 ):

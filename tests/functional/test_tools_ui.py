@@ -200,6 +200,12 @@ window.addEventListener('load', async () => {
         check(w15.length === 1, 'progress updates one delegate line, not ' + w15.length);
         check(w15[0].querySelector('.message-tool-progress').textContent === '[bash] make test', 'newest progress shown');
         check(!w15[0].querySelector('.message-tool-preview'), 'a delegate line does not repeat its task');
+        // The finished line keeps the delegation log in its fold.
+        deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'done',
+            detail: {language: '', input: 'make tests pass', answer: 'Done.', log: '[bash] git clone\n[bash] make test'}});
+        const d18 = document.querySelectorAll('#message-18 .message-tool');
+        check(d18.length === 1 && !d18[0].querySelector('.message-tool-progress'), 'finished in place, box gone');
+        check(d18[0].querySelector('.is-log').textContent === '[bash] git clone\n[bash] make test', 'log kept in the fold');
         // A code tool's line folds open to its code & output, as text.
         deliver('tool_activity', {id: 12, tool: 'run_code', label: 'python', where: 'unsandbox', asker: username, status: 'done',
             detail: {language: 'python', input: 'print("<b>hi</b>")', stdout: '<b>hi</b>\n', stderr: 'oops', exit_code: 1}});

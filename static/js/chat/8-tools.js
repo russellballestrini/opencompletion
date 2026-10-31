@@ -186,6 +186,11 @@ function drawToolLine(line, data) {
         return;
     }
     const verbs = TOOL_VERBS[data.tool] || [`Running ${data.tool}`, `Ran ${data.tool}`];
+    // The log box is redrawn on every report: keep it at its newest rows,
+    // unless the reader scrolled up in it to read back.
+    const old = line.querySelector(".message-tool-progress");
+    const followLog = !old || old.scrollTop + old.clientHeight >= old.scrollHeight - 4;
+    const keptTop = old ? old.scrollTop : 0;
     line.replaceChildren();
     line.classList.toggle("is-running", data.status === "running");
     line.classList.toggle("is-error", data.status === "error");
@@ -213,8 +218,9 @@ function drawToolLine(line, data) {
         const progress = document.createElement("pre");
         progress.className = "message-tool-progress";
         progress.textContent = data.progress;
+        progress.title = "delegation log";
         line.appendChild(progress);
-        progress.scrollTop = progress.scrollHeight;  // newest rows in view
+        progress.scrollTop = followLog ? progress.scrollHeight : keptTop;
     }
     if (data.detail) line.appendChild(toolDetail(data.detail, data.status === "running"));
     // Pages it found, or files it made (our own /attachments/ links).
@@ -271,6 +277,14 @@ function toolDetail(detail, running) {
     if (window.hljs && language && hljs.getLanguage(language)) {
         input.className = "language-" + language;
         hljs.highlightElement(input);
+    }
+    if (detail.log) {
+        // A delegate's log, as it ran (tools/loop.py merge_log).
+        const title = document.createElement("div");
+        title.className = "message-tool-log-title";
+        title.textContent = "delegation log";
+        block.appendChild(title);
+        pre(detail.log, "message-tool-output is-log");
     }
     if (detail.stdout) pre(detail.stdout, "message-tool-output");
     if (detail.answer) pre(detail.answer, "message-tool-output");

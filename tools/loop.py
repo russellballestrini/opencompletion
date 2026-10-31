@@ -10,9 +10,40 @@ without a tool (or OPENCOMPLETION_TOOL_ROUNDS runs out).
 """
 
 import json
+import re
 from dataclasses import replace
 
-PROGRESS_CHARS = 1500
+# A long call's progress is a log: each report's new lines pushed under the
+# old ones (fox, 2026-10-31: a delegate's box was overwritten every poll).
+LOG_CHARS = 12000
+GAP = "⋯"
+# What `unclose --peek` prints that is not the session: its read-only
+# banner, quiet heartbeats, join notices & its own stop line.
+_PEEK_NOISE = re.compile(r"^\s*(🔒|… quiet\b|├ \[|\(peek stopped)")
+
+
+def merge_log(log, text):
+    """`log` (a list of lines) with the new lines of `text` appended. Each
+    report repeats the tail of the last (peek replays its last rows), so
+    the longest overlap between log's end & text's start is dropped; no
+    overlap with a log already started means rows were missed between
+    reports, marked GAP."""
+    lines = [
+        line.rstrip()
+        for line in str(text).splitlines()
+        if line.strip() and not _PEEK_NOISE.match(line)
+    ]
+    if not lines:
+        return log
+    for k in range(min(len(log), len(lines)), 0, -1):
+        if log[-k:] == lines[:k]:
+            return log + lines[k:]
+    return log + ([GAP] if log else []) + lines
+
+
+def log_text(log):
+    """The log as one string, its newest LOG_CHARS."""
+    return "\n".join(log)[-LOG_CHARS:]
 
 
 class ToolCallCollector:
@@ -92,6 +123,7 @@ def run_round(context, calls, content, notify=lambda event: None):
 
     messages = [assistant_turn(content, calls)]
     for call in calls:
+        log = []
         arguments = parse_arguments(call["arguments"])
         label = label_for(call["name"], arguments or {})
         where = offered(context).get(call["name"])
@@ -109,13 +141,19 @@ def run_round(context, calls, content, notify=lambda event: None):
         if arguments is None:
             result = {"error": "arguments were not a JSON object"}
         else:
-            # A long call reports how it is getting on as its running line.
-            def progress(text, running=running):
-                notify(dict(running, progress=str(text)[-PROGRESS_CHARS:]))
+            # A long call reports how it is getting on as its running line:
+            # a log, new lines pushed under the old, the whole log each time
+            # (anyone joining the room mid-run sees all of it).
+            def progress(text, running=running, log=log):
+                log[:] = merge_log(log, text)
+                if log:
+                    notify(dict(running, progress=log_text(log)))
 
             result = run(replace(context, progress=progress), call["name"], arguments)
         done = {"tool": call["name"], "label": label, "where": where}
         shown = detail_of(call["name"], arguments or {}, result)
+        if shown and arguments is not None and log:
+            shown["log"] = log_text(log)  # kept with the reply, in its fold
         if shown:
             done["detail"] = shown
         if result.get("error"):
