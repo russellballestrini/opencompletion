@@ -518,7 +518,7 @@ def test_a_reply_with_tools_is_told_them_and_never_to_claim_a_run(harness):
     first = harness.model.asks[0]["messages"][0]
     assert first["role"] == "system"
     assert "You can call these tools: web_search." in first["content"]
-    assert "Never say code ran" in first["content"]
+    assert "never say code ran" in first["content"]
     assert "not available here" in first["content"]
     assert "delegate" not in first["content"]
 

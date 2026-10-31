@@ -75,12 +75,8 @@ RUN_CODE = {
     "function": {
         "name": "run_code",
         "description": (
-            "Run a program once in a fresh sandbox (no network) & read its "
-            "output: for calculations, checking code, or making a file "
-            "(an image, a CSV). Only files saved under /tmp/artifacts/ come "
-            "back (e.g. plt.savefig('/tmp/artifacts/plot.png')); each comes "
-            "back with markdown: paste it into your reply to show or link "
-            "the file. Never link a file that did not come back."
+            "Run a program once in a fresh sandbox with no network. Files "
+            "saved under /tmp/artifacts/ come back with markdown to paste."
         ),
         "parameters": {
             "type": "object",
@@ -103,9 +99,8 @@ SANDBOX_SHELL = {
     "function": {
         "name": "sandbox_shell",
         "description": (
-            "Run a shell command in this chat's own Ubuntu sandbox, which "
-            "keeps its files & installs between turns & has network (git "
-            "clone, pip install). Returns stdout, stderr & the exit code."
+            "Run one command in this chat's sandbox (kept between turns, "
+            "has network, shared with delegate): for a quick look or check."
         ),
         "parameters": {
             "type": "object",
@@ -136,11 +131,8 @@ SANDBOX_SHARE_FILE = {
     "function": {
         "name": "sandbox_share_file",
         "description": (
-            "Hand the person a file from this chat's sandbox (a document, "
-            "deck, spreadsheet, image, archive): the person cannot see the "
-            "sandbox, so this is how anything made there, by you or by "
-            "delegate, reaches them. Returns markdown: paste it into your "
-            "reply (an image shows, other files link). Zip a folder first."
+            "Give the person a file from this chat's sandbox, which they "
+            "cannot see; paste the markdown it returns."
         ),
         "parameters": {
             "type": "object",
@@ -157,10 +149,9 @@ DELEGATE = {
     "function": {
         "name": "delegate",
         "description": (
-            "Hand a multi-step coding task to uncloseai-cli, an agent that "
-            "works in this chat's sandbox (reads & writes files, runs "
-            "commands) until done, & returns its final answer. For work "
-            "too long for a few shell commands. Say exactly what done means."
+            "Hand a multi-step coding task, setup included, to "
+            "uncloseai-cli, an agent that works in this chat's sandbox "
+            "until done. Say what done means."
         ),
         "parameters": {
             "type": "object",
@@ -355,23 +346,9 @@ def _api_says(error):
 
 
 GUIDANCE = (
-    "Today is {today}. You can call these tools: {names}. Use them to do "
-    "things, never imagine their results: when the person asks you to "
-    "run, test, build, install, clone, fetch, search or check something, "
-    "call the tool that does it. Never say code ran, passed, built or "
-    "works unless a tool result in this conversation shows it; if you "
-    "only wrote code, say it is untested. If the person asks for a tool "
-    "that is not in this list, say it is not available here."
-)
-GUIDANCE_SHARE = (
-    " The person never sees the sandbox's files: when you or delegate make "
-    "a file for them there, call sandbox_share_file with its path & paste "
-    "the markdown it returns; never give them a sandbox path as if they could "
-    "open it."
-)
-GUIDANCE_DELEGATE = (
-    " For a multi-step coding task (change a repo until its tests pass), "
-    "call delegate with the whole task rather than many shell commands."
+    "Today is {today}. You can call these tools: {names}. Use them rather "
+    "than imagine their results, and never say code ran or passed unless a "
+    "tool result shows it. A tool not in this list is not available here."
 )
 
 
@@ -384,10 +361,6 @@ def guidance(context):
     if not names:
         return None
     text = GUIDANCE.format(today=time.strftime("%Y-%m-%d"), names=", ".join(names))
-    if "sandbox_share_file" in names:
-        text += GUIDANCE_SHARE
-    if "delegate" in names:
-        text += GUIDANCE_DELEGATE
     return {"role": "system", "content": text}
 
 

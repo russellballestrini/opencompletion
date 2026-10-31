@@ -817,7 +817,10 @@ def test_an_egress_users_note_names_delegate_for_multi_step_work(unsandbox, room
         "run_code, sandbox_shell, sandbox_write_file, sandbox_share_file, delegate"
         in note
     )
-    assert "call delegate with the whole task" in note
+    # Which sandbox tool for what: delegate the multi-step work, the shell
+    # for a quick look, both in one sandbox.
+    assert "multi-step" in tools.DELEGATE["function"]["description"]
+    assert "shared with delegate" in tools.SANDBOX_SHELL["function"]["description"]
     assert tools.guidance(None) is None
 
 
