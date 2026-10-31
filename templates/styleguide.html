@@ -116,6 +116,10 @@ python -m pytest -q</pre>
             <div class="tool-card-head message-tool-head">uncloseai-cli is working · in this chat's sandbox</div>
             <div class="tool-card-clock">6m 15s</div>
             <div class="tool-card-title message-tool-label">Add parse() to ago with round-trip tests</div>
+            <details class="message-tool-detail tool-card-task">
+                <summary>task</summary>
+                <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago, the inverse of human(). Done means: a round-trip test over 30 generated timedeltas, 10 focused tests, the full suite green, bench.png &amp; PARSE.md.</code></pre>
+            </details>
             <div class="message-tool-summary">It added parse() and 12 focused tests; the round-trip test now runs 30 generated values and two fail on months.</div>
             <div class="tool-card-plan tool-card-plan-row">
                 <div class="tool-card-bar sg-pct-33" role="progressbar" aria-valuemin="0" aria-valuemax="9" aria-valuenow="3"></div>
@@ -123,10 +127,6 @@ python -m pytest -q</pre>
             </div>
             <div class="message-tool-vitals tool-card-vitals"><span class="message-tool-chip">turn 30</span><span class="message-tool-chip is-meter sg-pct-48">context 30.5k / 64.0k</span><span class="message-tool-chip">38 tool calls</span><span class="message-tool-chip">in tool: bash 8s</span><span class="message-tool-chip is-warn">1 retry</span></div>
             <div class="tool-card-folds">
-                <details class="message-tool-detail">
-                    <summary>code</summary>
-                    <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago, the inverse of human(). Done means: a round-trip test over 30 generated timedeltas, 10 focused tests, the full suite green, bench.png &amp; PARSE.md.</code></pre>
-                </details>
                 <details class="message-tool-detail message-tool-job" open>
                     <summary>job</summary>
                     <dl>
@@ -150,16 +150,14 @@ python -m pytest -q</pre>
             <div class="tool-card-head message-tool-head">uncloseai-cli worked · in this chat's sandbox</div>
             <div class="tool-card-clock">14m 54s</div>
             <div class="tool-card-title message-tool-label">Add parse() to ago with round-trip tests</div>
+            <details class="message-tool-detail tool-card-task">
+                <summary>task &amp; output</summary>
+                <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago…</code></pre>
+                <div class="message-tool-log-title">delegation log <button type="button" class="copy-button message-tool-copy">Copy</button></div>
+                <pre class="message-tool-output is-log"><code>[bash] python -m pytest -q · 57 passed</code></pre>
+                <div class="message-tool-exit">exit code 0</div>
+            </details>
             <div class="message-tool-vitals tool-card-vitals"><span class="message-tool-chip">9/9 steps</span><span class="message-tool-chip">52 turns</span><span class="message-tool-chip">peak context 41.2k</span><span class="message-tool-chip">71 tool calls</span></div>
-            <div class="tool-card-folds">
-                <details class="message-tool-detail">
-                    <summary>code &amp; output</summary>
-                    <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago…</code></pre>
-                    <div class="message-tool-log-title">delegation log <button type="button" class="copy-button message-tool-copy">Copy</button></div>
-                    <pre class="message-tool-output is-log"><code>[bash] python -m pytest -q · 57 passed</code></pre>
-                    <div class="message-tool-exit">exit code 0</div>
-                </details>
-            </div>
         </li>
         <li class="message-tool">
             <div class="message-tool-head">Shared in this chat's sandbox: <span class="message-tool-label">/root/work/ago/bench.png</span></div>

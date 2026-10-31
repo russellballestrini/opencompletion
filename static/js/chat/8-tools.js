@@ -309,10 +309,11 @@ function toolPlan(vitals) {
 }
 
 // A delegate is one card, its parts ordered by how often they change:
-// who & what (never) at the top, then the summary (a sentence, now &
-// then), the plan (each step), the vitals (each 15s poll), & the folds
-// last, where an opened log grows. Chat follows the bottom of the page,
-// so the eye rests on what moves most (fox, 2026-10-31).
+// who, what & the task it was handed (never) at the top, then the summary
+// (a sentence now & then), the plan (each step), the vitals (each 15s
+// poll), & the job & log folds last, where an opened log grows. Chat
+// follows the bottom of the page, so the eye rests on what moves most
+// (fox, 2026-10-31).
 function drawDelegateCard(line, data, verbs, open) {
     const running = data.status === "running";
     const add = (className, child) => {
@@ -338,16 +339,17 @@ function drawDelegateCard(line, data, verbs, open) {
     const elapsed = ((data.vitals || {}).time || {}).elapsed_s;
     if (Number.isFinite(elapsed)) add("tool-card-clock", div(shortDuration(elapsed)));
     add("tool-card-title", div(data.label)).classList.add("message-tool-label");
+    // The task never changes: it sits with the title.
+    if (data.detail) {
+        const fold = toolDetail(data.detail, running, data.tool);
+        fold.open = open.detail;
+        add("tool-card-task", fold);
+    }
     if (data.summary && running) add("message-tool-summary", div(data.summary));
     if (running) add("tool-card-plan-row", toolPlan(data.vitals));
     if (data.vitals) add("tool-card-vitals", toolVitals(data.vitals, running));
     const folds = div();
     folds.className = "tool-card-folds";
-    if (data.detail) {
-        const fold = toolDetail(data.detail, running, data.tool);
-        fold.open = open.detail;
-        folds.appendChild(fold);
-    }
     const job = data.vitals ? toolJob(data.vitals) : null;
     if (job) {
         job.open = open.job;
@@ -494,7 +496,9 @@ function toolDetail(detail, running, tool) {
     block.className = "message-tool-detail";
     const summary = document.createElement("summary");
     // While it runs there is only the code (or task) to open.
-    summary.textContent = running ? "code" : "code & output";
+    summary.textContent = tool === "delegate"
+        ? (running ? "task" : "task & output")
+        : (running ? "code" : "code & output");
     block.appendChild(summary);
     const pre = (text, className) => {
         const box = document.createElement("pre");

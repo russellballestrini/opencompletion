@@ -2147,13 +2147,15 @@ a:hover {
 
 /* A delegate is one card. Its rows run from what never changes to what
    changes most (8-tools.js drawDelegateCard): who & where with a live
-   clock, what it was asked, the summary, the plan, the vitals, then the
-   folds, where an opened log grows. Reorder by editing the areas only. */
+   clock, what it was asked & its task, the summary, the plan, the
+   vitals, then the job & log folds, where an opened log grows. Reorder by
+   editing the areas only. */
 .message-tool.is-card {
     grid-template-columns: 12px minmax(0, 1fr) auto;
     grid-template-areas:
         "dot head    clock"
         ".   title   title"
+        ".   task    task"
         ".   summary summary"
         ".   plan    plan"
         ".   vitals  vitals"
@@ -2171,12 +2173,13 @@ a:hover {
 
 .message-tool.is-card::before { grid-area: dot; }
 .message-tool.is-card > .tool-card-title { margin-top: var(--space-1); }
-.message-tool.is-card > :is(.message-tool-summary, .tool-card-plan-row, .tool-card-vitals, .tool-card-folds, .tool-card-sources) {
+.message-tool.is-card > :is(.tool-card-task, .message-tool-summary, .tool-card-plan-row, .tool-card-vitals, .tool-card-folds, .tool-card-sources) {
     margin-top: var(--space-2);
 }
 .message-tool.is-card > .tool-card-head { grid-area: head; }
 .message-tool.is-card > .tool-card-clock { grid-area: clock; }
 .message-tool.is-card > .tool-card-title { grid-area: title; }
+.message-tool.is-card > .tool-card-task { grid-area: task; }
 .message-tool.is-card > .message-tool-summary { grid-area: summary; }
 .message-tool.is-card > .tool-card-plan-row { grid-area: plan; }
 .message-tool.is-card > .tool-card-vitals { grid-area: vitals; }
@@ -2360,7 +2363,8 @@ a:hover {
     min-width: 0;
 }
 
-.tool-card-folds > details > summary {
+.tool-card-folds > details > summary,
+.tool-card-task > summary {
     border: 1px solid var(--border-color);
 }
 
@@ -2395,6 +2399,22 @@ a:hover {
 .message-tool-detail pre.message-tool-output {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+}
+
+/* A delegate's task is what a person asked, in words: it reads as text. */
+.message-tool-detail pre.is-prose {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-primary);
+    background-color: var(--bg-tertiary);
+}
+
+.message-tool-detail pre.is-prose code {
+    padding: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
 }
 
 .message-tool-output.is-stderr {

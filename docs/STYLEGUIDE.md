@@ -69,9 +69,10 @@ are 16px on phones so iOS never zooms into them.
   one card (`.is-card`, `drawDelegateCard`) whose `grid-template-areas`
   run from what never changes to what changes most, so the eye rests at
   the bottom, where chat scrolls: head (verb · where) & `.tool-card-clock`,
-  `.tool-card-title` (the task), `.message-tool-summary` (a sentence now &
+  `.tool-card-title`, `.tool-card-task` (the task it was handed, a fold
+  that reads as prose), `.message-tool-summary` (a sentence now &
   then), `.tool-card-plan` (bar + step, each step), `.tool-card-vitals`
-  (each 15s poll), then `.tool-card-folds`: pills (code, job, log) whose
+  (each 15s poll), then `.tool-card-folds`: pills (job, log) whose
   opened panel takes the full width below them, where a log grows. Reorder
   by editing the areas only. Short facts are `.message-tool-chip`s (the
   tools offered, vitals; `.is-meter` fills to `--pct`,

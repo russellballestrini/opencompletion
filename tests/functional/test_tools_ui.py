@@ -211,8 +211,10 @@ window.addEventListener('load', async () => {
         deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'running',
             progress: '[bash] make test\n↳ 45 passed', detail: {language: '', input: 'make tests pass\nall of them'}});
         check(document.querySelector('#message-18 .message-tool-log').open, 'an opened log stays open');
-        const order = [...document.querySelector('#message-18 .tool-card-folds').children].map((el) => el.className);
-        check(order.indexOf('message-tool-detail') < order.indexOf('message-tool-log'), 'the task fold comes before the log: ' + order.join(','));
+        // The task never changes: it sits under the title, the log at the bottom.
+        const task18 = document.querySelector('#message-18 .tool-card-title + .tool-card-task');
+        check(task18 && task18.querySelector('summary').textContent === 'task', 'the task fold sits under the title');
+        check(document.querySelector('#message-18 .tool-card-folds .message-tool-log') && !document.querySelector('#message-18 .tool-card-folds .tool-card-task'), 'job & log fold at the bottom, the task does not');
         const w15 = document.querySelectorAll('#message-18 .message-tool');
         check(w15.length === 1, 'progress updates one delegate line, not ' + w15.length);
         check(w15[0].querySelector('.message-tool-progress').textContent === '[bash] make test\n↳ 45 passed', 'newest progress shown');
