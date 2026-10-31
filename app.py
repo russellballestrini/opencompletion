@@ -76,6 +76,7 @@ socketio = SocketIO(app, async_mode="gevent")
 # Tools a chat model may call (web search, web fetch): all of it lives in
 # tools/ & docs/TOOLS.md; chat_gpt is its one caller.
 import dataclasses
+from types import SimpleNamespace
 
 import tools
 from tools import sandbox as tool_sandbox
@@ -929,7 +930,41 @@ def resolve_username(claimed):
 
 
 # Handle user joining a room
-def trail_as_of_now(saved, room_name):
+def resume_interrupted_replies():
+    """After a restart, pick up every reply that was waiting on a delegate
+    (Message.resume_state): uncloseai-cli ran on in its sandbox, so the
+    reply reattaches to the run, shows it live again (Stop included) &
+    carries on when it ends (fox, 2026-10-31). Returns how many."""
+    with app.app_context():
+        waiting = Message.query.filter(Message.resume_state.isnot(None)).all()
+        jobs = []
+        for message in waiting:
+            room = db.session.get(Room, message.room_id)
+            try:
+                state = json.loads(message.resume_state)
+            except ValueError:
+                state = None
+            if room is None or not isinstance(state, dict) or not state.get("calls"):
+                message.resume_state = None
+                continue
+            jobs.append((room.name, dict(state, message_id=message.id)))
+        db.session.commit()
+    for room_name, state in jobs:
+        print(f"[INFO] resuming reply {state['message_id']} in {room_name}")
+        gevent.spawn(
+            stoppable_reply,
+            chat_gpt,
+            state.get("username") or "guest",
+            room_name,
+            model_name=state.get("model_name"),
+            enable_thinking=bool(state.get("enable_thinking")),
+            tool_context=tools.ToolContext(email=state.get("email")),
+            resume=state,
+        )
+    return len(jobs)
+
+
+def trail_as_of_now(saved, room_name, resuming=False):
     """A message's saved tool lines for history. A line saved while running
     is only still running if a reply streams in its room now: one a restart
     (a deploy) cut off said "running" forever, with no Stop & no updates
@@ -937,7 +972,8 @@ def trail_as_of_now(saved, room_name):
     if not saved:
         return None
     trail = json.loads(saved)
-    if streaming_replies.get(room_name):
+    # A reply holding a checkpoint is being (or about to be) resumed.
+    if streaming_replies.get(room_name) or resuming:
         return trail
     for entry in trail:
         if isinstance(entry, dict) and entry.get("status") == "running":
@@ -1033,7 +1069,9 @@ def on_join(data):
                 "from_model": message.username in SYSTEM_USERS
                 and message.username != "system",
                 "thinking": message.thinking,
-                "tools": trail_as_of_now(message.tool_trail, room_name),
+                "tools": trail_as_of_now(
+                    message.tool_trail, room_name, resuming=bool(message.resume_state)
+                ),
             },
             room=request.sid,
         )
@@ -1828,7 +1866,13 @@ def chat_gpt(
     model_name="gpt-4o-mini",
     enable_thinking=True,
     tool_context=None,
+    resume=None,
 ):
+    """Stream a model's reply into the room, running the tools it calls.
+    resume (Message.resume_state & its message_id, from
+    resume_interrupted_replies) carries on a reply our server restarted in
+    the middle of: same message, its words so far, its conversation, at
+    the tool call it was waiting on."""
     openai_client, model_name = get_openai_client_and_model(model_name)
 
     limit = 20
@@ -1843,9 +1887,11 @@ def chat_gpt(
     with app.app_context():
         room = get_room(room_name)
         room_id = room.id  # Save room_id to avoid DetachedInstanceError later
-        last_messages = (
-            Message.visible(room_id).order_by(Message.id.desc()).limit(limit).all()
-        )
+        visible = Message.visible(room_id)
+        if resume:
+            # The reply being resumed is not history: it is being written.
+            visible = visible.filter(Message.id != resume["message_id"])
+        last_messages = visible.order_by(Message.id.desc()).limit(limit).all()
 
         chat_history = []
 
@@ -1899,15 +1945,31 @@ def chat_gpt(
             chat_history.append({"role": role, "content": content})
 
     buffer = ""  # Content buffer for accumulating the chunks
+    resumed_trail = []
 
-    # save empty message, we need the ID when we chunk the response.
-    with app.app_context():
-        new_message = Message(username=model_name, content=buffer, room_id=room_id)
-        db.session.add(new_message)
-        db.session.commit()
-        msg_id = new_message.id
+    if resume:
+        with app.app_context():
+            resumed_message = db.session.get(Message, resume["message_id"])
+            if resumed_message is None:
+                return None
+            msg_id = resumed_message.id
+            buffer = resumed_message.content or ""
+            resumed_trail = [
+                entry
+                for entry in json.loads(resumed_message.tool_trail or "[]")
+                if entry.get("status") != "running"
+            ]
+    else:
+        # save empty message, we need the ID when we chunk the response.
+        with app.app_context():
+            new_message = Message(username=model_name, content=buffer, room_id=room_id)
+            db.session.add(new_message)
+            db.session.commit()
+            msg_id = new_message.id
 
-    first_chunk = True
+    # A resumed reply already has its words on everyone's screen: new ones
+    # join them rather than start it over.
+    first_chunk = not (resume and buffer)
 
     create_kwargs = {
         "model": model_name,
@@ -1934,6 +1996,7 @@ def chat_gpt(
                 if tools.policy.delegate_summaries_enabled()
                 else None
             ),
+            checkpoint=lambda state: save_checkpoint(state),
         )
     tool_schemas = tools.schemas(tool_context)
     if tool_schemas:
@@ -1941,7 +2004,8 @@ def chat_gpt(
         # Which tools it has & that it never claims a run it did not make.
         chat_history.insert(0, tools.guidance(tool_context))
         offered = list(tools.offered(tool_context))
-        print(f"[INFO] {model_name} may call {', '.join(offered)} for {username}")
+        if not resume:
+            print(f"[INFO] {model_name} may call {', '.join(offered)} for {username}")
         # Asked for a tool by name: the first ask must call it.
         named = tools.named_tool(
             tool_context, chat_history[-1]["content"] if chat_history else None
@@ -1970,8 +2034,13 @@ def chat_gpt(
 
     try:
         # An endpoint that fails before streaming hands over to another
-        # endpoint serving this same model.
-        chunks = open_with_failover(openai_client, model_name, open_stream)
+        # endpoint serving this same model. A resumed reply has nothing to
+        # ask yet: it picks up at the tool call it was waiting on.
+        chunks = (
+            None
+            if resume
+            else open_with_failover(openai_client, model_name, open_stream)
+        )
     except Exception as e:
         with app.app_context():
             message_content = f"{model_name} Error: {e}"
@@ -2071,7 +2140,34 @@ def chat_gpt(
                     return ("reply", answer_guard.looping), False, False
         return None, cut, False
 
-    tool_trail = []  # each finished tool call, kept as Message.tool_trail
+    tool_trail = list(resumed_trail)  # each finished tool call, Message.tool_trail
+    # This round's place, for save_checkpoint: its calls & text, & the
+    # reply's own messages before it (prior), past chat_history.
+    round_info = {}
+
+    def save_checkpoint(state):
+        """A long call (delegate) started: keep where to pick this reply up
+        if our server restarts before it ends (Message.resume_state)."""
+        checkpoint = dict(
+            round_info,
+            **state,
+            username=username,
+            model_name=model_name,
+            enable_thinking=enable_thinking,
+            email=getattr(tool_context, "email", None),
+        )
+        with app.app_context():
+            reply = db.session.get(Message, msg_id)
+            if reply is not None:
+                reply.resume_state = json.dumps(checkpoint)
+                db.session.commit()
+
+    def clear_checkpoint():
+        with app.app_context():
+            reply = db.session.get(Message, msg_id)
+            if reply is not None and reply.resume_state:
+                reply.resume_state = None
+                db.session.commit()
 
     def save_progress(trail):
         with app.app_context():
@@ -2098,13 +2194,17 @@ def chat_gpt(
         )
         socketio.sleep(0)
 
-    if tool_schemas:
+    if tool_schemas and not resume:
         # The reply's first line names the tools it may call, so a reply
         # that calls none shows whether it had them to call.
         notify_tool({"tool": "offered", "names": offered, "status": "done"})
 
     budget = thinking_budget() if enable_thinking else 0
-    looped, cut_at_limit, over_budget = consume(chunks, budget * CHARS_PER_TOKEN)
+    if resume:
+        looped, cut_at_limit, over_budget = None, False, False
+        tool_calls = SimpleNamespace(calls=resume.get("calls") or [])
+    else:
+        looped, cut_at_limit, over_budget = consume(chunks, budget * CHARS_PER_TOKEN)
     cap, cap_name = create_kwargs.get("max_tokens"), "OPENCOMPLETION_MAX_TOKENS"
     footnote = ""
     if over_budget:
@@ -2148,14 +2248,32 @@ def chat_gpt(
     # they found & stream its next ask into this same reply. Its last
     # round goes without tools, so a reply always ends in an answer.
     rounds, round_start, with_tools = 0, 0, chat_history
+    resume_round = None
+    if resume:
+        rounds = max(0, int(resume.get("rounds") or 1) - 1)
+        round_start = int(resume.get("round_start") or 0)
+        with_tools = chat_history + list(resume.get("prior") or [])
+        resume_round = resume
     while tool_calls is not None and tool_calls.calls and not looped:
         if room_name in stop_requests:
             break
         rounds += 1
+        round_info.update(
+            calls=tool_calls.calls,
+            round_start=round_start,
+            rounds=rounds,
+            prior=with_tools[len(chat_history) :],
+        )
         with app.app_context():  # sandboxes & run artifacts are rows
             with_tools = with_tools + tools.run_round(
-                tool_context, tool_calls.calls, buffer[round_start:], notify_tool
+                tool_context,
+                tool_calls.calls,
+                buffer[round_start:],
+                notify_tool,
+                resume=resume_round,
             )
+        resume_round = None
+        clear_checkpoint()  # the round ended: nothing left to pick up
         if room_name in stop_requests:  # Stop pressed while a tool ran
             break
         round_start = len(buffer)
@@ -2232,6 +2350,7 @@ def chat_gpt(
             new_message.content = buffer
             new_message.thinking = "".join(thinking_parts) or None
             new_message.tool_trail = json.dumps(tool_trail) if tool_trail else None
+            new_message.resume_state = None
             new_message.count_tokens()
             db.session.add(new_message)
             db.session.commit()
@@ -3111,6 +3230,8 @@ if __name__ == "__main__":
         print("Loaded classifier: none configured")
     for line in startup_summary():
         print(line)
+    # Replies a restart cut off while a delegate ran pick up where they were.
+    gevent.spawn_later(2, resume_interrupted_replies)
     # Set profile_name and other configurations as global attributes of the app object
     app.config["PROFILE_NAME"] = args.profile
     app.config["LOCAL_ACTIVITIES"] = args.local_activities

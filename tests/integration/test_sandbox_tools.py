@@ -1393,6 +1393,9 @@ def test_a_run_cut_off_by_a_restart_reads_as_interrupted(test_app):
     finally:
         del app_module.streaming_replies["lab"]
     assert app_module.trail_as_of_now(None, "lab") is None
+    # one holding a checkpoint is about to be resumed: still running
+    resuming = app_module.trail_as_of_now(saved, "lab", resuming=True)
+    assert resuming[1]["status"] == "running"
 
 
 def test_a_plan_step_is_cut_at_a_word_never_mid_word():
@@ -1531,3 +1534,151 @@ def test_a_sandbox_unsandbox_froze_is_woken_though_our_row_says_running(
     result = tools.run(fox_in(room), "sandbox_shell", {"command": "ls"})
     assert result["exit_code"] == 0
     assert ("unfreeze", sandbox.service_id) in unsandbox.calls
+
+
+# -- a restart mid-delegate: reattach & carry on ------------------------------
+
+
+def model_chunk(content=None, calls=None):
+    delta = SimpleNamespace(
+        reasoning_content=None, reasoning=None, content=content, tool_calls=calls
+    )
+    return SimpleNamespace(choices=[SimpleNamespace(delta=delta, finish_reason=None)])
+
+
+@pytest.fixture
+def chat(test_app, monkeypatch):
+    """chat_gpt with a fake model (each ask streams the next script) & the
+    room's events captured."""
+    import app as app_module
+
+    scripts, asks, emitted = [], [], []
+
+    def create(**kwargs):
+        asks.append(kwargs)
+        return iter(scripts.pop(0))
+
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+    )
+    monkeypatch.setattr(
+        app_module, "get_openai_client_and_model", lambda n: (client, n)
+    )
+    monkeypatch.setattr(app_module.socketio, "emit", lambda *a, **k: emitted.append(a))
+    monkeypatch.setattr(app_module.socketio, "sleep", lambda s: None)
+    monkeypatch.setattr(app_module, "title_untitled_room", lambda name: None)
+    return SimpleNamespace(app=app_module, scripts=scripts, asks=asks, emitted=emitted)
+
+
+def delegate_call(task, id="c1"):
+    function = SimpleNamespace(name="delegate", arguments=json.dumps({"task": task}))
+    return model_chunk(calls=[SimpleNamespace(index=0, id=id, function=function)])
+
+
+def test_a_delegate_reply_keeps_a_checkpoint_while_its_run_goes(unsandbox, room, chat):
+    from models import Message, db
+
+    db.session.add(Message(username="russell", content="add parse()", room_id=room.id))
+    db.session.commit()
+    chat.scripts += [[delegate_call("add parse")], [model_chunk(content="Done.")]]
+    seen = []
+    real = unsandbox.execute_in_service
+
+    def execute(service_id, command, timeout=30000):
+        if "__EXIT__" in command:  # a poll: the checkpoint is saved by now
+            reply = Message.query.filter_by(username="qwen").one()
+            db.session.refresh(reply)
+            seen.append(json.loads(reply.resume_state or "null"))
+        return real(service_id, command, timeout)
+
+    import un
+
+    un.execute_in_service = execute
+    try:
+        chat.app.chat_gpt(
+            "russell",
+            room.name,
+            model_name="qwen",
+            enable_thinking=False,
+            tool_context=tools.ToolContext(sid="s", email=FOX),
+        )
+    finally:
+        un.execute_in_service = real
+    state = seen[0]
+    assert state["calls"][0]["name"] == "delegate" and state["call_index"] == 0
+    assert state["run"]["run_dir"].startswith("/root/") and state["run"]["deadline"]
+    assert state["username"] == "russell" and state["email"] == FOX
+    reply = Message.query.filter_by(username="qwen").one()
+    assert reply.resume_state is None  # the round ended: nothing to pick up
+    assert reply.content == "Done."
+
+
+def test_a_restart_mid_delegate_reattaches_and_the_reply_carries_on(
+    unsandbox, room, chat, monkeypatch
+):
+    """Our server restarted while uncloseai-cli ran (a deploy): the run went
+    on in its sandbox, so the reply picks it up, never starting it again,
+    & the model reads its result & finishes the same reply (fox, 2026-10-31)."""
+    from models import Message, db
+
+    sandbox = make_sandbox(unsandbox, room)
+    db.session.add(Message(username="russell", content="add parse()", room_id=room.id))
+    reply = Message(username="qwen", content="Delegating. ", room_id=room.id)
+    reply.tool_trail = json.dumps(
+        [{"tool": "delegate", "label": "add parse", "status": "running", "at": 12}]
+    )
+    call = {
+        "id": "c1",
+        "name": "delegate",
+        "arguments": json.dumps({"task": "add parse"}),
+    }
+    reply.resume_state = json.dumps(
+        {
+            "calls": [call],
+            "round_start": 0,
+            "rounds": 1,
+            "prior": [],
+            "call_index": 0,
+            "done": [],
+            "run": {
+                "sandbox_id": sandbox.id,
+                "run_dir": "/root/.uncloseai/delegate-abcd",
+                "deadline": time.time() + 600,
+                "token_sha256": "t",
+            },
+            "username": "russell",
+            "model_name": "qwen",
+            "enable_thinking": False,
+            "email": FOX,
+        }
+    )
+    db.session.add(reply)
+    db.session.commit()
+    unsandbox.answer = "Added parse(); 57 pass."
+    chat.scripts.append([model_chunk(content="All 57 pass.")])
+    monkeypatch.setattr(chat.app.gevent, "spawn", lambda fn, *a, **k: fn(*a, **k))
+    before = len(unsandbox.commands())
+
+    assert chat.app.resume_interrupted_replies() == 1
+
+    start, polls = unsandbox.delegate_commands()
+    assert not start  # reattached, never launched again
+    assert polls and all("delegate-abcd" in p for p in polls)
+    assert len(unsandbox.commands()) > before
+    db.session.refresh(reply)
+    assert reply.content == "Delegating. All 57 pass."
+    trail = json.loads(reply.tool_trail)
+    assert trail[-1]["tool"] == "delegate" and trail[-1]["status"] == "done"
+    assert trail[-1]["detail"]["answer"] == "Added parse(); 57 pass."
+    assert reply.resume_state is None
+    # The model read the run's result, under its own call, & history never
+    # held the reply being written as a message of its own.
+    messages = chat.asks[0]["messages"]
+    assert messages[-1] == {
+        "role": "tool",
+        "tool_call_id": "c1",
+        "content": messages[-1]["content"],
+    }
+    assert "Added parse(); 57 pass." in messages[-1]["content"]
+    assert messages[-2]["tool_calls"][0]["id"] == "c1"
+    assert not [m for m in messages[:-2] if m.get("content") == "Delegating. "]

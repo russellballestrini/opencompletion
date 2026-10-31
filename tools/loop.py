@@ -234,14 +234,24 @@ def out_of_rounds(rounds):
     return {"role": "user", "content": OUT_OF_ROUNDS.format(rounds=rounds)}
 
 
-def run_round(context, calls, content, notify=lambda event: None):
+def run_round(context, calls, content, notify=lambda event: None, resume=None):
     """Run each call (tools.run) & return the messages for the next ask.
     notify gets {"tool", "label", "where": browser|server|None, "status":
-    running|done|error, ...} as each call starts & ends, for the room."""
+    running|done|error, ...} as each call starts & ends, for the room.
+
+    resume (a checkpoint saved before a restart: call_index, done, run)
+    picks the round up at the call that was running, with the results the
+    calls before it had, reattaching to its run instead of starting it."""
     from tools import label_for, offered, run
 
     messages = [assistant_turn(content, calls)]
-    for call in calls:
+    first = 0
+    if resume:
+        messages += list(resume.get("done") or [])
+        first = int(resume.get("call_index") or 0)
+    for index, call in enumerate(calls):
+        if index < first:
+            continue
         log = []
         last = {}  # the newest vitals a long call reported
         arguments = parse_arguments(call["arguments"])
@@ -305,7 +315,19 @@ def run_round(context, calls, content, notify=lambda event: None):
                 if log or shaped:
                     notify(running_event())
 
-            result = run(replace(context, progress=progress), call["name"], arguments)
+            call_context = replace(context, progress=progress)
+            if resume and index == first:
+                call_context = replace(call_context, resume_run=resume.get("run"))
+            if context.checkpoint:
+                # The run, plus where it sits in this round: the results of
+                # the calls before it, so a resumed round needn't redo them.
+                call_context = replace(
+                    call_context,
+                    checkpoint=lambda run_state, index=index: context.checkpoint(
+                        {"call_index": index, "done": messages[1:], "run": run_state}
+                    ),
+                )
+            result = run(call_context, call["name"], arguments)
         done = {"tool": call["name"], "label": label, "where": where}
         shown = detail_of(call["name"], arguments or {}, result)
         if shown and arguments is not None and log:

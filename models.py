@@ -172,6 +172,11 @@ class Message(db.Model):
     # What a reply's tools did (tools/, docs/TOOLS.md), as JSON: a list of
     # {tool, label, where, asker, status, sources, error}, shown above it.
     tool_trail = db.Column(db.Text)
+    # While a reply waits on a long tool (a delegate), where to pick it up
+    # after a restart, as JSON (app.chat_gpt's checkpoint): the run in its
+    # sandbox, the tool calls of that round & the conversation so far.
+    # Cleared when the round ends; app.resume_interrupted_replies reads it.
+    resume_state = db.Column(db.Text)
 
     @classmethod
     def visible(cls, room_id):

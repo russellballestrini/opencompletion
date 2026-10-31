@@ -73,6 +73,18 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   tool guidance tells the model to share a file it or `delegate` made
   rather than name a sandbox path.
 - **`delegate`**: `unclose -p` in that sandbox, for multi-step work.
+  It runs detached (`setsid nohup`), so it outlives our server: when a
+  reply launches one it saves a checkpoint on its message
+  (`Message.resume_state`: the run's sandbox & folder, its deadline, the
+  round's tool calls, the reply's conversation so far; migration
+  `2026103103`, `make upgrade-db`). On startup `resume_interrupted_replies`
+  re-enters each such reply at that call: the run is reattached (never
+  started again), its card goes on updating (Stop included) & when it
+  ends the model reads its result & finishes the same reply. The
+  checkpoint is cleared when the round ends. A history line saved as
+  running with no checkpoint & nothing streaming reads as interrupted.
+  Each 15s tick gathers the log, the vitals & (when the log grew) the
+  summary (within 8s), then sends one update.
 
 Every call goes through our vendored SDK, `un.py`: `/execute` (via
 `un._make_request`, for `return_artifact` & `os`) & `wait_for_job` for

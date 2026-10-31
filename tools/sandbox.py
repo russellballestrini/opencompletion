@@ -706,17 +706,31 @@ def _delegate(context, task, armed):
     task = str(task or "").strip()
     if not task:
         return {"error": "task required"}
-    sandbox = ready(context)
-    model = context.model or sandbox.model
-    # Armed afresh for every run: a new token, & the vault's settings as
-    # this server has them now (an older sandbox catches up).
-    arm_proxy(sandbox, model)
-    armed.update(sandbox_id=sandbox.id, token_sha256=sandbox.token_sha256)
-    note = fresh_note(sandbox)
-    if note:
-        # uncloseai-cli starts in the new sandbox: it needs the history too.
-        task = f"{note}\n\nTask: {task}"
-    run_dir = shlex.quote(f"{DELEGATE_DIR}/delegate-{secrets.token_hex(4)}")
+    resumed = context.resume_run
+    if resumed:
+        # Our server restarted while uncloseai-cli ran: the run went on in
+        # its sandbox, so reattach to it rather than start it again (fox,
+        # 2026-10-31). Its token is still armed; revoked when it ends.
+        sandbox = db.session.get(Sandbox, resumed.get("sandbox_id"))
+        if sandbox is None or sandbox.state in ("destroyed", "destroy_pending"):
+            return {"error": "the sandbox this run was in is gone"}
+        _wait_running(sandbox.service_id)
+        armed.update(sandbox_id=sandbox.id, token_sha256=resumed.get("token_sha256"))
+        model = context.model or sandbox.model
+        note = None
+        run_dir = resumed["run_dir"]
+    else:
+        sandbox = ready(context)
+        model = context.model or sandbox.model
+        # Armed afresh for every run: a new token, & the vault's settings
+        # as this server has them now (an older sandbox catches up).
+        arm_proxy(sandbox, model)
+        armed.update(sandbox_id=sandbox.id, token_sha256=sandbox.token_sha256)
+        note = fresh_note(sandbox)
+        if note:
+            # uncloseai-cli starts in the new sandbox: it needs the history.
+            task = f"{note}\n\nTask: {task}"
+        run_dir = shlex.quote(f"{DELEGATE_DIR}/delegate-{secrets.token_hex(4)}")
     inner = (
         ". /run/unsandbox/vault.sh 2>/dev/null; export PATH=/root/.local/bin:$PATH; "
         f"unclose -p --no-markdown --model {shlex.quote(model)} {shlex.quote(task)} "
@@ -740,9 +754,25 @@ def _delegate(context, task, armed):
             return result
         return None
 
-    failed = launch()
-    if failed:
-        return failed
+    if resumed:
+        deadline = float(resumed.get("deadline") or 0) or (
+            time.time() + policy.delegate_timeout()
+        )
+    else:
+        failed = launch()
+        if failed:
+            return failed
+        deadline = time.time() + policy.delegate_timeout()
+        if context.checkpoint:
+            # Where to find this run again if our server restarts.
+            context.checkpoint(
+                {
+                    "sandbox_id": sandbox.id,
+                    "run_dir": run_dir,
+                    "deadline": deadline,
+                    "token_sha256": sandbox.token_sha256,
+                }
+            )
     restarts = 0
     # First line: uncloseai-cli's vitals (`unclose --vitals <pid>`, the
     # unclose-vitals/1 JSON: plan, turn, context, tools, files, model
@@ -764,7 +794,6 @@ def _delegate(context, task, armed):
         f"| tail -n 12; fi"
     )
     stop = stop_command(run_dir)
-    deadline = time.time() + policy.delegate_timeout()
     next_tick = time.monotonic() + DELEGATE_POLL_S
     shown = None
     last_vitals = None

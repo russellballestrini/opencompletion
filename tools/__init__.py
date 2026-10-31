@@ -192,6 +192,11 @@ class ToolContext:
     summarize: Optional[Callable[[str, str], Optional[str]]] = field(
         default=None, compare=False
     )
+    # Set by chat_gpt: checkpoint(state) saves where a long call (delegate)
+    # can be picked up after a restart; resume_run, set on a resumed reply's
+    # call, is that saved run, reattached instead of started again.
+    checkpoint: Optional[Callable[[dict], None]] = field(default=None, compare=False)
+    resume_run: Optional[dict] = field(default=None, compare=False)
 
     @property
     def server_egress(self):
