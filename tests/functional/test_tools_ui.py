@@ -359,7 +359,7 @@ window.addEventListener('load', async () => {
         check(summaryAt.indexOf('tool-card-plan-row') < summaryAt.indexOf('message-tool-vitals'), 'plan above vitals: ' + summaryAt.join(','));
         const job = document.querySelector('#message-20 .message-tool-job');
         check(job && job.open && /files changed \(1\)/.test(job.textContent) && /ago\/tests\/test_new\.py/.test(job.textContent), 'job fold lists files');
-        check(/last error: empty_delivery/.test(job.textContent) && /50\.0k in · 3\.0k out/.test(job.textContent), 'job fold: model & tokens');
+        check(/last hiccup: empty_delivery/.test(job.textContent) && /50\.0k in · 3\.0k out/.test(job.textContent), 'job fold: model & tokens');
         job.open = false;
         deliver('tool_activity', {id: 20, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             vitals: {turn: 4, plan: {done: 2, total: 5}, context: {}, tools: {}, activity: {}, files: {changed: [], count: 0}}});

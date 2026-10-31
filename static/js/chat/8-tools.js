@@ -225,7 +225,12 @@ function toolJob(vitals) {
     }
     if (llm.calls !== undefined && llm.calls !== null) {
         let health = `${llm.calls} calls · ${llm.retries || 0} retries · ${llm.empty || 0} empty`;
-        if (llm.last_error) health += `\nlast error: ${llm.last_error}`;
+        // uncloseai-cli rides these out (a thinking-only turn is re-sent
+        // with thinking off): the last one, not a run that failed.
+        if (llm.last_error) {
+            health += `\nlast hiccup: ${llm.last_error}`;
+            if (/thinking-only/.test(llm.last_error)) health += " (re-sent with thinking off)";
+        }
         rows.push(["model", health]);
     }
     if (tokens.input || tokens.output) rows.push(["tokens", `${shortCount(tokens.input || 0)} in · ${shortCount(tokens.output || 0)} out`]);
