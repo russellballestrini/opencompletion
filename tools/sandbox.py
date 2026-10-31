@@ -30,6 +30,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import secrets
 import shlex
 import time
@@ -574,6 +575,15 @@ DELEGATE_DIR = "/root/.opencompletion"
 ANSI = r"s/\x1b\[[0-9;?]*[A-Za-z]//g"
 
 
+_MARKER_LINE = re.compile(r"(?m)^__(?:EXIT|VITALS|STDERR|LOST)__.*\n?")
+
+
+def _unmarked(text):
+    """Text from a poll without our own marker lines: they are ours, never
+    the run's (one reached a reply's stderr box, 2026-10-31)."""
+    return _MARKER_LINE.sub("", text or "")
+
+
 def stop_command(run_dir):
     """Kill a delegate run & everything it started: uncloseai-cli runs its
     commands in their own sessions, so killing its pid alone left a long
@@ -754,8 +764,8 @@ def _delegate(context, task, armed):
             result = {
                 "status": "completed",
                 "exit_code": code,
-                "answer": _clip(answer.rstrip()),
-                "stderr": _clip(stderr.rstrip()),
+                "answer": _clip(_unmarked(answer).rstrip()),
+                "stderr": _clip(_unmarked(stderr).rstrip()),
             }
             if code != 0:
                 result["error"] = f"uncloseai-cli exited {code}"

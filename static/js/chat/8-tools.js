@@ -321,7 +321,7 @@ function drawToolLine(line, data) {
     // The fold sits under the line, above the log: the log grows down the
     // page & must not push it out of reach (2026-10-31).
     if (data.detail) {
-        const fold = toolDetail(data.detail, data.status === "running");
+        const fold = toolDetail(data.detail, data.status === "running", data.tool);
         fold.open = wasOpen;
         line.appendChild(fold);
     }
@@ -387,7 +387,25 @@ function toolPreview(input) {
 }
 
 // A code tool's code (or command) & what came back, folded under its line.
-function toolDetail(detail, running) {
+// A copy button for a block of output (the delegation log).
+function copyButton(text) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "copy-button message-tool-copy";
+    button.textContent = "Copy";
+    button.addEventListener("click", async () => {
+        try {
+            await navigator.clipboard.writeText(text);
+            button.textContent = "Copied";
+        } catch (e) {
+            button.textContent = "Copy failed";
+        }
+        setTimeout(() => { button.textContent = "Copy"; }, 1500);
+    });
+    return button;
+}
+
+function toolDetail(detail, running, tool) {
     const block = document.createElement("details");
     block.className = "message-tool-detail";
     const summary = document.createElement("summary");
@@ -414,12 +432,26 @@ function toolDetail(detail, running) {
         const title = document.createElement("div");
         title.className = "message-tool-log-title";
         title.textContent = "delegation log";
+        if (!running) title.appendChild(copyButton(detail.log));
         block.appendChild(title);
         pre(detail.log, "message-tool-output is-log");
     }
     if (detail.stdout) pre(detail.stdout, "message-tool-output");
     if (detail.answer) pre(detail.answer, "message-tool-output");
-    if (detail.stderr) pre(detail.stderr, "message-tool-output is-stderr");
+    if (detail.stderr) {
+        // A delegate's stderr is uncloseai-cli's own commentary (spinner,
+        // "slow call" timings): notes, red only when the run failed.
+        const failed = detail.exit_code !== undefined && detail.exit_code !== null && detail.exit_code !== 0;
+        if (tool === "delegate" && !failed) {
+            const title = document.createElement("div");
+            title.className = "message-tool-log-title";
+            title.textContent = "uncloseai-cli notes";
+            block.appendChild(title);
+            pre(detail.stderr, "message-tool-output is-notes");
+        } else {
+            pre(detail.stderr, "message-tool-output is-stderr");
+        }
+    }
     if (detail.exit_code !== undefined && detail.exit_code !== null) {
         const exit = document.createElement("div");
         exit.className = "message-tool-exit";

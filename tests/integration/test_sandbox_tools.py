@@ -1261,6 +1261,15 @@ def test_the_poll_asks_unclose_for_its_vitals_like_peek(unsandbox, room):
     assert all("__VITALS__" in p for p in polls)
 
 
+def test_our_poll_markers_never_reach_the_reply(unsandbox, room):
+    unsandbox.polls = [
+        "__EXIT__0\nDone.\n__EXIT__0\n__STDERR__\n(slow call: 45s)\n__EXIT__0\n"
+    ]
+    result = delegate(room, unsandbox)
+    assert result["answer"] == "Done."
+    assert result["stderr"] == "(slow call: 45s)"
+
+
 def test_vitals_of_another_schema_are_ignored():
     from tools.loop import shape_vitals
 

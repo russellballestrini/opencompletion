@@ -2184,6 +2184,11 @@ a:hover {
     overflow-wrap: anywhere;
 }
 
+.message-tool-log-title .message-tool-copy {
+    margin-left: var(--space-2);
+    font-size: 11px;
+}
+
 .message-tool-log > summary {
     cursor: pointer;
     font-size: 12px;

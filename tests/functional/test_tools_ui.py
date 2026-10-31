@@ -251,6 +251,15 @@ window.addEventListener('load', async () => {
         check(d18[0].querySelector('.is-log').textContent === '[bash] git clone\n[bash] make test', 'log kept in the fold');
         deliver('tool_activity', {id: 19, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'done',
             vitals: {turn: 9, context: {used: 1, peak: 21000, window: 82000}, tools: {total: 23, by_name: {}}, activity: {}}});
+        // A delegate's stderr is notes, red only when the run failed; its
+        // finished log can be copied.
+        deliver('tool_activity', {id: 22, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'done',
+            detail: {language: '', input: 't', answer: 'Done.', stderr: '(slow call: 45s)', exit_code: 0, log: '[bash] make test'}});
+        check(document.querySelector('#message-22 .is-notes') && !document.querySelector('#message-22 .is-stderr'), 'a clean run: stderr as notes');
+        check(document.querySelector('#message-22 .message-tool-copy'), 'the finished log has a copy button');
+        deliver('tool_activity', {id: 23, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'error', error: 'exited 4',
+            detail: {language: '', input: 't', stderr: 'Traceback', exit_code: 4}});
+        check(document.querySelector('#message-23 .is-stderr'), 'a failed run: stderr in red');
         const summary = document.querySelector('#message-19 .message-tool-vitals');
         check(summary && summary.textContent === '9 turns · peak context 21.0k · 23 tool calls', 'finished vitals: ' + (summary && summary.textContent));
         // A code tool's line folds open to its code & output, as text.
