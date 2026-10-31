@@ -1373,6 +1373,28 @@ def test_vitals_of_another_schema_are_ignored():
     assert shaped["turn"] is None and shaped["tools"]["total"] is None
 
 
+def test_a_run_cut_off_by_a_restart_reads_as_interrupted(test_app):
+    """A running line saved before a restart said "running" forever, with
+    no Stop & no updates (fox, 2026-10-31); a live one still runs."""
+    import app as app_module
+
+    saved = json.dumps(
+        [
+            {"tool": "web_search", "status": "done"},
+            {"tool": "delegate", "status": "running"},
+        ]
+    )
+    cut = app_module.trail_as_of_now(saved, "lab")
+    assert cut[0]["status"] == "done"
+    assert cut[1]["status"] == "error" and "interrupted" in cut[1]["error"]
+    app_module.streaming_replies["lab"] = 1
+    try:
+        assert app_module.trail_as_of_now(saved, "lab")[1]["status"] == "running"
+    finally:
+        del app_module.streaming_replies["lab"]
+    assert app_module.trail_as_of_now(None, "lab") is None
+
+
 def test_a_plan_step_is_cut_at_a_word_never_mid_word():
     from tools.loop import clip_words, shape_vitals
 

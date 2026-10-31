@@ -2085,6 +2085,11 @@ a:hover {
     margin: var(--space-2) 0;
 }
 
+/* A list holding only the (hidden) tools a reply was offered takes no room. */
+.message-tools:not(:has(> .message-tool:not([hidden]))) {
+    display: none;
+}
+
 .message-content > .message-part + .message-part {
     margin-top: var(--space-2);
 }

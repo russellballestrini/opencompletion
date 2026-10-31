@@ -139,9 +139,20 @@ window.addEventListener('load', async () => {
         deliver('tool_activity', {id: 30, tool: 'offered', names: ['web_search', 'delegate'], status: 'done', asker: username});
         const offeredLine = document.querySelector('#message-30 .message-tool');
         const chips = (el) => [...el.querySelectorAll('.message-tool-chip')].map((c) => c.textContent).join(' · ');
-        check(offeredLine && chips(offeredLine) === 'web_search · delegate' && offeredLine.classList.contains('is-offered'), 'offered chips: ' + (offeredLine ? chips(offeredLine) : ''));
+        check(offeredLine && offeredLine.hidden && offeredLine.classList.contains('is-offered'), 'the tools offered are kept, not drawn');
+        check(getComputedStyle(offeredLine.parentElement).display === 'none', 'a list of only them takes no room');
         deliver('previous_messages', {id: 31, username: 'qwen', content: 'Hi', tools: [{tool: 'offered', names: ['run_code'], status: 'done'}]});
-        check(chips(document.querySelector('#message-31 .message-tool')) === 'run_code', 'history keeps the offered line');
+        check(document.querySelector('#message-31 .message-tool').hidden, 'history keeps the offered line, hidden');
+        // Refreshed mid-run: history draws the running card, & live
+        // updates keep updating that card, never a second one below it.
+        deliver('previous_messages', {id: 51, username: 'qwen', content: 'Working. ', tools: [
+            {tool: 'delegate', label: 'add parse', where: 'sandbox', asker: username, status: 'running', at: 9,
+             detail: {language: '', input: 'add parse'}, progress: '[bash] git clone'}]});
+        deliver('tool_activity', {id: 51, tool: 'delegate', label: 'add parse', where: 'sandbox', asker: username, model_name: 'qwen', status: 'running', at: 9,
+            detail: {language: '', input: 'add parse'}, progress: '[bash] git clone\n[bash] pytest', summary: 'Cloned it; running tests.'});
+        const cards51 = document.querySelectorAll('#message-51 .message-tool');
+        check(cards51.length === 1, 'one card after a refresh, not ' + cards51.length);
+        check(cards51[0].querySelector('.message-tool-summary').textContent === 'Cloned it; running tests.', 'the refreshed card keeps updating');
         // A tool's line inside a reply, & whose network it ran on.
         deliver('tool_activity', {id: 7, tool: 'web_search', label: 'elmo', where: 'browser', asker: username, status: 'running'});
         const line = () => document.querySelector('#message-7 .message-tool:last-child');

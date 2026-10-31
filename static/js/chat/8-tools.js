@@ -400,14 +400,12 @@ function toolSources(found) {
 // One tool's line, drawn from a tool_activity event or a saved trail entry.
 function drawToolLine(line, data) {
     if (data.tool === "offered") {
-        // The reply's first line: the tools it may call (app.chat_gpt).
+        // The tools a reply could call stay in its trail (downloads show
+        // them) but are not drawn: a list of tools it never used is noise
+        // (fox, 2026-10-31).
         line.replaceChildren();
+        line.hidden = true;
         line.classList.add("is-offered");
-        const label = document.createElement("span");
-        label.className = "message-tool-chips-label";
-        label.textContent = "Tools";
-        line.appendChild(label);
-        for (const name of data.names || []) line.appendChild(toolChip(name));
         return;
     }
     const verbs = TOOL_VERBS[data.tool] || [`Running ${data.tool}`, `Ran ${data.tool}`];
@@ -580,10 +578,19 @@ function renderFlow(container, content, trail, label) {
         }
         const line = document.createElement("li");
         line.className = "message-tool";
+        // The key live events find a running line by: a page opened (or
+        // refreshed) mid-run keeps updating the card it drew, never starts
+        // a second one below it (fox, 2026-10-31).
+        line.dataset.toolKey = toolKey(entry);
         drawToolLine(line, entry);
         lines.appendChild(line);
     }
     addText(content.slice(pos));
+}
+
+// Which line an event belongs to: its tool & what it was about.
+function toolKey(data) {
+    return `${data.tool}\u0000${data.label || ""}`;
 }
 
 socket.on("tool_activity", (data) => {
@@ -600,7 +607,7 @@ socket.on("tool_activity", (data) => {
     // A running line is updated in place by its own later events: its end,
     // & a long call's progress (also "running"), which used to start a
     // second line for the same delegate (2026-10-31).
-    const key = `${data.tool}\u0000${data.label || ""}`;
+    const key = toolKey(data);
     const same = line && line.classList.contains("is-running") &&
         (data.status !== "running" || line.dataset.toolKey === key);
     if (!same) {

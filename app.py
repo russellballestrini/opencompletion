@@ -929,6 +929,23 @@ def resolve_username(claimed):
 
 
 # Handle user joining a room
+def trail_as_of_now(saved, room_name):
+    """A message's saved tool lines for history. A line saved while running
+    is only still running if a reply streams in its room now: one a restart
+    (a deploy) cut off said "running" forever, with no Stop & no updates
+    (fox, 2026-10-31), so it reads as interrupted instead."""
+    if not saved:
+        return None
+    trail = json.loads(saved)
+    if streaming_replies.get(room_name):
+        return trail
+    for entry in trail:
+        if isinstance(entry, dict) and entry.get("status") == "running":
+            entry["status"] = "error"
+            entry["error"] = "interrupted: the server restarted while it ran"
+    return trail
+
+
 @socketio.on("join")
 def on_join(data):
     room_name = data["room_name"]
@@ -1016,7 +1033,7 @@ def on_join(data):
                 "from_model": message.username in SYSTEM_USERS
                 and message.username != "system",
                 "thinking": message.thinking,
-                "tools": json.loads(message.tool_trail) if message.tool_trail else None,
+                "tools": trail_as_of_now(message.tool_trail, room_name),
             },
             room=request.sid,
         )
