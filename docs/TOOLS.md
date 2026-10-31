@@ -83,6 +83,10 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   ends the model reads its result & finishes the same reply. The
   checkpoint is cleared when the round ends. A history line saved as
   running with no checkpoint & nothing streaming reads as interrupted.
+  `sandbox_shell` checkpoints the same way: its command is an unsandbox
+  job that finishes on unsandbox whatever our server does, so the job id
+  is saved & a resumed reply collects that job's result rather than run
+  the command again.
   Each 15s tick gathers the log, the vitals & (when the log grew) the
   summary (within 8s), then sends one update.
 

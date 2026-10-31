@@ -479,13 +479,17 @@ def init_app(app):
         gevent.spawn(_sweep_forever)
 
 
-def _execute(sandbox, command, timeout_s):
+def _execute(sandbox, command, timeout_s, on_job=None, job_id=None):
     """Run `command` in a sandbox. It counts as in use until the command
     could end, so a long delegate is never frozen under itself; its idle
-    clock starts when the command does end."""
+    clock starts when the command does end. on_job(job_id) hears the job
+    unsandbox started (a checkpoint); job_id instead waits on one already
+    started (a command our server restarted in the middle of)."""
     sandbox.last_used_at = time.time() + timeout_s
     db.session.commit()
     try:
+        if job_id:
+            return _wait_job(job_id, timeout_s + 30)
         try:
             job = un.execute_in_service(
                 sandbox.service_id, command, timeout=timeout_s * 1000
@@ -503,6 +507,8 @@ def _execute(sandbox, command, timeout_s):
                 sandbox.service_id, command, timeout=timeout_s * 1000
             )
         if job.get("job_id"):
+            if on_job:
+                on_job(job["job_id"])
             return _wait_job(job["job_id"], timeout_s + 30)
         return job
     finally:
@@ -512,12 +518,32 @@ def _execute(sandbox, command, timeout_s):
 
 
 def shell(context, command):
+    """One command in this chat's sandbox. It runs as an unsandbox job, which
+    finishes on unsandbox even if our server restarts, so its job id is
+    checkpointed & a resumed reply collects that job's result rather than
+    running the command again (fox, 2026-10-31)."""
     command = str(command or "").strip()
     if not command:
         return {"error": "command required"}
+    resumed = context.resume_run or {}
+    if resumed.get("job_id"):
+        sandbox = db.session.get(Sandbox, resumed.get("sandbox_id"))
+        if sandbox is None or sandbox.state in ("destroyed", "destroy_pending"):
+            return {"error": "the sandbox this command ran in is gone"}
+        result = _execute(
+            sandbox, command, policy.sandbox_timeout(), job_id=resumed["job_id"]
+        )
+        return _finished(result)
     sandbox = ready(context)
+    on_job = None
+    if context.checkpoint:
+
+        def on_job(job_id):
+            context.checkpoint({"sandbox_id": sandbox.id, "job_id": job_id})
+
     return _with_fresh_note(
-        sandbox, _finished(_execute(sandbox, command, policy.sandbox_timeout()))
+        sandbox,
+        _finished(_execute(sandbox, command, policy.sandbox_timeout(), on_job=on_job)),
     )
 
 

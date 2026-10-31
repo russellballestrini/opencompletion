@@ -1682,3 +1682,98 @@ def test_a_restart_mid_delegate_reattaches_and_the_reply_carries_on(
     assert "Added parse(); 57 pass." in messages[-1]["content"]
     assert messages[-2]["tool_calls"][0]["id"] == "c1"
     assert not [m for m in messages[:-2] if m.get("content") == "Delegating. "]
+
+
+def shell_call(command, id="s1"):
+    function = SimpleNamespace(
+        name="sandbox_shell", arguments=json.dumps({"command": command})
+    )
+    return model_chunk(calls=[SimpleNamespace(index=0, id=id, function=function)])
+
+
+def test_a_shell_command_checkpoints_its_job_while_it_waits(unsandbox, room, chat):
+    from models import Message, db
+
+    make_sandbox(unsandbox, room)
+    db.session.add(
+        Message(username="russell", content="run the tests", room_id=room.id)
+    )
+    db.session.commit()
+    chat.scripts += [[shell_call("pytest -q")], [model_chunk(content="Green.")]]
+    seen = []
+    real = unsandbox.get_job
+
+    def get_job(job_id):  # waiting on the command: the checkpoint is saved
+        reply = Message.query.filter_by(username="qwen").one()
+        db.session.refresh(reply)
+        seen.append(json.loads(reply.resume_state or "null"))
+        return real(job_id)
+
+    import un
+
+    un.get_job = get_job
+    try:
+        chat.app.chat_gpt(
+            "russell",
+            room.name,
+            model_name="qwen",
+            enable_thinking=False,
+            tool_context=tools.ToolContext(sid="s", email=FOX),
+        )
+    finally:
+        un.get_job = real
+    state = seen[0]
+    assert state["calls"][0]["name"] == "sandbox_shell"
+    assert state["run"]["job_id"].startswith("job-") and state["run"]["sandbox_id"]
+    assert Message.query.filter_by(username="qwen").one().resume_state is None
+
+
+def test_a_restart_mid_command_collects_its_job_never_runs_it_again(
+    unsandbox, room, chat, monkeypatch
+):
+    from models import Message, db
+
+    sandbox = make_sandbox(unsandbox, room)
+    job_id = unsandbox._job(
+        {"status": "completed", "exit_code": 0, "stdout": "57 passed\n"}
+    )
+    db.session.add(
+        Message(username="russell", content="run the tests", room_id=room.id)
+    )
+    reply = Message(username="qwen", content="Running them. ", room_id=room.id)
+    call = {
+        "id": "s1",
+        "name": "sandbox_shell",
+        "arguments": json.dumps({"command": "pytest -q"}),
+    }
+    reply.resume_state = json.dumps(
+        {
+            "calls": [call],
+            "round_start": 0,
+            "rounds": 1,
+            "prior": [],
+            "call_index": 0,
+            "done": [],
+            "run": {"sandbox_id": sandbox.id, "job_id": job_id},
+            "username": "russell",
+            "model_name": "qwen",
+            "enable_thinking": False,
+            "email": FOX,
+        }
+    )
+    db.session.add(reply)
+    db.session.commit()
+    chat.scripts.append([model_chunk(content="57 pass.")])
+    monkeypatch.setattr(chat.app.gevent, "spawn", lambda fn, *a, **k: fn(*a, **k))
+    ran = len(unsandbox.commands())
+
+    assert chat.app.resume_interrupted_replies() == 1
+
+    assert len(unsandbox.commands()) == ran  # collected, never run again
+    db.session.refresh(reply)
+    assert reply.content == "Running them. 57 pass."
+    trail = json.loads(reply.tool_trail)
+    assert trail[-1]["tool"] == "sandbox_shell" and trail[-1]["status"] == "done"
+    assert "57 passed" in trail[-1]["detail"]["stdout"]
+    assert reply.resume_state is None
+    assert "57 passed" in chat.asks[0]["messages"][-1]["content"]
