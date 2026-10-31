@@ -2158,16 +2158,16 @@ a:hover {
     color: var(--text-secondary);
 }
 
+/* A delegate's log grows down the page as it runs, unboxed (fox,
+   2026-10-31: a capped scrolling box was too small to follow). Long lines
+   wrap, so it never scrolls sideways on a phone. */
 .message-tool-progress {
     margin: var(--space-1) 0 0;
-    padding: var(--space-2);
+    padding: 0 0 0 var(--space-3);
     max-width: 100%;
-    max-height: 240px;
-    overflow: auto;
-    border-radius: var(--radius-md);
-    background-color: var(--bg-secondary);
-    border: 1px dashed var(--border-color);
-    font-size: 12px;
-    line-height: 1.45;
-    white-space: pre;
+    border-left: 2px solid var(--border-color);
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }

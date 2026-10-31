@@ -186,11 +186,6 @@ function drawToolLine(line, data) {
         return;
     }
     const verbs = TOOL_VERBS[data.tool] || [`Running ${data.tool}`, `Ran ${data.tool}`];
-    // The log box is redrawn on every report: keep it at its newest rows,
-    // unless the reader scrolled up in it to read back.
-    const old = line.querySelector(".message-tool-progress");
-    const followLog = !old || old.scrollTop + old.clientHeight >= old.scrollHeight - 4;
-    const keptTop = old ? old.scrollTop : 0;
     line.replaceChildren();
     line.classList.toggle("is-running", data.status === "running");
     line.classList.toggle("is-error", data.status === "error");
@@ -220,7 +215,6 @@ function drawToolLine(line, data) {
         progress.textContent = data.progress;
         progress.title = "delegation log";
         line.appendChild(progress);
-        progress.scrollTop = followLog ? progress.scrollHeight : keptTop;
     }
     if (data.detail) line.appendChild(toolDetail(data.detail, data.status === "running"));
     // Pages it found, or files it made (our own /attachments/ links).
