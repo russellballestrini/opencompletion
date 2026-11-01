@@ -485,8 +485,9 @@ body.chat-page {
     margin-bottom: var(--space-1);
 }
 
-/* Dropdowns in utility belt */
-#voice-select, #activity-select {
+/* The activity dropdown in the utility belt (the voice picker sits in
+   the chat box, styled as .composer-model) */
+#activity-select {
     width: 100%;
     padding: var(--space-2);
     border: 1px solid var(--border-color);
@@ -499,7 +500,7 @@ body.chat-page {
     transition: all 0.2s ease;
 }
 
-#voice-select:focus, #activity-select:focus {
+#activity-select:focus {
     border-color: var(--button-primary);
 }
 
@@ -1827,10 +1828,10 @@ button.sidebar-more {
     cursor: pointer;
 }
 
-/* The voice picker beside the model: narrower, it names a voice. */
+/* The voice picker beside the model, in its look: narrower, it names a
+   voice. */
 .composer-voice {
     max-width: 30%;
-    font-weight: 500;
 }
 
 .composer-model:hover {

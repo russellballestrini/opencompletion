@@ -39,6 +39,11 @@ window.addEventListener('load', () => {
     check(!voice.hidden && box.width >= 60 && box.height >= 20, 'it shows with read aloud off: ' + info);
     check(voice.options.length === 3, 'it lists the voices: ' + info);
     check(box.right <= model.getBoundingClientRect().left + 1, 'it sits left of the model: ' + info);
+    // It looks like the model picker beside it, never a boxed dropdown
+    // (fox, 2026-11-01: an old room-controls rule boxed it).
+    const look = el => ['borderTopWidth', 'backgroundColor', 'fontWeight', 'fontSize', 'color']
+        .map(k => getComputedStyle(el)[k]).join(' ');
+    check(look(voice) === look(model), `it matches the model picker: ${look(voice)} vs ${look(model)}`);
     toggleAutoPlayTTS();
     check(!voice.hidden, 'read aloud on keeps it');
     document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
