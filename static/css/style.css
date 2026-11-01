@@ -431,6 +431,20 @@ body.chat-page {
     margin-bottom: 0;
 }
 
+/* Math, typeset by KaTeX (renderMarkdown in 5-messages.js): a little
+   larger than KaTeX's own size beside our 15px text, & an equation wider
+   than the column scrolls in its own line, never the reply. */
+.message-content .katex {
+    font-size: 1.1em;
+}
+
+.message-content .katex-display {
+    margin: var(--space-2) 0;
+    padding: var(--space-1) 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
 /* Editing a message: one line to start, grown to its text up to 14 lines
    by fitEditor (5-messages.js), then it scrolls. */
 .message-edit {

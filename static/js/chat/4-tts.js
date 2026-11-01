@@ -155,12 +155,12 @@ async function fetchTTSStreaming(cleanText, model, voice) {
 // We wrap the rendered message into sentence spans and light the active one by
 // comparing audio.currentTime to those boundaries. No Web Audio / RMS heuristics.
 
-// What Play reads: a reply's human words, never its code, tables, tool
+// What Play reads: a reply's human words, never its code, math, tables, tool
 // lines (delegate & friends), folds (thinking, tool detail) or buttons
 // (fox, 2026-10-31: it read code & delegation aloud). The glow walks the
 // same nodes, so spoken & lit sentences stay in step.
 const UNSPOKEN = "pre, code, kbd, samp, table, button, details, .message-tools, " +
-    ".code-block-button-container, .followups, .message-header, script, style";
+    ".code-block-button-container, .followups, .message-header, script, style, .katex";
 
 function speakableNodes(container, skip) {
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
@@ -182,6 +182,7 @@ function speakableMarkdown(text) {
     return String(text || "")
         .replace(/```[\s\S]*?(```|$)/g, " ")          // fenced code (even unclosed)
         .replace(/`[^`\n]*`/g, " ")                      // inline code
+        .replace(MATH_SPANS, " ")                          // math (5-messages.js)
         .replace(/^\s*\|.*\|\s*$/gm, " ")              // table rows
         .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")       // images
         .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")      // links: their words

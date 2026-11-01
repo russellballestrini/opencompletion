@@ -9,13 +9,15 @@
     <!-- Browser libraries, vendored in static/vendor/ (see its README):
          highlight.js for code blocks (one theme per colour scheme),
          socket.io for realtime messages, marked.js renders markdown &
-         DOMPurify sanitizes it (XSS). -->
+         DOMPurify sanitizes it (XSS), KaTeX typesets math. -->
     <script src="{{ url_for('static', filename='vendor/highlight-11.6.0.min.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/highlight-github-11.6.0.min.css') }}" id="highlight-theme-light">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/highlight-github-dark-11.6.0.min.css') }}" id="highlight-theme-dark" disabled>
     <script src="{{ url_for('static', filename='vendor/socket.io-4.0.1.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/marked-9.1.2.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/purify-2.5.9.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/katex-0.19.1.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/katex-0.19.1.min.css') }}">
     <script>
       // Connect to the server using socket.io
       const socket = io();

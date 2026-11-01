@@ -90,6 +90,9 @@ are 16px on phones so iOS never zooms into them.
   (`markSender` in `5-messages.js`): `.is-person` words sit in a bubble,
   `.is-mine` on the right in our accent's tint; `.is-model` replies are
   plain text across the pane, so who said what reads at a glance.
+  Math is KaTeX's `.katex` (inline) & `.katex-display` (its own line,
+  scrolling sideways when wider than the column), typeset from `$…$` &
+  `$$…$$` by `renderMarkdown`.
 - **Done chime** a soft two-note chime (Web Audio, no file) when the
   last reply streaming in a room ends after 15s or more, or while the tab
   is in the background; `#done-chime-btn` mutes it (localStorage

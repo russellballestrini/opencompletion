@@ -5,8 +5,50 @@
 // Every message is markdown rendered by marked & sanitized by DOMPurify,
 // images included (DOMPurify keeps data: image URLs & drops handlers such
 // as onerror). Nothing a sender typed ever reaches innerHTML unsanitized.
+// Math ($$…$$, \[…\], \(…\), $…$) is typeset by KaTeX (fox, 2026-11-01):
+// taken out before marked (which eats its \\ & _), outside code, & put
+// back after DOMPurify as KaTeX's own HTML, which escapes what it's given
+// & with trust off runs no \href or \html commands.
 function renderMarkdown(markdown) {
-    return DOMPurify.sanitize(marked.marked(markdown), dompurify_config);
+    const math = protectMath(markdown);
+    const html = DOMPurify.sanitize(marked.marked(math.text), dompurify_config);
+    return math.found.length ? restoreMath(html, math) : html;
+}
+
+// Code is never math: fenced blocks (even unclosed, mid-stream) & inline.
+const CODE_SPANS = /(```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)|`[^`\n]*`)/;
+// $…$ hugs its text & is no price: "$5 and $10" stays as written.
+const MATH_SPANS = /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|(?<!\\)\$(?=\S)((?:\\\$|[^$\n])+?)(?<=\S)\$(?!\d)/g;
+
+function protectMath(markdown) {
+    const found = [];
+    if (typeof katex === "undefined" || !/[$\\]/.test(markdown)) return {text: markdown, found};
+    const key = "mathx" + Math.random().toString(36).slice(2, 10);
+    const text = String(markdown).split(CODE_SPANS).map((part, i) => i % 2 ? part :
+        part.replace(MATH_SPANS, (whole, block, bracket, paren, inline) => {
+            found.push({
+                tex: block ?? bracket ?? paren ?? inline,
+                display: block !== undefined || bracket !== undefined,
+                whole,
+            });
+            return `${key}n${found.length - 1}x`;
+        })).join("");
+    return {text, found, key};
+}
+
+function restoreMath(html, math) {
+    return html.replace(new RegExp(`${math.key}n(\\d+)x`, "g"), (placeholder, n) => {
+        const span = math.found[Number(n)];
+        try {
+            return katex.renderToString(span.tex, {
+                displayMode: span.display, throwOnError: false, trust: false, strict: "ignore",
+            });
+        } catch (e) {
+            const shown = document.createElement("span");
+            shown.textContent = span.whole;
+            return shown.innerHTML;
+        }
+    });
 }
 
 // A sender's name as a bold markdown label. Our own name links to /profile;

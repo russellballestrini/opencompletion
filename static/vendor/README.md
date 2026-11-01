@@ -11,5 +11,12 @@ templates/base.html, and run `make test-ui`.
 | `marked-9.1.2.min.js` | https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js | `b512fc2e8b2d42a00871a5eac88925e4f72bb0696a35050aaaa8c2216225e5b8` |
 | `purify-2.5.9.min.js` | https://cdn.jsdelivr.net/npm/dompurify@2.5.9/dist/purify.min.js | `e9508e857549697297e7817e7cfb3a11f2e7489d812ca8cbbd4d0192ffce50ec` |
 | `socket.io-4.0.1.min.js` | https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js | `e8da407a321da9d28520d362f6202b458b1f5718240de5d47ab5dbc8911842e7` |
+| `katex-0.19.1.min.js` | https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/katex.min.js | `fa140498b8cfc8302cbe5e7cb1bdbc1f952bc38b3fa258ede09e73edbf9a74bc` |
+| `katex-0.19.1.min.css` | https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/katex.min.css, edited (below) | `8eeb590c65133e91daa2f04044c426f91056e56508ad690d89c0097219934324` |
+| `katex-0.19.1-fonts/*.woff2` | https://cdn.jsdelivr.net/npm/katex@0.19.1/dist/fonts/ (the 20 woff2 files) | |
 | `highlight-github-11.6.0.min.css` | https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/github.min.css | `3a9a5def8b9c311e5ae43abde85c63133185eed4f0d9f67fea4b00a8308cf066` |
 | `highlight-github-dark-11.6.0.min.css` | https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/github-dark.min.css | `9f208d022102b1d0c7aebfecd8e42ca7997d5de636649d2b31ea63093d809019` |
+
+KaTeX's CSS (upstream sha256 `00e0b094171b07f58422075f469b4feac2b2f7bce1aeec943c08da4d697f4dcf`) is edited after download: its `url(fonts/…)` become
+`url(katex-0.19.1-fonts/…)` & the `.woff`/`.ttf` fallbacks are dropped
+(every browser we support reads woff2), so only woff2 is vendored.
