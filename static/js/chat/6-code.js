@@ -97,10 +97,13 @@ function addCopyButtonToCodeBlock(block, wasTruncated = false) {
     downloadBinaryButton.classList.add('download-binary-button');
     downloadBinaryButton.style.display = 'none';
 
-    // Add buttons to container
+    // Add buttons to container. What a run printed (a tool line's output,
+    // stderr or log) is copied, never run (fox, 2026-11-01).
     buttonContainer.appendChild(copyButton);
-    buttonContainer.appendChild(playButton);
-    buttonContainer.appendChild(downloadBinaryButton);
+    if (!block.closest("pre.message-tool-output")) {
+        buttonContainer.appendChild(playButton);
+        buttonContainer.appendChild(downloadBinaryButton);
+    }
 
     // Insert the button container after the <pre> element (not inside it)
     // block is <code>, block.parentNode is <pre>

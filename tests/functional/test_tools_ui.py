@@ -443,6 +443,10 @@ window.addEventListener('load', async () => {
         deliver('previous_messages', {id: 13, username: 'qwen', content: 'Done.', tools: [
             {tool: 'sandbox_shell', label: 'ls', where: 'sandbox', asker: username, status: 'done', detail: {language: 'bash', input: 'ls', stdout: 'a.py'}}]});
         check(document.querySelector('#message-13 .message-tool-detail .message-tool-output').textContent === 'a.py', 'history keeps code & output');
+        // What a run printed is copied, never run (fox, 2026-11-01).
+        const printed = document.querySelector('#message-13 .message-tool-output');
+        const printedButtons = printed.nextElementSibling;
+        check(!(printedButtons && printedButtons.matches('.code-block-button-container') && printedButtons.querySelector('.play-button')), 'output has no Run button');
         // The first lines of a command show without opening anything.
         deliver('tool_activity', {id: 16, tool: 'sandbox_shell', label: 'cd /root/ago', where: 'sandbox', asker: username, status: 'running',
             detail: {language: 'bash', input: 'cd /root/ago\npip install -q pytest\nmake test\necho done\nls\npwd'}});
