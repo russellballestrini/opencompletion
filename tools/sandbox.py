@@ -928,94 +928,39 @@ def _delegate(context, task, armed):
     task = str(task or "").strip()
     if not task:
         return {"error": "task required"}
-    resumed = context.resume_run
-    if resumed:
-        # Our server restarted while uncloseai-cli ran: the run went on in
-        # its sandbox, so reattach to it rather than start it again (fox,
-        # 2026-10-31). Its token is still armed; revoked when it ends.
-        sandbox = db.session.get(Sandbox, resumed.get("sandbox_id"))
-        if sandbox is None or sandbox.state in ("destroyed", "destroy_pending"):
-            return {"error": "the sandbox this run was in is gone"}
-        _wait_running(sandbox.service_id)
-        armed.update(sandbox_id=sandbox.id, token_sha256=resumed.get("token_sha256"))
-        model = context.model or sandbox.model
-        note = None
-        run_dir = resumed["run_dir"]
-    else:
-        sandbox = ready(context)
-        refresh_toolset(sandbox)
-        model = context.model or sandbox.model
-        # Armed afresh for every run: a new token, & the vault's settings
-        # as this server has them now (an older sandbox catches up).
-        arm_proxy(sandbox, model)
-        armed.update(sandbox_id=sandbox.id, token_sha256=sandbox.token_sha256)
-        note = fresh_note(sandbox)
-        if note:
-            # uncloseai-cli starts in the new sandbox: it needs the history.
-            task = f"{note}\n\nTask: {task}"
-        run_dir = shlex.quote(f"{DELEGATE_DIR}/delegate-{secrets.token_hex(4)}")
-    # A chat's delegates share one uncloseai-cli session: a new one resumes
-    # it, remembering the work before (fox, 2026-10-31). A new sandbox has
-    # none; one that will not resume falls back to a fresh start.
-    session = {
-        "id": None if (resumed or note) else sandbox.delegate_session_id,
-        "resumed": False,
-    }
+    run = _DelegateRun(context, task)
+    failed = run.begin(armed)
+    if failed:
+        return failed
+    return run.follow()
 
-    def start_command():
-        resume = f"--resume {shlex.quote(session['id'])} " if session["id"] else ""
-        inner = (
-            ". /run/unsandbox/vault.sh 2>/dev/null; export PATH=/root/.local/bin:$PATH; "
-            f"unclose {resume}-p --no-markdown --model {shlex.quote(model)} "
-            f"{shlex.quote(task)} "
-            f"> {run_dir}/answer 2> {run_dir}/stderr & echo $! > {run_dir}/pid; "
-            f"wait $!; echo $? > {run_dir}/exit"
-        )
-        return (
-            f"mkdir -p {run_dir} && rm -f {run_dir}/exit && cd /root && "
-            f"setsid nohup bash -c {shlex.quote(inner)} > /dev/null 2>&1 < /dev/null & "
-            f"sleep 1; cat {run_dir}/pid"
-        )
 
-    def launch():
-        session["resumed"] = bool(session["id"])
-        session["launched_at"] = time.monotonic()
-        started = _execute(sandbox, start_command(), 60)
-        if (
-            started.get("status") != "completed"
-            or not (started.get("stdout") or "").strip()
-        ):
-            result = _finished(started)
-            result.setdefault("error", "uncloseai-cli did not start")
-            return result
-        return None
+def _start_command(run_dir, model, task, session_id):
+    """Start uncloseai-cli in the background, detached from our poll's job,
+    resuming the chat's session when there is one; prints its pid."""
+    resume = f"--resume {shlex.quote(session_id)} " if session_id else ""
+    inner = (
+        ". /run/unsandbox/vault.sh 2>/dev/null; export PATH=/root/.local/bin:$PATH; "
+        f"unclose {resume}-p --no-markdown --model {shlex.quote(model)} "
+        f"{shlex.quote(task)} "
+        f"> {run_dir}/answer 2> {run_dir}/stderr & echo $! > {run_dir}/pid; "
+        f"wait $!; echo $? > {run_dir}/exit"
+    )
+    return (
+        f"mkdir -p {run_dir} && rm -f {run_dir}/exit && cd /root && "
+        f"setsid nohup bash -c {shlex.quote(inner)} > /dev/null 2>&1 < /dev/null & "
+        f"sleep 1; cat {run_dir}/pid"
+    )
 
-    # No clock limit unless OPENCOMPLETION_DELEGATE_TIMEOUT_S sets one:
-    # progress & its overseer decide (tools/oversight.py).
-    limit = policy.delegate_timeout()
-    if resumed:
-        deadline = float(resumed.get("deadline") or 0) or None
-    else:
-        failed = launch()
-        if failed:
-            return failed
-        deadline = time.time() + limit if limit else None
-        if context.checkpoint:
-            # Where to find this run again if our server restarts.
-            context.checkpoint(
-                {
-                    "sandbox_id": sandbox.id,
-                    "run_dir": run_dir,
-                    "deadline": deadline,
-                    "token_sha256": sandbox.token_sha256,
-                }
-            )
-    restarts = 0
+
+def _poll_command(run_dir):
+    """One poll of a run: its vitals line, then its answer once it wrote an
+    exit code, __LOST__ when its process is gone, else its peek."""
     # First line: uncloseai-cli's vitals (`unclose --vitals <pid>`, the
     # unclose-vitals/1 JSON: plan, turn, context, tools, files, model
     # health, tokens, time), asked like peek; an older uncloseai-cli
     # without it prints nothing here.
-    poll = (
+    return (
         f"V=$(PATH=/root/.local/bin:$PATH timeout 4 unclose --vitals "
         f"$(cat {run_dir}/pid 2>/dev/null) 2>/dev/null | head -c 20000 | tr -d '\\n'); "
         f'[ -n "$V" ] && printf \'__VITALS__ %s\\n\' "$V"; '
@@ -1030,154 +975,303 @@ def _delegate(context, task, armed):
         f"$(cat {run_dir}/pid) 2>&1 | sed -E '{ANSI}' "
         f"| tail -n 12; fi"
     )
-    stop = stop_command(run_dir)
-    next_tick = time.monotonic() + DELEGATE_POLL_S
-    last_vitals = None
-    watch = oversight.Watch(time.monotonic())
-    card = {"session": {"resumed": session["resumed"]}}
 
-    def over():
-        return bool(deadline) and time.time() > deadline
 
-    while True:
-        if context.stopped and context.stopped():
-            _execute(sandbox, stop, 30)
-            return {"status": "stopped", "error": "stopped: Stop was pressed"}
-        if over():
-            _execute(sandbox, stop, 30)
-            return {
-                "status": "timeout",
-                "error": f"uncloseai-cli did not finish within "
-                f"{limit}s (OPENCOMPLETION_DELEGATE_TIMEOUT_S)",
-            }
+def _read_vitals(out):
+    """Split a poll's leading __VITALS__ line off: (vitals or None, rest)."""
+    if not out.startswith("__VITALS__ "):
+        return None, out
+    line, _, out = out.partition("\n")
+    try:
+        return json.loads(line[len("__VITALS__ ") :]), out
+    except ValueError:
+        return None, out
+
+
+class _DelegateRun:
+    """One delegate run's state, from its sandbox to its result: begin()
+    reattaches or launches it, follow() polls it until it ends."""
+
+    def __init__(self, context, task):
+        self.context = context
+        self.task = task
+        self.note = None
+        self.restarts = 0
+        self.last_vitals = None
+        self.deadline = None
+        self.limit = None
+
+    def begin(self, armed):
+        """Find its sandbox & start it (or reattach): an error result, or
+        None once it runs."""
+        resumed = self.context.resume_run
+        if resumed:
+            gone = self._reattach(resumed, armed)
+            if gone:
+                return gone
+        else:
+            self._prepare_fresh(armed)
+        # A chat's delegates share one uncloseai-cli session: a new one resumes
+        # it, remembering the work before (fox, 2026-10-31). A new sandbox has
+        # none; one that will not resume falls back to a fresh start.
+        self.session = {
+            "id": None if (resumed or self.note) else self.sandbox.delegate_session_id,
+            "resumed": False,
+        }
+        # No clock limit unless OPENCOMPLETION_DELEGATE_TIMEOUT_S sets one:
+        # progress & its overseer decide (tools/oversight.py).
+        self.limit = policy.delegate_timeout()
+        if resumed:
+            self.deadline = float(resumed.get("deadline") or 0) or None
+            return None
+        failed = self.launch()
+        if failed:
+            return failed
+        self.deadline = time.time() + self.limit if self.limit else None
+        if self.context.checkpoint:
+            # Where to find this run again if our server restarts.
+            self.context.checkpoint(
+                {
+                    "sandbox_id": self.sandbox.id,
+                    "run_dir": self.run_dir,
+                    "deadline": self.deadline,
+                    "token_sha256": self.sandbox.token_sha256,
+                }
+            )
+        return None
+
+    def _reattach(self, resumed, armed):
+        # Our server restarted while uncloseai-cli ran: the run went on in
+        # its sandbox, so reattach to it rather than start it again (fox,
+        # 2026-10-31). Its token is still armed; revoked when it ends.
+        sandbox = db.session.get(Sandbox, resumed.get("sandbox_id"))
+        if sandbox is None or sandbox.state in ("destroyed", "destroy_pending"):
+            return {"error": "the sandbox this run was in is gone"}
+        _wait_running(sandbox.service_id)
+        armed.update(sandbox_id=sandbox.id, token_sha256=resumed.get("token_sha256"))
+        self.sandbox = sandbox
+        self.model = self.context.model or sandbox.model
+        self.run_dir = resumed["run_dir"]
+        return None
+
+    def _prepare_fresh(self, armed):
+        sandbox = ready(self.context)
+        refresh_toolset(sandbox)
+        self.sandbox = sandbox
+        self.model = self.context.model or sandbox.model
+        # Armed afresh for every run: a new token, & the vault's settings
+        # as this server has them now (an older sandbox catches up).
+        arm_proxy(sandbox, self.model)
+        armed.update(sandbox_id=sandbox.id, token_sha256=sandbox.token_sha256)
+        self.note = fresh_note(sandbox)
+        if self.note:
+            # uncloseai-cli starts in the new sandbox: it needs the history.
+            self.task = f"{self.note}\n\nTask: {self.task}"
+        self.run_dir = shlex.quote(f"{DELEGATE_DIR}/delegate-{secrets.token_hex(4)}")
+
+    def launch(self):
+        """Start uncloseai-cli: an error result, or None once it runs."""
+        self.session["resumed"] = bool(self.session["id"])
+        self.session["launched_at"] = time.monotonic()
+        started = _execute(
+            self.sandbox,
+            _start_command(self.run_dir, self.model, self.task, self.session["id"]),
+            60,
+        )
+        if (
+            started.get("status") != "completed"
+            or not (started.get("stdout") or "").strip()
+        ):
+            result = _finished(started)
+            result.setdefault("error", "uncloseai-cli did not start")
+            return result
+        return None
+
+    def _stopped(self):
+        return bool(self.context.stopped and self.context.stopped())
+
+    def _over(self):
+        return bool(self.deadline) and time.time() > self.deadline
+
+    def _kill(self):
+        _execute(self.sandbox, self.stop, 30)
+
+    def follow(self):
+        """Poll the run until it ends; its result."""
+        self.poll = _poll_command(self.run_dir)
+        self.stop = stop_command(self.run_dir)
+        self.next_tick = time.monotonic() + DELEGATE_POLL_S
+        self.watch = oversight.Watch(time.monotonic())
+        self.card = {"session": {"resumed": self.session["resumed"]}}
+        while True:
+            if self._stopped():
+                self._kill()
+                return {"status": "stopped", "error": "stopped: Stop was pressed"}
+            if self._over():
+                self._kill()
+                return {
+                    "status": "timeout",
+                    "error": f"uncloseai-cli did not finish within "
+                    f"{self.limit}s (OPENCOMPLETION_DELEGATE_TIMEOUT_S)",
+                }
+            if not self._wait_for_tick():
+                continue  # the top of the loop stops it & says why
+            try:
+                polled = _execute(self.sandbox, self.poll, 30)
+            except Exception as e:  # noqa: BLE001 — a blip costs one poll
+                if _transient(e):
+                    continue
+                raise
+            ended = self._tick(polled.get("stdout") or "")
+            if ended is not None:
+                return ended
+
+    def _wait_for_tick(self):
+        """Sleep to the next tick: False when Stop or the deadline came
+        first."""
         # One tick every DELEGATE_POLL_S, start to start: the poll & the
         # summary it may wait for come out of the same 15s, so the card
         # updates on a steady beat (fox, 2026-10-31). Between ticks, look
         # for Stop every second.
-        for _ in range(math.ceil(max(0.0, next_tick - time.monotonic()))):
-            if (context.stopped and context.stopped()) or over():
+        for _ in range(math.ceil(max(0.0, self.next_tick - time.monotonic()))):
+            if self._stopped() or self._over():
                 break
-            gevent.sleep(min(1, max(0.0, next_tick - time.monotonic())))
-        if (context.stopped and context.stopped()) or over():
-            continue  # the top of the loop stops it & says why
-        next_tick = time.monotonic() + DELEGATE_POLL_S
-        try:
-            polled = _execute(sandbox, poll, 30)
-        except Exception as e:  # noqa: BLE001 — a blip costs one poll
-            if _transient(e):
-                continue
-            raise
-        out = polled.get("stdout") or ""
-        vitals = None
-        if out.startswith("__VITALS__ "):
-            line, _, out = out.partition("\n")
-            try:
-                vitals = json.loads(line[len("__VITALS__ ") :])
-            except ValueError:
-                vitals = None
-            if vitals is not None:
-                last_vitals = vitals
-        if out.startswith("__LOST__") and restarts < DELEGATE_RESTARTS:
+            gevent.sleep(min(1, max(0.0, self.next_tick - time.monotonic())))
+        if self._stopped() or self._over():
+            return False
+        self.next_tick = time.monotonic() + DELEGATE_POLL_S
+        return True
+
+    def _tick(self, out):
+        """Act on one poll's output: a result once the run ended, else None."""
+        vitals, out = _read_vitals(out)
+        if vitals is not None:
+            self.last_vitals = vitals
+        if out.startswith("__LOST__"):
+            return self._lost(out)
+        if out.startswith("__EXIT__"):
+            return self._exited(out)
+        return self._progressed(vitals, out.strip())
+
+    def _lost(self, out):
+        if self.restarts < DELEGATE_RESTARTS:
             # The sandbox stopped under it (a freeze or a host restart ends
             # every process in it): wake it & start the run again, once.
-            restarts += 1
-            if context.progress:
-                context.progress(
+            self.restarts += 1
+            if self.context.progress:
+                self.context.progress(
                     "The sandbox stopped mid-run; starting uncloseai-cli again."
                 )
-            _wait_running(sandbox.service_id)
-            failed = launch()
+            _wait_running(self.sandbox.service_id)
+            return self.launch()
+        # Lost again: say so rather than loop.
+        return {
+            "status": "lost",
+            "error": "uncloseai-cli's run was lost twice: the sandbox stopped "
+            "mid-run & again after a restart",
+            "stderr": _clip(out[len("__LOST__") :].strip()),
+        }
+
+    def _exited(self, out):
+        head, _, rest = out.partition("\n")
+        answer, _, stderr = rest.partition("__STDERR__\n")
+        try:
+            code = int(head[len("__EXIT__") :].strip())
+        except ValueError:
+            code = None
+        if (
+            code != 0
+            and self.session["resumed"]
+            and time.monotonic() - self.session.get("launched_at", 0) < 120
+        ):
+            # Its session would not resume (gone, or unreadable): start
+            # fresh, once, & forget it.
+            print(f"[WARN] sandbox {self.sandbox.name}: session would not resume")
+            self.session["id"] = None
+            self.sandbox.delegate_session_id = None
+            db.session.commit()
+            failed = self.launch()
             if failed:
                 return failed
-            continue
-        if out.startswith("__LOST__"):
-            # Lost again: say so rather than loop.
-            return {
-                "status": "lost",
-                "error": "uncloseai-cli's run was lost twice: the sandbox stopped "
-                "mid-run & again after a restart",
-                "stderr": _clip(out[len("__LOST__") :].strip()),
-            }
-        if out.startswith("__EXIT__"):
-            head, _, rest = out.partition("\n")
-            answer, _, stderr = rest.partition("__STDERR__\n")
-            try:
-                code = int(head[len("__EXIT__") :].strip())
-            except ValueError:
-                code = None
-            if (
-                code != 0
-                and session["resumed"]
-                and time.monotonic() - session.get("launched_at", 0) < 120
-            ):
-                # Its session would not resume (gone, or unreadable): start
-                # fresh, once, & forget it.
-                print(f"[WARN] sandbox {sandbox.name}: session would not resume")
-                session["id"] = None
-                sandbox.delegate_session_id = None
-                db.session.commit()
-                failed = launch()
-                if failed:
-                    return failed
-                card["session"] = {"resumed": False}
-                continue
-            result = {
-                "status": "completed",
-                "exit_code": code,
-                "answer": _clip(_unmarked(answer).rstrip()),
-                "stderr": _clip(_unmarked(stderr).rstrip()),
-            }
-            if code != 0:
-                result["error"] = f"uncloseai-cli exited {code}"
-            if note:
-                result["sandbox_note"] = note
-            written = files_written(last_vitals)
-            if written:
-                # Told where it counts: the files it made are the person's
-                # only once shared (fox, 2026-11-01: models linked /tmp/...).
-                result["files_written"] = written
-                result["files_note"] = (
-                    "The person cannot open these until you share each one "
-                    "they need with sandbox_share_file."
-                )
-            if last_vitals is not None and context.progress:
-                card.pop("pulse", None)  # it has stopped: no heartbeat
-                context.progress("", vitals=last_vitals, card=card)  # final numbers
-            return result
-        progress = out.strip()
+            self.card["session"] = {"resumed": False}
+            return None
+        return self._result(code, answer, stderr)
+
+    def _result(self, code, answer, stderr):
+        result = {
+            "status": "completed",
+            "exit_code": code,
+            "answer": _clip(_unmarked(answer).rstrip()),
+            "stderr": _clip(_unmarked(stderr).rstrip()),
+        }
+        if code != 0:
+            result["error"] = f"uncloseai-cli exited {code}"
+        if self.note:
+            result["sandbox_note"] = self.note
+        written = files_written(self.last_vitals)
+        if written:
+            # Told where it counts: the files it made are the person's
+            # only once shared (fox, 2026-11-01: models linked /tmp/...).
+            result["files_written"] = written
+            result["files_note"] = (
+                "The person cannot open these until you share each one "
+                "they need with sandbox_share_file."
+            )
+        if self.last_vitals is not None and self.context.progress:
+            self.card.pop("pulse", None)  # it has stopped: no heartbeat
+            # final numbers
+            self.context.progress("", vitals=self.last_vitals, card=self.card)
+        return result
+
+    def _progressed(self, vitals, progress):
+        """A run still going: note its progress, stop it when stalled or
+        its overseer says so, & show its card."""
         now = time.monotonic()
+        watch = self.watch
         watch.observe(vitals, progress, now)
-        if watch.session_id and watch.session_id != sandbox.delegate_session_id:
-            sandbox.delegate_session_id = watch.session_id  # the next resumes it
+        if watch.session_id and watch.session_id != self.sandbox.delegate_session_id:
+            self.sandbox.delegate_session_id = watch.session_id  # the next resumes it
             db.session.commit()
         if watch.stalled(now):
-            _execute(sandbox, stop, 30)
+            self._kill()
             return {
                 "status": "stalled",
                 "error": "stopped: no progress for "
                 f"{oversight.minutes(now - watch.last_progress)} (no plan step, "
                 "file change or new activity; OPENCOMPLETION_DELEGATE_STALL_S)",
             }
-        if watch.review_due(now) and context.oversee:
+        if watch.review_due(now) and self.context.oversee:
             watch.reviewed(now)
-            verdict = _review(context, sandbox, run_dir, task, watch, vitals, progress)
-            card["oversight"] = verdict
+            verdict = _review(
+                self.context,
+                self.sandbox,
+                self.run_dir,
+                self.task,
+                watch,
+                vitals,
+                progress,
+            )
+            self.card["oversight"] = verdict
             if verdict["decision"] == "stop":
-                _execute(sandbox, stop, 30)
+                self._kill()
                 return {
                     "status": "stopped",
                     "error": f"stopped by its overseer: {verdict['note']}",
                 }
+        self._pulse(now)
+        if (progress or vitals) and self.context.progress:
+            extra = {"vitals": vitals} if vitals is not None else {}
+            self.context.progress(progress, card=self.card, **extra)
+        return None
+
+    def _pulse(self, now):
         # Its heartbeat, for whoever waits: how long since it last moved &
         # when its overseer looks next.
-        card["pulse"] = {
-            "moved_s": round(now - watch.last_progress),
+        self.card["pulse"] = {
+            "moved_s": round(now - self.watch.last_progress),
             "review_in_s": (
-                max(0, round(watch.next_review - now))
-                if context.oversee and policy.delegate_review_s()
+                max(0, round(self.watch.next_review - now))
+                if self.context.oversee and policy.delegate_review_s()
                 else None
             ),
         }
-        if (progress or vitals) and context.progress:
-            extra = {"vitals": vitals} if vitals is not None else {}
-            context.progress(progress, card=card, **extra)
