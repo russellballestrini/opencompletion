@@ -266,14 +266,14 @@ body.chat-page {
     padding: var(--space-6) var(--space-4);
     color: var(--text-primary);
     /* Media in a reply sizes against the whole chat pane (cqw), not the
-       760px text column: see .message-content img below. */
+       860px text column: see .message-content img below. */
     container-type: inline-size;
 }
 
 #chat > *,
 .chat-composer {
     width: 100%;
-    max-width: 760px;
+    max-width: 860px;
     margin-left: auto;
     margin-right: auto;
 }
@@ -290,6 +290,20 @@ body.chat-page {
     gap: var(--space-1);
     margin-bottom: var(--space-6);
     min-width: 0;
+}
+
+/* Who came & went, one quiet line (3-room.js drawPresence). */
+.presence-line {
+    margin: 0 auto var(--space-4);
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.room-stats {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
 }
 
 /* A person's words sit in a bubble, ours on the right; a model's reply is
@@ -1718,7 +1732,7 @@ button.sidebar-more {
 
 .home-center {
     width: 100%;
-    max-width: 760px;
+    max-width: 860px;
     margin: auto;
     padding: var(--space-6) var(--space-4) 18vh;
 }
@@ -1797,6 +1811,12 @@ button.sidebar-more {
     font-weight: 600;
     text-overflow: ellipsis;
     cursor: pointer;
+}
+
+/* The voice picker beside the model: narrower, it names a voice. */
+.composer-voice {
+    max-width: 30%;
+    font-weight: 500;
 }
 
 .composer-model:hover {

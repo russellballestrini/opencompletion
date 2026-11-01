@@ -284,6 +284,50 @@ function updateUserLists(activeUsers, inactiveUsers) {
 }
 
 // Update user lists whenever the event is received
+// Who came & went, folded into one quiet line at the bottom of the chat
+// instead of a line per join (fox, 2026-11-01: trash piled up). A person
+// who leaves & comes back within a minute (a refresh) cancels out; our own
+// joins never show (Active users lists everyone).
+const PRESENCE_SETTLE_MS = 60000;
+let presenceLine = null;
+const presenceShown = new Map();  // username -> what the line says they did
+const presenceLast = new Map();   // username -> {action, at}, for refreshes
+
+socket.on("presence", (data) => {
+    if (!data || !data.username || data.username === username) return;
+    const chat = document.getElementById("chat");
+    // Anything said since starts a new line; the old one stays where it was.
+    if (presenceLine && presenceLine !== chat.lastElementChild) {
+        presenceLine = null;
+        presenceShown.clear();
+    }
+    const now = Date.now();
+    const last = presenceLast.get(data.username);
+    presenceLast.set(data.username, {action: data.action, at: now});
+    const refresh = last && last.action !== data.action && now - last.at < PRESENCE_SETTLE_MS;
+    if (refresh && presenceShown.has(data.username)) presenceShown.delete(data.username);
+    else presenceShown.set(data.username, data.action);
+    if (!presenceShown.size) {
+        if (presenceLine) presenceLine.remove();
+        presenceLine = null;
+        return;
+    }
+    if (!presenceLine) {
+        presenceLine = document.createElement("div");
+        presenceLine.className = "presence-line";
+        chat.appendChild(presenceLine);
+    }
+    presenceLine.textContent = [...presenceShown].map(([name, action]) => `${name} ${action}`).join(" · ");
+});
+
+// The conversation's size, in the room controls (not a chat line).
+socket.on("room_stats", (data) => {
+    const stat = document.getElementById("room-token-estimate");
+    if (!stat || !data || !Number.isFinite(data.tokens)) return;
+    stat.textContent = `Conversation: about ${data.tokens.toLocaleString()} tokens`;
+    stat.hidden = false;
+});
+
 socket.on("active_users", (data) => {
     updateUserLists(data.active_users, data.inactive_users);
 });

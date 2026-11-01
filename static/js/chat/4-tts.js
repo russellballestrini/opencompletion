@@ -740,6 +740,9 @@ function playDoneChime() {
 
 function updateAutoPlayTTSDisplay() {
     setToggle("auto-play-tts-btn", autoPlayTTS, "Stop reading replies aloud", "Read replies aloud");
+    // The voice picker sits in the chat box, left of the model, while
+    // replies are read aloud (fox, 2026-11-01).
+    document.getElementById("voice-select").hidden = !autoPlayTTS;
     if (!autoPlayTTS) {
         // Clear queue when turning off
         ttsQueue = [];

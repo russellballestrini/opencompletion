@@ -58,9 +58,42 @@ def test_joining_and_replying_send_notices_with_their_own_ids(test_app, monkeypa
         e["args"][0]["id"] for e in socket.get_received() if e["name"] == "chat_message"
     ]
     notices = [i for i in ids if isinstance(i, str)]
-    assert any(i.startswith("notice-") for i in notices)  # "ada has joined"
     assert any(i.startswith("processing-") for i in notices)  # the placeholder
     assert None not in ids and len(set(notices)) == len(notices)
+
+
+def test_comings_and_goings_are_presence_not_chat_lines(test_app):
+    """A join tells the others (`presence`) & the joiner its room's size
+    (`room_stats`); neither leaves a line in the chat."""
+    import app as app_module
+
+    def client():
+        return app_module.socketio.test_client(
+            app_module.app, flask_test_client=test_app.test_client()
+        )
+
+    ada, bob = client(), client()
+    ada.emit("join", {"room_name": "lobby", "username": "ada"})
+    ada.get_received()
+    bob.emit("join", {"room_name": "lobby", "username": "bob"})
+    heard_by_bob = bob.get_received()
+    heard_by_ada = ada.get_received()
+    assert not [
+        e
+        for e in heard_by_bob + heard_by_ada
+        if e["name"] == "chat_message" and "joined" in e["args"][0]["content"]
+    ]
+    assert [e["args"][0] for e in heard_by_ada if e["name"] == "presence"] == [
+        {"username": "bob", "action": "joined"}
+    ]
+    assert not [e for e in heard_by_bob if e["name"] == "presence"]
+    stats = [e["args"][0] for e in heard_by_bob if e["name"] == "room_stats"]
+    assert len(stats) == 1 and isinstance(stats[0]["tokens"], int)
+    assert not [e for e in heard_by_ada if e["name"] == "room_stats"]
+    bob.disconnect()
+    assert [e["args"][0] for e in ada.get_received() if e["name"] == "presence"] == [
+        {"username": "bob", "action": "left"}
+    ]
 
 
 NOTICES_PROBE = r"""
@@ -95,4 +128,44 @@ window.addEventListener('load', () => {
 def test_a_finished_reply_clears_only_its_own_placeholder(client, tmp_path):
     html = client.get("/chat/lobby").get_data(as_text=True)
     out = run_probe(html, NOTICES_PROBE, tmp_path, 1280)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+PRESENCE_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const deliver = (event, data) => testSocket.deliver(event, data);
+    const lines = () => [...document.querySelectorAll('#chat .presence-line')].map(l => l.textContent);
+    deliver('presence', {username: username, action: 'joined'});
+    check(lines().length === 0, 'our own join never shows');
+    deliver('presence', {username: 'zed', action: 'joined'});
+    deliver('presence', {username: 'kim', action: 'joined'});
+    check(lines().join('|') === 'zed joined · kim joined', 'comings fold into one line: ' + lines());
+    deliver('presence', {username: 'zed', action: 'left'});
+    check(lines().join('|') === 'kim joined', 'a quick leave cancels the join: ' + lines());
+    deliver('presence', {username: 'kim', action: 'left'});
+    check(lines().length === 0, 'everyone cancelled leaves no line');
+    deliver('chat_message', {id: 5, username: 'ada', content: 'hello'});
+    deliver('presence', {username: 'moe', action: 'joined'});
+    deliver('chat_message', {id: 6, username: 'ada', content: 'again'});
+    deliver('presence', {username: 'lou', action: 'joined'});
+    check(lines().join('|') === 'moe joined|lou joined', 'talk in between starts a new line: ' + lines());
+    const stat = document.getElementById('room-token-estimate');
+    check(stat.hidden, 'no estimate before the server says');
+    deliver('room_stats', {tokens: 4100});
+    check(!stat.hidden && /about 4,?100 tokens/.test(stat.textContent), 'the estimate sits in the room controls: ' + stat.textContent);
+    check(!document.querySelector('#chat').textContent.includes('tokens'), 'the estimate is not a chat line');
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+def test_presence_folds_into_one_line_and_the_estimate_leaves_the_chat(
+    client, tmp_path
+):
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    out = run_probe(html, PRESENCE_PROBE, tmp_path, 1280)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

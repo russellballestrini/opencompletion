@@ -31,6 +31,12 @@
             <textarea id="message" rows="1" placeholder="Message, or type /help"></textarea>
             <div class="composer-bar">
                 {% include "_composer_tools.html" %}
+                {# The voice replies are read in: here beside the model while
+                   Read replies aloud is on (4-tts.js), out of the way when off. #}
+                <label class="visually-hidden" for="voice-select">Voice</label>
+                <select id="voice-select" class="composer-model composer-voice" title="The voice replies are read aloud in" hidden>
+                    <!-- Voices will be populated from API -->
+                </select>
                 <label class="visually-hidden" for="model-select">Model</label>
                 <select id="model-select" class="composer-model">
                     <option value="None">People only (no model)</option>
@@ -58,18 +64,13 @@
         </section>
         {% endif %}
 
+        <p class="room-stats" id="room-token-estimate" hidden></p>
         <p class="download-links">
             Download history:
             <a href="/download_chat_history?room_name={{ room_name|urlencode }}" download="{{ room_name }}.json">JSON</a> ·
             <a href="/download_chat_history_md?room_name={{ room_name|urlencode }}" download="{{ room_name }}.md">Markdown</a>
         </p>
 
-        <div>
-            <label for="voice-select">Voice</label>
-            <select id="voice-select">
-                <!-- Voices will be populated from API -->
-            </select>
-        </div>
         <div class="button-stack">
             <button type="button" id="auto-play-tts-btn" class="btn btn-secondary btn-block btn-toggle" data-on="false" onclick="toggleAutoPlayTTS()">Read replies aloud</button>
             <button type="button" id="thinking-btn" class="btn btn-secondary btn-block btn-toggle" data-on="true" onclick="toggleThinking()">Disable thinking</button>

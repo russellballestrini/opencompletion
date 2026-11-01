@@ -1085,20 +1085,17 @@ def on_join(data):
     # commit session & active user list to database.
     db.session.commit()
 
-    # Broadcast to all clients in the room that a new user has joined.
+    # Who came & went, as presence events, not chat lines: each join &
+    # reconnect left "x has joined the room." & a token estimate in the
+    # chat, piling up (fox, 2026-11-01). The others' pages fold them into
+    # one line; the joiner hears its room's size as a stat, not a message.
     emit(
-        "chat_message",
-        {"id": notice_id(), "content": f"{username} has joined the room."},
+        "presence",
+        {"username": username, "action": "joined"},
         room=room.name,
+        include_self=False,
     )
-    emit(
-        "chat_message",
-        {
-            "id": notice_id(),
-            "content": f"Estimated {total_token_count} total tokens in conversation.",
-        },
-        room=request.sid,
-    )
+    emit("room_stats", {"tokens": total_token_count}, room=request.sid)
 
 
 # Handle user leaving a room
@@ -1126,8 +1123,8 @@ def on_disconnect():
             include_self=False,
         )
         emit(
-            "chat_message",
-            {"id": notice_id(), "content": f"{username} has left the room."},
+            "presence",
+            {"username": username, "action": "left"},
             room=room.name,
             include_self=False,
         )
