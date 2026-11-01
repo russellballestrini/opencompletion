@@ -36,7 +36,7 @@ help:
 	@echo "Quality reports (in reports/):"
 	@echo "  quality              - Coverage, cyclomatic complexity & CRAP"
 	@echo "  coverage             - Terminal, HTML, JSON & XML coverage"
-	@echo "  coverage-check       - Fail below our 58% coverage floor (CI runs this)"
+	@echo "  coverage-check       - Fail below our 73% coverage floor (CI runs this)"
 	@echo "  cc                   - Function complexity, ranked text & JSON"
 	@echo "  crap                 - Fresh coverage plus ranked CRAP risk"
 	@echo "  Override PYTHON, REPORT_DIR, TEST_PATHS or COVERAGE_MIN as needed"
@@ -209,11 +209,12 @@ coverage: venv
 	COVERAGE_FILE=$(REPORT_DIR)/.coverage $(PYTHON) -m pytest $(TEST_PATHS) --cov --cov-config=.coveragerc --cov-report=term-missing --cov-report=html:$(REPORT_DIR)/htmlcov --cov-report=json:$(REPORT_DIR)/coverage.json --cov-report=xml:$(REPORT_DIR)/coverage.xml --cov-fail-under=$(COVERAGE_MIN)
 
 # CI's floor: fails when coverage of our own code (vendored un.py excluded,
-# see .coveragerc) drops below 58%. It was 59.7% on 2026-09-24; raise the
-# number as tests land, never lower it.
-.PHONY: coverage-check
+# see .coveragerc) drops below 73%. It was 59.7% on 2026-09-24 & 58% the
+# floor; on 2026-11-01 .coveragerc began counting tools/, blob_store &
+# the other modules it had left out (73.25% with them), & the floor rose
+# to 73%. Raise the number as tests land, never lower it.
 coverage-check: venv
-	venv/bin/python -m pytest tests/ -q --cov --cov-config=.coveragerc --cov-report=term --cov-fail-under=58
+	venv/bin/python -m pytest tests/ -q --cov --cov-config=.coveragerc --cov-report=term --cov-fail-under=73
 
 cc: venv
 	$(PYTHON) quality_report.py $(QUALITY_SOURCES) --output $(REPORT_DIR)/cc

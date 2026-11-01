@@ -69,7 +69,7 @@ git remote -v
 - `make ci` - lint + test, exactly what GitHub Actions runs
 - `make backfill-titles` - Title every untitled room holding a conversation (network: a chat model)
 - `make backfill-blobs` - Move base64 images kept inside messages (old DALL-E & vision replies) into our blob store (no network)
-- `make coverage-check` - Fail below our 58% coverage floor (CI job `coverage`); raise it as tests land, never lower it
+- `make coverage-check` - Fail below our 73% coverage floor (CI job `coverage`; `.coveragerc` counts tools/, blob_store, classifier & the game modules too); raise it as tests land, never lower it
 
 ### Network Infrastructure
 

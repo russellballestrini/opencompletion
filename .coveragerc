@@ -20,4 +20,17 @@ include =
     models.py
     research/guarded_ai.py
     routes/*.py
+    tools/__init__.py
+    tools/browser.py
+    tools/loop.py
+    tools/oversight.py
+    tools/policy.py
+    tools/sandbox.py
+    tools/web_fetch.py
+    blob_store.py
+    classifier.py
+    throttle.py
+    repetition_guard.py
+    jev_hunter.py
+    battleship_modes.py
 show_missing = True
