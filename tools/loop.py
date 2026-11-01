@@ -356,6 +356,10 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
         if last.get("vitals"):
             done["vitals"] = last["vitals"]  # the run's final numbers
         done.update(last.get("card") or {})  # its session & last review
+        done.pop("pulse", None)
+        if last.get("summary"):
+            # The finished card keeps its running layout, summary included.
+            done["summary"] = last["summary"]
         if shown:
             done["detail"] = shown
         if result.get("error"):

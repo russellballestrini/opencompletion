@@ -2229,13 +2229,8 @@ a:hover {
 .message-tool.is-card > .tool-card-folds { grid-area: folds; }
 .message-tool.is-card > .tool-card-sources { grid-area: sources; }
 
-.message-tool.is-card.is-running {
-    border-color: color-mix(in srgb, var(--button-primary) 35%, var(--border-color));
-}
-
-.message-tool.is-card.is-error {
-    border-color: color-mix(in srgb, var(--text-error) 45%, var(--border-color));
-}
+/* One look running & finished: only the plan bar & the status dot say
+   how it ended (fox, 2026-11-01). */
 
 .tool-card-head {
     font-size: 12px;
@@ -2277,10 +2272,11 @@ a:hover {
 }
 
 .tool-card-bar {
+    --bar-fill: var(--button-primary);
     height: 4px;
     border-radius: 999px;
     background:
-        linear-gradient(var(--button-primary), var(--button-primary)) 0 0 / var(--pct, 0%) 100% no-repeat,
+        linear-gradient(var(--bar-fill), var(--bar-fill)) 0 0 / var(--pct, 0%) 100% no-repeat,
         var(--bg-tertiary);
     transition: background-size 0.8s ease;
 }
@@ -2317,8 +2313,17 @@ a:hover {
     }
 }
 
+.tool-card-bar.is-ok {
+    --bar-fill: var(--button-success);
+}
+
+.tool-card-bar.is-failed {
+    --bar-fill: var(--button-danger);
+}
+
 /* Fixed fills for /styleguide's examples (chat sets --pct from vitals). */
 .sg-pct-33 { --pct: 33%; }
+.sg-pct-100 { --pct: 100%; }
 .sg-pct-48 { --pct: 48%; }
 
 .tool-card-step {

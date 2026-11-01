@@ -153,11 +153,21 @@ python -m pytest -q</pre>
             <details class="message-tool-detail tool-card-task">
                 <summary>task &amp; output</summary>
                 <pre class="message-tool-input is-prose"><code>Add parse(text, now=None) to ago…</code></pre>
-                <div class="message-tool-log-title">delegation log <button type="button" class="copy-button message-tool-copy">Copy</button></div>
-                <pre class="message-tool-output is-log"><code>[bash] python -m pytest -q · 57 passed</code></pre>
                 <div class="message-tool-exit">exit code 0</div>
             </details>
-            <div class="message-tool-vitals tool-card-vitals"><span class="message-tool-chip">9/9 steps</span><span class="message-tool-chip">52 turns</span><span class="message-tool-chip">peak context 41.2k</span><span class="message-tool-chip">71 tool calls</span></div>
+            <div class="tool-card-plan tool-card-plan-row">
+                <div class="tool-card-bar is-ok sg-pct-100" role="progressbar" aria-valuemin="0" aria-valuemax="9" aria-valuenow="9"></div>
+                <div class="tool-card-step">all 9 steps done</div>
+            </div>
+            <div class="message-tool-vitals tool-card-vitals"><span class="message-tool-chip">52 turns</span><span class="message-tool-chip is-meter sg-pct-48">peak context 41.2k / 64.0k</span><span class="message-tool-chip">71 tool calls</span><span class="message-tool-chip is-quiet">bash 40 · read 22 · edit 9</span><span class="message-tool-chip is-good">tests 57 passed</span></div>
+            <div class="tool-card-folds">
+                <details class="message-tool-log">
+                    <summary>log · 112 lines</summary>
+                    <button type="button" class="copy-button message-tool-copy">Copy</button>
+                    <pre class="message-tool-progress">[bash] python -m pytest -q · 57 passed</pre>
+                </details>
+            </div>
+            <div class="message-tool-summary">It added parse() with 12 focused tests and a 30-case round trip; all 57 pass, and PARSE.md documents the grammar.</div>
         </li>
         <li class="message-tool">
             <div class="message-tool-head">Shared in this chat's sandbox: <span class="message-tool-label">/root/work/ago/bench.png</span></div>

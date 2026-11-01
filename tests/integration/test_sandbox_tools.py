@@ -1490,7 +1490,8 @@ def test_a_delegate_is_summarized_as_it_goes(unsandbox, room, monkeypatch):
     ]
     said = [e.get("summary") for e in events if e["status"] == "running"]
     assert "summary 1" in said and "summary 2" in said
-    assert "summary" not in events[-1]  # the finished line carries none
+    # the finished card keeps its running layout: its last summary stays
+    assert events[-1]["summary"] == "summary 2"
 
 
 def test_summarize_delegate_is_best_effort():

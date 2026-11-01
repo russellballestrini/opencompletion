@@ -196,9 +196,15 @@ function homePath(path) {
 function testTally(text) {
     const lines = String(text || "").split("\n").filter((l) => /\d+ (passed|failed)\b/.test(l));
     if (!lines.length) return "";
+    // One count of each kind: a line can say "50 passed" twice (the run's
+    // own output & uncloseai-cli echoing it), which read "50 passed · 50
+    // passed" (fox, 2026-11-01). The last of each kind wins.
     const last = lines[lines.length - 1];
-    const counts = [...last.matchAll(/(\d+) (passed|failed|errors?)\b/g)].map((m) => `${m[1]} ${m[2]}`);
-    return counts.join(" · ");
+    const counts = {};
+    for (const m of last.matchAll(/(\d+) (passed|failed|errors?)\b/g)) {
+        counts[m[2].startsWith("error") ? "errors" : m[2]] = m[1];
+    }
+    return ["passed", "failed", "errors"].filter((k) => counts[k] !== undefined).map((k) => `${counts[k]} ${k}`).join(" · ");
 }
 
 // 241 -> "4m 1s": how long a job has run.
@@ -277,12 +283,16 @@ function toolVitals(vitals, running, extra = {}) {
     const tools = vitals.tools || {};
     const plan = vitals.plan || {};
     const llm = vitals.llm || {};
-    if (running) {
-        const limit = vitals.max_turns && vitals.max_turns < TURN_LIMIT_SHOWN ? "/" + vitals.max_turns : "";
-        if (vitals.turn) put("turn", `turn ${vitals.turn}${limit}`);
-        if (ctx.used) {
-            const pct = ctx.window ? Math.min(100, Math.round((100 * ctx.used) / ctx.window)) : null;
-            put("context", `context ${shortCount(ctx.used)}${ctx.window ? " / " + shortCount(ctx.window) : ""}`, "is-meter", pct);
+    // One layout running & finished (fox, 2026-11-01): a finished run
+    // drops only what was live (what it is doing, its heartbeat) & shows
+    // its peak context.
+    {
+        const limit = running && vitals.max_turns && vitals.max_turns < TURN_LIMIT_SHOWN ? "/" + vitals.max_turns : "";
+        if (vitals.turn) put("turn", running ? `turn ${vitals.turn}${limit}` : `${vitals.turn} turn${vitals.turn === 1 ? "" : "s"}`);
+        const used = running ? ctx.used : ctx.peak || ctx.used;
+        if (used) {
+            const pct = ctx.window ? Math.min(100, Math.round((100 * used) / ctx.window)) : null;
+            put("context", `${running ? "context" : "peak context"} ${shortCount(used)}${ctx.window ? " / " + shortCount(ctx.window) : ""}`, "is-meter", pct);
         }
         if (tools.total) put("tools", `${tools.total} tool call${tools.total === 1 ? "" : "s"}`);
         // What it spends its calls on: its three busiest tools.
@@ -290,18 +300,12 @@ function toolVitals(vitals, running, extra = {}) {
         if (mix.length > 1) put("mix", mix.map(([name, n]) => `${name} ${n}`).join(" · "), "is-quiet");
         if (extra.tests) put("tests", "tests " + extra.tests, /failed|error/.test(extra.tests) ? "is-warn" : "is-good");
         const act = vitals.activity || {};
-        if (act.label) put("activity", act.label + (Number.isFinite(act.elapsed_s) ? ` ${Math.round(act.elapsed_s)}s` : ""));
+        if (running && act.label) put("activity", act.label + (Number.isFinite(act.elapsed_s) ? ` ${Math.round(act.elapsed_s)}s` : ""));
         if (llm.retries) put("retries", `${llm.retries} retr${llm.retries === 1 ? "y" : "ies"}`, "is-warn");
         if (llm.empty) put("empty", `${llm.empty} empty repl${llm.empty === 1 ? "y" : "ies"}`, "is-warn");
-        const pulse = extra.pulse || {};
+        const pulse = (running && extra.pulse) || {};
         if (Number.isFinite(pulse.moved_s)) put("moved", pulse.moved_s < 20 ? "moving" : `moved ${shortDuration(pulse.moved_s)} ago`, pulse.moved_s >= 300 ? "is-warn" : "is-quiet");
         if (Number.isFinite(pulse.review_in_s)) put("review", `review in ${shortDuration(pulse.review_in_s)}`, "is-quiet");
-    } else {
-        if (plan.total) put("steps", `${plan.done || 0}/${plan.total} steps`);
-        if (vitals.turn) put("turn", `${vitals.turn} turn${vitals.turn === 1 ? "" : "s"}`);
-        if (ctx.peak) put("peak", `peak context ${shortCount(ctx.peak)}`);
-        if (tools.total) put("tools", `${tools.total} tool call${tools.total === 1 ? "" : "s"}`);
-        if (extra.tests) put("tests", "tests " + extra.tests, /failed|error/.test(extra.tests) ? "is-warn" : "is-good");
     }
     if (!parts.length) return null;
     const row = document.createElement("div");
@@ -316,16 +320,18 @@ function toolVitals(vitals, running, extra = {}) {
 }
 
 // A running agent's plan as a progress bar: "step 4 of 9 · what it does".
-function toolPlan(vitals, fromPct) {
+function toolPlan(vitals, fromPct, outcome = "running") {
     const plan = (vitals || {}).plan || {};
     if (!plan.total) return null;
     const done = Math.min(plan.done || 0, plan.total);
-    const pct = Math.round((100 * done) / plan.total);
+    // At the end the bar says how it went: full & green when it finished,
+    // red where it stopped when it failed (fox, 2026-11-01).
+    const pct = outcome === "ok" ? 100 : Math.round((100 * done) / plan.total);
     const box = document.createElement("div");
     box.className = "tool-card-plan";
     box.dataset.pct = String(pct);
     const bar = document.createElement("div");
-    bar.className = "tool-card-bar";
+    bar.className = "tool-card-bar" + (outcome === "ok" ? " is-ok" : outcome === "failed" ? " is-failed" : "");
     // Drawn at its last width, then moved: the fill glides to the new step.
     const from = Number(fromPct);
     bar.style.setProperty("--pct", (Number.isFinite(from) ? from : pct) + "%");
@@ -341,9 +347,15 @@ function toolPlan(vitals, fromPct) {
     const text = document.createElement("div");
     text.className = "tool-card-step";
     const step = Math.min(done + 1, plan.total);
-    text.textContent = done >= plan.total
-        ? `all ${plan.total} steps done`
-        : `step ${step} of ${plan.total}${plan.current ? " · " + plan.current : ""}`;
+    if (outcome === "ok") {
+        text.textContent = done >= plan.total ? `all ${plan.total} steps done` : `finished · ${done} of ${plan.total} steps marked done`;
+    } else if (outcome === "failed") {
+        text.textContent = `stopped at step ${step} of ${plan.total}${plan.current ? " · " + plan.current : ""}`;
+    } else {
+        text.textContent = done >= plan.total
+            ? `all ${plan.total} steps done`
+            : `step ${step} of ${plan.total}${plan.current ? " · " + plan.current : ""}`;
+    }
     box.append(bar, text);
     return box;
 }
@@ -389,7 +401,8 @@ function drawDelegateCard(line, data, verbs, open) {
     add("tool-card-title", div(data.label)).classList.add("message-tool-label");
     // The task never changes: it sits with the title.
     if (data.detail) {
-        const fold = toolDetail(data.detail, running, data.tool);
+        // Its log has a fold of its own, running or finished.
+        const fold = toolDetail(Object.assign({}, data.detail, {log: ""}), running, data.tool);
         // Open while the sandbox & uncloseai-cli start, closed once its
         // summaries tell how it goes, like the log; a reader's own choice
         // wins after that (fox, 2026-10-31).
@@ -400,10 +413,9 @@ function drawDelegateCard(line, data, verbs, open) {
     // Its overseer's latest review (every few minutes): continue, steered
     // with a note, or stopped & why.
     add("tool-card-oversight", toolOversight(data.oversight));
-    if (running) {
-        const plan = add("tool-card-plan-row", toolPlan(data.vitals, before.pct));
-        if (plan) line.dataset.planPct = plan.dataset.pct;
-    }
+    const outcome = running ? "running" : data.status === "done" ? "ok" : "failed";
+    const plan = add("tool-card-plan-row", toolPlan(data.vitals, before.pct, outcome));
+    if (plan) line.dataset.planPct = plan.dataset.pct;
     const tests = testTally(data.progress || (data.detail || {}).log || "");
     if (data.vitals) {
         const row = add("tool-card-vitals", toolVitals(data.vitals, running, {tests, pulse: data.pulse}));
@@ -422,9 +434,10 @@ function drawDelegateCard(line, data, verbs, open) {
         job.open = open.job;
         folds.appendChild(job);
     }
-    if (data.progress && running) folds.appendChild(toolLog(data.progress, open.log));
+    const log = running ? data.progress : (data.detail || {}).log;
+    if (log) folds.appendChild(toolLog(log, open.log, !running));
     if (folds.children.length) line.appendChild(folds);
-    if (data.summary && running) {
+    if (data.summary) {
         const said = add("message-tool-summary", div(data.summary));
         if (data.summary !== before.summary) said.classList.add("is-new");
         line.dataset.summary = data.summary;
@@ -450,13 +463,14 @@ function toolOversight(review) {
 }
 
 // A delegate's newest session lines, folded; it grows as the run goes.
-function toolLog(progress, open) {
+function toolLog(progress, open, finished = false) {
     const log = document.createElement("details");
     log.className = "message-tool-log";
     const summary = document.createElement("summary");
     const count = progress.split("\n").length;
     summary.textContent = `log · ${count} line${count === 1 ? "" : "s"}`;
     log.appendChild(summary);
+    if (finished) log.appendChild(copyButton(progress));  // the whole log, once done
     const body = document.createElement("pre");
     body.className = "message-tool-progress";
     body.textContent = progress;

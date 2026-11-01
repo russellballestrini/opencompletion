@@ -337,6 +337,22 @@ window.addEventListener('load', async () => {
         check(/is-person/.test(cls(60)) && /is-mine/.test(cls(60)), 'ours: ' + cls(60));
         check(/is-person/.test(cls(61)) && !/is-mine/.test(cls(61)), 'theirs: ' + cls(61));
         check(/is-model/.test(cls(62)) && !/is-person/.test(cls(62)), 'a reply: ' + cls(62));
+        // A tally said twice on a line counts once (fox: "50 passed · 50 passed").
+        check(testTally('[bash] pytest -q → 50 passed in 0.3s ↳ bash ok · 50 passed') === '50 passed', 'tally once: ' + testTally('[bash] pytest -q → 50 passed in 0.3s ↳ bash ok · 50 passed'));
+        check(testTally('=== 48 passed, 2 failed in 1s === · 48 passed, 2 failed') === '48 passed · 2 failed', 'each kind once');
+        // At the end the plan bar says how it went: full & green when it
+        // finished, red where it stopped when it failed; the summary stays.
+        deliver('tool_activity', {id: 29, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'done', summary: 'All 57 pass.',
+            vitals: {turn: 9, plan: {done: 5, total: 6}, context: {}, tools: {}, activity: {label: 'in tool: bash'}}});
+        const bar29 = document.querySelector('#message-29 .tool-card-bar');
+        check(bar29.classList.contains('is-ok') && bar29.style.getPropertyValue('--pct') === '100%', 'finished: a full green bar');
+        check(document.querySelector('#message-29 .message-tool-summary').textContent === 'All 57 pass.', 'the summary stays');
+        check(!document.querySelector('#message-29 [data-key="activity"]'), 'nothing live left');
+        deliver('tool_activity', {id: 30, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'error', error: 'stalled',
+            vitals: {turn: 9, plan: {done: 2, total: 6, current: 'run tests'}, context: {}, tools: {}, activity: {}}});
+        const bar30 = document.querySelector('#message-30 .tool-card-bar');
+        check(bar30.classList.contains('is-failed') && bar30.style.getPropertyValue('--pct') === '33%', 'failed: red where it stopped');
+        check(document.querySelector('#message-30 .tool-card-step').textContent === 'stopped at step 3 of 6 · run tests', 'says where it stopped');
         // A resumed session & its overseer's call show on the card.
         deliver('tool_activity', {id: 27, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             session: {resumed: true}, oversight: {decision: 'steer', note: 'use 30-day months', at: '25m', undelivered: true}});
@@ -368,8 +384,9 @@ window.addEventListener('load', async () => {
         deliver('tool_activity', {id: 18, tool: 'delegate', label: 'make tests pass', where: 'sandbox', asker: username, status: 'done',
             detail: {language: '', input: 'make tests pass', answer: 'Done.', log: '[bash] git clone\n[bash] make test'}});
         const d18 = document.querySelectorAll('#message-18 .message-tool');
-        check(d18.length === 1 && !d18[0].querySelector('.message-tool-progress'), 'finished in place, box gone');
-        check(d18[0].querySelector('.is-log').textContent === '[bash] git clone\n[bash] make test', 'log kept in the fold');
+        check(d18.length === 1 && !d18[0].classList.contains('is-running'), 'finished in place');
+        check(d18[0].querySelector('.message-tool-log .message-tool-progress').textContent === '[bash] git clone\n[bash] make test', 'the log keeps its own fold, finished too');
+        check(!d18[0].querySelector('.tool-card-task .is-log'), 'not repeated in the task fold');
         deliver('tool_activity', {id: 19, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'done',
             vitals: {turn: 9, context: {used: 1, peak: 21000, window: 82000}, tools: {total: 23, by_name: {}}, activity: {}}});
         // A delegate's stderr is notes, red only when the run failed; its
@@ -382,7 +399,9 @@ window.addEventListener('load', async () => {
             detail: {language: '', input: 't', stderr: 'Traceback', exit_code: 4}});
         check(document.querySelector('#message-23 .is-stderr'), 'a failed run: stderr in red');
         const summary = document.querySelector('#message-19 .message-tool-vitals');
-        check(summary && chips(summary) === '9 turns · peak context 21.0k · 23 tool calls', 'finished vitals: ' + (summary && chips(summary)));
+        // Finished, the card keeps its running layout: the same chips, less
+        // what was live, its peak context against its window.
+        check(summary && chips(summary) === '9 turns · peak context 21.0k / 82.0k · 23 tool calls', 'finished vitals: ' + (summary && chips(summary)));
         // A code tool's line folds open to its code & output, as text.
         deliver('tool_activity', {id: 12, tool: 'run_code', label: 'python', where: 'unsandbox', asker: username, status: 'done',
             detail: {language: 'python', input: 'print("<b>hi</b>")', stdout: '<b>hi</b>\n', stderr: 'oops', exit_code: 1}});
