@@ -31,10 +31,10 @@
             <textarea id="message" rows="1" placeholder="Message, or type /help"></textarea>
             <div class="composer-bar">
                 {% include "_composer_tools.html" %}
-                {# The voice replies are read in: here beside the model while
-                   Read replies aloud is on (4-tts.js), out of the way when off. #}
+                {# The voice Play & Read replies aloud speak in: beside the model
+                   whenever our speech service lists voices (3-room.js). #}
                 <label class="visually-hidden" for="voice-select">Voice</label>
-                <select id="voice-select" class="composer-model composer-voice" title="The voice replies are read aloud in" hidden>
+                <select id="voice-select" class="composer-model composer-voice" title="The voice Play & Read replies aloud speak in" hidden>
                     <!-- Voices will be populated from API -->
                 </select>
                 <label class="visually-hidden" for="model-select">Model</label>

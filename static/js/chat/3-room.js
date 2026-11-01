@@ -122,6 +122,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
         if (initialVoice) {
             voiceSelectDesktop.value = initialVoice;
         }
+        // In the chat box, left of the model, whenever our speech service
+        // lists voices: Play & Read replies aloud both speak in it.
+        voiceSelectDesktop.hidden = values.length === 0;
     }
 
     // Memoization with localStorage (1-minute cache)
@@ -173,8 +176,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
             })
             .catch(error => {
                 console.error("Error fetching voices:", error);
-                // Leave dropdown empty if API fails
+                // Leave dropdown empty (& out of sight) if API fails
                 voiceSelectDesktop.innerHTML = '';
+                voiceSelectDesktop.hidden = true;
                     });
     }
 
