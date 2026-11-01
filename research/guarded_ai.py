@@ -18,6 +18,8 @@ from activity_utils import (
     filter_content_blocks,
     resolve_conditional_navigation,
     select_weighted_random,
+    metadata_keys,
+    pick_metadata_random,
     get_progressive_hint,
     create_template_context,
     create_completion_skip_thinking,
@@ -574,7 +576,7 @@ def simulate_activity(yaml_file_path):
                     if bucket in step["transitions"]:
                         transition = step["transitions"][bucket]
 
-                if transition:
+                if transition is not None:  # `a: {}` does nothing, still counts
                     active_transitions.append((bucket, transition))
                 else:
                     print(f"⚠️  Warning: No transition found for bucket '{bucket}'")
@@ -740,7 +742,7 @@ def simulate_activity(yaml_file_path):
                         metadata_tmp_keys.append(key)  # Track temporary keys
 
                 if "metadata_remove" in transition:
-                    for key in transition["metadata_remove"]:
+                    for key in metadata_keys(transition["metadata_remove"]):
                         if key in metadata:
                             del metadata[key]
 
@@ -753,18 +755,14 @@ def simulate_activity(yaml_file_path):
 
                 # Handle metadata_random
                 if "metadata_random" in transition:
-                    random_key = random.choice(
-                        list(transition["metadata_random"].keys())
+                    random_key, random_value = pick_metadata_random(
+                        transition["metadata_random"]
                     )
-                    random_value = transition["metadata_random"][random_key]
                     metadata[random_key] = random_value
 
                 if "metadata_tmp_random" in transition:
-                    random_key = random.choice(
-                        list(transition["metadata_tmp_random"].keys())
-                    )
-                    random_value = random.choice(
-                        transition["metadata_tmp_random"][random_key]
+                    random_key, random_value = pick_metadata_random(
+                        transition["metadata_tmp_random"]
                     )
                     metadata[random_key] = random_value
                     metadata_tmp_keys.append(random_key)  # Track temporary keys
@@ -786,6 +784,7 @@ def simulate_activity(yaml_file_path):
                         metadata[key] = selected_value
                         metadata_tmp_keys.append(key)
 
+                script_next_section_and_step = None
                 # Execute the processing script if it exists
                 if "processing_script" in step and transition.get(
                     "run_processing_script", False
@@ -808,6 +807,10 @@ def simulate_activity(yaml_file_path):
                     # Update metadata with results from the processing script
                     for key, value in result.get("metadata", {}).items():
                         metadata[key] = value
+
+                    # A script's own target beats its transition's
+                    if "next_section_and_step" in result:
+                        script_next_section_and_step = result["next_section_and_step"]
 
                 print(
                     f"\n[Metadata after '{bucket_name}']: {json.dumps(metadata, indent=2)}"
@@ -832,8 +835,9 @@ def simulate_activity(yaml_file_path):
                     # Display feedback immediately for this bucket
                     for feedback_msg in multi_feedback_messages:
                         print(f"\n{feedback_msg['name']}: {feedback_msg['content']}")
-                elif step.get("feedback_tokens_for_ai"):
-                    # Legacy single feedback system - only if no feedback_prompts
+                elif step.get("feedback_tokens_for_ai") or "ai_feedback" in transition:
+                    # Single feedback (the transition's ai_feedback, the step's
+                    # feedback_tokens_for_ai before it) - only if no feedback_prompts
                     feedback = provide_feedback(
                         transition,
                         bucket_name,  # Use bucket_name instead of category
@@ -848,8 +852,14 @@ def simulate_activity(yaml_file_path):
                         print(f"\nFeedback: {feedback}")
 
                 # Track navigation (LAST transition's next_section_and_step wins)
-                if "next_section_and_step" in transition:
-                    final_next_section_and_step = transition["next_section_and_step"]
+                if (
+                    script_next_section_and_step
+                    or "next_section_and_step" in transition
+                ):
+                    final_next_section_and_step = (
+                        script_next_section_and_step
+                        or transition["next_section_and_step"]
+                    )
                     print(f"🎯 Navigation target set to: {final_next_section_and_step}")
 
                 # Track counts_as_attempt (if ANY transition counts, it counts)
@@ -885,6 +895,7 @@ def simulate_activity(yaml_file_path):
                 "asking_clarifying_questions",
                 "set_language",
                 "off_topic",
+                "incorrect",  # as on our server: stay & count the attempt
             ]:
                 break
 

@@ -79,8 +79,7 @@ sections:
               user_choice: "the-users-response"
               ai_choice_finger: "n+random(0,5)"
             metadata_tmp_random:
-              ai_choice: odd
-              ai_choice: even
+              ai_choice: [odd, even]
             next_section_and_step: "section_1:step_1"
           set_language:
             content_blocks:

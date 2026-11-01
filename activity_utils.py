@@ -278,6 +278,28 @@ def select_weighted_random(weighted_options: List[Dict[str, Any]]) -> Any:
     return selected[0]
 
 
+def metadata_keys(keys: Union[str, List[str], None]) -> List[str]:
+    """metadata_remove's keys: one name (`metadata_remove: "coin"`, as our
+    SPEC allows) or a list; a lone string is never split into letters."""
+    if keys is None:
+        return []
+    if isinstance(keys, str):
+        return [keys]
+    return list(keys)
+
+
+def pick_metadata_random(mapping: Dict[str, Any]) -> tuple:
+    """metadata_random / metadata_tmp_random: (key, value). One key of the
+    mapping is picked; a key holding a list gets one of its items, so both
+    `{dice: [1, 2, 3]}` (a value) & `{amulet: true, scroll: true}` (a key)
+    work."""
+    key = random.choice(list(mapping.keys()))
+    value = mapping[key]
+    if isinstance(value, list) and value:
+        value = random.choice(value)
+    return key, value
+
+
 def get_progressive_hint(
     hints: List[Dict[str, Any]], current_attempt: int, context: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:

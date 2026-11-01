@@ -232,16 +232,19 @@ sections:
             # CLEAR all metadata (use with caution!)
             metadata_clear: true
 
-            # RANDOM metadata - pick ONE random key-value pair
+            # RANDOM metadata - ONE key of the mapping is picked; a key
+            # holding a list gets one of its items. (A YAML mapping can't
+            # repeat a key: the last copy wins, so give one key a list.)
             metadata_random:
-              random_event: "event_a"  # One of these will be chosen
-              random_event: "event_b"
-              random_event: "event_c"
+              random_event: ["event_a", "event_b", "event_c"]  # One item chosen
+            # Or pick which key gets set:
+            # metadata_random:
+            #   found_amulet: true
+            #   found_scroll: true
 
-            # TEMPORARY random metadata - pick from list, remove at end of step
+            # TEMPORARY random metadata - same pick, removed at end of step
             metadata_tmp_random:
               dice_roll: [1, 2, 3, 4, 5, 6]  # One value chosen randomly
-              color_choice: ["red", "blue", "green"]
 
             # ----------------------------------------------------------------
             # METADATA CONDITIONS (Optional)
@@ -868,9 +871,7 @@ progressive_hints_example: "See activity-test-v2-features.yaml for working examp
 
 # OLD WAY - Equal probability:
 metadata_random:
-  loot: "sword"    # 33% each
-  loot: "dagger"   # 33% each
-  loot: "staff"    # 33% each
+  loot: ["sword", "dagger", "staff"]  # 33% each
 
 # NEW WAY - Weighted probabilities:
 metadata_weighted_random:

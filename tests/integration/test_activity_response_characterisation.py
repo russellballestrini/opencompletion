@@ -9,9 +9,9 @@ touches the network: categorize asks pop the next verdict from a queue,
 feedback asks answer "FEEDBACK <n>", translations answer "[<language>] <text>".
 
 Tests whose docstring says "PINS CURRENT BEHAVIOUR" record something that
-looks surprising (a quirk, a NameError swallowed into an error message, a
-YAML key that does not do what our docs say). They hold today's behaviour
-steady through a refactor; they do not endorse it.
+looks surprising; they hold it steady, they do not endorse it. Eleven of
+them pinned defects (2026-11-01), now fixed: each says "FIXED" & what is
+right instead.
 """
 
 import json
@@ -383,13 +383,13 @@ def test_non_stay_bucket_without_target_advances_in_order(engine):
 
 
 def test_max_attempts_exhausted_advances(engine):
-    """PINS CURRENT BEHAVIOUR: attempts are compared to max BEFORE this
-    answer counts, so with max 3 a learner gets a 4th try: attempts 3 then
-    one more incorrect answer moves on."""
-    engine.load(TWO_QUESTIONS, attempts=2)
+    """FIXED: this answer counts before the comparison, so max 3 means three
+    answers: a third incorrect one moves on (it once allowed a 4th)."""
+    engine.load(TWO_QUESTIONS)
     engine.respond("5", "incorrect")
-    assert engine.state().attempts == 3
-    assert engine.state().step_id == "q1"
+    engine.respond("5", "incorrect")
+    st = engine.state()
+    assert (st.step_id, st.attempts) == ("q1", 2)
     engine.respond("5", "incorrect")
     st = engine.state()
     assert (st.step_id, st.attempts) == ("q2", 0)
@@ -441,9 +441,9 @@ sections:
 
 
 def test_yes_no_buckets_parse_as_booleans(engine):
-    """PINS CURRENT BEHAVIOUR: YAML reads `yes:` as True; a "yes" verdict is
-    converted to True to find it, & since True != "yes" the engine treats it
-    as a SECOND bucket & prints a separator before its own transition."""
+    """YAML reads `yes:` as True; a "yes" verdict is converted to True to
+    find it. FIXED: it is still the first bucket, so no separator (one was
+    printed because True != "yes")."""
     engine.load("""
 sections:
   - section_id: s1
@@ -469,9 +469,7 @@ sections:
 """)
     engine.respond("sure", "yes")
     said = engine.said()
-    assert said[0] == "Category: yes"
-    assert "Processing transition for bucket: 'True'" in said[1]
-    assert said[2:] == ["go", "Next?"]
+    assert said == ["Category: yes", "go", "Next?"]
 
 
 def test_classifier_path_answers_with_confidence(engine):
@@ -745,10 +743,9 @@ def test_metadata_remove_list(engine):
     assert engine.state().dict_metadata == {"b": 2}
 
 
-def test_metadata_remove_string_iterates_characters(engine):
-    """PINS CURRENT BEHAVIOUR: our docs allow `metadata_remove: "key"`, but
-    a string is iterated character by character, so "ab" removes keys "a" &
-    "b" and never a key named "ab"."""
+def test_metadata_remove_takes_one_key_as_a_string(engine):
+    """FIXED: `metadata_remove: "ab"` (our SPEC allows one key) removes the
+    key "ab", never "a" & "b" letter by letter."""
     engine.load(
         one_step("""          correct:
             metadata_remove: "ab"
@@ -757,13 +754,12 @@ def test_metadata_remove_string_iterates_characters(engine):
         metadata={"ab": 1, "a": 2, "b": 3, "c": 4},
     )
     engine.respond("x", "correct")
-    assert engine.state().dict_metadata == {"ab": 1, "c": 4}
+    assert engine.state().dict_metadata == {"a": 2, "b": 3, "c": 4}
 
 
-def test_metadata_random_picks_a_key_not_a_value(engine):
-    """PINS CURRENT BEHAVIOUR: `metadata_random` picks one KEY of its mapping
-    & stores that key's whole value; a list value is stored as the list,
-    not one random element of it (our docs describe the latter)."""
+def test_metadata_random_picks_one_item_of_a_list(engine):
+    """FIXED: a key holding a list gets ONE item of it (the dice roll our
+    docs describe); the whole list was stored."""
     engine.load(
         one_step(
             """          correct:
@@ -778,11 +774,9 @@ def test_metadata_random_picks_a_key_not_a_value(engine):
     )
     with patch("activity.provide_feedback", return_value="") as fb:
         engine.respond("x", "correct")
-    assert json.loads(fb.call_args.args[8]) == {
-        "dice": [1, 2, 3],
-        "coin": ["heads", "tails"],
-    }
-    assert engine.state().dict_metadata == {"dice": [1, 2, 3]}
+    picked = json.loads(fb.call_args.args[8])
+    assert picked["dice"] in (1, 2, 3) and picked["coin"] in ("heads", "tails")
+    assert engine.state().dict_metadata == {"dice": picked["dice"]}
 
 
 def test_metadata_random_chooses_among_keys(engine):
@@ -858,10 +852,10 @@ def test_metadata_conditions_met_runs_transition(engine):
     assert engine.said() == ["Category: correct", "unlocked", "Next?"]
 
 
-def test_metadata_conditions_unmet_skips_but_still_advances(engine):
-    """PINS CURRENT BEHAVIOUR: a skipped transition's next_section_and_step
-    is ignored, but a bucket outside the stay-put list still advances to
-    the next step in order."""
+def test_metadata_conditions_unmet_asks_again(engine):
+    """FIXED: with every transition skipped by its conditions nothing
+    applied, so the question is asked again, uncounted (it moved on to the
+    next step in order)."""
     engine.load(
         one_step("""          correct:
             metadata_conditions: {score_gte: 2}
@@ -874,16 +868,16 @@ def test_metadata_conditions_unmet_skips_but_still_advances(engine):
     assert engine.said() == [
         "Category: correct",
         "Skipping 'correct' - metadata conditions not met",
-        "Next?",
+        "Answer?",
     ]
-    assert engine.state().step_id == "q2"
+    st = engine.state()
+    assert (st.step_id, st.attempts) == ("q1", 0)
 
 
-def test_metadata_conditions_unmet_on_stay_bucket_errors(engine):
-    """PINS CURRENT BEHAVIOUR: with every transition skipped on a stay-put
-    bucket, re-asking the question reads `user_language` before anything
-    set it; the UnboundLocalError surfaces as an error message & the
-    attempt is not counted."""
+def test_metadata_conditions_unmet_on_stay_bucket_asks_again(engine):
+    """FIXED: every transition skipped on a stay-put bucket asks again in
+    the learner's language (it raised UnboundLocalError on
+    `user_language`); the attempt is not counted."""
     engine.load(
         one_step("""          incorrect:
             metadata_conditions: {score_gte: 2}
@@ -892,10 +886,11 @@ def test_metadata_conditions_unmet_on_stay_bucket_errors(engine):
         metadata={"score": 1},
     )
     engine.respond("x", "incorrect")
-    said = engine.said()
-    assert said[1] == "Skipping 'incorrect' - metadata conditions not met"
-    assert said[2].startswith("Error processing activity response: ")
-    assert "user_language" in said[2]
+    assert engine.said() == [
+        "Category: incorrect",
+        "Skipping 'incorrect' - metadata conditions not met",
+        "Answer?",
+    ]
     assert engine.state().attempts == 0
 
 
@@ -1010,10 +1005,10 @@ def test_post_script_name_and_navigation_override(engine):
     assert engine.said()[-1] == "Next?"
 
 
-def test_transition_target_beats_script_target(engine):
-    """PINS CURRENT BEHAVIOUR: a script's next_section_and_step is recorded
-    first & the transition's own next_section_and_step then overwrites it,
-    so a script only steers a transition that names no target."""
+def test_script_target_beats_transition_target(engine):
+    """FIXED: a script's next_section_and_step overrides its transition's
+    (the transition's overwrote it, so a script only steered a transition
+    naming no target)."""
     engine.load(
         one_step(
             """          correct:
@@ -1025,7 +1020,7 @@ def test_transition_target_beats_script_target(engine):
         )
     )
     engine.respond("x", "correct")
-    assert engine.state().step_id == "q1"
+    assert engine.state().step_id == "q2"
 
 
 def test_processing_script_plot_image_is_posted_as_the_user(engine):
@@ -1134,15 +1129,15 @@ def test_navigation_into_terminal_step_completes_activity(engine):
     assert engine.state() is None
 
 
-def test_last_question_without_target_stays_put(engine):
-    """PINS CURRENT BEHAVIOUR: a bucket that advances from the activity's
-    final question finds no next step; nothing completes the activity, no
-    question is re-asked & the attempt count stays."""
+def test_last_question_answered_completes_the_activity(engine):
+    """FIXED: a bucket that moves on from the activity's final question
+    completes it (nothing happened: no completion, no question)."""
     engine.load(TWO_QUESTIONS, step="q2", attempts=1)
     engine.respond("6", "correct")
-    assert engine.said() == ["Category: correct", "Done."]
-    st = engine.state()
-    assert (st.step_id, st.attempts) == ("q2", 1)
+    said = engine.said()
+    assert said[:2] == ["Category: correct", "Done."]
+    assert said[-1] == "Activity completed!"
+    assert engine.state() is None
 
 
 def test_last_transition_target_wins(engine):
@@ -1214,17 +1209,17 @@ def test_feedback_tokens_without_ai_feedback_say_nothing(engine):
     assert engine.said() == ["Category: correct", "Next?"]
 
 
-def test_ai_feedback_without_feedback_tokens_is_ignored(engine):
-    """PINS CURRENT BEHAVIOUR: a transition's ai_feedback only runs when its
-    step has feedback_tokens_for_ai (or feedback_prompts); alone it asks no
-    model & says nothing."""
+def test_ai_feedback_without_feedback_tokens_runs(engine):
+    """FIXED: a transition's ai_feedback runs on its own (it needed the
+    step's feedback_tokens_for_ai or feedback_prompts beside it)."""
     engine.load(one_step("""          correct:
             ai_feedback:
               tokens_for_ai: "Cheer."
             next_section_and_step: "s1:q2"
 """))
     engine.respond("x", "correct")
-    assert "feedback" not in engine.model.kinds()
+    assert "feedback" in engine.model.kinds()
+    assert "\n\nFEEDBACK 1" in engine.said()
 
 
 def test_llms_response_lands_in_metadata(engine):
@@ -1286,10 +1281,9 @@ def test_feedback_prompts_post_one_message_each(engine):
     assert "Response: \n" in judge[1]["content"]
 
 
-def test_feedback_prompts_with_llms_response_errors(engine):
-    """PINS CURRENT BEHAVIOUR: `the-llms-response` reads a variable only the
-    single-feedback path sets; with feedback_prompts it raises
-    UnboundLocalError after the first message is posted."""
+def test_feedback_prompts_with_llms_response_saves_it(engine):
+    """FIXED: `the-llms-response` beside feedback_prompts saves the posted
+    feedback (it raised UnboundLocalError after the first message)."""
     engine.load(
         one_step(
             """          correct:
@@ -1304,9 +1298,9 @@ def test_feedback_prompts_with_llms_response_errors(engine):
     engine.respond("x", "correct")
     said = engine.said()
     assert said[1] == "FEEDBACK 1"
-    assert said[2].startswith("Error processing activity response: ")
-    assert "feedback" in said[2]
-    assert engine.state().step_id == "q1"
+    assert not [m for m in said if m.startswith("Error")]
+    st = engine.state()
+    assert st.step_id == "q2" and st.dict_metadata["saved"] == "FEEDBACK 1"
 
 
 def test_progressive_hint_shown_and_not_counted(engine):
@@ -1366,8 +1360,8 @@ def test_no_hint_for_this_attempt(engine):
 def test_language_translates_everything_we_say(engine):
     """Content, hints & the re-asked question are translated; model
     feedback is not (it is asked for in the learner's language instead).
-    PINS CURRENT BEHAVIOUR: translate_text names the language to the model
-    as a Python list repr (`['spanish']`), which the fake echoes back."""
+    FIXED: translate_text names the language as written (it sent a Python
+    list repr, `['spanish']`); the fake echoes it back."""
     engine.load(
         one_step(
             """          incorrect:
@@ -1385,10 +1379,10 @@ def test_language_translates_everything_we_say(engine):
     engine.respond("x", "incorrect")
     assert engine.said() == [
         "Category: incorrect",
-        "[['spanish']] no Spanish",
+        "[Spanish] no Spanish",
         "\n\nFEEDBACK 1",
-        "[['spanish']] a hint",
-        "[['spanish']] Answer?",
+        "[Spanish] a hint",
+        "[Spanish] Answer?",
     ]
     (fb,) = engine.model.feedback_calls()
     assert "user's language: Spanish." in fb[0]["content"]
@@ -1403,8 +1397,8 @@ def test_set_language_switches_this_turn(engine):
     engine.respond("French", "set_language")
     assert engine.said() == [
         "Category: set_language",
-        "[['french']] Language updated.",
-        "[['french']] Answer?",
+        "[French] Language updated.",
+        "[French] Answer?",
     ]
     st = engine.state()
     assert st.dict_metadata == {"language": "French"}
@@ -1444,9 +1438,9 @@ def test_all_content_blocks_filtered_posts_nothing(engine):
     assert engine.said() == ["Category: correct", "Next?"]
 
 
-def test_empty_transition_counts_as_missing(engine):
-    """PINS CURRENT BEHAVIOUR: a bucket whose transition is `{}` is falsy,
-    so it is treated like a bucket with no transition at all."""
+def test_empty_transition_is_a_transition(engine):
+    """FIXED: a bucket whose transition is `{}` is one that does nothing &
+    moves on (it was taken for a missing one: "Unrecognized category")."""
     engine.load(
         one_step(
             """          correct: {}
@@ -1455,8 +1449,5 @@ def test_empty_transition_counts_as_missing(engine):
         )
     )
     engine.respond("x", "correct")
-    assert engine.said() == [
-        "Category: correct",
-        "Error: Unrecognized category 'correct'. Please try again.",
-    ]
-    assert engine.state().step_id == "q1"
+    assert engine.said() == ["Category: correct", "Next?"]
+    assert engine.state().step_id == "q2"

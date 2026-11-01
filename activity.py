@@ -35,6 +35,8 @@ from activity_utils import (
     filter_content_blocks,
     resolve_conditional_navigation,
     select_weighted_random,
+    metadata_keys,
+    pick_metadata_random,
     get_progressive_hint,
     create_template_context,
     create_completion_skip_thinking,
@@ -240,25 +242,29 @@ def loop_through_steps_until_question(
             current_section_id = next_section["section_id"]
             current_step_id = next_step["step_id"]
         else:
-            # Activity completed
-
-            # Display activity info before completing
-            display_activity_info(room_name, username, feedback_model)
-
-            db.session.delete(activity_state)
-            db.session.commit()
-            socketio.emit(
-                "chat_message",
-                {
-                    "id": notice_id(),
-                    "username": "System",
-                    "content": "Activity completed!",
-                },
-                room=room_name,
-            )
-            # Return to activity chooser
-            socketio.emit("activity_status", {"active": False}, room=room_name)
+            complete_activity(activity_state, room_name, username, feedback_model)
             break
+
+
+def complete_activity(activity_state, room_name, username, feedback_model="MODEL_0"):
+    """Activity completed: its info, then its state goes & the room returns
+    to the activity chooser."""
+    # Display activity info before completing
+    display_activity_info(room_name, username, feedback_model)
+
+    db.session.delete(activity_state)
+    db.session.commit()
+    socketio.emit(
+        "chat_message",
+        {
+            "id": notice_id(),
+            "username": "System",
+            "content": "Activity completed!",
+        },
+        room=room_name,
+    )
+    # Return to activity chooser
+    socketio.emit("activity_status", {"active": False}, room=room_name)
 
 
 def start_activity(room_name, s3_file_path, username):
@@ -545,12 +551,12 @@ def _answer_question(turn):
         )
         return
 
-    # Process ALL active transitions in order. user_language is bound by the
-    # first transition that runs; with every one skipped it stays unbound &
-    # asking again raises (pinned by our characterisation tests).
-    for bucket_name, transition in active_transitions:
+    # Process ALL active transitions in order
+    user_language = state.dict_metadata.get("language", "English")
+    ran = 0
+    for index, (bucket_name, transition) in enumerate(active_transitions):
         # Emit separator between buckets (but not for the first one)
-        if bucket_name != all_active_buckets[0]:
+        if index:
             _notice(
                 turn,
                 f"\n{'='*60}\nProcessing transition for bucket: '{bucket_name}'\n{'='*60}",
@@ -561,17 +567,28 @@ def _answer_question(turn):
             continue
 
         user_language = _run_transition(turn, bucket_name, transition)
+        ran += 1
 
     # End of multi-bucket processing loop
+
+    # Every transition skipped by its metadata_conditions: nothing applied,
+    # so the question is asked again, no attempt counted.
+    if not ran:
+        _ask_question_again(turn, user_language)
+        _drop_tmp_metadata(turn)
+        return
 
     # Check for progressive hints (v2.0)
     hint = _progressive_hint(turn)
     if hint:
         _post_hint(turn, hint, user_language)
 
+    # This answer counts toward max attempts before we compare, so a max
+    # of 3 means 3 answers, not 4.
+    attempts = state.attempts + (1 if turn.counts_as_attempt else 0)
     if (
         category not in _STAY_ON_STEP_BUCKETS
-        or state.attempts >= state.max_attempts
+        or attempts >= state.max_attempts
         or turn.next_target  # Use final navigation from last transition
     ):
         _advance(turn)
@@ -629,7 +646,7 @@ def _active_transitions(transitions, buckets):
     active = []
     for bucket in buckets:
         bucket, transition = _find_transition(transitions, bucket)
-        if transition:
+        if transition is not None:  # `a: {}` is a transition that does nothing
             active.append((bucket, transition))
     return active
 
@@ -678,6 +695,11 @@ def _run_transition(turn, bucket_name, transition):
     # this gives the llm context on what changed.
     new_metadata = _apply_metadata_operations(turn, transition)
 
+    # Track navigation (LAST transition's next_section_and_step wins); set
+    # before the post-script so a script's own target overrides it.
+    if "next_section_and_step" in transition:
+        turn.next_target = transition["next_section_and_step"]
+
     _run_post_script(turn, transition)
 
     if "metadata_clear" in transition and transition["metadata_clear"] == True:
@@ -694,10 +716,6 @@ def _run_transition(turn, bucket_name, transition):
     _post_transition_content(turn, transition, user_language)
 
     _post_feedback(turn, bucket_name, transition, user_language, new_metadata)
-
-    # Track navigation (LAST transition's next_section_and_step wins)
-    if "next_section_and_step" in transition:
-        turn.next_target = transition["next_section_and_step"]
 
     # Track counts_as_attempt (if ANY transition counts, it counts)
     if transition.get("counts_as_attempt", True):
@@ -724,7 +742,7 @@ def _apply_metadata_operations(turn, transition):
         _append_metadata(turn, transition["metadata_tmp_append"], tmp=True)
 
     if "metadata_remove" in transition:
-        for key in transition["metadata_remove"]:
+        for key in metadata_keys(transition["metadata_remove"]):
             turn.state.remove_metadata(key)
 
     if "metadata_random" in transition:
@@ -850,9 +868,9 @@ def _append_to_list(state, key, value):
 
 def _add_random_key(turn, mapping, new_metadata, tmp):
     """metadata_random / metadata_tmp_random: one key of the mapping, picked
-    at random, set to its value."""
-    random_key = random.choice(list(mapping.keys()))
-    _set_metadata(turn, random_key, mapping[random_key], new_metadata, tmp)
+    at random, set to its value (one item of it, when it is a list)."""
+    random_key, value = pick_metadata_random(mapping)
+    _set_metadata(turn, random_key, value, new_metadata, tmp)
 
 
 def _add_weighted_random(turn, items, new_metadata, tmp):
@@ -956,8 +974,9 @@ def _post_feedback(turn, bucket_name, transition, user_language, new_metadata):
             turn.feedback_model,
         )
         feedback_messages.extend(multi_feedback_messages)
-    elif turn.feedback_tokens_for_ai:
-        # Legacy single feedback system - use transition-level filtering
+    elif turn.feedback_tokens_for_ai or "ai_feedback" in transition:
+        # Single feedback: the transition's ai_feedback, with the step's
+        # feedback_tokens_for_ai (if any) before it; transition-level filtering
         feedback_metadata = state.dict_metadata
         if "metadata_feedback_filter" in transition:
             filter_keys = transition["metadata_feedback_filter"]
@@ -980,10 +999,10 @@ def _post_feedback(turn, bucket_name, transition, user_language, new_metadata):
         if feedback and feedback.strip():
             feedback_messages.append({"name": "Feedback", "content": feedback})
 
-    # Store and emit all feedback messages. `feedback` is only bound on the
-    # legacy path: the-llms-response beside feedback_prompts raises
-    # (pinned by our characterisation tests).
+    # Store and emit all feedback messages; the-llms-response takes each
+    # message as it is posted (the last one, for metadata_add).
     for feedback_msg in feedback_messages:
+        feedback = feedback_msg["content"]
         _post_message(
             turn,
             feedback_msg["content"],
@@ -1025,6 +1044,10 @@ def _advance(turn):
     steps until the next question; with no next step, stay put."""
     next_section, next_step = _next_section_and_step(turn)
     if not next_step:
+        # The activity's last question, answered: we're done.
+        complete_activity(
+            turn.state, turn.room_name, turn.username, turn.feedback_model
+        )
         return
     state = turn.state
     state.attempts = 0
@@ -1684,9 +1707,7 @@ def _debug_battleship_prompt(prompt, prompt_name, prompt_metadata):
 
 def translate_text(text, target_language, model="MODEL_0"):
     # Guard clause for default language
-    target_language = target_language.lower().split()
-
-    if "english" in target_language:
+    if "english" in target_language.lower().split():
         return text
 
     # Use provided model or fall back to default
