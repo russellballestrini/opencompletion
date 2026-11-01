@@ -2042,3 +2042,33 @@ def test_a_refusal_that_is_not_retryable_fails_at_once(unsandbox, room, monkeypa
     monkeypatch.setattr(un, "create_service", create_service)
     result = tools.run(fox_in(room), "sandbox_shell", {"command": "true"})
     assert "503" in result["error"]
+
+
+def test_links_to_sandbox_files_are_shared_and_relinked(sandbox_disk, room):
+    """A model wrote "[deck](/tmp/...)" instead of sharing the file (fox,
+    2026-11-01): the reply's sandbox links are shared & point at their
+    attachments; one with no file says so; nothing else is touched."""
+    from models import Attachment
+
+    tools.run(fox_in(room), "sandbox_shell", {"command": "true"})  # its sandbox
+    deck = sandbox_disk / "deck.pptx"
+    deck.write_bytes(b"PK slides")
+    text = (
+        f"Here is [your deck]({deck}) and ![the plot]({sandbox_disk}/missing.png). "
+        "See [the docs](https://example.org/x) and `cat /tmp/notes`."
+    )
+    out, shared, missing = tool_sandbox.export_linked_files(fox_in(room), text)
+    attachment = Attachment.query.one()
+    assert shared[0]["path"] == str(deck) and shared[0]["url"] == attachment.url
+    assert f"[your deck]({attachment.url})" in out
+    assert missing == [f"{sandbox_disk}/missing.png"]
+    assert f"the plot (not shared: no file at {sandbox_disk}/missing.png" in out
+    assert "[the docs](https://example.org/x)" in out and "`cat /tmp/notes`" in out
+
+
+def test_a_chat_without_a_sandbox_is_left_alone(unsandbox, room):
+    from models import Sandbox
+
+    text = "Open [it](/tmp/out.txt)."
+    assert tool_sandbox.export_linked_files(fox_in(room), text) == (text, [], [])
+    assert Sandbox.query.count() == 0  # a stray path never makes one

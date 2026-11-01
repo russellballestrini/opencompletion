@@ -684,6 +684,55 @@ def share_file(context, path):
     }
 
 
+# A markdown link or image whose target is a path in a sandbox, not a URL:
+# "[deck](/tmp/out/deck.pptx)" or "![plot](/root/work/plot.png)". A model
+# writes one instead of calling sandbox_share_file & the person gets a
+# dead link (fox, 2026-11-01).
+SANDBOX_LINK = re.compile(
+    r"(!?)\[([^\]\n]*)\]\(((?:/tmp|/root|~|/home|/work|/srv)/[^)\s]+)\)"
+)
+
+
+def export_linked_files(context, text):
+    """`text` with every link to a file in this chat's sandbox pointing at
+    that file shared as an attachment (share_file); a path with no file
+    becomes words saying so. Only a chat that already has a sandbox is
+    touched: a stray path never makes one. Returns (text, shared [{path,
+    url, ...}], missing [path])."""
+    paths = []
+    for match in SANDBOX_LINK.finditer(text or ""):
+        if match.group(3) not in paths:
+            paths.append(match.group(3))
+    if not paths or context is None or context.room_id is None:
+        return text, [], []
+    sandbox = Sandbox.query.filter_by(room_id=context.room_id).first()
+    if sandbox is None or sandbox.state in ("destroyed", "destroy_pending"):
+        return text, [], []
+    shared, missing, urls = [], [], {}
+    for path in paths[:10]:
+        target = "/root/" + path[2:] if path.startswith("~/") else path
+        try:
+            result = share_file(context, target)
+        except Exception as e:  # noqa: BLE001 — a link left as words, not a crash
+            result = {"error": str(e)}
+        if result.get("artifacts"):
+            item = dict(result["artifacts"][0], path=path)
+            shared.append(item)
+            urls[path] = item["url"]
+        else:
+            missing.append(path)
+
+    def relink(match):
+        bang, label, path = match.groups()
+        if path in urls:
+            return f"{bang}[{label}]({urls[path]})"
+        if path in missing:
+            return f"{label or path} (not shared: no file at {path} in this chat's sandbox)"
+        return match.group(0)
+
+    return SANDBOX_LINK.sub(relink, text), shared, missing
+
+
 # -- uncloseai-cli in the sandbox --------------------------------------------
 
 

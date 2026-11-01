@@ -595,6 +595,28 @@ function forgetCachedAudio(messageId) {
     });
 }
 
+// A finished reply's links to files in its chat's sandbox, now shared
+// (app.chat_gpt, tools/sandbox.export_linked_files): each points at its
+// attachment; a path with no file becomes words saying so. Swapped in
+// place, so the reply's text & tool lines keep their order.
+socket.on("message_links", (data) => {
+    const wrapper = document.getElementById("message-" + data.id);
+    if (!wrapper) return;
+    for (const [path, url] of Object.entries(data.links || {})) {
+        wrapper.querySelectorAll("a").forEach((a) => { if (a.getAttribute("href") === path) a.setAttribute("href", url); });
+        wrapper.querySelectorAll("img").forEach((img) => { if (img.getAttribute("src") === path) img.setAttribute("src", url); });
+    }
+    for (const path of data.missing || []) {
+        wrapper.querySelectorAll("a, img").forEach((el) => {
+            if (el.getAttribute("href") !== path && el.getAttribute("src") !== path) return;
+            const said = document.createElement("span");
+            said.className = "message-missing-file";
+            said.textContent = `${el.textContent || el.getAttribute("alt") || path} (not shared: no file at ${path} in this chat's sandbox)`;
+            el.replaceWith(said);
+        });
+    }
+});
+
 socket.on("message_updated", (data) => {
     forgetCachedAudio(data.message_id);
     // Find the existing message wrapper by ID

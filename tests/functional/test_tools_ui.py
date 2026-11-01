@@ -373,6 +373,13 @@ window.addEventListener('load', async () => {
         document.querySelector('#message-70 .tool-card-say').click();
         check(readAloud.length === 3 && readAloud[2][0] === 'It ran the tests: 42 pass.', 'Play reads the summary');
         queueTTS = realQueue;
+        // A reply's sandbox links, shared when it ends, point at their
+        // attachments in place; one with no file becomes words.
+        deliver('previous_messages', {id: 80, username: 'qwen', content: 'See [deck](/tmp/deck.pptx) and ![plot](/tmp/gone.png).', from_model: true});
+        deliver('message_links', {id: 80, links: {'/tmp/deck.pptx': '/attachments/0123456789abcdef0123456789abcdef/deck.pptx'}, missing: ['/tmp/gone.png']});
+        const m80 = document.getElementById('message-80');
+        check(m80.querySelector('a[href="/attachments/0123456789abcdef0123456789abcdef/deck.pptx"]'), 'the link points at the shared file');
+        check(!m80.querySelector('img[src="/tmp/gone.png"]') && /not shared: no file at \/tmp\/gone\.png/.test(m80.textContent), 'a missing file says so');
         // A resumed session & its overseer's call show on the card.
         deliver('tool_activity', {id: 27, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             session: {resumed: true}, oversight: {decision: 'steer', note: 'use 30-day months', at: '25m', undelivered: true}});

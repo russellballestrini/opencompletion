@@ -72,6 +72,11 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   so its line links it & the model links it or shows an image inline. The
   tool guidance tells the model to share a file it or `delegate` made
   rather than name a sandbox path.
+  A model that writes a link to a sandbox path anyway ("[deck](/tmp/
+  deck.pptx)") is caught when its reply ends: `export_linked_files` shares
+  each linked file of a chat that has a sandbox, points the link at its
+  attachment (a `message_links` event swaps it in place, a "Shared" line
+  joins the reply) & turns a path with no file into words saying so.
 - **A full account waits.** Running sandboxes count toward the unsandbox
   account's concurrency limit, so a new one past it is refused (503
   "Failed to create service", retryable). Creating one then waits for a

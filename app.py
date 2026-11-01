@@ -2342,6 +2342,36 @@ def chat_gpt(
             room=room_name,
         )
 
+    # A link to a file in this chat's sandbox ("[deck](/tmp/deck.pptx)")
+    # is a dead link for the person: share each one & point the link at it,
+    # or say there is no such file (fox, 2026-11-01).
+    if tool_schemas and "sandbox_share_file" in offered:
+        with app.app_context():
+            relinked, shared, missing = tool_sandbox.export_linked_files(
+                tool_context, buffer
+            )
+        if shared or missing:
+            buffer = relinked
+            for item in shared:
+                notify_tool(
+                    {
+                        "tool": "sandbox_share_file",
+                        "label": item["path"],
+                        "where": "sandbox",
+                        "status": "done",
+                        "sources": [{"url": item["url"], "title": item["filename"]}],
+                    }
+                )
+            socketio.emit(
+                "message_links",
+                {
+                    "id": msg_id,
+                    "links": {item["path"]: item["url"] for item in shared},
+                    "missing": missing,
+                },
+                room=room_name,
+            )
+
     # Save the entire completion to the database
     with app.app_context():
         new_message = (
