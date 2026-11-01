@@ -1989,8 +1989,8 @@ def chat_gpt(
             stopped=lambda: room_name in stop_requests,
             summarize=(
                 (
-                    lambda previous, fresh: summarize_delegate(
-                        openai_client, model_name, previous, fresh
+                    lambda previous, fresh, final=False: summarize_delegate(
+                        openai_client, model_name, previous, fresh, final=final
                     )
                 )
                 if tools.policy.delegate_summaries_enabled()
@@ -2459,7 +2459,16 @@ def oversee_delegate(openai_client, model_name, digest):
     return strip_reasoning(response.choices[0].message.content or "").strip()
 
 
-def summarize_delegate(openai_client, model_name, previous, fresh):
+DELEGATE_CLOSING_PROMPT = (
+    "A coding agent you watched in a sandbox has ended. From your last "
+    "summary, the end of its log & its final answer, say in one or two "
+    "plain sentences what it achieved & how it ended. Name concrete "
+    "results (tests passed, files written, errors). No preamble, no "
+    "markdown, past tense."
+)
+
+
+def summarize_delegate(openai_client, model_name, previous, fresh, final=False):
     """A sentence or two on how a delegate is going (tools/loop.py asks
     about every 15s while its log grows). Best effort: None on failure."""
     try:
@@ -2467,7 +2476,12 @@ def summarize_delegate(openai_client, model_name, previous, fresh):
             openai_client,
             model=model_name,
             messages=[
-                {"role": "system", "content": DELEGATE_SUMMARY_PROMPT},
+                {
+                    "role": "system",
+                    "content": (
+                        DELEGATE_CLOSING_PROMPT if final else DELEGATE_SUMMARY_PROMPT
+                    ),
+                },
                 {
                     "role": "user",
                     "content": f"Earlier summary:\n{str(previous)[:1000] or '(none)'}"

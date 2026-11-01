@@ -1476,9 +1476,14 @@ def test_a_delegate_is_summarized_as_it_goes(unsandbox, room, monkeypatch):
     ]
     asked = []
 
-    def summarize(previous, fresh):
+    def summarize(previous, fresh, final=False):
+        if final:
+            closing.append((previous, fresh))
+            return "It cloned ago and all 42 tests passed."
         asked.append((previous, fresh))
         return f"summary {len(asked)}"
+
+    closing = []
 
     context = dataclasses.replace(fox_in(room), summarize=summarize)
     events = []
@@ -1490,8 +1495,12 @@ def test_a_delegate_is_summarized_as_it_goes(unsandbox, room, monkeypatch):
     ]
     said = [e.get("summary") for e in events if e["status"] == "running"]
     assert "summary 1" in said and "summary 2" in said
-    # the finished card keeps its running layout: its last summary stays
-    assert events[-1]["summary"] == "summary 2"
+    # Ended: a closing summary, from how it ended, replaces the last one
+    # written mid-run (fox, 2026-11-01).
+    ((previous, notes),) = closing
+    assert previous == "summary 2" and notes.startswith("It finished (exit code 0).")
+    assert "42 passed" in notes and "Its final answer:" in notes
+    assert events[-1]["summary"] == "It cloned ago and all 42 tests passed."
 
 
 def test_summarize_delegate_is_best_effort():

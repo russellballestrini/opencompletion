@@ -85,6 +85,19 @@ def whole_sentences(text, limit=SUMMARY_CHARS):
     return head if len(text) <= limit else clip_words(text, limit)
 
 
+def closing_notes(result, log):
+    """What a closing summary reads: how a long call ended, the end of its
+    log & its final answer."""
+    if result.get("error"):
+        ended = f"It ended with an error: {result['error']}"
+    else:
+        ended = f"It finished (exit code {result.get('exit_code', 0)})."
+    notes = [ended, "End of its log:", "\n".join(log)[-3000:]]
+    if result.get("answer"):
+        notes += ["Its final answer:", str(result["answer"])[-2000:]]
+    return "\n".join(notes)
+
+
 def clip_words(text, limit):
     """`text` on one line, cut at a word boundary to `limit` characters
     with an ellipsis ("...spanning seco" read as a defect, 2026-10-31)."""
@@ -300,12 +313,18 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                 event.update(last.get("card") or {})  # session, oversight
                 return event
 
-            def summarize(fresh, last=last):
+            def summarize(fresh, final=False, last=last):
                 """A sentence or two on the newest log, within
-                SUMMARY_TIMEOUT_S, or the last one kept."""
+                SUMMARY_TIMEOUT_S, or the last one kept. final: the run
+                has ended; say what it achieved & how it ended."""
                 try:
                     with gevent.Timeout(SUMMARY_TIMEOUT_S):
-                        said = context.summarize(last.get("summary", ""), fresh)
+                        previous = last.get("summary", "")
+                        said = (
+                            context.summarize(previous, fresh, final=True)
+                            if final
+                            else context.summarize(previous, fresh)
+                        )
                 except BaseException as e:  # noqa: BLE001 — optional; Timeout too
                     if isinstance(e, (KeyboardInterrupt, SystemExit)):
                         raise
@@ -349,6 +368,12 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                     ),
                 )
             result = run(call_context, call["name"], arguments)
+            if context.summarize and log:
+                # A closing summary replaces the last one, written mid-run
+                # ("...it is now collecting...") & never kept: the finished
+                # card says what the run achieved & how it ended (fox,
+                # 2026-11-01).
+                summarize(closing_notes(result, log), final=True)
         done = {"tool": call["name"], "label": label, "where": where}
         shown = detail_of(call["name"], arguments or {}, result)
         if shown and arguments is not None and log:
