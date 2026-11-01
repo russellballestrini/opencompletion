@@ -380,6 +380,9 @@ window.addEventListener('load', async () => {
         const m80 = document.getElementById('message-80');
         check(m80.querySelector('a[href="/attachments/0123456789abcdef0123456789abcdef/deck.pptx"]'), 'the link points at the shared file');
         check(!m80.querySelector('img[src="/tmp/gone.png"]') && /not shared: no file at \/tmp\/gone\.png/.test(m80.textContent), 'a missing file says so');
+        deliver('tool_activity', {id: 81, tool: 'sandbox_share_file', label: '/tmp/deck.pptx', where: 'sandbox', asker: username, status: 'done', auto: true,
+            sources: [{url: '/attachments/0123456789abcdef0123456789abcdef/deck.pptx', title: 'deck.pptx'}]});
+        check(/^Shared for you, as the reply linked a sandbox path: \/tmp\/deck\.pptx/.test(document.querySelector('#message-81 .message-tool').textContent), 'the safety net says it shared it');
         // A resumed session & its overseer's call show on the card.
         deliver('tool_activity', {id: 27, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             session: {resumed: true}, oversight: {decision: 'steer', note: 'use 30-day months', at: '25m', undelivered: true}});

@@ -100,7 +100,8 @@ SANDBOX_SHELL = {
         "name": "sandbox_shell",
         "description": (
             "Run one command in this chat's sandbox (kept between turns, "
-            "has network, shared with delegate): for a quick look or check."
+            "has network, shared with delegate): for a quick look or check. "
+            "Files it makes stay there until you share them."
         ),
         "parameters": {
             "type": "object",
@@ -151,7 +152,8 @@ DELEGATE = {
         "description": (
             "Hand a multi-step coding task, setup included, to "
             "uncloseai-cli, an agent that works in this chat's sandbox "
-            "until done. Say what done means."
+            "until done. Say what done means. Files it makes stay there "
+            "until you share them."
         ),
         "parameters": {
             "type": "object",

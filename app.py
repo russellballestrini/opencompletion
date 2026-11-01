@@ -2359,6 +2359,9 @@ def chat_gpt(
                         "label": item["path"],
                         "where": "sandbox",
                         "status": "done",
+                        # The app shared it, not the model: shown as such,
+                        # so a model skipping sandbox_share_file is seen.
+                        "auto": True,
                         "sources": [{"url": item["url"], "title": item["filename"]}],
                     }
                 )

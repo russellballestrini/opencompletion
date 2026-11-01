@@ -840,6 +840,19 @@ def delegate(context, task):
         revoke_proxy(armed.get("sandbox_id"), armed.get("token_sha256"))
 
 
+def files_written(vitals, limit=20):
+    """The files a delegate's run changed (its vitals), as full sandbox
+    paths: uncloseai-cli works from /root, so "ago/x.py" is /root/ago/x.py."""
+    changed = ((vitals or {}).get("files") or {}).get("changed") or []
+    paths = []
+    for path in changed:
+        path = str(path)
+        full = path if path.startswith("/") else "/root/" + path.lstrip("./")
+        if full not in paths:
+            paths.append(full)
+    return paths[:limit]
+
+
 def _review(context, sandbox, run_dir, task, watch, vitals, log_tail):
     """Ask the run's overseer (the chat's model) how it goes & act on it:
     continue, steer (a note the run reads at its next turn, via
@@ -1118,6 +1131,15 @@ def _delegate(context, task, armed):
                 result["error"] = f"uncloseai-cli exited {code}"
             if note:
                 result["sandbox_note"] = note
+            written = files_written(last_vitals)
+            if written:
+                # Told where it counts: the files it made are the person's
+                # only once shared (fox, 2026-11-01: models linked /tmp/...).
+                result["files_written"] = written
+                result["files_note"] = (
+                    "The person cannot open these until you share each one "
+                    "they need with sandbox_share_file."
+                )
             if last_vitals is not None and context.progress:
                 card.pop("pulse", None)  # it has stopped: no heartbeat
                 context.progress("", vitals=last_vitals, card=card)  # final numbers

@@ -2072,3 +2072,19 @@ def test_a_chat_without_a_sandbox_is_left_alone(unsandbox, room):
     text = "Open [it](/tmp/out.txt)."
     assert tool_sandbox.export_linked_files(fox_in(room), text) == (text, [], [])
     assert Sandbox.query.count() == 0  # a stray path never makes one
+
+
+def test_a_delegate_tells_the_model_which_files_it_wrote(unsandbox, room):
+    """The model learns where files are made: a delegate's result lists the
+    files it wrote, as full paths, & that the person needs them shared
+    (fox, 2026-11-01: fix the root cause at the model)."""
+    vitals = (
+        '__VITALS__ {"schema": "unclose-vitals/1", "files": {"count": 2, '
+        '"changed": ["ago/parse.py", "/root/ago/bench.png", "ago/parse.py"]}}\n'
+    )
+    unsandbox.polls = [vitals + "[bash] python bench.py"]
+    result = run_delegate(room)
+    assert result["files_written"] == ["/root/ago/parse.py", "/root/ago/bench.png"]
+    assert "sandbox_share_file" in result["files_note"]
+    shell = tools.SANDBOX_SHELL["function"]["description"]
+    assert "stay there until you share them" in shell

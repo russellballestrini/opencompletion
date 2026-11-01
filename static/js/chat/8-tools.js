@@ -575,8 +575,11 @@ function drawToolLine(line, data, live = false) {
         drawDelegateCard(line, data, verbs, {detail: wasOpen, job: jobWasOpen, log: logWasOpen, live});
         return;
     }
-    const where = toolWhere(data);
-    const verb = verbs[data.status === "running" ? 0 : 1];
+    // Shared by the app, not the model, because the reply linked a sandbox
+    // path: said so, so a model skipping sandbox_share_file is seen.
+    const auto = data.auto && data.tool === "sandbox_share_file";
+    const where = auto ? "" : toolWhere(data);
+    const verb = auto ? "Shared for you, as the reply linked a sandbox path" : verbs[data.status === "running" ? 0 : 1];
     const head = document.createElement("div");
     head.className = "message-tool-head";
     // What & where in quiet text, what it was about in full colour.
