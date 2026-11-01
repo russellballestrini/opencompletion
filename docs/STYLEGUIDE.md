@@ -9,8 +9,8 @@ marked **(tested)** in real headless Chromium at 320, 375, 768 & 1280px.
 
 | Template | What it is |
 |---|---|
-| `layout.html` | Our one shell for every page: `_head.html`, `utils.js`, `_app_sidebar.html` on the left, a page on the right (`.app-main` > `<main class="page">`, a ☰ `.page-topbar` on phones). Pages fill `title`, `content`, `scripts` & optional `page_class` (`page-narrow` for forms); set `active_nav` (`home`, `search`, `browse`, `profile`, `auth`) to mark the current page. |
-| `_app_sidebar.html` | Every link we have: our name on top; New chat, Search, Rooms; Your rooms (the newest 5, then Show all) & Public rooms (scroll on their own); you at the bottom (`.sidebar-user`: settings & theme), Sign in for guests. Data comes from the `sidebar` context processor (`routes.pages.sidebar_chats`). |
+| `layout.html` | Our one shell for every page: `_head.html`, `utils.js`, `_app_sidebar.html` on the left, a page on the right (`.app-main` > `<main class="page">`, a ☰ `.page-topbar` on phones). Pages fill `title`, `content`, `scripts` & optional `page_class` (`page-narrow` for forms); set `active_nav` (`home`, `browse`, `profile`, `auth`) to mark the current page. |
+| `_app_sidebar.html` | Every link we have: our name on top; New chat, Rooms (search lives there); Your rooms (the newest 5, then Show all) & Public rooms (scroll on their own); you at the bottom (`.sidebar-user`: settings & theme), Sign in for guests. Data comes from the `sidebar` context processor (`routes.pages.sidebar_chats`). |
 | `home.html` | Our home (`/`), extends `layout.html` & replaces `main`: Solo / Chatroom switch (`.mode-btn`, `aria-pressed`; Solo is a room only its owner opens, `is_private` underneath) & one `.composer`, whose `.composer-bar` holds `_composer_tools.html` (attach & mic, `static/js/composer.js`) beside the model picker & Send; chat adds a Stop button (`.composer-stop`) while a reply streams. Behaviour in `static/js/home.js`. |
 | `base.html` | Chat, extends `layout.html`: vendored chat libraries, `.chat-shell` adds room controls (`.utility-belt`) as a third column, sign-in dialog. `chat.html` reuses home's `.composer`. |
 | `_head.html` | Meta, Open Graph, theme applied before first paint, our one stylesheet. |
@@ -57,7 +57,7 @@ are 16px on phones so iOS never zooms into them.
   its title leads (`.room-card-name`), its name sits under it
   (`.room-card-slug`), `.badge-private` (Solo) or `.badge-public` &
   "active 2h ago" (`ago` filter). Our Rooms page filters one list with a
-  `.segmented` radio group (Yours · Solo · Public, `?show=`) & a text box.
+  `.segmented` radio group (Yours · Solo · Public, `?show=`) & a text box that filters by title or name as you type & searches messages on Enter (`?q=`, `search_messages`; old `/search` links redirect there).
 - **Chat actions** a `.chat-actions-btn` (⋯, `data-chat-actions`) on each
   sidebar chat & room card opens `.chat-actions-menu` (`chat-actions.js`):
   what it offers comes from `_room_actions_data.html`'s data attributes.

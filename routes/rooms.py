@@ -59,8 +59,18 @@ def browse_rooms():
     show = request.args.get("show")
     if show not in counts or (show != "public" and not user):
         show = "mine" if user else "public"
+    # Search lives here too (fox, 2026-11-01): ?q= searches every message
+    # of the rooms you may open (search_messages), shown above the list.
+    query = request.args.get("q", "").strip()[:200]
+    found = search_messages(query, user) if query else []
     return render_template(
-        "browse.html", rooms=rooms, counts=counts, show=show, user=user
+        "browse.html",
+        rooms=rooms,
+        counts=counts,
+        show=show,
+        user=user,
+        query=query,
+        found=found,
     )
 
 
@@ -519,29 +529,23 @@ def download_chat_history_md():
 
 @bp.route("/search")
 def search_page():
+    """Search moved into our Rooms page (?q=); old links still work. One
+    hit still goes straight into that room, keeping model & voice."""
     user = auth.get_current_user()
     keywords = request.args.get("keywords", "").strip()
-    if not keywords:
-        return render_template(
-            "search.html", keywords="", results=[], user=user, error=None
-        )
-
-    search_results = search_messages(keywords, user)
-
-    # Exactly one hit: go straight to that room, keeping model & voice.
-    if len(search_results) == 1:
-        redirect_params = {
-            param: request.args[param]
-            for param in ("model", "voice")
-            if request.args.get(param)
-        }
-        return redirect(
-            url_for("chat", room_name=search_results[0]["room_name"], **redirect_params)
-        )
-
-    return render_template(
-        "search.html", keywords=keywords, results=search_results, user=user, error=None
-    )
+    if keywords:
+        results = search_messages(keywords, user)
+        if len(results) == 1:
+            redirect_params = {
+                param: request.args[param]
+                for param in ("model", "voice")
+                if request.args.get(param)
+            }
+            return redirect(
+                url_for("chat", room_name=results[0]["room_name"], **redirect_params)
+            )
+        return redirect(url_for("rooms.browse_rooms", q=keywords))
+    return redirect(url_for("rooms.browse_rooms"))
 
 
 def search_messages(keywords, user=None):

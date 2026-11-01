@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% set active_nav = 'browse' %}
 
-{% block title %}Rooms - {{ brand_name }}{% endblock %}
+{% block title %}{% if query %}{{ query }} - {% endif %}Rooms - {{ brand_name }}{% endblock %}
 
 {% block content %}
 <h1 class="page-title">Rooms</h1>
@@ -19,9 +19,35 @@
         </button>
         {% endfor %}
     </div>
-    <label class="visually-hidden" for="rooms-filter">Filter rooms by title or name</label>
-    <input id="rooms-filter" class="form-input rooms-filter" type="search" placeholder="Filter by title or name" autocomplete="off">
+    {# Typing narrows the rooms by title or name as you go; Enter searches
+       inside their messages (?q=), the matches shown above the list. #}
+    <form class="rooms-search" action="/browse" method="get" role="search">
+        <input type="hidden" name="show" value="{{ show }}">
+        <label class="visually-hidden" for="rooms-filter">Filter rooms, or search their messages</label>
+        <input id="rooms-filter" class="form-input rooms-filter" type="search" name="q" value="{{ query }}" placeholder="Filter rooms or search messages" autocomplete="off">
+        <a id="rooms-search-messages" class="rooms-search-hint" href="#" hidden>Search messages for “<span></span>” →</a>
+    </form>
 </div>
+
+{% if query %}
+<section class="rooms-found" aria-labelledby="rooms-found-heading">
+    <h2 id="rooms-found-heading" class="rooms-found-heading">
+        {% if found %}Messages that mention “{{ query }}” · {{ found|length }} room{{ '' if found|length == 1 else 's' }}, most mentions first
+        {% else %}No messages mention “{{ query }}”{% endif %}
+        <a class="rooms-found-clear" href="/browse?show={{ show }}">Clear</a>
+    </h2>
+    {% if found %}
+    <div class="room-grid">
+        {% for room in found %}
+        {% set meta = room.score ~ ' mention' ~ ('' if room.score == 1 else 's') %}
+        {% include "_room_card.html" %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">We searched public rooms{% if user %} & your solo rooms{% endif %}.</p>
+    {% endif %}
+</section>
+{% endif %}
 
 <div class="room-grid" id="room-grid">
     {% for room in rooms %}
@@ -53,10 +79,15 @@
         const empty = document.getElementById('rooms-empty');
         const emptyTitle = document.getElementById('rooms-empty-title');
         const emptyWords = {mine: 'No rooms of yours yet', solo: 'No solo rooms yet', public: 'No public rooms yet'};
+        const hint = document.getElementById('rooms-search-messages');
+        const searched = {{ query|tojson }};
         let show = (options.find(o => o.getAttribute('aria-checked') === 'true') || options[0]).dataset.show;
 
         function apply() {
-            const words = text.value.trim().toLowerCase();
+            const typed = text.value.trim();
+            // The words just searched (?q=) find messages above; they don't
+            // also narrow the list of rooms below.
+            const words = typed === searched ? '' : typed.toLowerCase();
             let shown = 0;
             for (const card of cards) {
                 const inScope = (card.dataset.scopes || '').split(' ').includes(show);
@@ -65,7 +96,11 @@
                 if (!card.hidden) shown++;
             }
             empty.hidden = shown > 0;
-            emptyTitle.textContent = words ? 'No rooms match “' + text.value.trim() + '”' : emptyWords[show];
+            emptyTitle.textContent = words ? 'No rooms match “' + typed + '”' : emptyWords[show];
+            // Words typed (& not yet searched): offer the message search.
+            hint.hidden = !typed || typed === searched;
+            hint.querySelector('span').textContent = typed;
+            hint.href = '/browse?show=' + encodeURIComponent(show) + '&q=' + encodeURIComponent(typed);
         }
 
         options.forEach(option => option.addEventListener('click', () => {
@@ -75,6 +110,7 @@
             const url = new URL(location.href);
             url.searchParams.set('show', show);
             history.replaceState(null, '', url);
+            document.querySelector('.rooms-search input[name="show"]').value = show;
             apply();
         }));
         text.addEventListener('input', apply);

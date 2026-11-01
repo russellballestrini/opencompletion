@@ -26,7 +26,7 @@ STYLESHEET = ROOT / "static" / "css" / "style.css"
 pytestmark = pytest.mark.functional
 
 # Every page a person can open; chat is its own app shell.
-PAGES = ["/", "/browse", "/search", "/search?keywords=zzz", "/profile", "/auth"]
+PAGES = ["/", "/browse", "/browse?q=zzz", "/profile", "/auth"]
 ALL_PAGES = PAGES + ["/styleguide", "/chat/lobby"]
 WIDTHS = [320, 375, 768, 1280]
 
@@ -222,12 +222,12 @@ def test_search_never_reveals_someone_elses_private_room(client):
     make_room("secret-room", owner=owner, private=True, message="zebra secret")
     make_room("old-room", archived=True, message="zebra archived")
 
-    guest_html = client.get("/search?keywords=zebra").get_data(as_text=True)
+    guest_html = client.get("/browse?q=zebra").get_data(as_text=True)
     assert "secret-room" not in guest_html
     assert "old-room" not in guest_html
 
     sign_in(client, owner)
-    owner_html = client.get("/search?keywords=zebra").get_data(as_text=True)
+    owner_html = client.get("/browse?q=zebra").get_data(as_text=True)
     assert "secret-room" in owner_html and "open-room" in owner_html
     assert "old-room" not in owner_html
 
@@ -237,6 +237,24 @@ def test_search_only_hit_redirects_into_that_room(client):
     response = client.get("/search?keywords=quokka")
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/chat/only-room")
+
+
+def test_search_lives_on_the_rooms_page(client):
+    """Search moved into our Rooms page (fox, 2026-11-01): ?q= finds the
+    rooms whose messages mention it, above the list; old /search links
+    land there, & the sidebar has no Search link of its own."""
+    make_room("first-room", message="wombat one")
+    make_room("second-room", message="wombat two wombat")
+    page = client.get("/browse?q=wombat").get_data(as_text=True)
+    found = page[page.index('class="rooms-found"') : page.index('id="room-grid"')]
+    assert "Messages that mention “wombat” · 2 rooms" in found
+    assert found.index("second-room") < found.index("first-room")  # most first
+    moved = client.get("/search?keywords=wombat")
+    assert moved.status_code == 302 and moved.headers["Location"].endswith(
+        "/browse?q=wombat"
+    )
+    assert client.get("/search").headers["Location"].endswith("/browse")
+    assert 'href="/search"' not in client.get("/").get_data(as_text=True)
 
 
 def test_private_room_updates_stay_inside_the_room(test_app):
@@ -589,7 +607,7 @@ window.addEventListener('load', () => {
     const sidebar = document.getElementById('app-sidebar');
     const toggle = document.querySelector('.page-topbar .drawer-toggle');
     const shown = el => el.getBoundingClientRect().height > 0;
-    const links = ['/', '/search', '/browse', '/profile', '/auth?next=/browse'];
+    const links = ['/', '/browse', '/profile', '/auth?next=/browse'];
     links.forEach(href => check(sidebar.querySelector(`a[href="${href}"]`), 'sidebar links ' + href));
     check(sidebar.querySelector('[data-theme-toggle]'), 'theme toggle in our sidebar');
     check(sidebar.querySelector('a[href="/browse"][aria-current="page"]'), 'current page marked');

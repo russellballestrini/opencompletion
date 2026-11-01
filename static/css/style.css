@@ -727,12 +727,6 @@ textarea:focus {
     text-decoration: none;
 }
 
-.search-form {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--space-2);
-    margin-bottom: var(--space-4);
-}
 
 .page {
     width: 100%;
@@ -1012,9 +1006,42 @@ textarea:focus {
     font-variant-numeric: tabular-nums;
 }
 
+.rooms-search {
+    flex: 1 1 240px;
+    max-width: 420px;
+    display: grid;
+    gap: var(--space-1);
+}
+
 .rooms-filter {
-    flex: 1 1 200px;
-    max-width: 360px;
+    width: 100%;
+}
+
+/* "Search messages for 'x' →" under the box while words are typed. */
+.rooms-search-hint {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+/* What a message search found, above the list of rooms. */
+.rooms-found {
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.rooms-found-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-3);
+    font-size: 15px;
+}
+
+.rooms-found-clear {
+    font-size: 13px;
+    font-weight: 400;
 }
 
 .rooms-signin {
