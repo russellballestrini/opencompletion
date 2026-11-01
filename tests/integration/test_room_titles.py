@@ -1,6 +1,7 @@
 """Rename a chat or have a model title it afresh, from our chat actions
 menu: POST /api/rooms/<id>/title."""
 
+import re
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -151,3 +152,42 @@ def test_deleting_or_archiving_the_open_room_goes_home(test_app):
     assert "deleteRoom(" in page and "archiveRoom(" in page
     assert "window.location.href = '/browse'" not in page
     assert page.count("window.location.href = '/';") >= 2
+
+
+def test_the_rooms_page_filters_yours_solo_and_public(test_app):
+    """One list on our Rooms page, each card tagged with the filters it
+    belongs to (fox, 2026-11-01): yours (any you created), solo (yours,
+    private), public (everyone's); ?show= opens on one."""
+    from models import Room, User, db
+
+    ada = User(email="ada@example.test", display_name="ada")
+    db.session.add(ada)
+    db.session.commit()
+    for name, private, owner in [
+        ("ada-public", False, ada.id),
+        ("ada-solo", True, ada.id),
+        ("someone-elses", False, None),
+    ]:
+        db.session.add(Room(name=name, is_private=private, owner_id=owner))
+    db.session.add(Room(name="hidden-solo", is_private=True, owner_id=None))
+    db.session.commit()
+    page = client_for(test_app, ada).get("/browse").get_data(as_text=True)
+    scopes = dict(
+        re.findall(r'data-room-name="([^"]+)"[^>]*data-scopes="([^"]+)"', page)
+    )
+    assert scopes == {
+        "ada-public": "mine public",
+        "ada-solo": "mine solo",
+        "someone-elses": "public",
+    }
+    assert (
+        'data-show="mine"\n                aria-checked="true"' in page
+    )  # signed in: yours
+    assert "hidden-solo" not in page
+    public = client_for(test_app, ada).get("/browse?show=public").get_data(as_text=True)
+    assert 'data-show="public"\n                aria-checked="true"' in public
+    guest = test_app.test_client().get("/browse?show=solo").get_data(as_text=True)
+    assert (
+        'data-show="public"\n                aria-checked="true"' in guest
+    )  # a guest sees public
+    assert "ada-solo" not in guest

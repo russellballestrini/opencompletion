@@ -96,6 +96,44 @@ function fillGuestChats(current) {
     document.getElementById('your-chats-empty').hidden = chats.length > 0;
 }
 
+// "Your chats" shows the newest few, then "Show all (N)" opens the rest in
+// place (fox, 2026-11-01); the open chat always shows. Signed in, the
+// opened list ends with a link to every room of yours on our Rooms page.
+const YOUR_CHATS_SHOWN = 5;
+
+function collapseYourChats() {
+    const list = document.getElementById('your-chats');
+    if (!list || list.dataset.collapsed) return;
+    const rows = [...list.children];
+    const hidden = rows.slice(YOUR_CHATS_SHOWN).filter(row => !row.querySelector('[aria-current="page"]'));
+    if (!hidden.length) return;
+    list.dataset.collapsed = 'true';
+    hidden.forEach(row => { row.hidden = true; });
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'sidebar-more sidebar-more-toggle';
+    more.setAttribute('aria-expanded', 'false');
+    more.setAttribute('aria-controls', 'your-chats');
+    more.textContent = `Show all (${rows.length})`;
+    let all = null;
+    if (list.dataset.signedIn === 'true') {
+        all = document.createElement('a');
+        all.className = 'sidebar-more';
+        all.href = '/browse?show=mine';
+        all.textContent = 'All your rooms →';
+        all.hidden = true;
+    }
+    more.addEventListener('click', () => {
+        const open = more.getAttribute('aria-expanded') !== 'true';
+        hidden.forEach(row => { row.hidden = !open; });
+        more.setAttribute('aria-expanded', String(open));
+        more.textContent = open ? 'Show fewer' : `Show all (${rows.length})`;
+        if (all) all.hidden = !open;
+    });
+    list.after(more);
+    if (all) more.after(all);
+}
+
 // Our home page hands its first message to the chat page it opens: kept in
 // sessionStorage (this tab only) & sent once that room's page has joined.
 const PENDING_MESSAGE_KEY = 'pendingMessage';

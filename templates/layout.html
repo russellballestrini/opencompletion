@@ -30,6 +30,7 @@
 <script src="{{ url_for('static', filename='js/site.js') }}"></script>
 <script>
     fillGuestChats({{ room_name|default(none)|tojson }});
+    collapseYourChats();
 </script>
 <script src="{{ url_for('static', filename='js/chat-actions.js') }}"></script>
 {% block scripts %}{% endblock %}

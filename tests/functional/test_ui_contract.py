@@ -665,7 +665,8 @@ window.addEventListener('load', async () => {
     await new Promise(r => setTimeout(r, 20));
     check(calls.some(([url, method]) => url.endsWith('/title') && method === 'POST'), 'rename posts its title');
     check(row.querySelector('.chat-list-name').textContent === 'Garden plans', 'sidebar row renamed');
-    check(card.querySelector('.room-card-title').textContent === 'Garden plans', 'room card renamed');
+    check(card.querySelector('.room-card-name').textContent === 'Garden plans', 'room card renamed');
+    check(card.querySelector('.room-card-slug').textContent === 'lobby', 'its name sits under its new title');
 
     // Your own room also offers archive & delete
     const mine = document.querySelector('.room-card-wrap[data-room-name="adas-room"]');

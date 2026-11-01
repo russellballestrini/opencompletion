@@ -8,7 +8,7 @@ const MODE_KEY = 'newChatMode';
 // (.phone-line), so a hint breaks where it reads well, not mid-phrase.
 const MODE_HINTS = {
     private: ['Solo: only you can open this chat.'],
-    chatroom: ['Chatroom: anyone with the link can read & post,', '& it is listed under Public chats.'],
+    chatroom: ['Chatroom: anyone with the link can read & post,', '& it is listed under Public rooms.'],
 };
 
 const composer = document.getElementById('composer');

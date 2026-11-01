@@ -3,6 +3,7 @@ downloads, and our one rule for who may open a private room."""
 
 import json
 import os
+import time
 import re
 import secrets
 
@@ -28,28 +29,57 @@ bp = Blueprint("rooms", __name__)
 
 @bp.route("/browse")
 def browse_rooms():
-    """Browse all rooms (public and user's private rooms)"""
+    """Our Rooms page: every room you may open, one list, filtered on the
+    page (fox, 2026-11-01): yours (any you created, solo or public), solo
+    (yours only, private) or public (everyone's). ?show= picks the filter
+    it opens on; signed in it opens on yours, a guest on public."""
     user = auth.get_current_user()
-
-    # Get public rooms ordered by last updated
     public_rooms = (
         Room.query.filter_by(is_private=False, is_archived=False)
         .order_by(Room.updated_at.desc())
         .all()
     )
-
-    # Get user's private rooms if authenticated
-    private_rooms = []
+    mine = []
     if user:
-        private_rooms = (
-            Room.query.filter_by(is_private=True, is_archived=False, owner_id=user.id)
+        mine = (
+            Room.query.filter_by(is_archived=False, owner_id=user.id)
             .order_by(Room.updated_at.desc())
             .all()
         )
-
+    seen, rooms = set(), []
+    for room in sorted(mine + public_rooms, key=lambda r: -(r.updated_at or 0)):
+        if room.id not in seen:
+            seen.add(room.id)
+            rooms.append(room)
+    counts = {
+        "mine": len(mine),
+        "solo": sum(1 for room in mine if room.is_private),
+        "public": len(public_rooms),
+    }
+    show = request.args.get("show")
+    if show not in counts or (show != "public" and not user):
+        show = "mine" if user else "public"
     return render_template(
-        "browse.html", public_rooms=public_rooms, private_rooms=private_rooms, user=user
+        "browse.html", rooms=rooms, counts=counts, show=show, user=user
     )
+
+
+@bp.app_template_filter("ago")
+def ago(epoch_seconds):
+    """1793460000 -> "3h ago": how long since a room was active."""
+    if not epoch_seconds:
+        return ""
+    seconds = max(0, int(time.time()) - int(epoch_seconds))
+    for size, unit in (
+        (86400 * 365, "y"),
+        (86400 * 30, "mo"),
+        (86400, "d"),
+        (3600, "h"),
+        (60, "m"),
+    ):
+        if seconds >= size:
+            return f"{seconds // size}{unit} ago"
+    return "just now"
 
 
 @bp.route("/api/activities", methods=["GET"])

@@ -936,12 +936,89 @@ textarea:focus {
     overflow-wrap: anywhere;
 }
 
-.room-card-title,
+.room-card-slug,
 .room-card-meta {
     margin: 0;
     font-size: 13px;
     color: var(--text-secondary);
     overflow-wrap: anywhere;
+}
+
+.room-card-slug {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+}
+
+.room-card-name {
+    padding-right: var(--space-6);  /* clear of the card's ⋯ menu */
+}
+
+.room-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+}
+
+/* The Rooms page's filter (Yours · Solo · Public) & its text filter. */
+.rooms-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.segmented {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background-color: var(--bg-tertiary);
+}
+
+.segmented-option {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 0 var(--space-4);
+    border: none;
+    border-radius: 999px;
+    background: none;
+    color: var(--text-secondary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.segmented-option[aria-checked="true"] {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.segmented-option:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.segmented-count {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.rooms-filter {
+    flex: 1 1 200px;
+    max-width: 360px;
+}
+
+.rooms-signin {
+    margin-top: var(--space-4);
 }
 
 .badge {
@@ -958,6 +1035,12 @@ textarea:focus {
 .badge-private {
     background-color: var(--button-primary);
     color: #fff;
+}
+
+.badge-public {
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
 }
 
 .empty-state {
@@ -1500,6 +1583,20 @@ a:hover {
 
 .sidebar-more {
     color: var(--text-secondary);
+}
+
+.sidebar-more[hidden] {
+    display: none;
+}
+
+button.sidebar-more {
+    width: 100%;
+    border: none;
+    background: none;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
 }
 
 .sidebar-empty {

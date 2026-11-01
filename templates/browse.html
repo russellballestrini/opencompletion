@@ -5,64 +5,80 @@
 
 {% block content %}
 <h1 class="page-title">Rooms</h1>
-<p class="page-subtitle">Most recently active first. <a href="/">Create a room</a></p>
+<p class="page-subtitle">Most recently active first. <a href="/">Start a room</a></p>
 
-<div class="tabs" role="tablist">
-    <button type="button" class="room-tab active" role="tab" aria-selected="true" aria-controls="public-section" id="public-tab" onclick="switchTab('public')">Public ({{ public_rooms|length }})</button>
-    <button type="button" class="room-tab" role="tab" aria-selected="false" aria-controls="private-section" id="private-tab" onclick="switchTab('private')">Solo{% if user %} ({{ private_rooms|length }}){% endif %}</button>
-</div>
-
-<section id="public-section" role="tabpanel" aria-labelledby="public-tab">
-    {% if public_rooms %}
-    <div class="room-grid">
-        {% for room in public_rooms %}
-        {% set active = room.get_active_users()|length %}
-        {% set meta = (active ~ ' here now') if active else '' %}
-        {% include "_room_card.html" %}
+{# One list, filtered here: yours (any you created, solo or public), solo
+   (yours, only you) or public (everyone's). ?show= opens on one. #}
+<div class="rooms-toolbar">
+    <div class="segmented" role="radiogroup" aria-label="Show">
+        {% for key, label in [('mine', 'Yours'), ('solo', 'Solo'), ('public', 'Public')] %}
+        <button type="button" class="segmented-option" role="radio" data-show="{{ key }}"
+                aria-checked="{{ 'true' if show == key else 'false' }}"
+                {% if not user and key != 'public' %}disabled title="Sign in to see rooms you created"{% endif %}>
+            {{ label }}<span class="segmented-count">{{ counts[key] }}</span>
+        </button>
         {% endfor %}
     </div>
-    {% else %}
-    <div class="empty-state">
-        <h3>No public rooms yet</h3>
-        <p><a class="btn" href="/">Create the first one</a></p>
-    </div>
-    {% endif %}
-</section>
+    <label class="visually-hidden" for="rooms-filter">Filter rooms by title or name</label>
+    <input id="rooms-filter" class="form-input rooms-filter" type="search" placeholder="Filter by title or name" autocomplete="off">
+</div>
 
-<section id="private-section" role="tabpanel" aria-labelledby="private-tab" hidden>
-    {% if user %}
-        {% if private_rooms %}
-        <div class="room-grid">
-            {% for room in private_rooms %}
-            {% set meta = '' %}
-            {% include "_room_card.html" %}
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <h3>No solo chats yet</h3>
-            <p><a class="btn" href="/">Start a solo chat</a></p>
-        </div>
-        {% endif %}
-    {% else %}
-    <div class="empty-state">
-        <h3>Solo chats are only visible to their owner</h3>
-        <p><a class="btn" href="/auth?next=/browse">Sign in to see yours</a></p>
-    </div>
-    {% endif %}
-</section>
+<div class="room-grid" id="room-grid">
+    {% for room in rooms %}
+    {% set active = room.get_active_users()|length if not room.is_private else 0 %}
+    {% set meta = ((active ~ ' here now · ') if active else '') ~ ('active ' ~ (room.updated_at|ago) if room.updated_at else '') %}
+    {% set scopes = (['mine'] if user and room.owner_id == user.id else []) + (['solo'] if room.is_private else ['public']) %}
+    {% include "_room_card.html" %}
+    {% endfor %}
+</div>
+
+<div class="empty-state" id="rooms-empty" hidden>
+    <h3 id="rooms-empty-title">No rooms here yet</h3>
+    <p><a class="btn" href="/">Start a room</a></p>
+</div>
+{% if not user %}
+<p class="muted rooms-signin"><a href="/auth?next=/browse">Sign in</a> to see the rooms you created, solo ones included.</p>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-    function switchTab(tab) {
-        for (const name of ['public', 'private']) {
-            const selected = name === tab;
-            const button = document.getElementById(name + '-tab');
-            button.classList.toggle('active', selected);
-            button.setAttribute('aria-selected', String(selected));
-            document.getElementById(name + '-section').hidden = !selected;
+    // Show one filter's rooms, narrowed by the text box; the URL keeps the
+    // filter (?show=) so a link or a reload opens on it.
+    (function () {
+        const grid = document.getElementById('room-grid');
+        const cards = [...grid.querySelectorAll('.room-card-wrap')];
+        const options = [...document.querySelectorAll('.segmented-option')];
+        const text = document.getElementById('rooms-filter');
+        const empty = document.getElementById('rooms-empty');
+        const emptyTitle = document.getElementById('rooms-empty-title');
+        const emptyWords = {mine: 'No rooms of yours yet', solo: 'No solo rooms yet', public: 'No public rooms yet'};
+        let show = (options.find(o => o.getAttribute('aria-checked') === 'true') || options[0]).dataset.show;
+
+        function apply() {
+            const words = text.value.trim().toLowerCase();
+            let shown = 0;
+            for (const card of cards) {
+                const inScope = (card.dataset.scopes || '').split(' ').includes(show);
+                const matches = !words || (card.dataset.roomTitle + ' ' + card.dataset.roomName).toLowerCase().includes(words);
+                card.hidden = !(inScope && matches);
+                if (!card.hidden) shown++;
+            }
+            empty.hidden = shown > 0;
+            emptyTitle.textContent = words ? 'No rooms match “' + text.value.trim() + '”' : emptyWords[show];
         }
-    }
+
+        options.forEach(option => option.addEventListener('click', () => {
+            if (option.disabled) return;
+            show = option.dataset.show;
+            options.forEach(o => o.setAttribute('aria-checked', String(o === option)));
+            const url = new URL(location.href);
+            url.searchParams.set('show', show);
+            history.replaceState(null, '', url);
+            apply();
+        }));
+        text.addEventListener('input', apply);
+        apply();
+    })();
 </script>
 {% endblock %}

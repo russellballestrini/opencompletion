@@ -39,19 +39,19 @@
         </section>
 
         <section class="sidebar-section" aria-labelledby="your-chats-heading">
-            <h2 id="your-chats-heading" class="sidebar-heading">Your chats</h2>
+            <h2 id="your-chats-heading" class="sidebar-heading">Your rooms</h2>
             <ul id="your-chats" class="chat-list" data-signed-in="{{ 'true' if user else 'false' }}">
                 {% for room in your_chats %}
                 {{ chat_item(room, '🔒' if room.is_private else '', 'solo') }}
                 {% endfor %}
             </ul>
             <p id="your-chats-empty" class="sidebar-empty"{% if your_chats %} hidden{% endif %}>
-                {% if user %}Chats you start show up here.{% else %}Chats you open in this browser show up here.{% endif %}
+                {% if user %}Rooms you start show up here.{% else %}Rooms you open in this browser show up here.{% endif %}
             </p>
         </section>
 
         <section class="sidebar-section" aria-labelledby="public-chats-heading">
-            <h2 id="public-chats-heading" class="sidebar-heading">Public chats</h2>
+            <h2 id="public-chats-heading" class="sidebar-heading">Public rooms</h2>
             <ul id="public-chats" class="chat-list">
                 {% for room in public_chats %}
                 {% set active = room.get_active_users()|length %}
@@ -59,9 +59,9 @@
                 {% endfor %}
             </ul>
             {% if public_chats %}
-            <a class="sidebar-more" href="/browse">All rooms →</a>
+            <a class="sidebar-more" href="/browse?show=public">All public rooms →</a>
             {% else %}
-            <p class="sidebar-empty">No public chats yet. Start a chatroom & it shows up here.</p>
+            <p class="sidebar-empty">No public rooms yet. Start a chatroom & it shows up here.</p>
             {% endif %}
         </section>
     </div>

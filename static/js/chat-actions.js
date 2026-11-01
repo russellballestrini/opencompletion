@@ -60,7 +60,7 @@ function chatRow(button) {
 }
 
 function rowRoom(row) {
-    const title = row.querySelector('.chat-list-name, .room-card-title');
+    const title = row.querySelector('.chat-list-name');
     return {
         id: row.dataset.roomId ? Number(row.dataset.roomId) : null,
         name: row.dataset.roomName,
@@ -80,14 +80,15 @@ function showRoomTitle(room, title) {
         if (link && name) link.title = title;
         const card = row.querySelector('.room-card');
         if (card) {
-            // An untitled room's card has no title line yet: add one.
-            let cardTitle = card.querySelector('.room-card-title');
-            if (!cardTitle) {
-                cardTitle = document.createElement('p');
-                cardTitle.className = 'room-card-title';
-                card.querySelector('.room-card-header').after(cardTitle);
+            // A card's heading is its title; its name (the slug) sits under
+            // it, added the first time an untitled room gets a title.
+            card.querySelector('.room-card-name').textContent = title;
+            if (!card.querySelector('.room-card-slug')) {
+                const slug = document.createElement('p');
+                slug.className = 'room-card-slug';
+                slug.textContent = room.name;
+                card.querySelector('.room-card-header').after(slug);
             }
-            cardTitle.textContent = title;
         }
     });
     const pins = pinnedChats();
