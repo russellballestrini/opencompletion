@@ -274,6 +274,8 @@ function attachSentenceGlow(audio, playButton, sentences) {
     // Allow an initially-empty array: under SSE it grows as sentences arrive,
     // and the tick reads its length live. Undefined (non-F5) still no-ops.
     if (!Array.isArray(sentences)) return;
+    // A card's summary has its own Play: the glow lights a whole reply.
+    if (playButton.dataset.noGlow) return;
     const wrapper = playButton.closest('.message-wrapper');
     const container = wrapper && wrapper.querySelector('.message-content');
     if (!container) return;

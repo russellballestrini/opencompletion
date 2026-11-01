@@ -75,7 +75,9 @@ are 16px on phones so iOS never zooms into them.
   then what each 15s poll updates, read top-down: `.tool-card-plan` (bar
   + step), `.tool-card-vitals`, `.tool-card-folds` (job & log pills; an
   opened panel takes the full width below them), & `.message-tool-summary`
-  last, where chat's scroll & the eye land. Reorder
+  last, where chat's scroll & the eye land; its Play (`.tool-card-say`)
+  reads the summary, & with Read replies aloud on each new live summary
+  is read (an older unplayed one of the same card is dropped). Reorder
   by editing the areas only. Short facts are `.message-tool-chip`s
   (vitals; `.is-meter` fills to `--pct`,
   `.is-warn` for retries & empty replies) that wrap, never scroll.

@@ -438,9 +438,19 @@ function drawDelegateCard(line, data, verbs, open) {
     if (log) folds.appendChild(toolLog(log, open.log, !running));
     if (folds.children.length) line.appendChild(folds);
     if (data.summary) {
-        const said = add("message-tool-summary", div(data.summary));
-        if (data.summary !== before.summary) said.classList.add("is-new");
+        const said = add("message-tool-summary", div());
+        const words = document.createElement("span");
+        words.className = "tool-card-summary-text";
+        words.textContent = data.summary;
+        said.append(words, summaryPlayButton(line));
+        const fresh = data.summary !== before.summary;
+        if (fresh) said.classList.add("is-new");
         line.dataset.summary = data.summary;
+        // Read replies aloud: each new summary from a live update is read
+        // (fox, 2026-11-01); one redrawn from history never is.
+        if (fresh && open.live && typeof autoPlayTTS !== "undefined" && autoPlayTTS) {
+            speakSummary(line);
+        }
     }
     const sources = toolSources(data.sources);
     if (sources) add("tool-card-sources", sources);
@@ -460,6 +470,39 @@ function toolOversight(review) {
     }
     box.textContent = text;
     return box;
+}
+
+// Play on a delegate's card reads its summary. One button per card, kept
+// across redraws, so its Queued/Playing state survives each 15s tick.
+function summaryPlayButton(line) {
+    if (!line._say) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "tool-card-say";
+        button.textContent = "Play";
+        button.title = "Read this summary aloud";
+        button.dataset.noGlow = "1";  // the glow lights a reply, not a card
+        button.addEventListener("click", () => speakSummary(line));
+        line._say = button;
+    }
+    return line._say;
+}
+
+// Queue a card's current summary; an older one of the same card still
+// waiting is dropped, so reading never falls behind the run.
+function speakSummary(line) {
+    const text = line.dataset.summary;
+    const button = line._say;
+    if (!text || !button || typeof queueTTS !== "function") return;
+    if (typeof ttsQueue !== "undefined") {
+        for (let i = ttsQueue.length - 1; i >= 0; i--) {
+            if (ttsQueue[i].playButton === button) ttsQueue.splice(i, 1);
+        }
+    }
+    // Its own cache key per text: a new summary is new audio.
+    let hash = 0;
+    for (const c of text) hash = (hash * 31 + c.charCodeAt(0)) | 0;
+    queueTTS(text, button, "summary-" + (hash >>> 0).toString(36));
 }
 
 // A delegate's newest session lines, folded; it grows as the run goes.
@@ -500,7 +543,7 @@ function toolSources(found) {
 }
 
 // One tool's line, drawn from a tool_activity event or a saved trail entry.
-function drawToolLine(line, data) {
+function drawToolLine(line, data, live = false) {
     if (data.tool === "offered") {
         // The tools a reply could call stay in its trail (downloads show
         // them) but are not drawn: a list of tools it never used is noise
@@ -529,7 +572,7 @@ function drawToolLine(line, data) {
     line.classList.toggle("is-error", data.status === "error");
     line.classList.toggle("is-card", delegating);
     if (delegating) {
-        drawDelegateCard(line, data, verbs, {detail: wasOpen, job: jobWasOpen, log: logWasOpen});
+        drawDelegateCard(line, data, verbs, {detail: wasOpen, job: jobWasOpen, log: logWasOpen, live});
         return;
     }
     const where = toolWhere(data);
@@ -718,7 +761,7 @@ socket.on("tool_activity", (data) => {
         lines.appendChild(line);
     }
     line.dataset.toolKey = key;
-    drawToolLine(line, data);
+    drawToolLine(line, data, true);
     if (!userHasScrolledUp) {
         document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }

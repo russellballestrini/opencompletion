@@ -152,7 +152,7 @@ window.addEventListener('load', async () => {
             detail: {language: '', input: 'add parse'}, progress: '[bash] git clone\n[bash] pytest', summary: 'Cloned it; running tests.'});
         const cards51 = document.querySelectorAll('#message-51 .message-tool');
         check(cards51.length === 1, 'one card after a refresh, not ' + cards51.length);
-        check(cards51[0].querySelector('.message-tool-summary').textContent === 'Cloned it; running tests.', 'the refreshed card keeps updating');
+        check(cards51[0].querySelector('.tool-card-summary-text').textContent === 'Cloned it; running tests.', 'the refreshed card keeps updating');
         // A tool's line inside a reply, & whose network it ran on.
         deliver('tool_activity', {id: 7, tool: 'web_search', label: 'elmo', where: 'browser', asker: username, status: 'running'});
         const line = () => document.querySelector('#message-7 .message-tool:last-child');
@@ -252,7 +252,7 @@ window.addEventListener('load', async () => {
         deliver('tool_activity', {id: 21, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             summary: 'Cloned ago and ran its suite: 42 pass.', progress: '[bash] make test'});
         const said = document.querySelector('#message-21 .message-tool > :last-child');
-        check(said && said.classList.contains('message-tool-summary') && said.textContent === 'Cloned ago and ran its suite: 42 pass.', 'the summary is the card\'s last word');
+        check(said && said.classList.contains('message-tool-summary') && said.querySelector('.tool-card-summary-text').textContent === 'Cloned ago and ran its suite: 42 pass.', 'the summary is the card\'s last word');
         // Play reads the human words only: never code, tool lines or folds,
         // and the glow lights those same words (fox, 2026-10-31).
         const said24 = document.createElement('div');
@@ -346,13 +346,33 @@ window.addEventListener('load', async () => {
             vitals: {turn: 9, plan: {done: 5, total: 6}, context: {}, tools: {}, activity: {label: 'in tool: bash'}}});
         const bar29 = document.querySelector('#message-29 .tool-card-bar');
         check(bar29.classList.contains('is-ok') && bar29.style.getPropertyValue('--pct') === '100%', 'finished: a full green bar');
-        check(document.querySelector('#message-29 .message-tool-summary').textContent === 'All 57 pass.', 'the summary stays');
+        check(document.querySelector('#message-29 .tool-card-summary-text').textContent === 'All 57 pass.', 'the summary stays');
         check(!document.querySelector('#message-29 [data-key="activity"]'), 'nothing live left');
         deliver('tool_activity', {id: 30, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'error', error: 'stalled',
             vitals: {turn: 9, plan: {done: 2, total: 6, current: 'run tests'}, context: {}, tools: {}, activity: {}}});
         const bar30 = document.querySelector('#message-30 .tool-card-bar');
         check(bar30.classList.contains('is-failed') && bar30.style.getPropertyValue('--pct') === '33%', 'failed: red where it stopped');
         check(document.querySelector('#message-30 .tool-card-step').textContent === 'stopped at step 3 of 6 · run tests', 'says where it stopped');
+        // Play on a card reads its summary; with Read replies aloud on, each
+        // new summary from a live update is read, never one from history.
+        const readAloud = [];
+        const realQueue = queueTTS;
+        queueTTS = (text, button, id) => readAloud.push([text, button, id]);
+        autoPlayTTS = true;
+        deliver('previous_messages', {id: 70, username: 'qwen', content: '', tools: [
+            {tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running', summary: 'Old news.'}]});
+        check(readAloud.length === 0, 'history is never read aloud');
+        const tick70 = (summary) => deliver('tool_activity', {id: 70, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running', summary: summary});
+        tick70('It cloned ago.');
+        tick70('It cloned ago.');
+        tick70('It ran the tests: 42 pass.');
+        check(readAloud.map((s) => s[0]).join(' | ') === 'It cloned ago. | It ran the tests: 42 pass.', 'each new summary once: ' + readAloud.map((s) => s[0]).join(' | '));
+        check(readAloud[0][1] === readAloud[1][1] && readAloud[0][1].classList.contains('tool-card-say'), 'one Play button per card, kept across redraws');
+        check(readAloud[0][2] !== readAloud[1][2] && /^summary-/.test(readAloud[0][2]), 'its own audio per summary');
+        autoPlayTTS = false;
+        document.querySelector('#message-70 .tool-card-say').click();
+        check(readAloud.length === 3 && readAloud[2][0] === 'It ran the tests: 42 pass.', 'Play reads the summary');
+        queueTTS = realQueue;
         // A resumed session & its overseer's call show on the card.
         deliver('tool_activity', {id: 27, tool: 'delegate', label: 'x', where: 'sandbox', asker: username, status: 'running',
             session: {resumed: true}, oversight: {decision: 'steer', note: 'use 30-day months', at: '25m', undelivered: true}});
