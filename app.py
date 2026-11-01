@@ -1860,21 +1860,24 @@ def answer_from_notes(chat_history, notes):
     return history
 
 
-def chat_gpt(
-    username,
-    room_name,
-    model_name="gpt-4o-mini",
-    enable_thinking=True,
-    tool_context=None,
-    resume=None,
-):
-    """Stream a model's reply into the room, running the tools it calls.
-    resume (Message.resume_state & its message_id, from
-    resume_interrupted_replies) carries on a reply our server restarted in
-    the middle of: same message, its words so far, its conversation, at
-    the tool call it was waiting on."""
-    openai_client, model_name = get_openai_client_and_model(model_name)
+def newest_image_id(last_messages, room_id):
+    """The id of the newest message carrying an image (only it gets
+    base64), or None."""
+    for msg in last_messages:  # newest first
+        is_image_msg = (
+            msg.is_base64_image()
+            or extract_external_image_url(msg.content)
+            or has_image_attachment(msg.content, room_id)
+        )
+        if is_image_msg:
+            print(f"Vision: will include base64 for most recent image (msg {msg.id})")
+            return msg.id
+    return None
 
+
+def reply_history(room_name, model_name, resume=None):
+    """(room_id, chat_history): the room's latest messages, oldest first, as
+    model_name reads them. A resumed reply is left out of its own history."""
     limit = 20
     if "gpt-4" in model_name:
         limit = 1000
@@ -1896,20 +1899,9 @@ def chat_gpt(
         chat_history = []
 
         # Find the most recent image message ID (only this one gets base64)
-        most_recent_image_id = None
-        if vision_enabled:
-            for msg in last_messages:  # newest first
-                is_image_msg = (
-                    msg.is_base64_image()
-                    or extract_external_image_url(msg.content)
-                    or has_image_attachment(msg.content, room_id)
-                )
-                if is_image_msg:
-                    most_recent_image_id = msg.id
-                    print(
-                        f"Vision: will include base64 for most recent image (msg {msg.id})"
-                    )
-                    break
+        most_recent_image_id = (
+            newest_image_id(last_messages, room_id) if vision_enabled else None
+        )
 
         # Build chat history (oldest first) - include all text, only most recent image
         for msg in reversed(last_messages):
@@ -1943,106 +1935,158 @@ def chat_gpt(
                 include_images=vision_enabled and msg.id == most_recent_image_id,
             )
             chat_history.append({"role": role, "content": content})
+    return room_id, chat_history
 
-    buffer = ""  # Content buffer for accumulating the chunks
-    resumed_trail = []
 
+def start_reply_message(model_name, room_id, resume=None):
+    """The reply's Message: (msg_id, its words so far, its finished tool
+    calls), or None when the message a resume names is gone."""
     if resume:
         with app.app_context():
             resumed_message = db.session.get(Message, resume["message_id"])
             if resumed_message is None:
                 return None
-            msg_id = resumed_message.id
-            buffer = resumed_message.content or ""
             resumed_trail = [
                 entry
                 for entry in json.loads(resumed_message.tool_trail or "[]")
                 if entry.get("status") != "running"
             ]
-    else:
-        # save empty message, we need the ID when we chunk the response.
-        with app.app_context():
-            new_message = Message(username=model_name, content=buffer, room_id=room_id)
-            db.session.add(new_message)
-            db.session.commit()
-            msg_id = new_message.id
+            return resumed_message.id, resumed_message.content or "", resumed_trail
+    # save empty message, we need the ID when we chunk the response.
+    with app.app_context():
+        new_message = Message(username=model_name, content="", room_id=room_id)
+        db.session.add(new_message)
+        db.session.commit()
+        return new_message.id, "", []
 
-    # A resumed reply already has its words on everyone's screen: new ones
-    # join them rather than start it over.
-    first_chunk = not (resume and buffer)
 
-    create_kwargs = {
-        "model": model_name,
-        "messages": chat_history,
-        "n": 1,
-        "stream": True,
-        **chat_sampling(model_name),
-    }
-    # The tools this reply may call (tools/, docs/TOOLS.md), by who asked
-    # (tool_context), in this chat, for this model; none offered leaves
-    # this a plain chat reply.
-    if tool_context is not None:
-        tool_context = dataclasses.replace(
-            tool_context,
-            room_id=room_id,
-            model=model_name,
-            stopped=lambda: room_name in stop_requests,
-            summarize=(
-                (
-                    lambda previous, fresh, final=False: summarize_delegate(
-                        openai_client, model_name, previous, fresh, final=final
+class ReplyStream:
+    """One model reply streaming into a room (chat_gpt): its words so far
+    (buffer), its thinking, its tool calls & rounds, & what emits each piece
+    to the room & keeps it in its Message as it goes."""
+
+    def __init__(
+        self,
+        username,
+        room_name,
+        model_name,
+        room_id,
+        started,
+        resume,
+        enable_thinking,
+        openai_client,
+        chat_history,
+    ):
+        self.username = username
+        self.room_name = room_name
+        self.model_name = model_name
+        self.room_id = room_id
+        # buffer: Content buffer for accumulating the chunks
+        self.msg_id, self.buffer, resumed_trail = started
+        self.enable_thinking = enable_thinking
+        self.openai_client = openai_client
+        self.chat_history = chat_history
+        # A resumed reply already has its words on everyone's screen: new ones
+        # join them rather than start it over.
+        self.first_chunk = not (resume and self.buffer)
+        # Every piece of thinking, kept with the reply (Message.thinking) & handed
+        # back to the model if its thinking runs past its budget.
+        self.thinking_parts = []
+        self.tool_trail = list(
+            resumed_trail
+        )  # each finished tool call, Message.tool_trail
+        # This round's place, for save_checkpoint: its calls & text, & the
+        # reply's own messages before it (prior), past chat_history.
+        self.round_info = {}
+        self.tool_context = None
+        self.tool_schemas = None
+        self.offered = []
+        self.tool_calls = None
+        # Why a server refused this reply's tools, if it did (open_completion).
+        self.tool_refusals = []
+        self.chunks = None
+        self.looped, self.cut_at_limit = None, False
+        self.cap, self.cap_name = None, "OPENCOMPLETION_MAX_TOKENS"
+        self.footnote = ""
+        self.notice = ""
+
+    def prepare(self, tool_context, resume):
+        """The first ask's arguments, with the tools this reply may call."""
+        model_name, openai_client = self.model_name, self.openai_client
+        room_name = self.room_name
+        self.create_kwargs = {
+            "model": model_name,
+            "messages": self.chat_history,
+            "n": 1,
+            "stream": True,
+            **chat_sampling(model_name),
+        }
+        # The tools this reply may call (tools/, docs/TOOLS.md), by who asked
+        # (tool_context), in this chat, for this model; none offered leaves
+        # this a plain chat reply.
+        if tool_context is not None:
+            tool_context = dataclasses.replace(
+                tool_context,
+                room_id=self.room_id,
+                model=model_name,
+                stopped=lambda: room_name in stop_requests,
+                summarize=(
+                    (
+                        lambda previous, fresh, final=False: summarize_delegate(
+                            openai_client, model_name, previous, fresh, final=final
+                        )
                     )
-                )
-                if tools.policy.delegate_summaries_enabled()
-                else None
-            ),
-            checkpoint=lambda state: save_checkpoint(state),
-            oversee=lambda digest: oversee_delegate(openai_client, model_name, digest),
-        )
-    tool_schemas = tools.schemas(tool_context)
-    if tool_schemas:
-        create_kwargs["tools"] = tool_schemas
+                    if tools.policy.delegate_summaries_enabled()
+                    else None
+                ),
+                checkpoint=lambda state: self.save_checkpoint(state),
+                oversee=lambda digest: oversee_delegate(
+                    openai_client, model_name, digest
+                ),
+            )
+        self.tool_context = tool_context
+        self.tool_schemas = tools.schemas(tool_context)
+        if self.tool_schemas:
+            self._offer_tools(resume)
+        # The calls the model streams in its current ask, when it may call any.
+        self.tool_calls = tools.ToolCallCollector() if self.tool_schemas else None
+
+    def _offer_tools(self, resume):
+        chat_history = self.chat_history
+        self.create_kwargs["tools"] = self.tool_schemas
         # Which tools it has & that it never claims a run it did not make.
-        chat_history.insert(0, tools.guidance(tool_context))
-        offered = list(tools.offered(tool_context))
+        chat_history.insert(0, tools.guidance(self.tool_context))
+        self.offered = list(tools.offered(self.tool_context))
         if not resume:
-            print(f"[INFO] {model_name} may call {', '.join(offered)} for {username}")
+            print(
+                f"[INFO] {self.model_name} may call {', '.join(self.offered)} "
+                f"for {self.username}"
+            )
         # Asked for a tool by name: the first ask must call it.
         named = tools.named_tool(
-            tool_context, chat_history[-1]["content"] if chat_history else None
+            self.tool_context, chat_history[-1]["content"] if chat_history else None
         )
         if named:
-            create_kwargs["tool_choice"] = {
+            self.create_kwargs["tool_choice"] = {
                 "type": "function",
                 "function": {"name": named},
             }
-    # The calls the model streams in its current ask, when it may call any.
-    tool_calls = tools.ToolCallCollector() if tool_schemas else None
-    # Why a server refused this reply's tools, if it did (open_completion).
-    tool_refusals = []
 
-    def open_stream(client):
+    def open_stream(self, client):
         # Without thinking, chain-of-thought is suppressed at the template
         # level. Endpoints that reject the chat_template_kwargs param
         # (OpenAI, Groq, Mistral, Gemini) get retried without it inside the
         # helper; templates that ignore the kwarg (e.g. Hermes) simply drop it.
         return open_completion(
             client,
-            create_kwargs,
-            skip_thinking=not enable_thinking,
-            refusals=tool_refusals,
+            self.create_kwargs,
+            skip_thinking=not self.enable_thinking,
+            refusals=self.tool_refusals,
         )
 
-    try:
-        # An endpoint that fails before streaming hands over to another
-        # endpoint serving this same model. A resumed reply has nothing to
-        # ask yet: it picks up at the tool call it was waiting on.
-        chunks = (
-            None
-            if resume
-            else open_with_failover(openai_client, model_name, open_stream)
-        )
-    except Exception as e:
+    def fail(self, e):
+        """The first ask failed: the reply becomes its error."""
+        msg_id, model_name = self.msg_id, self.model_name
         with app.app_context():
             message_content = f"{model_name} Error: {e}"
             new_message = (
@@ -2060,41 +2104,37 @@ def chat_gpt(
                 "username": model_name,
                 "content": message_content,
             },
-            room=room_name,
+            room=self.room_name,
         )
-        socketio.emit("delete_processing_message", msg_id, room=room_name)
-        # exit early to avoid clobbering the error message.
-        return None
+        socketio.emit("delete_processing_message", msg_id, room=self.room_name)
 
-    # Every piece of thinking, kept with the reply (Message.thinking) & handed
-    # back to the model if its thinking runs past its budget.
-    thinking_parts = []
-
-    def emit_content(content):
-        nonlocal buffer, first_chunk
-        buffer += content
-        if first_chunk:
+    def emit_content(self, content):
+        self.buffer += content
+        if self.first_chunk:
             socketio.emit(
                 "message_chunk",
                 {
-                    "id": msg_id,
+                    "id": self.msg_id,
                     "content": content,
-                    "username": username,
-                    "model_name": model_name,
+                    "username": self.username,
+                    "model_name": self.model_name,
                     "is_first_chunk": True,
                 },
-                room=room_name,
+                room=self.room_name,
             )
-            first_chunk = False
+            self.first_chunk = False
         else:
             socketio.emit(
-                "message_chunk", {"id": msg_id, "content": content}, room=room_name
+                "message_chunk",
+                {"id": self.msg_id, "content": content},
+                room=self.room_name,
             )
         socketio.sleep(0)  # Force immediate handling
 
-    def consume(chunks, budget_chars):
+    def consume(self, chunks, budget_chars):
         """Stream one completion into our reply. Returns (looped, cut at the
         token cap, thinking ran past budget_chars before any answer)."""
+        msg_id, room_name = self.msg_id, self.room_name
         # One guard per channel: a model looping in its thinking or its
         # answer is cut off, and closing our stream makes the server stop.
         thinking_guard, answer_guard = RepetitionGuard(), RepetitionGuard()
@@ -2126,287 +2166,373 @@ def chat_gpt(
                     room=room_name,
                 )
                 socketio.sleep(0)
-                thinking_parts.append(reasoning)
+                self.thinking_parts.append(reasoning)
                 thought += len(reasoning)
                 if thinking_guard.add(reasoning):
                     return ("thinking", thinking_guard.looping), False, False
-                if budget_chars and first_chunk and thought > budget_chars:
+                if budget_chars and self.first_chunk and thought > budget_chars:
                     return None, False, True
-            if tool_calls is not None and getattr(delta, "tool_calls", None):
-                tool_calls.add(delta.tool_calls)
+            if self.tool_calls is not None and getattr(delta, "tool_calls", None):
+                self.tool_calls.add(delta.tool_calls)
             content = delta.content
             if content:
-                emit_content(content)
+                self.emit_content(content)
                 if answer_guard.add(content):
                     return ("reply", answer_guard.looping), False, False
         return None, cut, False
 
-    tool_trail = list(resumed_trail)  # each finished tool call, Message.tool_trail
-    # This round's place, for save_checkpoint: its calls & text, & the
-    # reply's own messages before it (prior), past chat_history.
-    round_info = {}
-
-    def save_checkpoint(state):
+    def save_checkpoint(self, state):
         """A long call (delegate) started: keep where to pick this reply up
         if our server restarts before it ends (Message.resume_state)."""
         checkpoint = dict(
-            round_info,
+            self.round_info,
             **state,
-            username=username,
-            model_name=model_name,
-            enable_thinking=enable_thinking,
-            email=getattr(tool_context, "email", None),
+            username=self.username,
+            model_name=self.model_name,
+            enable_thinking=self.enable_thinking,
+            email=getattr(self.tool_context, "email", None),
         )
         with app.app_context():
-            reply = db.session.get(Message, msg_id)
+            reply = db.session.get(Message, self.msg_id)
             if reply is not None:
                 reply.resume_state = json.dumps(checkpoint)
                 db.session.commit()
 
-    def clear_checkpoint():
+    def clear_checkpoint(self):
         with app.app_context():
-            reply = db.session.get(Message, msg_id)
+            reply = db.session.get(Message, self.msg_id)
             if reply is not None and reply.resume_state:
                 reply.resume_state = None
                 db.session.commit()
 
-    def save_progress(trail):
+    def save_progress(self, trail):
         with app.app_context():
-            reply = db.session.get(Message, msg_id)
+            reply = db.session.get(Message, self.msg_id)
             if reply is not None:
-                reply.content = buffer
+                reply.content = self.buffer
                 reply.tool_trail = json.dumps(trail) if trail else None
                 db.session.commit()
 
-    def notify_tool(event):
+    def notify_tool(self, event):
         """Show the room a tool starting & ending, inside this reply, at the
         point of its text where it happened (`at`, an offset into it), so
         text & tools read in the order they came."""
-        event = dict(event, asker=username, at=len(buffer))
+        event = dict(event, asker=self.username, at=len(self.buffer))
         if event["status"] != "running":
-            tool_trail.append(event)
+            self.tool_trail.append(event)
         # Saved as it goes, so a page opened (or refreshed) mid-reply shows
         # the tool still running & the words so far, not an empty reply.
-        save_progress(tool_trail + ([event] if event["status"] == "running" else []))
+        self.save_progress(
+            self.tool_trail + ([event] if event["status"] == "running" else [])
+        )
         socketio.emit(
             "tool_activity",
-            dict(event, id=msg_id, model_name=model_name),
-            room=room_name,
+            dict(event, id=self.msg_id, model_name=self.model_name),
+            room=self.room_name,
         )
         socketio.sleep(0)
 
-    if tool_schemas and not resume:
-        # The reply's first line names the tools it may call, so a reply
-        # that calls none shows whether it had them to call.
-        notify_tool({"tool": "offered", "names": offered, "status": "done"})
+    def first_answer(self, resume):
+        """Stream the first ask (a resumed reply has none: it picks up at the
+        tool call it was waiting on), answering from notes when its thinking
+        runs past its budget."""
+        budget = thinking_budget() if self.enable_thinking else 0
+        over_budget = False
+        if resume:
+            self.tool_calls = SimpleNamespace(calls=resume.get("calls") or [])
+        else:
+            self.looped, self.cut_at_limit, over_budget = self.consume(
+                self.chunks, budget * CHARS_PER_TOKEN
+            )
+        self.cap = self.create_kwargs.get("max_tokens")
+        if over_budget:
+            self.answer_past_budget(budget)
 
-    budget = thinking_budget() if enable_thinking else 0
-    if resume:
-        looped, cut_at_limit, over_budget = None, False, False
-        tool_calls = SimpleNamespace(calls=resume.get("calls") or [])
-    else:
-        looped, cut_at_limit, over_budget = consume(chunks, budget * CHARS_PER_TOKEN)
-    cap, cap_name = create_kwargs.get("max_tokens"), "OPENCOMPLETION_MAX_TOKENS"
-    footnote = ""
-    if over_budget:
+    def answer_past_budget(self, budget):
         # Thinking ran past its budget with no answer begun: hang up & ask
         # again without thinking, handing the model its notes, so a long
         # think still ends in an answer instead of a cap. Works on any
         # OpenAI-compatible server (no assistant-prefix continuation).
-        getattr(chunks, "close", lambda: None)()
-        print(f"[INFO] {model_name} thought past {budget} tokens in {room_name}")
+        model_name = self.model_name
+        getattr(self.chunks, "close", lambda: None)()
+        print(f"[INFO] {model_name} thought past {budget} tokens in {self.room_name}")
         answer_kwargs = dict(
-            create_kwargs,
-            messages=answer_from_notes(chat_history, "".join(thinking_parts)),
+            self.create_kwargs,
+            messages=answer_from_notes(self.chat_history, "".join(self.thinking_parts)),
         )
         answer_kwargs.pop("tools", None)  # answering from notes: no tools
         answer_kwargs.pop("tool_choice", None)
-        tool_calls = None
-        cap, cap_name = answer_tokens(), "OPENCOMPLETION_ANSWER_TOKENS"
-        if cap:
-            answer_kwargs["max_tokens"] = cap
+        self.tool_calls = None
+        self.cap, self.cap_name = answer_tokens(), "OPENCOMPLETION_ANSWER_TOKENS"
+        if self.cap:
+            answer_kwargs["max_tokens"] = self.cap
         else:
             answer_kwargs.pop("max_tokens", None)
         try:
-            chunks = open_with_failover(
-                openai_client,
+            self.chunks = open_with_failover(
+                self.openai_client,
                 model_name,
                 lambda client: open_completion(
                     client, answer_kwargs, skip_thinking=True
                 ),
             )
-            looped, cut_at_limit, _ = consume(chunks, 0)
-            footnote = (
+            self.looped, self.cut_at_limit, _ = self.consume(self.chunks, 0)
+            self.footnote = (
                 f"\n\n_Thought past its {budget}-token budget "
                 "(OPENCOMPLETION_THINKING_BUDGET), so it answered from its notes._"
             )
         except Exception as e:
-            looped = None
-            emit_content(f"\n\n_{model_name} could not answer from its notes: {e}_")
-
-    # The model asked for tools: run them (tools.run_round: in the asker's
-    # browser or on our server, tools/policy.py says which), hand it what
-    # they found & stream its next ask into this same reply. Its last
-    # round goes without tools, so a reply always ends in an answer.
-    rounds, round_start, with_tools = 0, 0, chat_history
-    resume_round = None
-    if resume:
-        rounds = max(0, int(resume.get("rounds") or 1) - 1)
-        round_start = int(resume.get("round_start") or 0)
-        with_tools = chat_history + list(resume.get("prior") or [])
-        resume_round = resume
-    while tool_calls is not None and tool_calls.calls and not looped:
-        if room_name in stop_requests:
-            break
-        rounds += 1
-        round_info.update(
-            calls=tool_calls.calls,
-            round_start=round_start,
-            rounds=rounds,
-            prior=with_tools[len(chat_history) :],
-        )
-        with app.app_context():  # sandboxes & run artifacts are rows
-            with_tools = with_tools + tools.run_round(
-                tool_context,
-                tool_calls.calls,
-                buffer[round_start:],
-                notify_tool,
-                resume=resume_round,
+            self.looped = None
+            self.emit_content(
+                f"\n\n_{model_name} could not answer from its notes: {e}_"
             )
+
+    def run_tool_rounds(self, resume):
+        # The model asked for tools: run them (tools.run_round: in the asker's
+        # browser or on our server, tools/policy.py says which), hand it what
+        # they found & stream its next ask into this same reply. Its last
+        # round goes without tools, so a reply always ends in an answer.
+        chat_history, room_name = self.chat_history, self.room_name
+        rounds, round_start, with_tools = 0, 0, chat_history
         resume_round = None
-        clear_checkpoint()  # the round ended: nothing left to pick up
-        if room_name in stop_requests:  # Stop pressed while a tool ran
-            break
-        round_start = len(buffer)
-        ask = dict(create_kwargs, messages=with_tools)
+        if resume:
+            rounds = max(0, int(resume.get("rounds") or 1) - 1)
+            round_start = int(resume.get("round_start") or 0)
+            with_tools = chat_history + list(resume.get("prior") or [])
+            resume_round = resume
+        while self.tool_calls is not None and self.tool_calls.calls and not self.looped:
+            if room_name in stop_requests:
+                break
+            rounds += 1
+            self.round_info.update(
+                calls=self.tool_calls.calls,
+                round_start=round_start,
+                rounds=rounds,
+                prior=with_tools[len(chat_history) :],
+            )
+            with app.app_context():  # sandboxes & run artifacts are rows
+                with_tools = with_tools + tools.run_round(
+                    self.tool_context,
+                    self.tool_calls.calls,
+                    self.buffer[round_start:],
+                    self.notify_tool,
+                    resume=resume_round,
+                )
+            resume_round = None
+            self.clear_checkpoint()  # the round ended: nothing left to pick up
+            if room_name in stop_requests:  # Stop pressed while a tool ran
+                break
+            round_start = len(self.buffer)
+            if not self._ask_after_tools(with_tools, rounds):
+                break
+
+    def _ask_after_tools(self, with_tools, rounds):
+        """Stream the ask after a round of tools: False when it would not
+        open."""
+        ask = dict(self.create_kwargs, messages=with_tools)
         ask.pop("tool_choice", None)  # forced on the first ask only
         if rounds >= tools.max_rounds():
             ask.pop("tools", None)
             ask["messages"] = with_tools + [tools.out_of_rounds(rounds)]
-        tool_calls = tools.ToolCallCollector() if "tools" in ask else None
+        self.tool_calls = tools.ToolCallCollector() if "tools" in ask else None
         try:
-            chunks = open_with_failover(
-                openai_client,
-                model_name,
+            self.chunks = open_with_failover(
+                self.openai_client,
+                self.model_name,
                 lambda client: open_completion(
                     client,
                     ask,
-                    skip_thinking=not enable_thinking,
-                    refusals=tool_refusals,
+                    skip_thinking=not self.enable_thinking,
+                    refusals=self.tool_refusals,
                 ),
             )
         except Exception as e:
-            emit_content(f"\n\n_{model_name} could not answer after its tools: {e}_")
-            break
-        looped, cut_at_limit, _ = consume(chunks, 0)
+            self.emit_content(
+                f"\n\n_{self.model_name} could not answer after its tools: {e}_"
+            )
+            return False
+        self.looped, self.cut_at_limit, _ = self.consume(self.chunks, 0)
+        return True
 
-    if tool_refusals:
-        # Say so: without tools, nothing in this reply was run or checked.
-        footnote += (
-            f"\n\n_No tools this reply: {model_name} refused them "
-            f"({tool_refusals[0]}), so nothing here was run or checked._"
+    def add_closing_notices(self):
+        """Say why the reply ended short (refused tools, the token cap, a
+        loop) at its end."""
+        model_name = self.model_name
+        if self.tool_refusals:
+            # Say so: without tools, nothing in this reply was run or checked.
+            self.footnote += (
+                f"\n\n_No tools this reply: {model_name} refused them "
+                f"({self.tool_refusals[0]}), so nothing here was run or checked._"
+            )
+        if self.cut_at_limit and not self.looped:
+            self.notice = (
+                f"\n\n_Stopped at our {self.cap}-token limit ({self.cap_name})._"
+                if self.cap
+                else "\n\n_Stopped: the model reached its length limit._"
+            )
+        if self.looped:
+            # Hang up. Where a disconnect reaches the server it aborts the
+            # generation; elsewhere it runs on to max_tokens, never forever.
+            close = getattr(self.chunks, "close", None)
+            if close:
+                close()
+            where, phrase = self.looped
+            self.notice = (
+                f"\n\n_Stopped: {model_name} kept repeating "
+                f"“{phrase[:80]}” in its {where}. Ask again, or rephrase._"
+            )
+            print(
+                f"[WARN] {model_name} looped in its {where} in {self.room_name}: "
+                f"{phrase!r}"
+            )
+        if self.notice or self.footnote:
+            tail = self.footnote + self.notice
+            self.buffer += tail
+            socketio.emit(
+                "message_chunk",
+                {
+                    "id": self.msg_id,
+                    "content": tail,
+                    "username": self.username,
+                    "model_name": model_name,
+                    "is_first_chunk": self.first_chunk,
+                    # A stopped reply keeps its thinking open: it shows why.
+                    "keep_thinking_open": bool(self.notice),
+                },
+                room=self.room_name,
+            )
+
+    def share_linked_files(self):
+        # A link to a file in this chat's sandbox ("[deck](/tmp/deck.pptx)")
+        # is a dead link for the person: share each one & point the link at it,
+        # or say there is no such file (fox, 2026-11-01).
+        if not (self.tool_schemas and "sandbox_share_file" in self.offered):
+            return
+        with app.app_context():
+            relinked, shared, missing = tool_sandbox.export_linked_files(
+                self.tool_context, self.buffer
+            )
+        if not (shared or missing):
+            return
+        self.buffer = relinked
+        for item in shared:
+            self.notify_tool(
+                {
+                    "tool": "sandbox_share_file",
+                    "label": item["path"],
+                    "where": "sandbox",
+                    "status": "done",
+                    # The app shared it, not the model: shown as such,
+                    # so a model skipping sandbox_share_file is seen.
+                    "auto": True,
+                    "sources": [{"url": item["url"], "title": item["filename"]}],
+                }
+            )
+        socketio.emit(
+            "message_links",
+            {
+                "id": self.msg_id,
+                "links": {item["path"]: item["url"] for item in shared},
+                "missing": missing,
+            },
+            room=self.room_name,
         )
-    notice = ""
-    if cut_at_limit and not looped:
-        notice = (
-            f"\n\n_Stopped at our {cap}-token limit ({cap_name})._"
-            if cap
-            else "\n\n_Stopped: the model reached its length limit._"
-        )
-    if looped:
-        # Hang up. Where a disconnect reaches the server it aborts the
-        # generation; elsewhere it runs on to max_tokens, never forever.
-        close = getattr(chunks, "close", None)
-        if close:
-            close()
-        where, phrase = looped
-        notice = (
-            f"\n\n_Stopped: {model_name} kept repeating "
-            f"\u201c{phrase[:80]}\u201d in its {where}. Ask again, or rephrase._"
-        )
-        print(f"[WARN] {model_name} looped in its {where} in {room_name}: {phrase!r}")
-    if notice or footnote:
-        tail = footnote + notice
-        buffer += tail
+
+    def finish(self):
+        """Save the whole reply, tell the room it is complete & offer
+        follow-ups."""
+        msg_id, room_name, buffer = self.msg_id, self.room_name, self.buffer
+        # Save the entire completion to the database
+        with app.app_context():
+            new_message = (
+                db.session.query(Message).filter(Message.id == msg_id).one_or_none()
+            )
+            if new_message:
+                new_message.content = buffer
+                new_message.thinking = "".join(self.thinking_parts) or None
+                new_message.tool_trail = (
+                    json.dumps(self.tool_trail) if self.tool_trail else None
+                )
+                new_message.resume_state = None
+                new_message.count_tokens()
+                db.session.add(new_message)
+                db.session.commit()
+
         socketio.emit(
             "message_chunk",
-            {
-                "id": msg_id,
-                "content": tail,
-                "username": username,
-                "model_name": model_name,
-                "is_first_chunk": first_chunk,
-                # A stopped reply keeps its thinking open: it shows why.
-                "keep_thinking_open": bool(notice),
-            },
+            {"id": msg_id, "content": "", "is_complete": True},
             room=room_name,
         )
 
-    # A link to a file in this chat's sandbox ("[deck](/tmp/deck.pptx)")
-    # is a dead link for the person: share each one & point the link at it,
-    # or say there is no such file (fox, 2026-11-01).
-    if tool_schemas and "sandbox_share_file" in offered:
-        with app.app_context():
-            relinked, shared, missing = tool_sandbox.export_linked_files(
-                tool_context, buffer
-            )
-        if shared or missing:
-            buffer = relinked
-            for item in shared:
-                notify_tool(
-                    {
-                        "tool": "sandbox_share_file",
-                        "label": item["path"],
-                        "where": "sandbox",
-                        "status": "done",
-                        # The app shared it, not the model: shown as such,
-                        # so a model skipping sandbox_share_file is seen.
-                        "auto": True,
-                        "sources": [{"url": item["url"], "title": item["filename"]}],
-                    }
+        socketio.emit("delete_processing_message", msg_id, room=room_name)
+        if followups_enabled() and buffer.strip() and not self.notice:
+            if room_name not in stop_requests:
+                gevent.spawn(
+                    suggest_followups,
+                    self.openai_client,
+                    self.model_name,
+                    room_name,
+                    msg_id,
+                    self.chat_history[-1]["content"] if self.chat_history else "",
+                    buffer,
                 )
-            socketio.emit(
-                "message_links",
-                {
-                    "id": msg_id,
-                    "links": {item["path"]: item["url"] for item in shared},
-                    "missing": missing,
-                },
-                room=room_name,
-            )
 
-    # Save the entire completion to the database
-    with app.app_context():
-        new_message = (
-            db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-        )
-        if new_message:
-            new_message.content = buffer
-            new_message.thinking = "".join(thinking_parts) or None
-            new_message.tool_trail = json.dumps(tool_trail) if tool_trail else None
-            new_message.resume_state = None
-            new_message.count_tokens()
-            db.session.add(new_message)
-            db.session.commit()
 
-    socketio.emit(
-        "message_chunk",
-        {"id": msg_id, "content": "", "is_complete": True},
-        room=room_name,
+def chat_gpt(
+    username,
+    room_name,
+    model_name="gpt-4o-mini",
+    enable_thinking=True,
+    tool_context=None,
+    resume=None,
+):
+    """Stream a model's reply into the room, running the tools it calls.
+    resume (Message.resume_state & its message_id, from
+    resume_interrupted_replies) carries on a reply our server restarted in
+    the middle of: same message, its words so far, its conversation, at
+    the tool call it was waiting on."""
+    openai_client, model_name = get_openai_client_and_model(model_name)
+    room_id, chat_history = reply_history(room_name, model_name, resume)
+    started = start_reply_message(model_name, room_id, resume)
+    if started is None:
+        return None
+    reply = ReplyStream(
+        username,
+        room_name,
+        model_name,
+        room_id,
+        started,
+        resume,
+        enable_thinking,
+        openai_client,
+        chat_history,
     )
+    reply.prepare(tool_context, resume)
 
-    socketio.emit("delete_processing_message", msg_id, room=room_name)
-    if followups_enabled() and buffer.strip() and not notice:
-        if room_name not in stop_requests:
-            gevent.spawn(
-                suggest_followups,
-                openai_client,
-                model_name,
-                room_name,
-                msg_id,
-                chat_history[-1]["content"] if chat_history else "",
-                buffer,
-            )
+    try:
+        # An endpoint that fails before streaming hands over to another
+        # endpoint serving this same model. A resumed reply has nothing to
+        # ask yet: it picks up at the tool call it was waiting on.
+        reply.chunks = (
+            None
+            if resume
+            else open_with_failover(openai_client, model_name, reply.open_stream)
+        )
+    except Exception as e:
+        reply.fail(e)
+        # exit early to avoid clobbering the error message.
+        return None
+
+    if reply.tool_schemas and not resume:
+        # The reply's first line names the tools it may call, so a reply
+        # that calls none shows whether it had them to call.
+        reply.notify_tool({"tool": "offered", "names": reply.offered, "status": "done"})
+
+    reply.first_answer(resume)
+    reply.run_tool_rounds(resume)
+    reply.add_closing_notices()
+    reply.share_linked_files()
+    reply.finish()
     title_untitled_room(room_name)
 
 
