@@ -1949,8 +1949,18 @@ def reply_history(room_name, model_name, resume=None):
                 room_id,
                 include_images=vision_enabled and msg.id == most_recent_image_id,
             )
+            if role == "assistant":
+                content += trail_note(msg.tool_trail)
             chat_history.append({"role": role, "content": content})
     return room_id, chat_history
+
+
+def trail_note(tool_trail):
+    """One line under a past reply in the history a model reads: what its
+    tools did & how each ended. Without it a model sees only what it said,
+    & can stand by "I fetched it" over the 404 it got (fox, 2026-11-02)."""
+    lines = tools.loop.trail_lines(tool_trail)
+    return f"\n\n(tools in this reply: {'; '.join(lines)})" if lines else ""
 
 
 def start_reply_message(model_name, room_id, resume=None):

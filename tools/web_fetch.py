@@ -88,8 +88,8 @@ async def _fetch(url):
 
 
 def _refusal(failure, host):
-    """A site's no, in words a model can pass on, or None for a failure
-    that isn't one (a timeout, a dead link)."""
+    """A site's no or a dead link, in words a model can pass on, or None
+    for any other failure (a timeout, a bad certificate)."""
     hand_over = "Don't retry; give the person the link to open themselves."
     status = failure.get("status_code")
     if failure.get("type") == "refused":
@@ -107,6 +107,11 @@ def _refusal(failure, host):
         return (
             f"the site refuses automated readers (HTTP {status}, often a bot "
             f"challenge); we don't get around that. {hand_over}"
+        )
+    if status in (404, 410):
+        return (
+            f"HTTP {status}: no page at this address (gone, moved or never "
+            f"there). Say so; never describe it as if you read it."
         )
     if status in (429, 503):
         return (

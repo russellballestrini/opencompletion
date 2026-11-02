@@ -451,3 +451,26 @@ def sources_of(result):
     if result.get("url"):
         return [{"url": result["url"], "title": result.get("title") or result["url"]}]
     return []
+
+
+def trail_lines(tool_trail):
+    """What a reply's tools did & how each ended, one line each: "web_fetch
+    https://a.org → failed: HTTP 404". `tool_trail` is Message.tool_trail
+    (JSON) or its list. For the history a model reads & the transcripts
+    people download, so neither drops the evidence behind a reply."""
+    if isinstance(tool_trail, str) or tool_trail is None:
+        try:
+            tool_trail = json.loads(tool_trail or "[]")
+        except ValueError:
+            return []
+    lines = []
+    for entry in tool_trail[:12]:
+        if not isinstance(entry, dict) or not entry.get("tool"):
+            continue
+        what = f"{entry['tool']} {entry.get('label') or ''}".strip()[:120]
+        if entry.get("status") == "error":
+            lines.append(f"{what} → failed: {str(entry.get('error') or '')[:120]}")
+        else:
+            found = len(entry.get("sources") or [])
+            lines.append(f"{what} → ok" + (f", {found} sources" if found else ""))
+    return lines

@@ -23,6 +23,7 @@ from models import ActivityState, Message, Room, UserSession, db
 from routes import DEPS
 from blob_store import copy_attachments, delete_room_attachments
 from throttle import Throttle, client_ip
+from tools.loop import trail_lines
 
 bp = Blueprint("rooms", __name__)
 
@@ -451,6 +452,16 @@ def delete_room(room_id):
     return jsonify({"success": True})
 
 
+def _trail(message):
+    """A message's tool calls for a transcript, or [] when unreadable."""
+    try:
+        trail = json.loads(message.tool_trail or "[]")
+    except ValueError:
+        return []
+    keep = ("tool", "label", "where", "status", "error", "sources")
+    return [{k: e[k] for k in keep if k in e} for e in trail if isinstance(e, dict)]
+
+
 @bp.route("/download_chat_history", methods=["GET"])
 def download_chat_history():
     room_name = request.args.get("room_name")
@@ -465,10 +476,13 @@ def download_chat_history():
     if not messages:
         return jsonify({"error": "No messages found"}), 404
 
+    # A reply's tool calls go with it (each its tool, label, status, error
+    # & sources), so a transcript shows what a reply was based on.
     chat_history = [
         {
             "role": "system" if message.username in DEPS["system_users"] else "user",
             "content": message.content,
+            **({"tools": _trail(message)} if message.tool_trail else {}),
         }
         for message in messages
         if not message.is_base64_image()
@@ -510,7 +524,13 @@ def download_chat_history_md():
             toc.append(
                 f"- [{role}: {message.username} (Turn {index + 1})](#{role.lower()}-{message.username.lower().replace(' ', '-')}-turn-{index + 1})"
             )
-            chat_history_md.append(f"{header}\n\n{message.content}\n\n---\n")
+            # What its tools did, under the reply they served
+            tools_md = "".join(
+                f"\n- {line}" for line in trail_lines(message.tool_trail)
+            )
+            if tools_md:
+                tools_md = f"\n\n**Tools:**{tools_md}"
+            chat_history_md.append(f"{header}\n\n{message.content}{tools_md}\n\n---\n")
 
     if not chat_history_md:
         return jsonify({"error": "No valid messages found"}), 404
