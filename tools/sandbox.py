@@ -137,6 +137,14 @@ def token_hash(token):
 
 
 def run_code(context, language, code, os_name="linux"):
+    """One run of `code` on unsandbox. Its job finishes there even if our
+    server restarts, so its job id is checkpointed & a resumed reply
+    collects that job's result rather than running the code again."""
+    resumed = context.resume_run or {}
+    if resumed.get("job_id"):
+        return _run_result(
+            context, _wait_job(resumed["job_id"], policy.run_code_timeout() + 30)
+        )
     language = str(language or "").strip().lower()
     if not language or not str(code or "").strip():
         return {"error": "language & code required"}
@@ -156,7 +164,15 @@ def run_code(context, language, code, os_name="linux"):
     if os_name == "freebsd":
         body["os"] = "freebsd"
     job = un._make_request("POST", "/execute", *_keys(), body)
-    result = _wait_job(job["job_id"], policy.run_code_timeout() + 30)
+    if context.checkpoint:
+        context.checkpoint({"job_id": job["job_id"]})
+    return _run_result(
+        context, _wait_job(job["job_id"], policy.run_code_timeout() + 30)
+    )
+
+
+def _run_result(context, result):
+    """What a model reads from a finished run, its files kept."""
     shaped = _finished(result)
     shaped["artifacts"] = keep_artifacts(context, result.get("artifacts") or [])
     if not shaped["artifacts"]:

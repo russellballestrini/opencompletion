@@ -1844,6 +1844,105 @@ def test_a_restart_mid_command_collects_its_job_never_runs_it_again(
     assert "57 passed" in chat.asks[0]["messages"][-1]["content"]
 
 
+def run_code_call(code, id="r1"):
+    function = SimpleNamespace(
+        name="run_code", arguments=json.dumps({"language": "python", "code": code})
+    )
+    return model_chunk(calls=[SimpleNamespace(index=0, id=id, function=function)])
+
+
+def test_a_one_off_run_checkpoints_its_job_while_it_waits(unsandbox, room, chat):
+    from models import Message, db
+
+    db.session.add(Message(username="ada", content="add 2 & 2", room_id=room.id))
+    db.session.commit()
+    chat.scripts += [[run_code_call("print(2 + 2)")], [model_chunk(content="4.")]]
+    seen = []
+    real = unsandbox.get_job
+
+    def get_job(job_id):  # waiting on the run: the checkpoint is saved
+        reply = Message.query.filter_by(username="qwen").one()
+        db.session.refresh(reply)
+        seen.append(json.loads(reply.resume_state or "null"))
+        return real(job_id)
+
+    import un
+
+    un.get_job = get_job
+    try:
+        chat.app.chat_gpt(
+            "ada",
+            room.name,
+            model_name="qwen",
+            enable_thinking=False,
+            tool_context=tools.ToolContext(sid="s"),  # a guest runs code too
+        )
+    finally:
+        un.get_job = real
+    assert seen[0]["calls"][0]["name"] == "run_code"
+    assert seen[0]["run"] == {"job_id": "job-0"}
+    assert Message.query.filter_by(username="qwen").one().resume_state is None
+
+
+def test_a_restart_mid_run_collects_its_job_and_files_never_runs_it_again(
+    unsandbox, room, chat, monkeypatch
+):
+    import base64
+
+    from models import Attachment, Message, db
+
+    job_id = unsandbox._job(
+        {
+            "status": "completed",
+            "exit_code": 0,
+            "stdout": "4\n",
+            "artifacts": [
+                {
+                    "filename": "sum.txt",
+                    "mime_type": "text/plain",
+                    "content_base64": base64.b64encode(b"4").decode(),
+                }
+            ],
+        }
+    )
+    db.session.add(Message(username="ada", content="add 2 & 2", room_id=room.id))
+    reply = Message(username="qwen", content="Running it. ", room_id=room.id)
+    call = {
+        "id": "r1",
+        "name": "run_code",
+        "arguments": json.dumps({"language": "python", "code": "print(2 + 2)"}),
+    }
+    reply.resume_state = json.dumps(
+        {
+            "calls": [call],
+            "round_start": 0,
+            "rounds": 1,
+            "prior": [],
+            "call_index": 0,
+            "done": [],
+            "run": {"job_id": job_id},
+            "username": "ada",
+            "model_name": "qwen",
+            "enable_thinking": False,
+            "email": None,
+        }
+    )
+    db.session.add(reply)
+    db.session.commit()
+    chat.scripts.append([model_chunk(content="It printed 4.")])
+    monkeypatch.setattr(chat.app.gevent, "spawn", lambda fn, *a, **k: fn(*a, **k))
+
+    assert chat.app.resume_interrupted_replies() == 1
+
+    assert not [c for c in unsandbox.calls if c[0] == "request"]  # never rerun
+    db.session.refresh(reply)
+    assert reply.content == "Running it. It printed 4."
+    trail = json.loads(reply.tool_trail)
+    assert trail[-1]["tool"] == "run_code" and trail[-1]["status"] == "done"
+    assert Attachment.query.one().filename == "sum.txt"
+    assert reply.resume_state is None
+
+
 # -- no clock: progress, stalls, the overseer & a shared session ---------------
 
 
