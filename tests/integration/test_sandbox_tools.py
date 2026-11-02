@@ -2052,7 +2052,7 @@ def test_a_session_that_will_not_resume_falls_back_to_fresh(unsandbox, room):
 
 
 def test_the_delegate_tool_names_what_uncloseai_cli_can_use(
-    unsandbox, room, monkeypatch
+    unsandbox, room, monkeypatch, capsys
 ):
     """Learned from a sandbox (`unclose --tools --json`), so the chat model
     knows a delegate can research & use services, not only code (fox)."""
@@ -2080,6 +2080,11 @@ def test_the_delegate_tool_names_what_uncloseai_cli_can_use(
     assert "It can use" not in described()  # nothing learned yet
     run_delegate(room)
     assert described().endswith("It can use: bash, web_search, arborist.")
+    # Our log names what it learned, once (fox, 2026-11-02).
+    assert (
+        "[INFO] uncloseai-cli offers 3 tools: bash, web_search, arborist"
+        in capsys.readouterr().out
+    )
     asked = [c for c in unsandbox.commands() if "unclose --tools" in c]
     run_delegate(room)  # fresh for 6h: not asked again
     assert (

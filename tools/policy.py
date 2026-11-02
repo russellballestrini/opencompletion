@@ -34,6 +34,7 @@ without a restart.
     OPENCOMPLETION_DELEGATE_REVIEW_S=300 how often its overseer (the chat's
                                          model) reviews a run: continue,
                                          steer it with a note, or stop it;
+                                         the first after twice this (setup);
                                          0 = no reviews
     OPENCOMPLETION_DELEGATE_SUMMARIES=on|off  a sentence or two on how a
                                          delegate is going, about every 15s

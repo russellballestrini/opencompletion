@@ -5,9 +5,9 @@ timer). Each 15s tick, Watch.observe says whether the run moved: a plan
 step done, files changed, or activity it had not shown before (numbers
 masked, so the same command re-run with new timings is no news). A run
 that has not moved for OPENCOMPLETION_DELEGATE_STALL_S is stopped as
-stalled. Every OPENCOMPLETION_DELEGATE_REVIEW_S its overseer (the chat's
-model, ToolContext.oversee) reads a digest & decides: continue, steer
-(a note the run reads at its next turn) or stop.
+stalled. Every OPENCOMPLETION_DELEGATE_REVIEW_S (the first after twice
+that) its overseer (the chat's model, ToolContext.oversee) reads a digest
+& decides: continue, steer (a note the run reads at its next turn) or stop.
 """
 
 import re
@@ -31,7 +31,10 @@ class Watch:
     def __init__(self, now):
         self.started = now
         self.last_progress = now
-        self.next_review = now + policy.delegate_review_s()
+        # The first review waits twice as long (10 min by default): a run's
+        # first minutes are mostly setup (cloning, installing), too soon to
+        # judge (fox, 2026-11-02).
+        self.next_review = now + 2 * policy.delegate_review_s()
         self.seen = set()
         self.plan_done = None
         self.files = None

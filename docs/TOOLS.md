@@ -115,7 +115,7 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   plan step done, files changed, or activity it had not shown before
   (numbers masked, so a command re-run with new timings is no news). No
   move for `OPENCOMPLETION_DELEGATE_STALL_S` (600) stops it as stalled,
-  which also catches a loop. Every `OPENCOMPLETION_DELEGATE_REVIEW_S` (300)
+  which also catches a loop. Every `OPENCOMPLETION_DELEGATE_REVIEW_S` (300; the first after twice that, past setup)
   its overseer, the chat's model (`app.oversee_delegate`, a one-line
   frame), reads the task, how long since it moved, its vitals & newest
   activity & answers CONTINUE, STEER: note, or STOP: why. A steer goes in

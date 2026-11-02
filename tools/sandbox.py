@@ -839,6 +839,12 @@ def refresh_toolset(sandbox):
         ]
         if listed.get("schema") == "unclose-tools/1" and names:
             _toolset["names"] = names[:40]
+            print(
+                f"[INFO] uncloseai-cli offers {len(names)} tools: "
+                f"{', '.join(_toolset['names'])}"
+            )
+        else:
+            print("[INFO] uncloseai-cli lists no tools (older than --tools)")
     except Exception as e:  # noqa: BLE001 — optional
         print(f"[WARN] could not learn uncloseai-cli's tools: {e}")
 

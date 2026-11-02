@@ -38,6 +38,16 @@ def test_a_loop_is_a_stall(monkeypatch):
     assert watch.stalled(120)
 
 
+def test_the_first_review_waits_out_setup(monkeypatch):
+    """Twice the interval (10 min at 300 s), then every interval: a run's
+    first minutes are cloning & installing (fox, 2026-11-02)."""
+    monkeypatch.setenv("OPENCOMPLETION_DELEGATE_REVIEW_S", "300")
+    watch = oversight.Watch(0)
+    assert not watch.review_due(599) and watch.review_due(600)
+    watch.reviewed(600)
+    assert not watch.review_due(899) and watch.review_due(900)
+
+
 def test_no_stall_limit_never_stalls(monkeypatch):
     monkeypatch.setenv("OPENCOMPLETION_DELEGATE_STALL_S", "0")
     assert not oversight.Watch(0).stalled(10**9)
