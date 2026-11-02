@@ -18,6 +18,8 @@ to hand the person the link. We never work around a refusal.
 
 import asyncio
 import ipaddress
+import re
+import socket
 from urllib.parse import urlsplit
 
 import aiohttp
@@ -62,13 +64,45 @@ class PublicOnlyConnector(aiohttp.TCPConnector):
         return public
 
 
+try:  # the system's own lookups, as they were before gevent patched them
+    from gevent.monkey import get_original
+
+    _getaddrinfo, _getnameinfo = get_original("socket", ["getaddrinfo", "getnameinfo"])
+except Exception:  # noqa: BLE001 — no gevent: socket's are the system's
+    _getaddrinfo, _getnameinfo = socket.getaddrinfo, socket.getnameinfo
+
+
+class _SystemLookups:
+    """What aiohttp's ThreadedResolver asks its loop for, answered by the
+    system's own getaddrinfo. gevent's patched one, called from a fetch's
+    own thread & event loop, hung 30s+ on Python 3.14 (demo, 2026-11-02):
+    every robots.txt, a domain's first request, timed out at 5s, so every
+    fetch was refused. Each fetch has a thread of its own (fetch_page), so
+    a lookup blocking it briefly holds up nothing else."""
+
+    async def getaddrinfo(self, host, port, *, family=0, type=0, proto=0, flags=0):
+        return _getaddrinfo(host, port, family, type, proto, flags)
+
+    async def getnameinfo(self, sockaddr, flags=0):
+        return _getnameinfo(sockaddr, flags)
+
+
+class SystemResolver(aiohttp.ThreadedResolver):
+    """aiohttp's ThreadedResolver over the system's own lookups."""
+
+    def __init__(self):
+        super().__init__(loop=_SystemLookups())
+
+
 class GuardedFetcher(crawler.AsyncWebFetcher):
     """The shared crawler, its one session dialing public addresses only."""
 
     async def _get_session(self):
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(
-                connector=PublicOnlyConnector(limit=10, ttl_dns_cache=300)
+                connector=PublicOnlyConnector(
+                    limit=10, ttl_dns_cache=300, resolver=SystemResolver()
+                )
             )
         return self._session
 
@@ -97,10 +131,14 @@ def _refusal(failure, host):
             f"this site refused us (HTTP {status}) & we don't ask again for "
             f"{failure.get('retry_in')}s. {hand_over}"
         )
-    if failure.get("type") == "robots_txt" and "unreachable" in str(
-        failure.get("details")
-    ):
-        return f"we couldn't read this site's robots.txt, so we don't crawl it. {hand_over}"
+    details = str(failure.get("details") or "")
+    if failure.get("type") == "robots_txt" and "unreachable" in details:
+        why = re.search(r"unreachable \((.*?)\)", details)
+        return (
+            f"we couldn't read this site's robots.txt"
+            f"{f' ({why.group(1)})' if why and why.group(1) else ''}, so we don't "
+            f"crawl it. {hand_over}"
+        )
     if failure.get("type") == "robots_txt":
         return f"robots.txt asks automated readers not to fetch this page, so we don't. {hand_over}"
     if status in (401, 403):

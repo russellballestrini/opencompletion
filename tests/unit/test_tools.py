@@ -521,8 +521,35 @@ def test_a_refusal_is_said_plainly(monkeypatch):
     assert "www.printables.com asked us to wait" in said["429"]
     assert said["robots"].startswith("robots.txt asks automated readers not to")
     assert said["unread"].startswith("we couldn't read this site's robots.txt")
+    assert "robots.txt (HTTP 503), so" in said["unread"]  # says why
 
 
 def test_a_failure_that_is_no_refusal_says_what_happened(monkeypatch):
     _failing(monkeypatch, {"type": "timeout", "details": "timed out"})
     assert web_fetch.fetch_page("https://a.org/")["error"] == "timed out"
+
+
+def test_fetches_resolve_names_through_the_systems_own_lookups(monkeypatch):
+    """gevent's patched getaddrinfo, from a fetch's own thread & loop, hung
+    30s+ on Python 3.14 (demo, 2026-11-02): every robots.txt timed out &
+    every fetch was refused. A fetch resolves through the system's own."""
+    import asyncio
+    import socket
+
+    def patched(*a, **k):
+        raise AssertionError("the module-level getaddrinfo was used")
+
+    monkeypatch.setattr(socket, "getaddrinfo", patched)
+
+    async def go():
+        fetcher = web_fetch.GuardedFetcher(user_agent="t")
+        try:
+            session = await fetcher._get_session()
+            resolver = session.connector._resolver
+            assert isinstance(resolver, web_fetch.SystemResolver)
+            return await resolver.resolve("localhost", 80)
+        finally:
+            await fetcher.aclose()
+
+    found = asyncio.run(go())
+    assert found and all(r["port"] == 80 for r in found)
