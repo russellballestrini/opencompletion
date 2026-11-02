@@ -24,16 +24,6 @@ function copyMessageContent(content, button) {
     });
 }
 
-// Our default voice is foxhop; option values are "model:voice".
-const DEFAULT_VOICE = 'foxhop';
-
-function defaultVoice(values) {
-    const voiceOf = value => value.split(':').pop().toLowerCase();
-    return values.find(v => voiceOf(v) === DEFAULT_VOICE)
-        || values.find(v => voiceOf(v).includes(DEFAULT_VOICE))
-        || values[0];
-}
-
 // Function to sync dropdowns and save to localStorage
 function syncDropdownsAndQueryString() {
     const modelSelectDesktop = document.getElementById("model-select");
@@ -86,47 +76,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         modelSelectDesktop.value = modelToSelect;
     }
 
-    // Function to populate the voice dropdown
-    function populateVoiceDropdown(voicesData) {
-        // Clear existing options
-        voiceSelectDesktop.innerHTML = '';
-
-        // Group voices by model
-        const voicesByModel = {};
-        voicesData.data.forEach(modelData => {
-            const modelId = modelData.id;
-            voicesByModel[modelId] = modelData.voices || [];
-        });
-
-        // Create optgroups for each model
-        Object.entries(voicesByModel).forEach(([modelId, voices]) => {
-            if (voices.length > 0) {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = modelId;
-
-                voices.forEach(voice => {
-                    const option = document.createElement('option');
-                    option.value = `${modelId}:${voice}`;
-                    option.textContent = `${modelId} - ${voice}`;
-                    optgroup.appendChild(option);
-                });
-
-                voiceSelectDesktop.appendChild(optgroup);
-            }
-        });
-
-        // A voice you chose before, else our default voice, else the first.
-        const values = Array.from(voiceSelectDesktop.options).map(o => o.value);
-        const saved = localStorage.getItem('selectedVoice');
-        const initialVoice = values.includes(saved) ? saved : defaultVoice(values);
-        if (initialVoice) {
-            voiceSelectDesktop.value = initialVoice;
-        }
-        // In the chat box, left of the model, whenever our speech service
-        // lists voices: Play & Read replies aloud both speak in it.
-        voiceSelectDesktop.hidden = values.length === 0;
-    }
-
     // Memoization with localStorage (1-minute cache)
     const cacheKey = 'modelList';
     const cacheExpirationKey = 'modelListExpiration';
@@ -153,34 +102,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
             .catch(error => console.error("Error fetching models:", error));
     }
 
-    // Fetch and populate voices with caching
-    const voicesCacheKey = 'voicesList';
-    const voicesCacheExpirationKey = 'voicesListExpiration';
-
-    const cachedVoices = localStorage.getItem(voicesCacheKey);
-    const cachedVoicesExpiration = localStorage.getItem(voicesCacheExpirationKey);
-
-    if (cachedVoices && cachedVoicesExpiration && Date.now() < parseInt(cachedVoicesExpiration)) {
-        // Use cached voices data
-        const voicesData = JSON.parse(cachedVoices);
-        populateVoiceDropdown(voicesData);
-    } else {
-        // Fetch voices from API
-        fetch(VOICES_API_URL)
-            .then(response => response.json())
-            .then(voicesData => {
-                populateVoiceDropdown(voicesData);
-                // Store in localStorage with expiration
-                localStorage.setItem(voicesCacheKey, JSON.stringify(voicesData));
-                localStorage.setItem(voicesCacheExpirationKey, Date.now() + cacheDuration);
-            })
-            .catch(error => {
-                console.error("Error fetching voices:", error);
-                // Leave dropdown empty (& out of sight) if API fails
-                voiceSelectDesktop.innerHTML = '';
-                voiceSelectDesktop.hidden = true;
-                    });
-    }
+    // Voices: the same list, saved choice & default as our home page (utils.js)
+    loadVoices(voiceSelectDesktop);
 
     // Scrolled up from our newest message: stop following the stream & offer ↓.
     const scrollBottomButton = document.getElementById('scroll-bottom-button');
@@ -195,7 +118,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     });
 
     // NOTE: Model and voice restoration happens in populateModelDropdown() and
-    // populateVoiceDropdown() AFTER the async fetch completes. Don't set values
+    // fillVoiceSelect() (utils.js) AFTER the async fetch completes. Don't set values
     // here or call syncDropdownsAndQueryString() - that would overwrite localStorage
     // with empty values before the dropdowns are populated.
 

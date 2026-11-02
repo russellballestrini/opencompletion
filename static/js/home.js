@@ -94,6 +94,13 @@ modelSelect.addEventListener('change', () => {
     try { localStorage.setItem('selectedModel', modelSelect.value); } catch (e) {}
 });
 
+// Voices: the same list & saved choice chat uses (utils.js loadVoices).
+const voiceSelect = document.getElementById('composer-voice');
+document.addEventListener('DOMContentLoaded', () => loadVoices(voiceSelect));
+voiceSelect.addEventListener('change', () => {
+    try { localStorage.setItem('selectedVoice', voiceSelect.value); } catch (e) {}
+});
+
 // A readable, unique room name: the first words of the message plus a
 // random tail, within our server's rule [a-z0-9][a-z0-9_-]{0,63}.
 function newRoomName(message) {

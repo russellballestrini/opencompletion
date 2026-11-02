@@ -5,7 +5,6 @@
 // Constants
 // Speech goes through our server (routes/speech.py), which holds any keys.
 const TTS_API_URL = "/speech/audio";
-const VOICES_API_URL = "/speech/voices";
 // Code execution API (proxied through backend to keep API key secure)
 const room_name = CHAT_CONFIG.roomName;
 

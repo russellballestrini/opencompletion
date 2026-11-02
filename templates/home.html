@@ -30,6 +30,10 @@
             <textarea id="composer-input" rows="1" placeholder="Ask anything, or type /help" autofocus></textarea>
             <div class="composer-bar">
                 {% include "_composer_tools.html" %}
+                {# The voice Play & Read replies aloud speak in, as in chat:
+                   beside the model whenever our speech service lists voices. #}
+                <label class="visually-hidden" for="composer-voice">Voice</label>
+                <select id="composer-voice" class="composer-model composer-voice" title="The voice Play & Read replies aloud speak in" hidden></select>
                 <label class="visually-hidden" for="composer-model">Model</label>
                 <select id="composer-model" class="composer-model">
                     <option value="None">People only (no model)</option>

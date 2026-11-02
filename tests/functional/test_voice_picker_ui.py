@@ -57,3 +57,38 @@ def test_voice_picker_shows_beside_the_model(client, tmp_path, width):
     html = client.get("/chat/lobby").get_data(as_text=True)
     out = run_probe(html, VOICE_PROBE, tmp_path, width)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+HOME_VOICE_PROBE = r"""
+<script>
+// Our speech service's voices, cached as utils.js caches them; a saved pick.
+localStorage.setItem('voicesList', JSON.stringify({data: [{id: 'tts-1-f5', voices: ['aria', 'foxhop']}]}));
+localStorage.setItem('voicesListExpiration', String(Date.now() + 60000));
+localStorage.setItem('selectedVoice', 'tts-1-f5:aria');
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const voice = document.getElementById('composer-voice');
+    const model = document.getElementById('composer-model');
+    const box = voice.getBoundingClientRect();
+    check(!voice.hidden && box.width >= 60 && box.height >= 20, `home shows the voice picker: hidden=${voice.hidden} w=${box.width}`);
+    check(voice.value === 'tts-1-f5:aria', 'it keeps the voice picked in chat: ' + voice.value);
+    check(box.right <= model.getBoundingClientRect().left + 1, 'it sits left of the model');
+    const look = el => ['borderTopWidth', 'backgroundColor', 'fontWeight', 'fontSize', 'color']
+        .map(k => getComputedStyle(el)[k]).join(' ');
+    check(look(voice) === look(model), `it matches the model picker: ${look(voice)} vs ${look(model)}`);
+    voice.value = 'tts-1-f5:foxhop';
+    voice.dispatchEvent(new Event('change'));
+    check(localStorage.getItem('selectedVoice') === 'tts-1-f5:foxhop', 'a pick here is chat\'s pick too');
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [375, 1280])
+def test_home_has_the_voice_picker_too(client, tmp_path, width):
+    """fox, 2026-11-02: home's composer had no voice picker."""
+    html = client.get("/").get_data(as_text=True)
+    out = run_probe(html, HOME_VOICE_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

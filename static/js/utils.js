@@ -149,3 +149,68 @@ function takePendingMessage(roomName) {
     } catch (e) {}
     return null;
 }
+
+
+// Voices for a voice picker (chat & home): our speech service's list
+// (/speech/voices, a minute's cache), the voice picked before (localStorage
+// selectedVoice), else our default, foxhop. Option values are "model:voice".
+// The picker shows only when there are voices (fox, 2026-11-02: home had
+// none). Play & Read replies aloud speak in it.
+const DEFAULT_VOICE = 'foxhop';
+const VOICES_CACHE_MS = 60 * 1000;
+
+function defaultVoice(values) {
+    const voiceOf = value => value.split(':').pop().toLowerCase();
+    return values.find(v => voiceOf(v) === DEFAULT_VOICE)
+        || values.find(v => voiceOf(v).includes(DEFAULT_VOICE))
+        || values[0];
+}
+
+function fillVoiceSelect(select, voicesData) {
+    select.innerHTML = '';
+    ((voicesData && voicesData.data) || []).forEach(modelData => {
+        const voices = modelData.voices || [];
+        if (!voices.length) return;
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = modelData.id;
+        voices.forEach(voice => {
+            const option = document.createElement('option');
+            option.value = `${modelData.id}:${voice}`;
+            option.textContent = `${modelData.id} - ${voice}`;
+            optgroup.appendChild(option);
+        });
+        select.appendChild(optgroup);
+    });
+    const values = Array.from(select.options).map(o => o.value);
+    let saved = null;
+    try { saved = localStorage.getItem('selectedVoice'); } catch (e) {}
+    const initial = values.includes(saved) ? saved : defaultVoice(values);
+    if (initial) select.value = initial;
+    select.hidden = values.length === 0;
+}
+
+function loadVoices(select) {
+    if (!select) return;
+    try {
+        const cached = localStorage.getItem('voicesList');
+        const until = parseInt(localStorage.getItem('voicesListExpiration'));
+        if (cached && until && Date.now() < until) {
+            fillVoiceSelect(select, JSON.parse(cached));
+            return;
+        }
+    } catch (e) {}
+    fetch('/speech/voices')
+        .then(response => response.json())
+        .then(voicesData => {
+            fillVoiceSelect(select, voicesData);
+            try {
+                localStorage.setItem('voicesList', JSON.stringify(voicesData));
+                localStorage.setItem('voicesListExpiration', Date.now() + VOICES_CACHE_MS);
+            } catch (e) {}
+        })
+        .catch(() => {
+            // No voices (speech down): the picker stays out of sight
+            select.innerHTML = '';
+            select.hidden = true;
+        });
+}
