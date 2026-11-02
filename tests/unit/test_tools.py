@@ -481,3 +481,58 @@ def test_fetch_page_refuses_other_schemes_and_cuts_long_pages(monkeypatch):
     monkeypatch.setattr(web_fetch, "_fetch", fake)
     page = web_fetch.fetch_page("https://a.org/", max_chars=10)
     assert page["text"].startswith("x" * 10) and "cut at 10" in page["text"]
+
+
+def _refusing(monkeypatch, failure):
+    """fetch_page over a fake crawler that fails with `failure`; returns the
+    urls it was asked for."""
+    asked = []
+
+    async def fake(url):
+        asked.append(url)
+        web_fetch.crawler.LAST_FETCH_ERROR = dict(failure)
+        return None
+
+    monkeypatch.setattr(web_fetch, "_fetch", fake)
+    monkeypatch.setattr(web_fetch, "_refused", {})
+    return asked
+
+
+def test_a_refusal_is_said_plainly_and_never_retried(monkeypatch):
+    """fox, 2026-11-02: "I don't want to ship a bad bot". A 403 (here a
+    Cloudflare bot challenge) is a no: the model is told so & to hand the
+    person the link, & asking again within 10 min never reaches the site."""
+    asked = _refusing(
+        monkeypatch, {"type": "http_error", "details": "HTTP 403", "status_code": 403}
+    )
+    url = "https://www.printables.com/model/1"
+    first = web_fetch.fetch_page(url)["error"]
+    assert "refuses automated readers" in first and "give the person the link" in first
+    again = web_fetch.fetch_page(url)["error"]
+    assert "not asked again" in again and asked == [url]
+    web_fetch.fetch_page(
+        "https://www.printables.com/model/2"
+    )  # another page may answer
+    assert len(asked) == 2
+
+
+def test_robots_txt_no_is_passed_on(monkeypatch):
+    _refusing(monkeypatch, {"type": "robots_txt", "details": "Blocked by robots.txt"})
+    error = web_fetch.fetch_page("https://a.org/private")["error"]
+    assert error.startswith("robots.txt asks automated readers not to fetch")
+
+
+def test_slow_down_holds_the_whole_site(monkeypatch):
+    asked = _refusing(
+        monkeypatch, {"type": "http_error", "details": "HTTP 429", "status_code": 429}
+    )
+    assert "asked us to slow down" in web_fetch.fetch_page("https://a.org/1")["error"]
+    assert "not asked again" in web_fetch.fetch_page("https://A.org/2")["error"]
+    assert asked == ["https://a.org/1"]
+
+
+def test_a_failure_that_is_no_refusal_may_be_tried_again(monkeypatch):
+    asked = _refusing(monkeypatch, {"type": "timeout", "details": "timed out"})
+    assert web_fetch.fetch_page("https://a.org/")["error"] == "timed out"
+    web_fetch.fetch_page("https://a.org/")
+    assert len(asked) == 2

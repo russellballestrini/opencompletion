@@ -248,8 +248,14 @@ asking for `http://169.254.169.254/` or our localhost. `PublicOnlyConnector`
 dials public addresses only, on every hop, redirects included: it filters
 aiohttp's `_resolve_host`, which every connection goes through (a private
 method, so `tests/unit/test_tools.py` pins that aiohttp still calls it).
-robots.txt & crawl delays are the shared crawler's own. Each fetch runs in
-a native thread with its own event loop (`gevent`'s threadpool).
+robots.txt & crawl delays are the shared crawler's own; robots.txt is read
+before every page. We are a polite bot (fox, 2026-11-02: "I don't want to
+ship a bad bot"): a site's no (robots.txt, HTTP 401/403 such as a bot
+challenge, 429) reaches the model in plain words, telling it to hand the
+person the link instead, & is kept `REFUSAL_S` (10 min) so a retry never
+reaches the site (a 429 holds its whole host). We never work around a
+refusal. Each fetch runs in a native thread with its own event loop
+(`gevent`'s threadpool).
 
 ## Tests
 
