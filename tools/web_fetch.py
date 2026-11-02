@@ -8,16 +8,16 @@ can talk it into asking for http://169.254.169.254/ or our own
 localhost. Every connection, redirects included, dials only a public
 address (PublicOnlyConnector).
 
-robots.txt & crawl delays are the shared crawler's own. A site that
-refuses us (robots.txt, 401/403, 429) is told so in plain words & not
-asked again for REFUSAL_S, so a model can't retry its way past a no
-(fox, 2026-11-02: "I don't want to ship a bad bot"). We never work
-around a refusal, a bot challenge included.
+robots.txt, crawl delays & a site's no are the shared crawler's own: it
+reads robots.txt first, keeps out of a site whose robots.txt it can't
+read, & never asks again a page (401/403) or host (429/503) that refused
+it until the site said it could (fox, 2026-11-02: "I don't want to ship
+a bad bot"). What this module adds is the words: a model is told why &
+to hand the person the link. We never work around a refusal.
 """
 
 import asyncio
 import ipaddress
-import time
 from urllib.parse import urlsplit
 
 import aiohttp
@@ -26,9 +26,6 @@ import gevent
 from tools.crawler import async_web_fetcher as crawler
 
 FETCH_CHARS = 20000
-REFUSAL_S = 600
-# url -> (until, error); "host:<name>" for a site that asked us to slow down
-_refused = {}
 USER_AGENT = (
     "opencompletion/1.0 (fetches a page a person asked about; "
     "+https://github.com/russellballestrini/opencompletion)"
@@ -95,6 +92,15 @@ def _refusal(failure, host):
     that isn't one (a timeout, a dead link)."""
     hand_over = "Don't retry; give the person the link to open themselves."
     status = failure.get("status_code")
+    if failure.get("type") == "refused":
+        return (
+            f"this site refused us (HTTP {status}) & we don't ask again for "
+            f"{failure.get('retry_in')}s. {hand_over}"
+        )
+    if failure.get("type") == "robots_txt" and "unreachable" in str(
+        failure.get("details")
+    ):
+        return f"we couldn't read this site's robots.txt, so we don't crawl it. {hand_over}"
     if failure.get("type") == "robots_txt":
         return f"robots.txt asks automated readers not to fetch this page, so we don't. {hand_over}"
     if status in (401, 403):
@@ -102,10 +108,10 @@ def _refusal(failure, host):
             f"the site refuses automated readers (HTTP {status}, often a bot "
             f"challenge); we don't get around that. {hand_over}"
         )
-    if status == 429:
+    if status in (429, 503):
         return (
-            f"{host} asked us to slow down (HTTP 429); nothing more from it "
-            f"for 10 minutes. {hand_over}"
+            f"{host} asked us to wait (HTTP {status}); we don't ask it again "
+            f"until it says we may. {hand_over}"
         )
     return None
 
@@ -118,15 +124,6 @@ def fetch_page(url, max_chars=FETCH_CHARS):
     url = str(url or "").strip()
     if not url.startswith(("http://", "https://")):
         return {"url": url, "error": "only http:// & https:// addresses"}
-    host = (urlsplit(url).hostname or "").lower()
-    now = time.time()
-    for key in (url, "host:" + host):
-        until, error = _refused.get(key, (0, None))
-        if now < until:
-            return {
-                "url": url,
-                "error": error + " (refused within 10 minutes; not asked again)",
-            }
     crawler.clear_last_fetch_error()
     try:
         page = gevent.get_hub().threadpool.spawn(asyncio.run, _fetch(url)).get()
@@ -134,15 +131,10 @@ def fetch_page(url, max_chars=FETCH_CHARS):
         return {"url": url, "error": str(e) or e.__class__.__name__}
     if not page:
         failure = crawler.get_last_fetch_error() or {}
-        refusal = _refusal(failure, host)
-        if refusal:
-            _refused[url] = (now + REFUSAL_S, refusal)
-            if failure.get("status_code") == 429:
-                _refused["host:" + host] = (now + REFUSAL_S, refusal)
-            return {"url": url, "error": refusal}
+        error = _refusal(failure, (urlsplit(url).hostname or "").lower())
         return {
             "url": url,
-            "error": failure.get("details") or "could not fetch that page",
+            "error": error or failure.get("details") or "could not fetch that page",
         }
     text = page["text"]
     if len(text) > max_chars:

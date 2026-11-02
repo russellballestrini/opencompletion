@@ -37,6 +37,15 @@ from shared_web_fetcher import (  # noqa: E402
     AsyncWebFetcher,
 )
 
+
+@pytest.fixture(autouse=True)
+def _no_refusals_between_tests():
+    """A site's no is remembered for the whole process (a polite bot), so
+    one test's 403 or 429 would hold the next test's fake host."""
+    mod.clear_refusals()
+    yield
+    mod.clear_refusals()
+
 HOME = "https://example.com/"
 ROBOTS = "https://example.com/robots.txt"
 
@@ -428,11 +437,108 @@ def test_fast_mode_zeroes_a_declared_crawl_delay():
     assert fetcher.domain_crawl_delays["example.com"] == 0.0
 
 
-def test_an_unreachable_robots_txt_permits_the_crawl():
-    fetcher, transport = wired({ROBOTS: RuntimeError("connection reset"),
-                        HOME: html_reply(page(body="still allowed"))})
-    html, _ = run(fetcher.fetch_webpage(HOME))
-    assert "still allowed" in html
+def test_an_unreachable_robots_txt_keeps_us_out():
+    """RFC 9309: a robots.txt we can't read (no answer, or 5xx) is a full
+    disallow; we never crawl a site we couldn't ask. (It used to permit.)"""
+    for robots in (RuntimeError("connection reset"), Reply(status=503)):
+        fetcher, transport = wired({ROBOTS: robots,
+                                    HOME: html_reply(page(body="not for us"))})
+        assert run(fetcher.fetch_webpage(HOME)) == (None, [])
+        err = mod.get_last_fetch_error()
+        assert err["type"] == "robots_txt" and "unreachable" in err["details"]
+        assert HOME not in transport.requests
+
+
+def test_robots_txt_is_read_over_the_pages_own_scheme():
+    page_uri = "http://example.com/plain"
+    fetcher, transport = wired({"http://example.com/robots.txt": Reply("User-agent: *\nDisallow: /plain"),
+                                page_uri: html_reply(page(body="x"))})
+    assert run(fetcher.fetch_webpage(page_uri)) == (None, [])
+    assert "http://example.com/robots.txt" in transport.requests
+
+
+def test_each_port_has_its_own_robots_txt():
+    """RFC 9309 scopes robots.txt per scheme & authority: an unreachable
+    one on :8080 says nothing about :80 (arborist, 2026-11-02)."""
+    fetcher, transport = wired({"http://example.com:8080/robots.txt": RuntimeError("no answer"),
+                                "http://example.com/robots.txt": Reply("User-agent: *\nDisallow:"),
+                                "http://example.com/doc": html_reply(page(body="port 80 ok"))})
+    assert run(fetcher.fetch_webpage("http://example.com:8080/doc")) == (None, [])
+    html, _ = run(fetcher.fetch_webpage("http://example.com/doc"))
+    assert "port 80 ok" in html
+    assert "http://example.com/robots.txt" in transport.requests
+
+
+def test_robots_txt_is_read_on_the_pages_own_port():
+    page_uri = "http://example.com:8080/doc"
+    fetcher, transport = wired({"http://example.com:8080/robots.txt": Reply("User-agent: *\nDisallow:"),
+                                page_uri: html_reply(page(body="on 8080"))})
+    html, _ = run(fetcher.fetch_webpage(page_uri))
+    assert "on 8080" in html
+    assert "http://example.com:8080/robots.txt" in transport.requests
+
+
+# --------------------------------------------------------------------
+# A site's no (a polite bot)
+# --------------------------------------------------------------------
+
+
+OTHER = "https://example.com/other"
+
+
+def test_a_403_holds_that_page_for_every_fetcher():
+    """Remembered for the process, not one fetcher: a caller making a
+    fetcher per page still never asks a refused page again."""
+    fetcher, transport = wired({HOME: Reply(status=403), OTHER: html_reply(page(body="fine"))})
+    run(fetcher.fetch_webpage(HOME))
+    asked = transport.requests.count(HOME)
+    again = AsyncWebFetcher()
+    assert run(again.fetch_webpage(HOME)) == (None, [])
+    err = mod.get_last_fetch_error()
+    assert err["type"] == "refused" and err["status_code"] == 403 and err["retry_in"] > 0
+    assert transport.requests.count(HOME) == asked
+    html, _ = run(again.fetch_webpage(OTHER))  # another page may still answer
+    assert "fine" in html
+
+
+def test_a_429_holds_the_whole_host_for_its_retry_after():
+    fetcher, transport = wired({HOME: Reply(status=429, headers={"Retry-After": "120"}),
+                                OTHER: html_reply(page(body="later"))})
+    run(fetcher.fetch_webpage(HOME))
+    assert run(fetcher.fetch_webpage(OTHER)) == (None, [])
+    err = mod.get_last_fetch_error()
+    assert err["type"] == "refused" and err["status_code"] == 429 and err["retry_in"] <= 121
+    assert OTHER not in transport.requests
+
+
+def test_media_refusals_are_remembered_too():
+    fetcher, transport = wired({IMG: Reply(status=403)})
+    run(fetcher.fetch_media(IMG, session=transport))
+    asked = transport.requests.count(IMG)
+    assert run(fetcher.fetch_media(IMG, session=transport)) is None
+    assert transport.requests.count(IMG) == asked
+    assert mod.get_last_fetch_error()["type"] == "refused"
+
+
+def test_a_hold_ends_and_never_outlasts_its_cap():
+    mod.remember_refusal(HOME, 403, now=0)
+    assert mod.active_refusal(HOME, now=mod.REFUSAL_HOLD_S - 1)
+    assert mod.active_refusal(HOME, now=mod.REFUSAL_HOLD_S + 1) is None
+    mod.remember_refusal(HOME, 503, retry_after="99999", now=0)
+    assert mod.active_refusal(OTHER, now=mod.REFUSAL_MAX_S - 1)
+    assert mod.active_refusal(OTHER, now=mod.REFUSAL_MAX_S + 1) is None
+
+
+def test_retry_after_may_be_an_http_date():
+    mod.remember_refusal(HOME, 429, retry_after="Thu, 01 Jan 1970 00:05:00 GMT", now=0)
+    assert mod.active_refusal(OTHER, now=299)
+    assert mod.active_refusal(OTHER, now=301) is None
+
+
+def test_other_failures_are_not_held():
+    mod.remember_refusal(HOME, 404, now=0)
+    mod.remember_refusal(HOME, 500, now=0)
+    assert mod.active_refusal(HOME, now=1) is None
 
 
 # --------------------------------------------------------------------

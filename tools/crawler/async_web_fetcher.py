@@ -21,8 +21,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, Dict, List, Tuple, Set, Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 from urllib.robotparser import RobotFileParser
+from email.utils import parsedate_to_datetime
+import threading
 import time
 
 # This file is SHARED VERBATIM across four repos: arborist,
@@ -271,13 +273,85 @@ logger = logging.getLogger(__name__)
 DEFAULT_CRAWL_DELAY = 2.0
 
 # Global last error storage (for error reporting without log parsing)
-# Format: {'type': 'robots_txt'|'http_error'|'timeout'|'dns'|'ssl'|'unknown', 'details': str, 'uri': str}
+# Format: {'type': 'robots_txt'|'refused'|'http_error'|'timeout'|'dns'|'ssl'|'unknown', 'details': str, 'uri': str}
 LAST_FETCH_ERROR = None
 
 
 def get_last_fetch_error() -> Optional[Dict]:
     """Get the last fetch error, if any."""
     return LAST_FETCH_ERROR
+
+
+# A site's no, remembered for the whole process (every AsyncWebFetcher,
+# every thread), so a polite bot never asks again before the site said it
+# could: 401/403 hold that uri for REFUSAL_HOLD_S; 429/503 hold the whole
+# host until its Retry-After (seconds or an HTTP date), else
+# REFUSAL_HOLD_S, never past REFUSAL_MAX_S. A held fetch never reaches the
+# site & fails as type 'refused'. We never work around a refusal.
+REFUSAL_HOLD_S = 600
+REFUSAL_MAX_S = 3600
+_REFUSALS: Dict[str, Tuple[float, int]] = {}
+_REFUSALS_LOCK = threading.Lock()
+
+
+def _host_of(uri: str) -> str:
+    return (urlsplit(uri).hostname or "").lower()
+
+
+def _retry_after_s(value: Optional[str], now: float) -> Optional[float]:
+    """Seconds a Retry-After asks for (delta-seconds or an HTTP date), or
+    None when absent or unreadable."""
+    if not value:
+        return None
+    value = str(value).strip()
+    if value.isdigit():
+        return float(value)
+    try:
+        return parsedate_to_datetime(value).timestamp() - now
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def remember_refusal(uri: str, status: int, retry_after: Optional[str] = None,
+                     now: Optional[float] = None) -> None:
+    """Hold a uri (401/403) or its host (429/503) after the site said no."""
+    now = time.time() if now is None else now
+    if status in (401, 403):
+        key, hold = "uri:" + uri, REFUSAL_HOLD_S
+    elif status in (429, 503):
+        asked = _retry_after_s(retry_after, now)
+        key = "host:" + _host_of(uri)
+        hold = REFUSAL_HOLD_S if asked is None else asked
+    else:
+        return
+    hold = min(max(hold, 1.0), REFUSAL_MAX_S)
+    with _REFUSALS_LOCK:
+        _REFUSALS[key] = (now + hold, status)
+
+
+def active_refusal(uri: str, now: Optional[float] = None) -> Optional[Dict]:
+    """The fetch error for a uri still held by a site's no, or None."""
+    now = time.time() if now is None else now
+    with _REFUSALS_LOCK:
+        for key in ("uri:" + uri, "host:" + _host_of(uri)):
+            until, status = _REFUSALS.get(key, (0.0, 0))
+            if now < until:
+                wait = int(until - now) + 1
+                return {
+                    'type': 'refused',
+                    'details': f'HTTP {status} from this site; not asked again for {wait}s',
+                    'uri': uri,
+                    'status_code': status,
+                    'retry_in': wait,
+                }
+            _REFUSALS.pop(key, None)
+    return None
+
+
+def clear_refusals() -> None:
+    """Forget every refusal (tests, or an operator who knows better)."""
+    with _REFUSALS_LOCK:
+        _REFUSALS.clear()
 
 
 def strip_uri_fragment(uri_str: str) -> str:
@@ -1599,6 +1673,8 @@ class AsyncWebFetcher:
 
         # Caches for robots.txt and crawl delays per domain
         self.robot_parsers: Dict[str, Optional[RobotFileParser]] = {}
+        # domain -> why its robots.txt couldn't be read (a full disallow)
+        self.robots_unreachable: Dict[str, str] = {}
         self.domain_crawl_delays: Dict[str, float] = {}
         self.domain_last_fetched: Dict[str, float] = {}
 
@@ -1656,17 +1732,24 @@ class AsyncWebFetcher:
         parsed = Uri(uri)
         return parsed.hostname
 
-    async def _fetch_robots_txt(self, domain: str) -> Optional[RobotFileParser]:
+    async def _fetch_robots_txt(self, domain: str, scheme: str = "https",
+                                authority: Optional[str] = None) -> Optional[RobotFileParser]:
         """
-        Fetch and parse robots.txt for a domain.
-        Returns RobotFileParser or None if not available.
+        Fetch and parse robots.txt for a domain, at the page's own scheme,
+        host & port (authority) as RFC 9309 scopes it.
+        Returns RobotFileParser or None if not available (4xx: crawl
+        freely). Unreachable (5xx or no answer) is a full disallow, as RFC
+        9309 says: a site we can't ask is not crawled.
         """
-        if domain in self.robot_parsers:
-            logger.debug(f"Using cached robots.txt for {domain}")
-            return self.robot_parsers[domain]
+        # One answer per origin (scheme://host:port), as RFC 9309 scopes
+        # robots.txt; crawl delays stay per host (politeness, not scope).
+        origin = f"{scheme}://{authority or domain}"
+        if origin in self.robot_parsers:
+            logger.debug(f"Using cached robots.txt for {origin}")
+            return self.robot_parsers[origin]
 
-        logger.info(f"Fetching robots.txt for {domain}")
-        robots_uri = f"https://{domain}/robots.txt"
+        logger.info(f"Fetching robots.txt for {origin}")
+        robots_uri = f"{origin}/robots.txt"
         parser = RobotFileParser()
         # ``set_url`` is a stdlib RobotFileParser method — the url→uri
         # rename mistakenly touched it. The instance method name comes
@@ -1683,7 +1766,7 @@ class AsyncWebFetcher:
                 if response.status == 200:
                     text = await response.text()
                     parser.parse(text.splitlines())
-                    self.robot_parsers[domain] = parser
+                    self.robot_parsers[origin] = parser
 
                     # Extract crawl delay (ignored in fast mode)
                     if self.fast_mode:
@@ -1696,21 +1779,47 @@ class AsyncWebFetcher:
 
                     logger.info(f"Parsed robots.txt for {domain}, crawl delay: {self.domain_crawl_delays[domain]}s")
                     return parser
+                elif response.status >= 500:
+                    logger.warning(f"robots.txt unreachable for {domain} (status {response.status}): not crawling it")
+                    return self._robots_unreachable(domain, origin, f"HTTP {response.status}")
                 else:
-                    logger.info(f"No robots.txt for {domain} (status {response.status})")
-                    self.robot_parsers[domain] = None
+                    logger.info(f"No robots.txt for {origin} (status {response.status})")
+                    self.robot_parsers[origin] = None
                     self.domain_crawl_delays[domain] = self.default_crawl_delay
                     return None
         except Exception as e:
-            logger.warning(f"Could not fetch robots.txt for {domain}: {e}")
-            self.robot_parsers[domain] = None
-            self.domain_crawl_delays[domain] = self.default_crawl_delay
-            return None
+            logger.warning(f"Could not fetch robots.txt for {domain}: {e}: not crawling it")
+            return self._robots_unreachable(domain, origin, str(e) or e.__class__.__name__)
+
+    def _robots_unreachable(self, domain: str, origin: str, why: str) -> RobotFileParser:
+        """A full disallow for an origin whose robots.txt we couldn't read."""
+        parser = RobotFileParser()
+        parser.disallow_all = True
+        self.robot_parsers[origin] = parser
+        self.robots_unreachable[origin] = why
+        self.domain_crawl_delays[domain] = self.default_crawl_delay
+        return parser
+
+    def _robots_refusal(self, uri: str) -> Dict:
+        """The fetch error for a uri robots.txt keeps us from."""
+        why = self.robots_unreachable.get(self._robots_origin(uri))
+        details = (
+            f'robots.txt unreachable ({why}): not crawled (RFC 9309)'
+            if why else 'Blocked by robots.txt'
+        )
+        return {'type': 'robots_txt', 'details': details, 'uri': uri}
+
+    def _robots_origin(self, uri: str) -> str:
+        """scheme://host[:port] of a uri: what one robots.txt covers."""
+        parts = urlsplit(uri)
+        authority = (parts.hostname or self._get_domain(uri)) + (f":{parts.port}" if parts.port else "")
+        return f"{parts.scheme or 'https'}://{authority}"
 
     async def _can_fetch(self, uri: str) -> bool:
         """Check if URI can be fetched according to robots.txt"""
         domain = self._get_domain(uri)
-        parser = await self._fetch_robots_txt(domain)
+        scheme, authority = self._robots_origin(uri).split("://", 1)
+        parser = await self._fetch_robots_txt(domain, scheme, authority)
 
         if parser is None:
             # No robots.txt means we can fetch
@@ -1907,9 +2016,15 @@ class AsyncWebFetcher:
             logger.debug(f"Skipping {uri}: domain {domain} in skip list")
             return None
 
+        # A site that said no is not asked again until it said we could
+        refusal = active_refusal(uri)
+        if refusal:
+            LAST_FETCH_ERROR = refusal
+            return None
+
         # Check robots.txt
         if not await self._can_fetch(uri):
-            LAST_FETCH_ERROR = {'type': 'robots_txt', 'details': 'Blocked by robots.txt', 'uri': uri}
+            LAST_FETCH_ERROR = self._robots_refusal(uri)
             return None
 
         # Enforce crawl delay
@@ -1928,7 +2043,8 @@ class AsyncWebFetcher:
                     allow_redirects=True
                 ) as response:
                     if response.status != 200:
-                        LAST_FETCH_ERROR = {'type': 'http_error', 'details': f'HTTP {response.status}', 'uri': uri}
+                        LAST_FETCH_ERROR = {'type': 'http_error', 'details': f'HTTP {response.status}', 'uri': uri, 'status_code': response.status}
+                        remember_refusal(uri, response.status, response.headers.get('Retry-After'))
                         return None
 
                     # Check content length before downloading
@@ -2045,9 +2161,15 @@ class AsyncWebFetcher:
                 logger.info(f"💾 Using in-memory cached page: {uri} (cached {time.time() - cached_time:.0f}s ago, skipping crawl delay)")
             return html, cached_links
 
+        # A site that said no is not asked again until it said we could
+        refusal = active_refusal(uri)
+        if refusal:
+            LAST_FETCH_ERROR = refusal
+            return None, []
+
         # Check robots.txt
         if not await self._can_fetch(uri):
-            LAST_FETCH_ERROR = {'type': 'robots_txt', 'details': 'Blocked by robots.txt', 'uri': uri}
+            LAST_FETCH_ERROR = self._robots_refusal(uri)
             return None, []
 
         # Enforce crawl delay (only for fresh fetches)
@@ -2073,6 +2195,7 @@ class AsyncWebFetcher:
                 if response.status != 200:
                     LAST_FETCH_ERROR = {'type': 'http_error', 'details': f'HTTP {response.status}', 'uri': uri, 'status_code': response.status}
                     logger.warning(f"Failed to fetch {uri}: HTTP {response.status}")
+                    remember_refusal(uri, response.status, response.headers.get('Retry-After'))
                     return None, []
 
                 # Check content type for binary files (PDF, etc.)
