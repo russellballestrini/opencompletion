@@ -23,6 +23,36 @@ function attachmentMarkdown(file) {
         : `[📎 ${name} · ${formatSize(file.size)}](${url})`;
 }
 
+// A draft per place (fox, 2026-11-02): what's typed in a composer outlives
+// a refresh, in localStorage under its own key (home: draft:home, a room:
+// draft:room:<name>), so one place's draft never shows in another. Saved
+// as you type & as the page goes; draft.clear() when it's sent.
+function keepDraft(textarea, place) {
+    const key = 'draft:' + place;
+    let sent = null;  // the text just sent: leaving now must not keep it
+    const save = () => {
+        try {
+            if (textarea.value.trim() && textarea.value !== sent) localStorage.setItem(key, textarea.value);
+            else localStorage.removeItem(key);
+        } catch (e) {}
+    };
+    try {
+        const saved = localStorage.getItem(key);
+        if (saved && !textarea.value) {
+            textarea.value = saved;
+            textarea.dispatchEvent(new Event('input'));  // sizes the box
+        }
+    } catch (e) {}
+    textarea.addEventListener('input', () => { sent = null; save(); });
+    window.addEventListener('pagehide', save);
+    return {
+        clear() {
+            sent = textarea.value;
+            try { localStorage.removeItem(key); } catch (e) {}
+        },
+    };
+}
+
 function composerTools(form, textarea) {
     const maxBytes = Number(form.dataset.maxUpload) || 7 * 1024 * 1024;
     const fileInput = form.querySelector('.composer-file-input');

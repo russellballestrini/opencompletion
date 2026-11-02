@@ -261,6 +261,8 @@ socket.on("active_users", (data) => {
 
 // Attach & speak (static/js/composer.js), in our message box.
 const chatTools = composerTools(document.getElementById("message-form"), document.getElementById("message"));
+// This room's unsent words, kept apart from home's & every other room's.
+const chatDraft = keepDraft(document.getElementById("message"), "room:" + room_name);
 // Enter or Send again while files upload must not send them twice.
 let uploadingFiles = false;
 
@@ -293,6 +295,7 @@ async function sendMessage() {
             "room_name": room_name,
             "enable_thinking": enableThinking  // false => ask model to skip chain-of-thought
         });
+        chatDraft.clear();
         messageTextarea.value = "";
         // Reset textarea height after sending
         messageTextarea.style.height = 'auto';

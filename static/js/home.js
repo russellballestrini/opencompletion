@@ -20,6 +20,8 @@ const errorEl = document.getElementById('composer-error');
 const modeButtons = [...document.querySelectorAll('.mode-btn')];
 // Attach & speak (static/js/composer.js), in our message box.
 const homeTools = composerTools(composer, input);
+// Home's unsent words, kept apart from every room's.
+const homeDraft = keepDraft(input, 'home');
 
 function storedMode() {
     try { return localStorage.getItem(MODE_KEY); } catch (e) { return null; }
@@ -151,6 +153,7 @@ async function startChat() {
         }
         try { localStorage.setItem('selectedModel', modelSelect.value); } catch (e) {}
         if (mode !== 'private') rememberRecentChat(room);
+        homeDraft.clear();  // sent: it lives in its chat now
         // tests/functional/test_home.py records the address instead of leaving.
         const open = window.startChatNavigate || (url => { window.location.href = url; });
         open(`/chat/${encodeURIComponent(room)}`);
