@@ -231,6 +231,42 @@ class Blob(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
 
+class RoomEvent(db.Model):
+    """One event in a room's append-only, hash-chained history (chain.py):
+    a person's message, a tool call's result, a model's reply, an edit,
+    a fork, a deletion. `line` is the exact unfirehose-chain-v1 bytes its
+    `hash` covers. Insert-only. No foreign key on room_id: a room's chain
+    outlives the room, as forensics (fox, 2026-11-02). `chain` names one
+    room's life (id @ created_at): SQLite may hand a deleted room's id to
+    a new room, which must start its own chain, not continue the old one."""
+
+    __table_args__ = (db.UniqueConstraint("chain", "seq", name="uq_room_event_seq"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    chain = db.Column(db.String(64), nullable=False, index=True)
+    room_id = db.Column(db.Integer, nullable=False, index=True)
+    room_name = db.Column(db.String(128), nullable=False)
+    seq = db.Column(db.Integer, nullable=False)
+    type = db.Column(db.String(32), nullable=False)
+    message_id = db.Column(db.Integer, nullable=True, index=True)
+    line = db.Column(db.UnicodeText, nullable=False)
+    hash = db.Column(db.String(64), nullable=False, index=True)
+    created_at = db.Column(db.Float, nullable=False, default=time.time)
+
+
+class RoomCheckpoint(db.Model):
+    """A merkle-v1 root over a room's event hashes, seq 0..upto_seq
+    (rootSemantics SEQUENCE): what a proof for one event is checked
+    against. Insert-only, kept after its room, like RoomEvent."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    chain = db.Column(db.String(64), nullable=False, index=True)
+    room_id = db.Column(db.Integer, nullable=False, index=True)
+    upto_seq = db.Column(db.Integer, nullable=False)
+    root = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(db.Float, nullable=False, default=time.time)
+
+
 class Attachment(db.Model):
     """One file as posted in one room: who, what name & type, which bytes.
     Served at /attachments/<public_id>/<filename> under the room's access

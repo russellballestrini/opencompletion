@@ -100,3 +100,8 @@ export ENABLE_CODE_GEN_FILENAMES="true"
 # Signs session cookies. Unset, our server makes a random key once & keeps
 # it in instance/secret_key; set it to share one key across servers.
 #export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+
+# Room chains (chain.py): every room's events are hash-chained in our
+# database always; set a directory to also append each line to
+# <dir>/opencompletion-<chain>.jsonl for an outside witness (unfirehose).
+#export OPENCOMPLETION_CHAIN_MIRROR="$HOME/.uncloseai/unfirehose/opencompletion"

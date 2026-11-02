@@ -24,6 +24,7 @@ from routes import DEPS
 from blob_store import copy_attachments, delete_room_attachments
 from throttle import Throttle, client_ip
 from tools.loop import trail_lines
+import chain
 
 bp = Blueprint("rooms", __name__)
 
@@ -293,6 +294,7 @@ def fork_conversation(source_room, up_to=None):
     if up_to is not None:
         copied = copied.filter(Message.id <= up_to)
     relinked = {}
+    pairs = []
     for msg in copied.order_by(Message.id).all():
         content = copy_attachments(msg.content, source_room.id, new_room.id, relinked)
         copy = Message(username=msg.username, content=content, room_id=new_room.id)
@@ -303,7 +305,27 @@ def fork_conversation(source_room, up_to=None):
             msg.tool_trail, source_room.id, new_room.id, relinked
         )
         db.session.add(copy)
+        pairs.append((copy, msg))
     db.session.commit()
+    # The fork's chain begins where it came from (the source chain's head)
+    source_head = chain.events(chain.chain_of(source_room))
+    chain.append(
+        new_room.id,
+        new_room.name,
+        "fork",
+        fromRoomId=source_room.id,
+        fromRoom=source_room.name,
+        fromHead=source_head[-1].hash if source_head else None,
+        uptoMessageId=up_to,
+        copied=[
+            {
+                "messageId": copy.id,
+                "fromMessageId": msg.id,
+                "contentSha256": chain.sha256_text(copy.content),
+            }
+            for copy, msg in pairs
+        ],
+    )
 
     if not new_room.is_private:
         emit_room_list_update(
@@ -428,6 +450,11 @@ def delete_room(room_id):
     if room.owner_id != user.id:
         return jsonify({"error": "Only room owner can delete rooms"}), 403
 
+    # Its chain outlives it (forensics): say who deleted it, & close it on a
+    # root, while the room is still here to name its chain.
+    chain.append(room.id, room.name, "room_deleted", deletedBy=user.id)
+    chain.checkpoint(room.id)
+
     # Delete all messages in the room
     Message.query.filter_by(room_id=room.id).delete()
 
@@ -460,6 +487,35 @@ def _trail(message):
         return []
     keep = ("tool", "label", "where", "status", "error", "sources")
     return [{k: e[k] for k in keep if k in e} for e in trail if isinstance(e, dict)]
+
+
+@bp.route("/api/rooms/<int:room_id>/chain.jsonl")
+def room_chain(room_id):
+    """The room's hash-chained history (chain.py), its lines verbatim, under
+    the room's own access rule: digests & tool outcomes, never its words."""
+    room = db.session.get(Room, room_id)
+    if not room or room_access_denied(room, auth.get_current_user()):
+        return jsonify({"error": "Room not found"}), 404
+    lines = "".join(e.line + "\n" for e in chain.events(chain.chain_of(room)))
+    response = Response(lines, status=200, mimetype="application/jsonl")
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="{room.name}.chain.jsonl"'
+    )
+    return response
+
+
+@bp.route("/api/rooms/<int:room_id>/chain/proof/<event_hash>")
+def room_chain_proof(room_id, event_hash):
+    """A merkle-v1 proof that one event is in the room's chain, against its
+    latest checkpoint covering it (verifiable with uncloseai-cli's or
+    unfirehose's provenance code)."""
+    room = db.session.get(Room, room_id)
+    if not room or room_access_denied(room, auth.get_current_user()):
+        return jsonify({"error": "Room not found"}), 404
+    proved = chain.proof(chain.chain_of(room), event_hash)
+    if not proved:
+        return jsonify({"error": "No such event, or no checkpoint covers it yet"}), 404
+    return jsonify(proved)
 
 
 @bp.route("/download_chat_history", methods=["GET"])

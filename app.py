@@ -80,6 +80,7 @@ import dataclasses
 from types import SimpleNamespace
 
 import tools
+import chain
 from tools import sandbox as tool_sandbox
 
 tools.register(socketio)
@@ -1161,6 +1162,14 @@ def handle_message(data):
     db.session.add(room)
 
     db.session.commit()
+    chain.append(
+        room.id,
+        room.name,
+        "user",
+        messageId=new_message.id,
+        username=username,
+        contentSha256=chain.sha256_text(new_message.content),
+    )
 
     emit(
         "chat_message",
@@ -1328,8 +1337,10 @@ def handle_delete_message(data):
     message, room = message_in_room(msg_id, data.get("room_name"))
     if not message:
         return
+    deleted_by = message.username
     db.session.delete(message)
     db.session.commit()
+    chain.append(room.id, room.name, "delete", messageId=msg_id, username=deleted_by)
 
     # Notify all clients in the room to remove the message from their DOM
     emit("message_deleted", {"message_id": msg_id}, room=room.name)
@@ -1347,6 +1358,14 @@ def handle_update_message(data):
         message.count_tokens()
         db.session.add(message)
         db.session.commit()
+        chain.append(
+            room.id,
+            room_name,
+            "edit",
+            messageId=message.id,
+            username=message.username,
+            contentSha256=chain.sha256_text(new_content),
+        )
 
         # Emit an event to update the message on all clients
         emit(
@@ -1426,6 +1445,22 @@ def handle_edit_and_resend(data):
         old.superseded_by_id = revision.id
     room.updated_at = int(time.time())
     db.session.commit()
+    chain.append(
+        room.id,
+        room.name,
+        "user",
+        messageId=revision.id,
+        username=revision.username,
+        contentSha256=chain.sha256_text(revision.content),
+    )
+    chain.append(
+        room.id,
+        room.name,
+        "supersede",
+        revisionId=revision.id,
+        revisionOf=message.id,
+        supersededIds=[old.id for old in branch],
+    )
 
     emit(
         "messages_hidden",
@@ -2006,6 +2041,7 @@ class ReplyStream:
         self.room_name = room_name
         self.model_name = model_name
         self.room_id = room_id
+        self.tool_events = []  # chain hashes of this reply's tool results
         # buffer: Content buffer for accumulating the chunks
         self.msg_id, self.buffer, resumed_trail = started
         self.enable_thinking = enable_thinking
@@ -2306,6 +2342,28 @@ class ReplyStream:
         event = dict(event, asker=self.username, at=len(self.buffer))
         if event["status"] != "running":
             self.tool_trail.append(event)
+            # Evidence chained before the reply that may cite it (the
+            # list of tools offered goes on the reply's own event)
+            digest = event.get("tool") != "offered" and chain.append(
+                self.room_id,
+                self.room_name,
+                "tool",
+                messageId=self.msg_id,
+                tool=event.get("tool"),
+                label=event.get("label"),
+                where=event.get("where"),
+                asker=self.username,
+                status=event.get("status"),
+                error=event.get("error"),
+                sources=[
+                    s.get("url")
+                    for s in event.get("sources") or []
+                    if isinstance(s, dict)
+                ],
+                resultSha256=event.get("result_sha256"),
+            )
+            if digest:
+                self.tool_events.append(digest)
         # Saved as it goes, so a page opened (or refreshed) mid-reply shows
         # the tool still running & the words so far, not an empty reply.
         self.save_progress(
@@ -2577,6 +2635,18 @@ class ReplyStream:
                 new_message.count_tokens()
                 db.session.add(new_message)
                 db.session.commit()
+                chain.append(
+                    self.room_id,
+                    room_name,
+                    "assistant",
+                    messageId=msg_id,
+                    model=self.model_name,
+                    contentSha256=chain.sha256_text(buffer),
+                    thinkingSha256=chain.sha256_text(new_message.thinking),
+                    toolsOffered=list(getattr(self, "offered", None) or []),
+                    toolEvents=list(self.tool_events),
+                )
+                chain.checkpoint(self.room_id)
 
         socketio.emit(
             "message_chunk",
@@ -3544,7 +3614,41 @@ if __name__ == "__main__":
         action="store_true",
         help="Move base64 images inside messages into our blob store, then exit",
     )
+    parser.add_argument(
+        "--chain-check",
+        action="store_true",
+        help="Verify every room's hash chain (deleted rooms' too), then exit",
+    )
     args = parser.parse_args()
+
+    if args.chain_check:
+        with app.app_context():
+            reports = [chain.verify(key) for key in chain.chains()]
+        for r in reports:
+            print(
+                f"{'ok ' if r['ok'] else 'BAD'} {r['chain']} ({r['room']}): "
+                f"{r['entries']} events, {r['state']}"
+                + ("" if r["room_alive"] else ", room deleted")
+                + (
+                    f", breaks {r['breaks']} first at {r['first_break']} ({r['first_break_reason']})"
+                    if r["breaks"]
+                    else ""
+                )
+                + (f", seq gaps {r['seq_gaps'][:5]}" if r["seq_gaps"] else "")
+                + (
+                    f", bad checkpoints {r['bad_checkpoints'][:5]}"
+                    if r["bad_checkpoints"]
+                    else ""
+                )
+                + (
+                    f", changed messages {r['content_mismatches'][:10]}"
+                    if r["content_mismatches"]
+                    else ""
+                )
+            )
+        bad = sum(not r["ok"] for r in reports)
+        print(f"{len(reports)} chain(s), {bad} with a problem.")
+        raise SystemExit(1 if bad else 0)
 
     if args.backfill_blobs:
         moved, changed = backfill_blobs()

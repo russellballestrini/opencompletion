@@ -15,7 +15,9 @@ import os
 import re
 from urllib.parse import quote
 
-from models import Attachment, Blob, db
+from models import Attachment, Blob, Room, db
+
+import chain
 
 DEFAULT_MAX_MB = 7
 
@@ -119,6 +121,19 @@ def save_attachment(room_id, data, filename, mime_type, username, source_url=Non
     )
     db.session.add(attachment)
     db.session.commit()
+    room = db.session.get(Room, room_id)
+    if room:  # chained: which bytes this room was handed, & by whom
+        chain.append(
+            room_id,
+            room.name,
+            "attachment",
+            attachmentId=attachment.id,
+            sha256=attachment.sha256,
+            filename=attachment.filename,
+            size=attachment.size,
+            username=username,
+            sourceUrl=source_url,
+        )
     return attachment
 
 

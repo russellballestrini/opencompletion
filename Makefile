@@ -46,6 +46,7 @@ help:
 	@echo "  classifier-check     - Smoke test our classifier model (network)"
 	@echo "  backfill-titles      - Title untitled rooms for our sidebars (network)"
 	@echo "  backfill-blobs       - Move base64 images inside messages into our blob store"
+	@echo "  chain-check          - Verify every room's hash chain, deleted rooms' too (fails on any break)"
 	@echo "  jev-bench            - Self-play Jev Reasoner's probability grid (no network)"
 	@echo "  arena                - Every battleship mode plays every other (network)"
 	@echo "  test-artifact        - Compile C on a code executor & run the binary (network)"
@@ -295,6 +296,16 @@ classifier-check: venv
 	venv/bin/python classifier.py
 
 # Title every untitled room that holds a conversation (network: a chat model)
+.PHONY: chain-check
+chain-check: venv
+	@echo "🔗 Verifying every room's hash chain (deleted rooms' too)..."
+	@if [ -f vars.sh ]; then \
+		. ./vars.sh && OPENCOMPLETION_SKIP_MODEL_MAP=1 venv/bin/python app.py --chain-check; \
+	else \
+		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \
+		exit 1; \
+	fi
+
 .PHONY: backfill-blobs
 backfill-blobs: venv
 	@echo "🗄️  Moving base64 images in messages into our blob store..."

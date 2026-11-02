@@ -9,6 +9,7 @@ app.chat_gpt streams again with those added, until the model answers
 without a tool (or OPENCOMPLETION_TOOL_ROUNDS runs out).
 """
 
+import hashlib
 import json
 import re
 import time
@@ -391,12 +392,15 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
             done.update(status="error", error=str(result["error"])[:200])
         else:
             done.update(status="done", sources=sources_of(result))
+        # Exactly what the model is handed, & its digest for our chain
+        seen = json.dumps(result, ensure_ascii=False)
+        done["result_sha256"] = hashlib.sha256(seen.encode("utf-8")).hexdigest()
         notify(done)
         messages.append(
             {
                 "role": "tool",
                 "tool_call_id": call["id"],
-                "content": json.dumps(result, ensure_ascii=False),
+                "content": seen,
             }
         )
     return messages

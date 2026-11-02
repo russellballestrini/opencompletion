@@ -3,6 +3,7 @@ asks for, hands back what they found & streams the answer into the same
 reply; a guest's search makes a real round trip through their socket."""
 
 import json
+import re
 from types import SimpleNamespace
 
 import gevent
@@ -415,6 +416,10 @@ def test_a_reply_keeps_its_tool_lines_for_history_and_forks(
         "asker": "ada",
         "at": 0,  # where in the reply's text it happened
     }
+    # Each finished line carries the sha256 of the result as the model was
+    # handed it (chain.py chains it as evidence)
+    digest = trail[1].get("result_sha256", "")
+    assert re.fullmatch(r"[0-9a-f]{64}", digest)
     assert trail[1:] == [
         {
             "tool": "web_search",
@@ -422,6 +427,7 @@ def test_a_reply_keeps_its_tool_lines_for_history_and_forks(
             "where": "browser",
             "status": "done",
             "sources": [{"url": "https://a.org/", "title": "A"}],
+            "result_sha256": digest,
             "asker": "ada",
             "at": 0,
         }
