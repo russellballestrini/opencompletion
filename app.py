@@ -207,8 +207,8 @@ FAILOVER_ERRORS = (openai.APIConnectionError, openai.InternalServerError)
 def open_with_failover(openai_client, model_name, open_stream):
     """open_stream(client) starts a completion; if opening the stream fails
     (no connection, a timeout, a 5xx), mark that endpoint down & try the next
-    one serving this same model. Only opening is retried: a stream that
-    breaks while it is read, even before its first token, is not."""
+    one serving this same model. Only opening is retried here: a stream
+    that breaks while it is read carries on (ReplyStream.carry_on)."""
     given = str(getattr(openai_client, "base_url", ""))
     endpoints = endpoints_for_model(model_name)
     # Health is keyed by the configured URL; the client's own adds a "/".
@@ -1699,6 +1699,23 @@ def thinking_budget():
     return max(0, _env_int("OPENCOMPLETION_THINKING_BUDGET", DEFAULT_THINKING_BUDGET))
 
 
+DEFAULT_STREAM_RETRIES = 2
+
+
+def stream_retries():
+    """OPENCOMPLETION_STREAM_RETRIES (2; 0 = off): how often a reply whose
+    stream breaks while it is read asks again, carrying on where it
+    stopped (ReplyStream.carry_on)."""
+    return max(0, _env_int("OPENCOMPLETION_STREAM_RETRIES", DEFAULT_STREAM_RETRIES))
+
+
+# What a reply whose stream broke is told when it is asked to carry on.
+STREAM_BROKE_NOTE = (
+    "(Your reply was cut off by a network error. Continue exactly where it "
+    "stopped, without repeating anything.)"
+)
+
+
 def answer_tokens():
     """OPENCOMPLETION_ANSWER_TOKENS (8192; 0 = no cap): the answer a model
     writes from its notes once its thinking ran past its budget."""
@@ -2005,6 +2022,9 @@ class ReplyStream:
         self.with_tools, self.rounds, self.round_start = chat_history, 0, 0
         self.chunks = None
         self.looped, self.cut_at_limit = None, False
+        # The ask being streamed (its kwargs, skip_thinking), so a stream
+        # that breaks is asked again (carry_on); breaks so far this reply.
+        self.last_ask, self.stream_breaks = None, 0
         self.cap, self.cap_name = None, "OPENCOMPLETION_MAX_TOKENS"
         self.footnote = ""
         self.notice = ""
@@ -2076,12 +2096,59 @@ class ReplyStream:
         # level. Endpoints that reject the chat_template_kwargs param
         # (OpenAI, Groq, Mistral, Gemini) get retried without it inside the
         # helper; templates that ignore the kwarg (e.g. Hermes) simply drop it.
+        self.last_ask = (self.create_kwargs, not self.enable_thinking)
         return open_completion(
             client,
             self.create_kwargs,
             skip_thinking=not self.enable_thinking,
             refusals=self.tool_refusals,
         )
+
+    def open_ask(self, kwargs, skip_thinking, remember=True):
+        """Open a stream for `kwargs`, failing over to another endpoint
+        serving this model; remembered as the ask being read (carry_on)."""
+        if remember:
+            self.last_ask = (kwargs, skip_thinking)
+        return open_with_failover(
+            self.openai_client,
+            self.model_name,
+            lambda client: open_completion(
+                client, kwargs, skip_thinking=skip_thinking, refusals=self.tool_refusals
+            ),
+        )
+
+    def carry_on(self, error, ask_start):
+        """The stream broke while it was read: ask again, handing the model
+        what it wrote of this ask (from ask_start) to continue from, up to
+        stream_retries() times a reply. The new stream, or None when the
+        reply ends here (saying why)."""
+        if self.room_name in stop_requests or self.last_ask is None:
+            return None
+        self.stream_breaks += 1
+        print(
+            f"[WARN] {self.model_name} stream broke in {self.room_name} "
+            f"({self.stream_breaks}/{stream_retries()}): {error}"
+        )
+        if self.stream_breaks <= stream_retries():
+            kwargs, skip_thinking = self.last_ask
+            partial = self.buffer[ask_start:]
+            if partial:
+                kwargs = dict(
+                    kwargs,
+                    messages=list(kwargs["messages"])
+                    + [
+                        {"role": "assistant", "content": partial},
+                        {"role": "user", "content": STREAM_BROKE_NOTE},
+                    ],
+                )
+            if self.tool_calls is not None:  # half-streamed calls are dropped
+                self.tool_calls = tools.ToolCallCollector()
+            try:
+                return self.open_ask(kwargs, skip_thinking, remember=False)
+            except Exception as e:  # noqa: BLE001 — said below, like the break
+                error = e
+        self.notice = f"\n\n_The stream from {self.model_name} broke ({error})._"
+        return None
 
     def fail(self, e):
         """The first ask failed: the reply becomes its error."""
@@ -2138,47 +2205,57 @@ class ReplyStream:
         # answer is cut off, and closing our stream makes the server stop.
         thinking_guard, answer_guard = RepetitionGuard(), RepetitionGuard()
         thought, cut = 0, False
-        for chunk in chunks:
-            # Check if there has been a cancellation request, stop if so.
-            if cancellation_requests.get(msg_id) or room_name in stop_requests:
-                cancellation_requests.pop(msg_id, None)
-                # Hang up, so the model server stops generating too.
-                getattr(chunks, "close", lambda: None)()
-                return None, False, False
-            if not chunk.choices:
-                continue
-            if getattr(chunk.choices[0], "finish_reason", None) == "length":
-                cut = True
-            delta = chunk.choices[0].delta
-            # Qwen3.x / Deepseek-R1 / o1: thinking streams via
-            # delta.reasoning_content (vLLM >= 0.31: delta.reasoning), the
-            # answer via delta.content. Thinking goes to the client as its
-            # own channel (a collapsible block) & is saved apart from the
-            # answer, never sent back to a model as history.
-            reasoning = getattr(delta, "reasoning_content", None) or getattr(
-                delta, "reasoning", None
-            )
-            if reasoning:
-                socketio.emit(
-                    "message_chunk",
-                    {"id": msg_id, "reasoning_content": reasoning},
-                    room=room_name,
-                )
-                socketio.sleep(0)
-                self.thinking_parts.append(reasoning)
-                thought += len(reasoning)
-                if thinking_guard.add(reasoning):
-                    return ("thinking", thinking_guard.looping), False, False
-                if budget_chars and self.first_chunk and thought > budget_chars:
-                    return None, False, True
-            if self.tool_calls is not None and getattr(delta, "tool_calls", None):
-                self.tool_calls.add(delta.tool_calls)
-            content = delta.content
-            if content:
-                self.emit_content(content)
-                if answer_guard.add(content):
-                    return ("reply", answer_guard.looping), False, False
-        return None, cut, False
+        ask_start = len(self.buffer)
+        while True:
+            try:
+                for chunk in chunks:
+                    # Check if there has been a cancellation request, stop if so.
+                    if cancellation_requests.get(msg_id) or room_name in stop_requests:
+                        cancellation_requests.pop(msg_id, None)
+                        # Hang up, so the model server stops generating too.
+                        getattr(chunks, "close", lambda: None)()
+                        return None, False, False
+                    if not chunk.choices:
+                        continue
+                    if getattr(chunk.choices[0], "finish_reason", None) == "length":
+                        cut = True
+                    delta = chunk.choices[0].delta
+                    # Qwen3.x / Deepseek-R1 / o1: thinking streams via
+                    # delta.reasoning_content (vLLM >= 0.31: delta.reasoning), the
+                    # answer via delta.content. Thinking goes to the client as its
+                    # own channel (a collapsible block) & is saved apart from the
+                    # answer, never sent back to a model as history.
+                    reasoning = getattr(delta, "reasoning_content", None) or getattr(
+                        delta, "reasoning", None
+                    )
+                    if reasoning:
+                        socketio.emit(
+                            "message_chunk",
+                            {"id": msg_id, "reasoning_content": reasoning},
+                            room=room_name,
+                        )
+                        socketio.sleep(0)
+                        self.thinking_parts.append(reasoning)
+                        thought += len(reasoning)
+                        if thinking_guard.add(reasoning):
+                            return ("thinking", thinking_guard.looping), False, False
+                        if budget_chars and self.first_chunk and thought > budget_chars:
+                            return None, False, True
+                    if self.tool_calls is not None and getattr(
+                        delta, "tool_calls", None
+                    ):
+                        self.tool_calls.add(delta.tool_calls)
+                    content = delta.content
+                    if content:
+                        self.emit_content(content)
+                        if answer_guard.add(content):
+                            return ("reply", answer_guard.looping), False, False
+                return None, cut, False
+            except Exception as e:  # noqa: BLE001 — a broken stream carries on
+                chunks = self.carry_on(e, ask_start)
+                if chunks is None:
+                    return None, False, False
+                self.chunks = chunks
 
     def save_checkpoint(self, state):
         """A long call (delegate) started: keep where to pick this reply up
@@ -2268,13 +2345,7 @@ class ReplyStream:
         else:
             answer_kwargs.pop("max_tokens", None)
         try:
-            self.chunks = open_with_failover(
-                self.openai_client,
-                model_name,
-                lambda client: open_completion(
-                    client, answer_kwargs, skip_thinking=True
-                ),
-            )
+            self.chunks = self.open_ask(answer_kwargs, True)
             self.looped, self.cut_at_limit, _ = self.consume(self.chunks, 0)
             self.footnote = (
                 f"\n\n_Thought past its {budget}-token budget "
@@ -2371,16 +2442,7 @@ class ReplyStream:
             ask["messages"] = with_tools + [tools.out_of_rounds(rounds)]
         self.tool_calls = tools.ToolCallCollector() if "tools" in ask else None
         try:
-            self.chunks = open_with_failover(
-                self.openai_client,
-                self.model_name,
-                lambda client: open_completion(
-                    client,
-                    ask,
-                    skip_thinking=not self.enable_thinking,
-                    refusals=self.tool_refusals,
-                ),
-            )
+            self.chunks = self.open_ask(ask, not self.enable_thinking)
         except Exception as e:
             self.emit_content(
                 f"\n\n_{self.model_name} could not answer after its tools: {e}_"

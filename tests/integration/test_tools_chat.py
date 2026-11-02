@@ -679,3 +679,66 @@ def test_a_reply_linking_its_own_files_is_not_corrected(harness):
 
     assert len(harness.model.asks) == 1
     assert reply_of("qwen").content == f"Here: ![plot]({plot.url})"
+
+
+def breaks(*pieces):
+    """A stream that yields `pieces` & then breaks, as a dropped connection
+    does mid-read."""
+    import openai
+
+    for piece in pieces:
+        yield piece
+    raise openai.APIConnectionError(request=None)
+
+
+def test_a_stream_that_breaks_mid_reply_carries_on_where_it_stopped(harness):
+    harness.model.scripts = [
+        breaks(chunk(content="The capital of France "), chunk(content="is ")),
+        [chunk(content="Paris.")],
+    ]
+
+    harness.app.chat_gpt("ada", "geo", model_name="qwen")
+
+    first, second = harness.model.asks
+    turn, note = second["messages"][-2:]
+    assert turn == {"role": "assistant", "content": "The capital of France is "}
+    assert note["role"] == "user" and "cut off" in note["content"]
+    assert reply_of("qwen").content == "The capital of France is Paris."
+    assert any(
+        a[0] == "message_chunk" and a[1].get("is_complete") for a, k in harness.emitted
+    )
+
+
+def test_a_stream_that_breaks_before_any_answer_is_asked_again_as_it_was(harness):
+    harness.model.scripts = [breaks(), [chunk(content="Paris.")]]
+
+    harness.app.chat_gpt("ada", "geo", model_name="qwen")
+
+    first, second = harness.model.asks
+    assert second["messages"] == first["messages"]
+    assert reply_of("qwen").content == "Paris."
+
+
+def test_a_stream_that_keeps_breaking_ends_the_reply_saying_so(harness, monkeypatch):
+    monkeypatch.setenv("OPENCOMPLETION_STREAM_RETRIES", "1")
+    harness.model.scripts = [
+        breaks(chunk(content="The capital ")),
+        breaks(chunk(content="of France ")),
+    ]
+
+    harness.app.chat_gpt("ada", "geo", model_name="qwen")
+
+    assert len(harness.model.asks) == 2
+    content = reply_of("qwen").content
+    assert content.startswith("The capital of France ")
+    assert "The stream from qwen broke" in content  # saved, & says why
+
+
+def test_stream_retries_off_keeps_what_came_and_says_why(harness, monkeypatch):
+    monkeypatch.setenv("OPENCOMPLETION_STREAM_RETRIES", "0")
+    harness.model.scripts = [breaks(chunk(content="The capital "))]
+
+    harness.app.chat_gpt("ada", "geo", model_name="qwen")
+
+    assert len(harness.model.asks) == 1
+    assert reply_of("qwen").content.startswith("The capital \n\n_The stream from")
