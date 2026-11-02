@@ -12,6 +12,7 @@ omit =
 [report]
 include =
     activity.py
+    activity_engine.py
     activity_utils.py
     activity_yaml_validator.py
     app.py
