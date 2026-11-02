@@ -77,7 +77,7 @@ def test_transcripts_carry_each_replys_tools(room, test_app):
     data = client.get(
         "/download_chat_history", query_string={"room_name": "lobby"}
     ).get_json()
-    reply = [m for m in data if m["content"] == "It is live."][0]
+    reply = [m for m in data["messages"] if m["content"] == "It is live."][0]
     assert reply["tools"][0] == {
         "tool": "web_fetch",
         "label": "https://github.com/rockrms/Rock",

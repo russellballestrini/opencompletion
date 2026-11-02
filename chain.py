@@ -234,9 +234,10 @@ def verify(chain):
     return report
 
 
-def _content_mismatches(chained, room_id):
-    """Ids of the room's messages whose words no longer match the last
-    digest chained for them; deleted ones are skipped."""
+def _latest(chained):
+    """messageId -> (RoomEvent, contentSha256) of the last event to record
+    each message's words (user, assistant, edit, or a fork's copy); a
+    delete forgets it."""
     latest = {}
     for e in chained:
         try:
@@ -245,12 +246,19 @@ def _content_mismatches(chained, room_id):
             continue
         kind = body.get("type")
         if kind in ("user", "assistant", "edit") and body.get("messageId"):
-            latest[body["messageId"]] = body.get("contentSha256")
+            latest[body["messageId"]] = (e, body.get("contentSha256"))
         elif kind == "fork":
             for copy in body.get("copied") or []:
-                latest[copy["messageId"]] = copy.get("contentSha256")
+                latest[copy["messageId"]] = (e, copy.get("contentSha256"))
         elif kind == "delete" and body.get("messageId"):
             latest.pop(body["messageId"], None)
+    return latest
+
+
+def _content_mismatches(chained, room_id):
+    """Ids of the room's messages whose words no longer match the last
+    digest chained for them; deleted ones are skipped."""
+    latest = {mid: digest for mid, (_, digest) in _latest(chained).items()}
     mismatched = []
     for message_id, digest in latest.items():
         message = db.session.get(Message, message_id)
@@ -259,6 +267,84 @@ def _content_mismatches(chained, room_id):
         if sha256_text(message.content) != digest:
             mismatched.append(message_id)
     return mismatched
+
+
+def evidence(room):
+    """What a room's transcript carries so a reader can check it without
+    us: the chain's root (a checkpoint, made now if the newest events
+    lack one) & per message its event line (digests only) & a merkle-v1
+    proof of that line under the root. None for a room with no chain.
+    fox, 2026-11-02: downloads are Merkle-backed."""
+    key = chain_of(room)
+    chained = events(key)
+    if not chained:
+        return None
+    mark = (
+        RoomCheckpoint.query.filter_by(chain=key)
+        .order_by(RoomCheckpoint.upto_seq.desc(), RoomCheckpoint.id.desc())
+        .first()
+    )
+    if mark is None or mark.upto_seq < chained[-1].seq:
+        mark = checkpoint(room.id) or mark
+    if mark is None:
+        return None
+    covered = [e.hash for e in chained if e.seq <= mark.upto_seq]
+    tree = P.MerkleTree.build(P.hash_leaf(bytes.fromhex(h)) for h in covered)
+    where = {h: i for i, h in enumerate(covered)}
+    messages = {}
+    for message_id, (event, digest) in _latest(chained).items():
+        if event.hash in where:
+            messages[message_id] = {
+                "messageId": message_id,
+                "event": event.hash,
+                "line": event.line,
+                "contentSha256": digest,
+                "proof": P.proof_to_dict(tree.proof(where[event.hash])),
+            }
+    return {
+        "chain": key,
+        "root": mark.root,
+        "uptoSeq": mark.upto_seq,
+        "rule": P.version_fields(),
+        "messages": messages,
+    }
+
+
+def verify_message(content, block, root=None):
+    """(ok, why) for one transcript message & its `chain` block, using only
+    the shared provenance code, as any reader can: its words hash to the
+    digest its event line recorded, the line hashes to its hash, & the
+    proof leads from that hash to the root (`root`, when given, must be
+    the root the reader trusts, e.g. from chain.jsonl or a witness)."""
+    if not block:
+        return False, "not chained"
+    split = P.split_chained_line(block["line"].encode("utf-8"))
+    if split is None or split[1] != block["event"]:
+        return False, "the event line does not hash to its event"
+    body = json.loads(split[0])
+    if body.get("type") == "fork":  # a fork's event records every copy
+        recorded = next(
+            (
+                c.get("contentSha256")
+                for c in body.get("copied") or []
+                if c.get("messageId") == block.get("messageId")
+            ),
+            None,
+        )
+    elif body.get("messageId") == block.get("messageId"):
+        recorded = body.get("contentSha256")
+    else:
+        return False, "the event line is about another message"
+    if recorded != block.get("contentSha256") or sha256_text(content) != recorded:
+        return False, "the words do not match the digest the chain recorded"
+    proof = P.proof_from_dict(block["proof"])
+    if proof.leaf != P.hash_leaf(bytes.fromhex(block["event"])):
+        return False, "the proof is for another event"
+    if not P.verify_proof(proof):
+        return False, "the proof does not lead to its root"
+    if root is not None and proof.root.hex() != root:
+        return False, "the proof leads to another root"
+    return True, "verified"
 
 
 def chains():

@@ -532,23 +532,43 @@ def download_chat_history():
     if not messages:
         return jsonify({"error": "No messages found"}), 404
 
-    # A reply's tool calls go with it (each its tool, label, status, error
-    # & sources), so a transcript shows what a reply was based on.
+    # One document: the room, its chain's root, & each message with its
+    # tool calls (what a reply was based on) & its chain block (its event
+    # line & a merkle-v1 proof under that root, chain.evidence), so a
+    # reader checks the words weren't changed without us
+    # (chain.verify_message). A message's chain is null when not chained.
+    proved = chain.evidence(room)
+    proofs = (proved or {}).get("messages", {})
     chat_history = [
         {
-            "role": "system" if message.username in DEPS["system_users"] else "user",
+            "id": message.id,
+            "username": message.username,
+            "role": "assistant" if message.username in DEPS["system_users"] else "user",
             "content": message.content,
             **({"tools": _trail(message)} if message.tool_trail else {}),
+            "chain": proofs.get(message.id),
         }
         for message in messages
         if not message.is_base64_image()
     ]
-
     if not chat_history:
         return jsonify({"error": "No valid messages found"}), 404
 
+    transcript = {
+        "$schema": "opencompletion-transcript/1",
+        "room": {"id": room.id, "name": room.name, "title": room.title},
+        "chain": proved
+        and {
+            "chain": proved["chain"],
+            "root": proved["root"],
+            "uptoSeq": proved["uptoSeq"],
+            "rule": proved["rule"],
+            "lines": f"/api/rooms/{room.id}/chain.jsonl",
+        },
+        "messages": chat_history,
+    }
     response = Response(
-        response=json.dumps(chat_history, indent=2),
+        response=json.dumps(transcript, indent=2, ensure_ascii=False),
         status=200,
         mimetype="application/json",
     )
@@ -573,6 +593,8 @@ def download_chat_history_md():
     # Access system users from the existing context
     chat_history_md = []
     toc = []
+    proved = chain.evidence(room) or {}
+    proofs = proved.get("messages", {})
     for index, message in enumerate(messages):
         if not message.is_base64_image():  # Correctly call the method
             role = "System" if message.username in DEPS["system_users"] else "User"
@@ -586,7 +608,17 @@ def download_chat_history_md():
             )
             if tools_md:
                 tools_md = f"\n\n**Tools:**{tools_md}"
-            chat_history_md.append(f"{header}\n\n{message.content}{tools_md}\n\n---\n")
+            # Its chain event: the digest of these exact words, under the root
+            block = proofs.get(message.id)
+            chained = (
+                f"\n\n<sub>chain event `{block['event']}` · sha256 "
+                f"`{block['contentSha256']}`</sub>"
+                if block
+                else ""
+            )
+            chat_history_md.append(
+                f"{header}\n\n{message.content}{tools_md}{chained}\n\n---\n"
+            )
 
     if not chat_history_md:
         return jsonify({"error": "No valid messages found"}), 404
@@ -598,6 +630,17 @@ def download_chat_history_md():
         + "\n".join(chat_history_md)
     )
 
+    if proved:
+        # How a reader checks this transcript without us
+        markdown_content += (
+            "\n## Verification\n\n"
+            f"Chain `{proved['chain']}`, root `{proved['root']}` "
+            f"(merkle-v1 over events 0..{proved['uptoSeq']}, "
+            "unfirehose-chain-v1 lines). Each turn's sha256 is of its words "
+            "exactly as above; its event line & proof are in the JSON download, "
+            "& the whole chain at "
+            f"`/api/rooms/{room.id}/chain.jsonl`.\n"
+        )
     response = Response(response=markdown_content, status=200, mimetype="text/markdown")
     response.headers["Content-Disposition"] = f'attachment; filename="{room.name}.md"'
     return response

@@ -84,6 +84,9 @@ def quiet(monkeypatch):
 
     monkeypatch.setattr(app_module.gevent, "spawn", lambda *a, **k: None)
     monkeypatch.setattr(app_module, "SYSTEM_USERS", ["qwen"])
+    from routes import DEPS
+
+    monkeypatch.setitem(DEPS, "system_users", ["qwen"])
 
 
 def test_messages_edits_deletes_and_resends_are_chained(test_app, quiet):
@@ -287,3 +290,88 @@ def test_chaining_never_breaks_what_it_records(test_app, quiet, monkeypatch):
     )
     assert Message.query.filter_by(content="still sent").count() == 1
     assert RoomEvent.query.count() == 0
+
+
+def test_downloads_are_merkle_backed_and_check_without_us(test_app, quiet):
+    """fox, 2026-11-02: a room's JSON & Markdown downloads carry, per
+    message, its chain event & a merkle-v1 proof under the room's root, so
+    a reader checks the words weren't changed with the shared provenance
+    code alone."""
+    room = make_room("lobby")
+    ada = socket_for(test_app)
+    for words in ("is rock rms on github?", "where is SparkDevNetwork/Rock?"):
+        ada.emit(
+            "chat_message",
+            {
+                "room_name": "lobby",
+                "username": "ada",
+                "message": words,
+                "model": "None",
+            },
+        )
+    reply = Message(
+        username="qwen", content="github.com/SparkDevNetwork/Rock", room_id=room.id
+    )
+    db.session.add(reply)
+    db.session.commit()
+    chain.append(
+        room.id,
+        "lobby",
+        "assistant",
+        messageId=reply.id,
+        model="qwen",
+        contentSha256=chain.sha256_text(reply.content),
+        toolEvents=[],
+    )
+    client = test_app.test_client()
+
+    doc = client.get(
+        "/download_chat_history", query_string={"room_name": "lobby"}
+    ).get_json()
+    assert (
+        doc["$schema"] == "opencompletion-transcript/1"
+        and doc["room"]["name"] == "lobby"
+    )
+    root = doc["chain"]["root"]
+    assert [m["role"] for m in doc["messages"]] == ["user", "user", "assistant"]
+    for message in doc["messages"]:
+        assert chain.verify_message(message["content"], message["chain"], root) == (
+            True,
+            "verified",
+        )
+    # The same root the room's own chain checkpoint holds
+    lines = client.get(doc["chain"]["lines"]).data.splitlines()
+    assert P.session_root(json.loads(line)["hash"] for line in lines) == root
+
+    # One changed word, a swapped event, or another root: each is caught
+    answer = doc["messages"][2]
+    assert (
+        chain.verify_message("github.com/rockrms/Rock", answer["chain"], root)[0]
+        is False
+    )
+    assert (
+        chain.verify_message(answer["content"], doc["messages"][0]["chain"], root)[0]
+        is False
+    )
+    assert (
+        chain.verify_message(answer["content"], answer["chain"], "0" * 64)[0] is False
+    )
+
+    md = client.get(
+        "/download_chat_history_md", query_string={"room_name": "lobby"}
+    ).get_data(as_text=True)
+    assert f"chain event `{answer['chain']['event']}`" in md
+    assert f"root `{root}`" in md and "## Verification" in md
+
+
+def test_an_unchained_message_says_so(test_app, quiet):
+    room = make_room("lobby")
+    db.session.add(Message(username="ada", content="before chains", room_id=room.id))
+    db.session.commit()
+    doc = (
+        test_app.test_client()
+        .get("/download_chat_history", query_string={"room_name": "lobby"})
+        .get_json()
+    )
+    assert doc["chain"] is None and doc["messages"][0]["chain"] is None
+    assert chain.verify_message("before chains", None) == (False, "not chained")
