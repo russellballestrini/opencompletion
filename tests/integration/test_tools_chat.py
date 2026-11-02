@@ -625,3 +625,57 @@ def test_a_reply_is_saved_as_it_goes_so_a_refresh_mid_tool_shows_it(
         ("offered", "done"),
         ("web_search", "done"),
     ]
+
+
+def test_a_reply_linking_a_file_that_is_not_there_gets_one_correction_round(
+    harness,
+):
+    """A model invented an /attachments/ link: it is asked once more, with
+    its tools, naming the link; the dead link reads as words in the end."""
+    ghost = "/attachments/0123456789abcdef0123456789abcdef/plot.png"
+    harness.model.scripts = [
+        [chunk(content=f"Here is the plot: ![plot]({ghost})")],
+        [chunk(content="I have no plot to share yet.")],
+    ]
+    asker = tools.ToolContext(sid="sid-ada")  # a guest: run_code only
+
+    harness.app.chat_gpt("ada", "plots", model_name="qwen", tool_context=asker)
+
+    first, second = harness.model.asks
+    assert "tools" in second  # it may make the file now
+    turn, note = second["messages"][-2:]
+    assert turn == {
+        "role": "assistant",
+        "content": f"Here is the plot: ![plot]({ghost})",
+    }
+    assert note["role"] == "user" and ghost in note["content"]
+    content = reply_of("qwen").content
+    assert "plot (no such file in this chat)" in content and ghost not in content
+    assert content.endswith("I have no plot to share yet.")
+    (links,) = [a[1] for a, k in harness.emitted if a[0] == "message_links"]
+    assert links["missing"] == [ghost]
+
+
+def test_a_reply_linking_its_own_files_is_not_corrected(harness):
+    from blob_store import save_attachment
+    from models import Room, db
+
+    room = Room(name="plots")
+    db.session.add(room)
+    db.session.commit()
+    plot = save_attachment(room.id, b"\x89PNG", "plot.png", "image/png", "ada")
+    other = Room(name="elsewhere")
+    db.session.add(other)
+    db.session.commit()
+    theirs = save_attachment(other.id, b"\x89PNG", "x.png", "image/png", "bo")
+    from blob_store import dead_attachment_links
+
+    text = f"![plot]({plot.url}) and [x]({theirs.url}) and [y](/attachments/nope/y)"
+    assert dead_attachment_links(text, room.id) == [theirs.url, "/attachments/nope/y"]
+
+    harness.model.scripts = [[chunk(content=f"Here: ![plot]({plot.url})")]]
+    asker = tools.ToolContext(sid="sid-ada")
+    harness.app.chat_gpt("ada", "plots", model_name="qwen", tool_context=asker)
+
+    assert len(harness.model.asks) == 1
+    assert reply_of("qwen").content == f"Here: ![plot]({plot.url})"

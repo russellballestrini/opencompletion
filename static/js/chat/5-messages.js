@@ -653,7 +653,10 @@ socket.on("message_links", (data) => {
             if (el.getAttribute("href") !== path && el.getAttribute("src") !== path) return;
             const said = document.createElement("span");
             said.className = "message-missing-file";
-            said.textContent = `${el.textContent || el.getAttribute("alt") || path} (not shared: no file at ${path} in this chat's sandbox)`;
+            const label = el.textContent || el.getAttribute("alt") || path;
+            said.textContent = path.startsWith("/attachments/")
+                ? `${label} (no such file in this chat)`
+                : `${label} (not shared: no file at ${path} in this chat's sandbox)`;
             el.replaceWith(said);
         });
     }

@@ -273,6 +273,24 @@ def room_attachments(content, room_id):
     return found
 
 
+# A markdown link (or image) to an attachment path, well formed or not: a
+# model guessing a link writes ids no file ever had.
+LINKED_ATTACHMENT = re.compile(r"\]\((/attachments/[^)\s]+)\)")
+
+
+def dead_attachment_links(content, room_id):
+    """The /attachments/ paths `content` links to that are no file of
+    `room_id`'s (an invented id, or another room's file), in order."""
+    dead = []
+    for match in LINKED_ATTACHMENT.finditer(content or ""):
+        path = match.group(1)
+        found = ATTACHMENT_LINK.match(path)
+        attachment = find_attachment(found.group(1)) if found else None
+        if (attachment is None or attachment.room_id != room_id) and path not in dead:
+            dead.append(path)
+    return dead
+
+
 def has_image_attachment(content, room_id):
     return any(a.mime_type in IMAGE_TYPES for a in room_attachments(content, room_id))
 

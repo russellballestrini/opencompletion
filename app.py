@@ -22,6 +22,7 @@ from blob_store import (
     attachment_context,
     attachment_markdown,
     data_url as attachment_data_url,
+    dead_attachment_links,
     has_image_attachment,
     inline_images_to_attachments,
     max_bytes as max_upload_bytes,
@@ -2001,6 +2002,7 @@ class ReplyStream:
         self.tool_calls = None
         # Why a server refused this reply's tools, if it did (open_completion).
         self.tool_refusals = []
+        self.with_tools, self.rounds, self.round_start = chat_history, 0, 0
         self.chunks = None
         self.looped, self.cut_at_limit = None, False
         self.cap, self.cap_name = None, "OPENCOMPLETION_MAX_TOKENS"
@@ -2289,29 +2291,30 @@ class ReplyStream:
         # browser or on our server, tools/policy.py says which), hand it what
         # they found & stream its next ask into this same reply. Its last
         # round goes without tools, so a reply always ends in an answer.
+        # The conversation so far (with_tools), its tool rounds & where this
+        # round's text began are kept on the reply, so a correction round
+        # (correct_dead_links) carries on from them.
         chat_history, room_name = self.chat_history, self.room_name
-        rounds, round_start, with_tools = 0, 0, chat_history
-        resume_round = None
         if resume:
-            rounds = max(0, int(resume.get("rounds") or 1) - 1)
-            round_start = int(resume.get("round_start") or 0)
-            with_tools = chat_history + list(resume.get("prior") or [])
-            resume_round = resume
+            self.rounds = max(0, int(resume.get("rounds") or 1) - 1)
+            self.round_start = int(resume.get("round_start") or 0)
+            self.with_tools = chat_history + list(resume.get("prior") or [])
+        resume_round = resume
         while self.tool_calls is not None and self.tool_calls.calls and not self.looped:
             if room_name in stop_requests:
                 break
-            rounds += 1
+            self.rounds += 1
             self.round_info.update(
                 calls=self.tool_calls.calls,
-                round_start=round_start,
-                rounds=rounds,
-                prior=with_tools[len(chat_history) :],
+                round_start=self.round_start,
+                rounds=self.rounds,
+                prior=self.with_tools[len(chat_history) :],
             )
             with app.app_context():  # sandboxes & run artifacts are rows
-                with_tools = with_tools + tools.run_round(
+                self.with_tools = self.with_tools + tools.run_round(
                     self.tool_context,
                     self.tool_calls.calls,
-                    self.buffer[round_start:],
+                    self.buffer[self.round_start :],
                     self.notify_tool,
                     resume=resume_round,
                 )
@@ -2319,16 +2322,51 @@ class ReplyStream:
             self.clear_checkpoint()  # the round ended: nothing left to pick up
             if room_name in stop_requests:  # Stop pressed while a tool ran
                 break
-            round_start = len(self.buffer)
-            if not self._ask_after_tools(with_tools, rounds):
+            self.round_start = len(self.buffer)
+            if not self._ask_after_tools(self.with_tools, self.rounds):
                 break
 
-    def _ask_after_tools(self, with_tools, rounds):
+    def correct_dead_links(self):
+        """A reply linking files that do not exist (a sandbox path with no
+        file, an /attachments/ link no file of this chat has) gets one more
+        ask, with its tools, naming them: it makes & shares them or says
+        they are not there, in this same reply. Once per reply."""
+        if not self.tool_schemas or self.looped or self.room_name in stop_requests:
+            return
+        if self.rounds >= tools.max_rounds():
+            return
+        dead = self.dead_links()
+        if not dead:
+            return
+        print(f"[INFO] {self.model_name} linked missing files in {self.room_name}")
+        self.with_tools = self.with_tools + [
+            {"role": "assistant", "content": self.buffer[self.round_start :]},
+            {"role": "user", "content": DEAD_LINKS_NOTE.format(links=", ".join(dead))},
+        ]
+        self.round_start = len(self.buffer)
+        self.emit_content("\n\n")
+        if self._ask_after_tools(self.with_tools, self.rounds, keep_tools=True):
+            self.run_tool_rounds(None)
+
+    def dead_links(self):
+        """Every link of this reply to a file that is not there."""
+        with app.app_context():
+            dead = dead_attachment_links(self.buffer, self.room_id)
+            if "sandbox_share_file" in self.offered:
+                try:
+                    dead += tool_sandbox.missing_linked_files(
+                        self.tool_context, self.buffer
+                    )
+                except Exception as e:  # noqa: BLE001 — unknown is not missing
+                    print(f"[WARN] could not check sandbox links: {e}")
+        return dead
+
+    def _ask_after_tools(self, with_tools, rounds, keep_tools=False):
         """Stream the ask after a round of tools: False when it would not
-        open."""
+        open. keep_tools: a correction ask, never the out-of-rounds one."""
         ask = dict(self.create_kwargs, messages=with_tools)
         ask.pop("tool_choice", None)  # forced on the first ask only
-        if rounds >= tools.max_rounds():
+        if rounds >= tools.max_rounds() and not keep_tools:
             ask.pop("tools", None)
             ask["messages"] = with_tools + [tools.out_of_rounds(rounds)]
         self.tool_calls = tools.ToolCallCollector() if "tools" in ask else None
@@ -2402,13 +2440,26 @@ class ReplyStream:
     def share_linked_files(self):
         # A link to a file in this chat's sandbox ("[deck](/tmp/deck.pptx)")
         # is a dead link for the person: share each one & point the link at it,
-        # or say there is no such file (fox, 2026-11-01).
-        if not (self.tool_schemas and "sandbox_share_file" in self.offered):
-            return
+        # or say there is no such file (fox, 2026-11-01). An /attachments/
+        # link no file of this chat has reads as words the same way.
+        relinked, shared, missing = self.buffer, [], []
         with app.app_context():
-            relinked, shared, missing = tool_sandbox.export_linked_files(
-                self.tool_context, self.buffer
+            if self.tool_schemas and "sandbox_share_file" in self.offered:
+                relinked, shared, missing = tool_sandbox.export_linked_files(
+                    self.tool_context, self.buffer
+                )
+            dead = dead_attachment_links(relinked, self.room_id)
+        if dead:
+            relinked = re.sub(
+                r"!?\[([^\]\n]*)\]\((/attachments/[^)\s]+)\)",
+                lambda m: (
+                    f"{m.group(1) or m.group(2)} (no such file in this chat)"
+                    if m.group(2) in dead
+                    else m.group(0)
+                ),
+                relinked,
             )
+            missing = missing + dead
         if not (shared or missing):
             return
         self.buffer = relinked
@@ -2527,10 +2578,18 @@ def chat_gpt(
 
     reply.first_answer(resume)
     reply.run_tool_rounds(resume)
+    reply.correct_dead_links()
     reply.add_closing_notices()
     reply.share_linked_files()
     reply.finish()
     title_untitled_room(room_name)
+
+
+# What a reply linking files that are not there is told (correct_dead_links).
+DEAD_LINKS_NOTE = (
+    "(Your reply links files that do not exist: {links}. Make & share each "
+    "one, or say it is not available. Do not repeat the rest of your reply.)"
+)
 
 
 # Follow-up suggestions: after a reply, 2-3 short next questions as chips

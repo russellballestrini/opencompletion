@@ -2066,6 +2066,21 @@ def test_links_to_sandbox_files_are_shared_and_relinked(sandbox_disk, room):
     assert "[the docs](https://example.org/x)" in out and "`cat /tmp/notes`" in out
 
 
+def test_missing_linked_files_names_only_paths_with_no_file(sandbox_disk, room):
+    """A reply's correction round asks which linked files are not there,
+    in one command, sharing nothing."""
+    from models import Attachment
+
+    tools.run(fox_in(room), "sandbox_shell", {"command": "true"})  # its sandbox
+    (sandbox_disk / "deck.pptx").write_bytes(b"PK slides")
+    text = f"[deck]({sandbox_disk}/deck.pptx) ![plot]({sandbox_disk}/gone.png)"
+    assert tool_sandbox.missing_linked_files(fox_in(room), text) == [
+        f"{sandbox_disk}/gone.png"
+    ]
+    assert Attachment.query.count() == 0
+    assert tool_sandbox.missing_linked_files(fox_in(room), "no links") == []
+
+
 def test_a_chat_without_a_sandbox_is_left_alone(unsandbox, room):
     from models import Sandbox
 

@@ -693,16 +693,45 @@ SANDBOX_LINK = re.compile(
 )
 
 
+def _linked_paths(text):
+    paths = []
+    for match in SANDBOX_LINK.finditer(text or ""):
+        if match.group(3) not in paths:
+            paths.append(match.group(3))
+    return paths
+
+
+def missing_linked_files(context, text):
+    """The sandbox paths `text` links to with no file behind them, found in
+    one command & touching nothing (a reply's correction round asks before
+    export_linked_files shares). [] without a chat sandbox."""
+    paths = _linked_paths(text)[:10]
+    if not paths or context is None or context.room_id is None:
+        return []
+    sandbox = Sandbox.query.filter_by(room_id=context.room_id).first()
+    if sandbox is None or sandbox.state in ("destroyed", "destroy_pending"):
+        return []
+    targets = {("/root/" + p[2:] if p.startswith("~/") else p): p for p in paths}
+    probe = _execute(
+        sandbox,
+        "for p in "
+        + " ".join(shlex.quote(t) for t in targets)
+        + '; do [ -f "$p" ] || echo "$p"; done',
+        policy.sandbox_timeout(),
+    )
+    if probe.get("status") not in ("completed", None):
+        return []  # could not look: never claim a file is missing
+    gone = set(str(probe.get("stdout") or "").splitlines())
+    return [targets[t] for t in targets if t in gone]
+
+
 def export_linked_files(context, text):
     """`text` with every link to a file in this chat's sandbox pointing at
     that file shared as an attachment (share_file); a path with no file
     becomes words saying so. Only a chat that already has a sandbox is
     touched: a stray path never makes one. Returns (text, shared [{path,
     url, ...}], missing [path])."""
-    paths = []
-    for match in SANDBOX_LINK.finditer(text or ""):
-        if match.group(3) not in paths:
-            paths.append(match.group(3))
+    paths = _linked_paths(text)
     if not paths or context is None or context.room_id is None:
         return text, [], []
     sandbox = Sandbox.query.filter_by(room_id=context.room_id).first()

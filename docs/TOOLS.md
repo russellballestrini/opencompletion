@@ -77,6 +77,13 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   each linked file of a chat that has a sandbox, points the link at its
   attachment (a `message_links` event swaps it in place, a "Shared" line
   joins the reply) & turns a path with no file into words saying so.
+  Before that, a reply linking files that are not there (a sandbox path
+  with no file, `missing_linked_files`; an `/attachments/` link no file
+  of its chat has, `blob_store.dead_attachment_links`) gets one
+  correction round (`correct_dead_links` in app.py): one more ask, with
+  its tools, naming the links, streamed into the same reply, so the
+  model makes & shares them or says they are not available. A dead
+  `/attachments/` link left after it reads as words too.
 - **A full account waits.** Running sandboxes count toward the unsandbox
   account's concurrency limit, so a new one past it is refused (503
   "Failed to create service", retryable). Creating one then waits for a
