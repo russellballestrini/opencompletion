@@ -742,8 +742,10 @@ sections:
                             ]
                             final_output = "\n".join(print_calls)
 
-                            # Should show error message for invalid transition
-                            self.assertIn("No valid transition found", final_output)
+                            # Our engine's message, the same in a chat room
+                            self.assertIn(
+                                "Unrecognized category 'unknown'", final_output
+                            )
 
                         finally:
                             os.unlink(activity_file)

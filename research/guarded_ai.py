@@ -1,7 +1,6 @@
 import argparse
 import yaml
 import json
-import random
 import os
 import sys
 from openai import OpenAI
@@ -10,21 +9,9 @@ from openai import OpenAI
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import classifier
+import activity_engine
 
-# Import activity utilities for v2.0 features
-from activity_utils import (
-    render_template,
-    check_conditions,
-    filter_content_blocks,
-    resolve_conditional_navigation,
-    select_weighted_random,
-    metadata_keys,
-    pick_metadata_random,
-    get_progressive_hint,
-    create_template_context,
-    create_completion_skip_thinking,
-    strip_reasoning,
-)
+from activity_utils import create_completion_skip_thinking, strip_reasoning
 
 # Global model-client mapping
 MODEL_CLIENT_MAP = {}
@@ -425,505 +412,110 @@ def translate_text(text, target_language, model="MODEL_1"):
         return f"Error: {e}"
 
 
-def simulate_activity(yaml_file_path):
-    yaml_content = load_yaml_activity(yaml_file_path)
-    max_attempts = yaml_content.get("default_max_attempts_per_step", 3)
+class TerminalIO(activity_engine.ActivityIO):
+    """Our activity engine (activity_engine.py, the one our server runs) in
+    a terminal: everything printed, the state in memory. Calls go through
+    this module's names (categorize_response, translate_text…) so a test
+    that replaces one here reaches the engine."""
 
-    # Get activity-level model defaults (default to MODEL_1 - Hermes)
-    default_classifier_model = yaml_content.get("classifier_model", "MODEL_1")
-    default_feedback_model = yaml_content.get("feedback_model", "MODEL_1")
-
-    current_section_id = yaml_content["sections"][0]["section_id"]
-    current_step_id = yaml_content["sections"][0]["steps"][0]["step_id"]
-
-    metadata = {"language": "English"}  # Default language
-
-    while current_section_id and current_step_id:
-        print(
-            f"\n\nCurrent section: {current_section_id}, Current step: {current_step_id}\n\n"
-        )
-        section = next(
-            (
-                s
-                for s in yaml_content["sections"]
-                if s["section_id"] == current_section_id
-            ),
-            None,
-        )
-
-        step = next(
-            (s for s in section["steps"] if s["step_id"] == current_step_id), None
-        )
-
-        # Get step-level model overrides (if specified), otherwise use activity defaults
-        classifier_model = step.get("classifier_model", default_classifier_model)
-        feedback_model = step.get("feedback_model", default_feedback_model)
-
-        # Get the user's language preference from metadata
-        user_language = metadata.get("language", "English")
-
-        # Initialize attempts and max_attempts for this step
-        attempts = 0
-        step_max_attempts = step.get("max_attempts_per_step", max_attempts)
-
-        # Create template context for rendering
-        context = create_template_context(
-            metadata=metadata,
-            current_attempt=attempts,
-            max_attempts=step_max_attempts,
-            current_section=current_section_id,
-            current_step=current_step_id,
-            username="User",
-        )
-
-        # Translate and print all content blocks once per step (v2.0 with templates & conditionals)
-        if "content_blocks" in step:
-            # Filter and render content blocks
-            filtered_blocks = filter_content_blocks(
-                step["content_blocks"], metadata, context
-            )
-            if filtered_blocks:
-                content = "\n\n".join(filtered_blocks)
-                translated_content = translate_text(
-                    content, user_language, feedback_model
-                )
-                print(translated_content)
-
-        # Skip classification and feedback if there's no question
-        if "question" not in step:
-            current_section_id, current_step_id = get_next_section_and_step(
-                yaml_content, current_section_id, current_step_id
-            )
-            continue
-
-        # Render template variables in question (v2.0)
-        question = render_template(step["question"], context)
-        translated_question = translate_text(question, user_language, feedback_model)
-        print(f"\nQuestion: {translated_question}")
-
-        while attempts < step_max_attempts:
-            # Update context with current attempt
-            context = create_template_context(
-                metadata=metadata,
-                current_attempt=attempts + 1,  # 1-indexed for display
-                max_attempts=step_max_attempts,
-                current_section=current_section_id,
-                current_step=current_step_id,
-                username="User",
-            )
-
-            user_response = input("\nYour Response: ")
-
-            # Roll for random buckets BEFORE categorization
-            triggered_random_buckets = []
-            if "random_buckets" in step:
-                for bucket_name, config in step["random_buckets"].items():
-                    probability = config.get("probability", 0)
-                    roll = random.random()
-                    if roll < probability:
-                        triggered_random_buckets.append(bucket_name)
-                        print(
-                            f"🎲 [RANDOM EVENT] '{bucket_name}' triggered! (rolled {roll:.3f} < {probability})"
-                        )
-                    else:
-                        print(
-                            f"🎲 [RANDOM CHECK] '{bucket_name}' not triggered (rolled {roll:.3f} >= {probability})"
-                        )
-
-            # Execute pre-script if it exists (runs before categorization, with user_response available)
-            if "pre_script" in step:
-                print(f"DEBUG: Executing pre-script")
-                # Add user_response to a temporary copy of metadata for pre_script
-                temp_metadata = metadata.copy()
-                temp_metadata["user_response"] = user_response
-                pre_result = execute_processing_script(
-                    temp_metadata, step["pre_script"]
-                )
-
-                # Update metadata with pre-script results
-                for key, value in pre_result.get("metadata", {}).items():
-                    metadata[key] = value
-                print(f"DEBUG: Pre-script completed, updated metadata")
-
-            category = categorize_response(
-                question,
-                user_response,
-                step["buckets"],
-                step["tokens_for_ai"],
-                classifier_model,
-            )
-            print(f"\nCategory: {category}")
-
-            # Combine user's category with triggered random buckets
-            # User's response is processed FIRST, then random events
-            all_active_buckets = [category] + triggered_random_buckets
-            print(f"📋 Processing buckets in order: {all_active_buckets}")
-
-            # Find transitions for all active buckets
-            active_transitions = []
-            for bucket in all_active_buckets:
-                transition = None
-                if bucket in step["transitions"]:
-                    transition = step["transitions"][bucket]
-                elif str(bucket).isdigit() and int(bucket) in step["transitions"]:
-                    transition = step["transitions"][int(bucket)]
-                else:
-                    # Try boolean conversion
-                    if str(bucket).lower() in ["yes", "true"]:
-                        bucket = True
-                    elif str(bucket).lower() in ["no", "false"]:
-                        bucket = False
-                    if bucket in step["transitions"]:
-                        transition = step["transitions"][bucket]
-
-                if transition is not None:  # `a: {}` does nothing, still counts
-                    active_transitions.append((bucket, transition))
-                else:
-                    print(f"⚠️  Warning: No transition found for bucket '{bucket}'")
-
-            # If no valid transitions found at all (not even for user's category), error
-            if not active_transitions:
-                print(
-                    f"\nError: No valid transition found for category '{category}'. Please try again."
-                )
-                continue
-
-            print(f"✓ Found {len(active_transitions)} transition(s) to process")
-
-            # Track temporary metadata keys across all transitions
-            metadata_tmp_keys = []
-
-            # Track the final navigation target (use LAST transition's next_section_and_step)
-            final_next_section_and_step = None
-
-            # Track counts_as_attempt (if ANY transition counts, then it counts)
-            any_counts_as_attempt = False
-
-            # Process ALL active transitions in order
-            for bucket_name, transition in active_transitions:
-                print(f"\n{'='*60}")
-                print(f"Processing transition for bucket: '{bucket_name}'")
-                print(f"{'='*60}")
-
-                # Check metadata conditions (v2.0 advanced conditions)
-                if "metadata_conditions" in transition:
-                    conditions_met = check_conditions(
-                        metadata, transition["metadata_conditions"]
-                    )
-                    if not conditions_met:
-                        print(
-                            f"⚠️  Skipping '{bucket_name}' - metadata conditions not met"
-                        )
-                        print(f"Current Metadata: {json.dumps(metadata, indent=2)}")
-                        continue
-
-                # Print transition content blocks if they exist (v2.0 with templates & conditionals)
-                if "content_blocks" in transition:
-                    # Create template context
-                    context = create_template_context(
-                        metadata=metadata,
-                        current_attempt=attempts,
-                        max_attempts=max_attempts,
-                        current_section=current_section_id,
-                        current_step=current_step_id,
-                        username="User",
-                    )
-
-                    # Filter and render content blocks (supports conditional blocks and templates)
-                    filtered_blocks = filter_content_blocks(
-                        transition["content_blocks"], metadata, context
-                    )
-
-                    if filtered_blocks:
-                        transition_content = "\n\n".join(filtered_blocks)
-                        translated_transition_content = translate_text(
-                            transition_content, user_language, feedback_model
-                        )
-                        print(translated_transition_content)
-
-                # Update metadata based on user actions
-                if "metadata_add" in transition:
-                    for key, value in transition["metadata_add"].items():
-                        if value == "the-users-response":
-                            value = user_response
-                        elif isinstance(value, str):
-                            if value.startswith("n+random(") and value.endswith(")"):
-                                # Extract the range and apply the random increment
-                                range_values = value[9:-1].split(",")
-                                if len(range_values) == 2:
-                                    x, y = map(int, range_values)
-                                    value = metadata.get(key, 0) + random.randint(x, y)
-                            elif value.startswith("n+") or value.startswith("n-"):
-                                # Check if this is string concatenation (n+,value) or numeric operation (n+5)
-                                if value.startswith("n+,") or value.startswith("n-,"):
-                                    # String concatenation: append/remove from existing value
-                                    operation = value[:2]  # "n+" or "n-"
-                                    suffix = value[
-                                        3:
-                                    ]  # Everything after "n+," or "n-,"
-                                    existing_value = metadata.get(key, "")
-                                    if operation == "n+":
-                                        # Append with comma separator if existing value is non-empty
-                                        if existing_value:
-                                            value = f"{existing_value},{suffix}"
-                                        else:
-                                            value = suffix
-                                    elif operation == "n-":
-                                        # Remove suffix from existing value
-                                        if existing_value:
-                                            parts = existing_value.split(",")
-                                            parts = [p for p in parts if p != suffix]
-                                            value = ",".join(parts)
-                                        else:
-                                            value = existing_value
-                                else:
-                                    # Numeric operation: extract the numeric part c and apply the operation +/-
-                                    try:
-                                        c = int(value[2:])
-                                        if value.startswith("n+"):
-                                            value = metadata.get(key, 0) + c
-                                        elif value.startswith("n-"):
-                                            value = metadata.get(key, 0) - c
-                                    except ValueError:
-                                        print(
-                                            f"Warning: Invalid numeric operation '{value}' for key '{key}'"
-                                        )
-                                        # Leave value as-is if parsing fails
-                        metadata[key] = value
-
-                if "metadata_tmp_add" in transition:
-                    for key, value in transition["metadata_tmp_add"].items():
-                        if value == "the-users-response":
-                            value = user_response
-                        elif isinstance(value, str):
-                            if value.startswith("n+random(") and value.endswith(")"):
-                                # Extract the range and apply the random increment
-                                range_values = value[9:-1].split(",")
-                                if len(range_values) == 2:
-                                    x, y = map(int, range_values)
-                                    value = random.randint(x, y)
-                            elif value.startswith("n+") or value.startswith("n-"):
-                                # Check if this is string concatenation (n+,value) or numeric operation (n+5)
-                                if value.startswith("n+,") or value.startswith("n-,"):
-                                    # String concatenation: append/remove from existing value
-                                    operation = value[:2]  # "n+" or "n-"
-                                    suffix = value[
-                                        3:
-                                    ]  # Everything after "n+," or "n-,"
-                                    existing_value = metadata.get(key, "")
-                                    if operation == "n+":
-                                        # Append with comma separator if existing value is non-empty
-                                        if existing_value:
-                                            value = f"{existing_value},{suffix}"
-                                        else:
-                                            value = suffix
-                                    elif operation == "n-":
-                                        # Remove suffix from existing value
-                                        if existing_value:
-                                            parts = existing_value.split(",")
-                                            parts = [p for p in parts if p != suffix]
-                                            value = ",".join(parts)
-                                        else:
-                                            value = existing_value
-                                else:
-                                    # Numeric operation: extract the numeric part c and apply the operation +/-
-                                    try:
-                                        c = int(value[2:])
-                                        if value.startswith("n+"):
-                                            value = metadata.get(key, 0) + c
-                                        elif value.startswith("n-"):
-                                            value = metadata.get(key, 0) - c
-                                    except ValueError:
-                                        print(
-                                            f"Warning: Invalid numeric operation '{value}' for key '{key}'"
-                                        )
-                                        # Leave value as-is if parsing fails
-                        metadata[key] = value
-                        metadata_tmp_keys.append(key)  # Track temporary keys
-
-                if "metadata_remove" in transition:
-                    for key in metadata_keys(transition["metadata_remove"]):
-                        if key in metadata:
-                            del metadata[key]
-
-                # Handle metadata_clear - clear all metadata if set to True
-                if (
-                    "metadata_clear" in transition
-                    and transition["metadata_clear"] == True
-                ):
-                    metadata.clear()
-
-                # Handle metadata_random
-                if "metadata_random" in transition:
-                    random_key, random_value = pick_metadata_random(
-                        transition["metadata_random"]
-                    )
-                    metadata[random_key] = random_value
-
-                if "metadata_tmp_random" in transition:
-                    random_key, random_value = pick_metadata_random(
-                        transition["metadata_tmp_random"]
-                    )
-                    metadata[random_key] = random_value
-                    metadata_tmp_keys.append(random_key)  # Track temporary keys
-
-                # Handle metadata_weighted_random (v2.0)
-                if "metadata_weighted_random" in transition:
-                    for key, weighted_options in transition[
-                        "metadata_weighted_random"
-                    ].items():
-                        selected_value = select_weighted_random(weighted_options)
-                        metadata[key] = selected_value
-
-                # Handle metadata_tmp_weighted_random (v2.0)
-                if "metadata_tmp_weighted_random" in transition:
-                    for key, weighted_options in transition[
-                        "metadata_tmp_weighted_random"
-                    ].items():
-                        selected_value = select_weighted_random(weighted_options)
-                        metadata[key] = selected_value
-                        metadata_tmp_keys.append(key)
-
-                script_next_section_and_step = None
-                # Execute the processing script if it exists
-                if "processing_script" in step and transition.get(
-                    "run_processing_script", False
-                ):
-                    # Add user_response to metadata temporarily for processing script
-                    temp_metadata = metadata.copy()
-                    temp_metadata["user_response"] = user_response
-
-                    result = execute_processing_script(
-                        temp_metadata, step["processing_script"]
-                    )
-
-                    # Copy any changes back to main metadata (except user_response)
-                    for key, value in temp_metadata.items():
-                        if key != "user_response":
-                            metadata[key] = value
-                    metadata["processing_script_result"] = result
-                    metadata_tmp_keys.append("processing_script_result")
-
-                    # Update metadata with results from the processing script
-                    for key, value in result.get("metadata", {}).items():
-                        metadata[key] = value
-
-                    # A script's own target beats its transition's
-                    if "next_section_and_step" in result:
-                        script_next_section_and_step = result["next_section_and_step"]
-
-                print(
-                    f"\n[Metadata after '{bucket_name}']: {json.dumps(metadata, indent=2)}"
-                )
-
-                # Provide feedback for THIS bucket
-                if "feedback_prompts" in step:
-                    # New multi-prompt system - legacy tokens get combined with each prompt
-                    multi_feedback_messages = provide_feedback_prompts(
-                        transition,
-                        bucket_name,  # Use bucket_name instead of category
-                        question,
-                        step["feedback_prompts"],
-                        user_response,
-                        user_language,
-                        metadata,
-                        step.get(
-                            "feedback_tokens_for_ai", ""
-                        ),  # Pass legacy tokens to be combined
-                        feedback_model,
-                    )
-                    # Display feedback immediately for this bucket
-                    for feedback_msg in multi_feedback_messages:
-                        print(f"\n{feedback_msg['name']}: {feedback_msg['content']}")
-                elif step.get("feedback_tokens_for_ai") or "ai_feedback" in transition:
-                    # Single feedback (the transition's ai_feedback, the step's
-                    # feedback_tokens_for_ai before it) - only if no feedback_prompts
-                    feedback = provide_feedback(
-                        transition,
-                        bucket_name,  # Use bucket_name instead of category
-                        question,
-                        user_response,
-                        user_language,
-                        step.get("feedback_tokens_for_ai", ""),
-                        metadata,
-                        feedback_model,
-                    )
-                    if feedback and feedback.strip():
-                        print(f"\nFeedback: {feedback}")
-
-                # Track navigation (LAST transition's next_section_and_step wins)
-                if (
-                    script_next_section_and_step
-                    or "next_section_and_step" in transition
-                ):
-                    final_next_section_and_step = (
-                        script_next_section_and_step
-                        or transition["next_section_and_step"]
-                    )
-                    print(f"🎯 Navigation target set to: {final_next_section_and_step}")
-
-                # Track counts_as_attempt (if ANY transition counts, it counts)
-                if transition.get("counts_as_attempt", True):
-                    any_counts_as_attempt = True
-
-            # End of multi-bucket processing loop
-
-            # Check for progressive hints (v2.0)
-            if "hints" in step:
-                hint_context = create_template_context(
-                    metadata=metadata,
-                    current_attempt=attempts + 1,  # Next attempt
-                    max_attempts=step_max_attempts,
-                    current_section=current_section_id,
-                    current_step=current_step_id,
-                    username="User",
-                )
-                hint = get_progressive_hint(step["hints"], attempts + 1, hint_context)
-                if hint:
-                    translated_hint = translate_text(
-                        hint["text"], user_language, feedback_model
-                    )
-                    print(f"\n💡 Hint: {translated_hint}")
-                    # If hint doesn't count as attempt, adjust counting
-                    if not hint["counts_as_attempt"]:
-                        any_counts_as_attempt = False
-
-            # Check if we should break or continue attempting
-            if category not in [
-                "partial_understanding",
-                "limited_effort",
-                "asking_clarifying_questions",
-                "set_language",
-                "off_topic",
-                "incorrect",  # as on our server: stay & count the attempt
-            ]:
-                break
-
-            # Increment attempts if ANY transition counted
-            if any_counts_as_attempt:
-                attempts += 1
-
-        if attempts == step_max_attempts:
-            print("\nMaximum attempts reached. Moving to the next step.")
-
-        # Remove temporary metadata at the end of the step
-        for key in metadata_tmp_keys:
-            if key in metadata:
-                del metadata[key]
-
-        # Use the final navigation target (from LAST processed transition)
-        # v2.0: Resolve conditional navigation
-        if final_next_section_and_step:
-            resolved_navigation = resolve_conditional_navigation(
-                final_next_section_and_step, metadata
-            )
-            if resolved_navigation:
-                current_section_id, current_step_id = resolved_navigation.split(":")
+    def say(self, content, username="System", shown_as=None):
+        if username == "System (Question)":
+            print(f"\nQuestion: {content}")
+        elif username.startswith("System (") and username.endswith(")"):
+            print(f"\n{username[len('System ('):-1]}: {content}")
         else:
-            # No navigation specified, move to next step automatically
-            current_section_id, current_step_id = get_next_section_and_step(
-                yaml_content, current_section_id, current_step_id
-            )
+            print(content)
+
+    def notice(self, content, pause=None):
+        print(content)
+
+    def categorize(self, question, response, buckets, tokens_for_ai, model):
+        return categorize_response(question, response, buckets, tokens_for_ai, model)
+
+    def translate(self, text, language, model):
+        return translate_text(text, language, model)
+
+    def feedback(
+        self,
+        transition,
+        bucket,
+        question,
+        tokens_for_ai,
+        response,
+        language,
+        username,
+        json_metadata,
+        json_new_metadata,
+        model,
+    ):
+        return provide_feedback(
+            transition,
+            bucket,
+            question,
+            response,
+            language,
+            tokens_for_ai,
+            json.loads(json_metadata),
+            model,
+        )
+
+    def feedback_prompts(
+        self,
+        transition,
+        bucket,
+        question,
+        prompts,
+        response,
+        language,
+        username,
+        json_metadata,
+        json_new_metadata,
+        legacy_tokens,
+        model,
+    ):
+        return provide_feedback_prompts(
+            transition,
+            bucket,
+            question,
+            prompts,
+            response,
+            language,
+            json.loads(json_metadata),
+            legacy_tokens,
+            model,
+        )
+
+    def run_script(self, metadata, script):
+        return execute_processing_script(metadata, script)
+
+    def complete(self, state, username, feedback_model):
+        state.completed = True
+        print("\nActivity completed!")
+
+
+def simulate_activity(yaml_file_path):
+    """Play an activity in this terminal: each answer typed goes through our
+    activity engine exactly as a chat room's would."""
+    content = load_yaml_activity(yaml_file_path)
+    first = content["sections"][0]
+    state = activity_engine.MemoryState(
+        first["section_id"],
+        first["steps"][0]["step_id"],
+        max_attempts=content.get("default_max_attempts_per_step", 3),
+        metadata={"language": "English"},
+    )
+    io = TerminalIO()
+    # Default to MODEL_1 (Hermes) here
+    _, feedback_model = activity_engine.models_for(content, "MODEL_1")
+    activity_engine.show_until_question(content, state, io, "User", feedback_model)
+    while not state.completed and activity_engine.current_step(content, state):
+        print(
+            f"\n\nCurrent section: {state.section_id}, Current step: {state.step_id}\n\n"
+        )
+        user_response = input("\nYour Response: ")
+        activity_engine.answer(
+            content, state, user_response, "User", io, default_model="MODEL_1"
+        )
 
 
 if __name__ == "__main__":

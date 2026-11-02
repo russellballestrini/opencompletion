@@ -952,14 +952,16 @@ def test_processing_script_runs_when_transition_asks(engine):
     with patch("activity.provide_feedback", return_value="") as fb:
         engine.respond("x", "correct")
     meta = json.loads(fb.call_args.args[7])
-    # The script mutates a copy of metadata: only script_result["metadata"]
-    # is kept, plus the whole result as temporary processing_script_result.
+    # FIXED (2026-11-02): metadata is read/write for a script, as SPEC.yaml
+    # says, so its own write (count) is kept with script_result["metadata"],
+    # plus the whole result as temporary processing_script_result (a
+    # script's writes were lost on our server, kept in guarded_ai).
     assert meta == {
-        "count": 1,
+        "count": 2,
         "processing_script_result": {"metadata": {"doubled": 4}, "note": "ran"},
         "doubled": 4,
     }
-    assert engine.state().dict_metadata == {"count": 1, "doubled": 4}
+    assert engine.state().dict_metadata == {"count": 2, "doubled": 4}
 
 
 def test_processing_script_skipped_without_flag(engine):
