@@ -142,6 +142,14 @@
    TYPOGRAPHY SYSTEM
    ======================================== */
 
+/* `hidden` always hides. A component's own display (grid, flex) would
+   otherwise beat the attribute's UA style & show what a script hid: an
+   empty "Pinned" in our sidebar (fox, 2026-11-02), & before it Show all,
+   composer buttons & the ↓ each needed a [hidden] rule of their own. */
+[hidden] {
+    display: none !important;
+}
+
 *, *::before, *::after {
     box-sizing: border-box;
 }

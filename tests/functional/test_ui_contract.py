@@ -653,7 +653,6 @@ window.addEventListener('load', async () => {
         return new Response(JSON.stringify({title: 'Garden plans'}), {status: 200, headers: {'Content-Type': 'application/json'}});
     };
     window.prompt = () => 'Garden plans';
-    try { localStorage.removeItem('pinnedChats'); } catch (e) {}
 
     const card = document.querySelector('.room-card-wrap[data-room-name="lobby"]');
     check(card && card.querySelector('[data-chat-actions]'), 'room cards carry ⋯');
@@ -663,17 +662,15 @@ window.addEventListener('load', async () => {
     const open = button => { button.click(); return document.querySelector('.chat-actions-menu'); };
     const labels = menu => [...menu.querySelectorAll('button')].map(b => b.textContent);
     let menu = open(card.querySelector('[data-chat-actions]'));
-    check(menu && labels(menu).join() === 'Rename,Refresh title,Pin', 'an unowned room offers rename, refresh & pin: ' + (menu && labels(menu)));
+    check(menu && labels(menu).join() === 'Rename,Refresh title', 'an unowned room offers rename & refresh: ' + (menu && labels(menu)));
     const box = menu.getBoundingClientRect();
     check(box.left >= 0 && box.right <= innerWidth && box.bottom <= innerHeight, 'menu stays on screen');
 
-    // Pin: our sidebar's Pinned section shows the chat
-    [...menu.querySelectorAll('button')].find(b => b.textContent === 'Pin').click();
-    await new Promise(r => setTimeout(r, 0));
-    const pinned = document.getElementById('pinned-chats-section');
-    check(!pinned.hidden && pinned.querySelector('[data-room-name="lobby"]'), 'pinned chat shows in Pinned');
-    menu = open(card.querySelector('[data-chat-actions]'));
-    check(labels(menu).includes('Unpin'), 'a pinned chat offers Unpin');
+    // Nothing hidden shows (fox, 2026-11-02: an empty sidebar section's grid
+    // display beat `hidden`; style.css's [hidden] rule now always wins).
+    const shown = [...document.querySelectorAll('[hidden]')].filter(el => getComputedStyle(el).display !== 'none');
+    check(!shown.length, 'every hidden element is hidden: ' + shown.map(el => el.id || el.className).join(', '));
+
     document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
     check(!document.querySelector('.chat-actions-menu'), 'Escape closes the menu');
 

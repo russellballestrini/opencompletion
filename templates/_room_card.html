@@ -12,5 +12,5 @@
        top right corner is the ⋯ menu's). #}
     <p class="room-card-meta"><span class="badge {{ 'badge-private' if room.is_private else 'badge-public' }}">{{ 'Solo' if room.is_private else 'Public' }}</span>{% if meta %} {{ meta }}{% endif %}</p>
 </a>
-<button type="button" class="chat-actions-btn" data-chat-actions aria-label="Room actions" title="Rename, refresh title, pin, archive or delete">⋯</button>
+<button type="button" class="chat-actions-btn" data-chat-actions aria-label="Room actions" title="Rename, refresh title, archive or delete">⋯</button>
 </div>

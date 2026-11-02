@@ -41,6 +41,9 @@ All colour comes from custom properties on `:root`, redefined under
 Type is the system UI stack at 14px / 1.5; headings 32/24/18. Form fields
 are 16px on phones so iOS never zooms into them.
 
+`hidden` always hides (`[hidden] { display: none !important }` in
+style.css): show & hide with the attribute, never a display rule.
+
 ## Components
 
 - **Buttons** `.btn` (primary), `.btn-secondary`, `.btn-danger`,

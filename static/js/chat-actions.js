@@ -1,58 +1,8 @@
 // Our chat actions: a ⋯ button on every chat in our sidebar & on every room
 // card (browse, search) opens one menu: rename, refresh title (a model
-// titles it afresh from its conversation), pin, archive & delete. What it
+// titles it afresh from its conversation), archive & delete. What it
 // offers comes from the row's data-* attributes (_room_actions_data.html);
-// our server checks again. Pins live in this browser (localStorage), shown
-// in our sidebar's Pinned section.
-
-const PINNED_KEY = 'pinnedChats';
-
-function pinnedChats() {
-    try {
-        const pins = JSON.parse(localStorage.getItem(PINNED_KEY) || '[]');
-        return Array.isArray(pins) ? pins.filter(pin => pin && pin.name) : [];
-    } catch (e) {
-        return [];
-    }
-}
-
-function savePinnedChats(pins) {
-    try { localStorage.setItem(PINNED_KEY, JSON.stringify(pins)); } catch (e) {}
-}
-
-function isPinned(name) {
-    return pinnedChats().some(pin => pin.name === name);
-}
-
-function togglePin(room) {
-    const pins = pinnedChats();
-    const at = pins.findIndex(pin => pin.name === room.name);
-    if (at >= 0) pins.splice(at, 1);
-    else pins.unshift({id: room.id || null, name: room.name, title: room.title || ''});
-    savePinnedChats(pins);
-    renderPinnedChats();
-}
-
-// Our sidebar's Pinned section: a copy of each pinned chat, newest pin first.
-function renderPinnedChats() {
-    const list = document.getElementById('pinned-chats');
-    const section = document.getElementById('pinned-chats-section');
-    if (!list || !section) return;
-    list.replaceChildren();
-    const current = decodeURIComponent((location.pathname.match(/^\/chat\/([^/]+)/) || [])[1] || '');
-    pinnedChats().forEach(pin => {
-        // The freshest title & permissions are on the chat's own row, if listed.
-        const row = document.querySelector(`#your-chats li[data-room-name="${CSS.escape(pin.name)}"], #public-chats li[data-room-name="${CSS.escape(pin.name)}"]`);
-        const item = row ? row.cloneNode(true) : chatListItem(pin);
-        if (!row) item.dataset.roomName = pin.name;
-        if (row) item.querySelector('.chat-list-name').textContent = row.querySelector('.chat-list-name').textContent;
-        const link = item.querySelector('a');
-        if (pin.name === current) link.setAttribute('aria-current', 'page');
-        else link.removeAttribute('aria-current');
-        list.appendChild(item);
-    });
-    section.hidden = !list.children.length;
-}
+// our server checks again.
 
 // Where a row's room is described: an <li> in our sidebar or a card wrap.
 function chatRow(button) {
@@ -91,21 +41,15 @@ function showRoomTitle(room, title) {
             }
         }
     });
-    const pins = pinnedChats();
-    const pin = pins.find(p => p.name === room.name);
-    if (pin) { pin.title = title; savePinnedChats(pins); }
 }
 
 // A room archived or deleted leaves this page (& the open chat, for home).
 function dropRoom(room) {
-    const pins = pinnedChats().filter(pin => pin.name !== room.name);
-    savePinnedChats(pins);
     if (location.pathname === `/chat/${encodeURIComponent(room.name)}`) {
         window.location.href = '/';
         return;
     }
     document.querySelectorAll(`[data-room-name="${CSS.escape(room.name)}"]`).forEach(row => row.remove());
-    renderPinnedChats();
 }
 
 async function roomAction(url, method, body) {
@@ -139,12 +83,6 @@ const CHAT_ACTIONS = [
             const data = await roomAction(`/api/rooms/${room.id}/title`, 'POST', {generate: true});
             showRoomTitle(room, data.title);
         },
-    },
-    {
-        label: room => isPinned(room.name) ? 'Unpin' : 'Pin',
-        hint: 'Pinned chats stay atop our sidebar in this browser',
-        show: () => true,
-        run: async room => togglePin(room),
     },
     {
         label: 'Archive',
@@ -241,4 +179,3 @@ document.addEventListener('keydown', event => {
 window.addEventListener('resize', closeChatActions);
 document.addEventListener('scroll', closeChatActions, true);
 
-renderPinnedChats();

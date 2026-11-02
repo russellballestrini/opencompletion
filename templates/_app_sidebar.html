@@ -1,5 +1,5 @@
 {# Our one app sidebar, on our home & every chat: our name on top, your
-   chats & public ones in a middle that scrolls, you pinned at the bottom.
+   chats & public ones in a middle that scrolls, you at the bottom.
    Needs user, your_chats & public_chats (routes.pages.sidebar_chats);
    room_name marks the open chat & active_nav the page. A drawer on phones (openDrawer('rooms')). #}
 {% set _current = room_name|default(none) %}
@@ -8,7 +8,7 @@
 <li data-room-id="{{ room.id }}" {% include "_room_actions_data.html" %}><a href="{{ url_for('chat', room_name=room.name) }}" title="{{ room.title or room.name }}"{% if room.name == _current %} aria-current="page"{% endif %}>
     <span class="chat-list-name">{{ room.title or room.name }}</span>
     {% if tag %}<span class="chat-list-tag" aria-label="{{ tag_label }}">{{ tag }}</span>{% endif %}
-</a><button type="button" class="chat-actions-btn" data-chat-actions aria-label="Chat actions" title="Rename, refresh title, pin, archive or delete">⋯</button></li>
+</a><button type="button" class="chat-actions-btn" data-chat-actions aria-label="Chat actions" title="Rename, refresh title, archive or delete">⋯</button></li>
 {%- endmacro %}
 <aside id="app-sidebar" class="app-sidebar" aria-label="Chats">
     <div class="sidebar-top">
@@ -28,11 +28,6 @@
             </a>
         </nav>
 
-        {# Chats pinned in this browser (static/js/chat-actions.js fills it). #}
-        <section class="sidebar-section" aria-labelledby="pinned-chats-heading" id="pinned-chats-section" hidden>
-            <h2 id="pinned-chats-heading" class="sidebar-heading">Pinned</h2>
-            <ul id="pinned-chats" class="chat-list"></ul>
-        </section>
 
         <section class="sidebar-section" aria-labelledby="your-chats-heading">
             <h2 id="your-chats-heading" class="sidebar-heading">Your rooms</h2>
