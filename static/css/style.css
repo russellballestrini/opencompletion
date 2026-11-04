@@ -454,7 +454,14 @@ body.chat-page {
 }
 
 /* Editing a message: one line to start, grown to its text up to 14 lines
-   by fitEditor (5-messages.js), then it scrolls. */
+   by fitEditor (5-messages.js), then it scrolls. The bubble it sits in
+   (fit-content, as wide as its words) opens to the whole column while it
+   edits, so a short message isn't edited in a sliver. */
+.message-wrapper > .message-content:has(> .message-edit) {
+    width: 100%;
+    max-width: 100%;
+}
+
 .message-edit {
     display: block;
     width: 100%;

@@ -92,7 +92,9 @@ style.css): show & hide with the attribute, never a display rule.
 - **Messages** `.message-wrapper` carries who it is from
   (`markSender` in `5-messages.js`): `.is-person` words sit in a bubble,
   `.is-mine` on the right in our accent's tint; `.is-model` replies are
-  plain text across the pane, so who said what reads at a glance.
+  plain text across the pane, so who said what reads at a glance. A
+  message being edited (`.message-edit`) opens its bubble to the whole
+  column.
   Math is KaTeX's `.katex` (inline) & `.katex-display` (its own line,
   scrolling sideways when wider than the column), typeset from `$…$` &
   `$$…$$` by `renderMarkdown`.

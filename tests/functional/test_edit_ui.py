@@ -38,6 +38,11 @@ window.addEventListener('load', () => {
     const lines = () => Math.round((editor.clientHeight - parseFloat(getComputedStyle(editor).paddingTop) * 2) / line);
     check(editor && lines() === 1, 'opens one line tall (' + lines() + ')');
     check(document.activeElement === editor, 'the editor has focus');
+    // a short message's bubble is as wide as its words: editing, it opens
+    // to the whole column (fox, 2026-11-04: "smooshed")
+    const column = document.querySelector('#message-1').closest('.message-wrapper').getBoundingClientRect().width;
+    const wide = editor.getBoundingClientRect().width;
+    check(wide >= column * 0.9, 'spans the column (' + Math.round(wide) + ' of ' + Math.round(column) + 'px)');
     const type = (text) => { editor.value = text; editor.dispatchEvent(new Event('input')); };
     type('a\nb\nc\nd\ne');
     check(lines() === 5, 'grows to its text (' + lines() + ')');
