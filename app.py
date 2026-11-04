@@ -81,6 +81,7 @@ from types import SimpleNamespace
 
 import tools
 import chain
+import fade
 from tools import sandbox as tool_sandbox
 
 tools.register(socketio)
@@ -239,6 +240,12 @@ def is_vision_model(model_name: str) -> bool:
     return any(indicator in model_lower for indicator in vision_indicators)
 
 
+# Each model's context length & how many prompt characters a token held,
+# from what its server lists (vLLM's max_model_len) or its first such
+# refusal, so asks fit (fade.py, max_tokens) & aren't refused every round.
+CONTEXT_WINDOWS = {}
+
+
 def initialize_model_map():
     MODEL_CLIENT_MAP.clear()
     MODEL_ENDPOINTS.clear()
@@ -256,6 +263,13 @@ def initialize_model_map():
             continue
 
         _endpoint_models[base_url] = [m.id for m in model_list if m.id]
+        for m in model_list:
+            # vLLM lists each model's context length: asks fit from the first
+            window = getattr(m, "max_model_len", None) or (
+                getattr(m, "model_extra", None) or {}
+            ).get("max_model_len")
+            if m.id and isinstance(window, int) and window > 0:
+                CONTEXT_WINDOWS.setdefault(m.id, (window, 3.0))
         for model_id in _endpoint_models[base_url]:
             MODEL_ENDPOINTS.setdefault(model_id, []).append((client, base_url))
             if model_id not in MODEL_CLIENT_MAP:
@@ -1784,10 +1798,6 @@ TOOL_REFUSAL_WORDS = ("tool", "function", "jinja")
 # 65536 tokens ... your prompt contains at least 40961 input tokens".
 CONTEXT_LENGTH = re.compile(r"maximum context length is (\d+)")
 PROMPT_TOKENS = re.compile(r"(\d+) input tokens|prompt contains (?:at least )?(\d+)")
-# Each model's context length & how many prompt characters a token held,
-# learned from its first such refusal, so later asks fit max_tokens to the
-# room left & are not refused every tool round.
-CONTEXT_WINDOWS = {}
 # Room kept between our guess of a prompt's tokens & a server's count.
 CONTEXT_MARGIN = 256
 # Below this much room an answer cannot fit; max_tokens is dropped instead
@@ -1889,7 +1899,35 @@ def shrink_history(kwargs):
     return True
 
 
-def open_completion(client, kwargs, skip_thinking=False, refusals=None):
+DEFAULT_ANSWER_ROOM = 8192
+
+
+def answer_room():
+    """OPENCOMPLETION_ANSWER_ROOM (8192; 0 = off): the tokens an ask keeps
+    free for its answer; past that the conversation fades (fade.py)."""
+    return max(0, _env_int("OPENCOMPLETION_ANSWER_ROOM", DEFAULT_ANSWER_ROOM))
+
+
+def fade_to_fit(kwargs):
+    """Fade kwargs' messages so the prompt leaves answer_room() (or its
+    max_tokens, if less) for the answer, when the model's context is known.
+    Returns the fade's step (0: nothing faded)."""
+    learned = CONTEXT_WINDOWS.get(kwargs.get("model"))
+    room = answer_room()
+    if not learned or not room or not kwargs.get("messages"):
+        return 0
+    window, per_token = learned
+    if kwargs.get("max_tokens"):
+        room = min(room, kwargs["max_tokens"])
+    budget = window - room - CONTEXT_MARGIN
+    faded, step = fade.fit(kwargs["messages"], kwargs.get("tools"), budget, per_token)
+    if step:
+        kwargs["messages"] = faded
+        print(f"[INFO] {kwargs.get('model')}: conversation faded (step {step}) to fit")
+    return step
+
+
+def open_completion(client, kwargs, skip_thinking=False, refusals=None, sent=None):
     """Start a streamed chat completion, forgiving the asks a server may
     refuse with a 400: an unknown `top_k` (dropped), a max_tokens past what
     its context has room for (cut to the room its refusal names, & the
@@ -1901,9 +1939,12 @@ def open_completion(client, kwargs, skip_thinking=False, refusals=None):
     it went without). Any other 400 is raised: a reply never loses its
     tools to an error that was about something else."""
     kwargs = dict(kwargs)
+    faded = fade_to_fit(kwargs)
     fit_max_tokens(kwargs)
     for _ in range(16):
         try:
+            if sent is not None:
+                sent.update(max_tokens=kwargs.get("max_tokens"), faded=faded)
             if skip_thinking:
                 return create_completion_skip_thinking(client, **kwargs)
             return client.chat.completions.create(**kwargs)
@@ -2153,6 +2194,7 @@ class ReplyStream:
         self.tool_calls = None
         # Why a server refused this reply's tools, if it did (open_completion).
         self.tool_refusals = []
+        self.sent = {}  # what the last ask sent: max_tokens, fade step
         self.with_tools, self.rounds, self.round_start = chat_history, 0, 0
         self.chunks = None
         self.looped, self.cut_at_limit = None, False
@@ -2247,7 +2289,11 @@ class ReplyStream:
             self.openai_client,
             self.model_name,
             lambda client: open_completion(
-                client, kwargs, skip_thinking=skip_thinking, refusals=self.tool_refusals
+                client,
+                kwargs,
+                skip_thinking=skip_thinking,
+                refusals=self.tool_refusals,
+                sent=self.sent,
             ),
         )
 
@@ -2618,11 +2664,20 @@ class ReplyStream:
                 f"({self.tool_refusals[0]}), so nothing here was run or checked._"
             )
         if self.cut_at_limit and not self.looped:
-            self.notice = (
-                f"\n\n_Stopped at our {self.cap}-token limit ({self.cap_name})._"
-                if self.cap
-                else "\n\n_Stopped: the model reached its length limit._"
-            )
+            room = self.sent.get("max_tokens")
+            if self.cap and room and room < self.cap:
+                # Fitted below our cap: it was the model's context that ran out
+                self.notice = (
+                    f"\n\n_Stopped: the conversation left only {room:,} tokens of "
+                    "the model's context for this answer._"
+                )
+            elif self.cap:
+                self.notice = (
+                    f"\n\n_Stopped at our {self.cap}-token limit ({self.cap_name})._"
+                )
+            else:
+                self.notice = "\n\n_Stopped: the model reached its length limit._"
+
         if self.looped:
             # Hang up. Where a disconnect reaches the server it aborts the
             # generation; elsewhere it runs on to max_tokens, never forever.
