@@ -590,6 +590,29 @@ def test_the_progress_peek_is_unbuffered(unsandbox, room):
     )
 
 
+def test_the_peek_reads_everything_new_by_its_cursor(unsandbox, room):
+    """`unclose --peek <pid> since=<bytes>` hands back every event since
+    the last poll & the next cursor; the poll passes it back, so a burst
+    of more than 12 events between polls is all kept (fox, 2026-11-04)."""
+    burst = "\n".join(f"[bash] step {i}" for i in range(30))
+    unsandbox.polls = [
+        f"{burst}\n__PEEK_OFFSET__ 5000",
+        "[bash] step 30\n__PEEK_OFFSET__ 5200",
+        "__PEEK_OFFSET__ 5200",  # nothing new
+    ]
+    events = []
+    calls = [{"id": "c1", "name": "delegate", "arguments": json.dumps({"task": "t"})}]
+    tools.run_round(fox_in(room), calls, "", events.append)
+    _, polls = unsandbox.delegate_commands()
+    assert 'since=0"' in polls[0]  # a fresh run reads its session whole
+    assert 'since=5000"' in polls[1] and 'since=5200"' in polls[2]
+    assert not any("tail -n 12" in p for p in polls)
+    shown = [e["progress"] for e in events if e.get("progress")][-1]
+    lines = shown.splitlines()
+    assert lines == [f"[bash] step {i}" for i in range(31)]  # all, in order
+    assert "⋯" not in shown and "__PEEK_OFFSET__" not in shown
+
+
 def test_every_delegate_arms_a_fresh_token_and_native_tools(unsandbox, room):
     from models import Sandbox
 

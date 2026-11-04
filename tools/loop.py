@@ -31,6 +31,16 @@ GAP = "⋯"
 _PEEK_NOISE = re.compile(r"^\s*(🔒|… quiet\b|├ \[|\(peek stopped)")
 
 
+def append_log(log, text):
+    """`log` with `text`'s lines appended as they are: a cursor peek hands
+    over exactly what is new, so nothing overlaps & nothing is missed."""
+    return log + [
+        line.rstrip()
+        for line in str(text).splitlines()
+        if line.strip() and not _PEEK_NOISE.match(line)
+    ]
+
+
 def merge_log(log, text):
     """`log` (a list of lines) with the new lines of `text` appended. Each
     report repeats the tail of the last (peek replays its last rows), so
@@ -334,12 +344,14 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                 if said:
                     last["summary"] = whole_sentences(str(said))
 
-            def progress(text, vitals=None, card=None, log=log, last=last):
+            def progress(
+                text, vitals=None, card=None, new_only=False, log=log, last=last
+            ):
                 """One tick: the log, the vitals & (when the log grew) a
                 fresh summary are all gathered first, then shown as ONE
                 update, so the card changes once a tick, all together
                 (fox, 2026-10-31)."""
-                log[:] = merge_log(log, text or "")
+                log[:] = (append_log if new_only else merge_log)(log, text or "")
                 shaped = shape_vitals(vitals)
                 if shaped:
                     last["vitals"] = shaped

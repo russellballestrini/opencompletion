@@ -1004,9 +1004,18 @@ def _start_command(run_dir, model, task, session_id):
     )
 
 
-def _poll_command(run_dir):
+# A poll's peek, newest bytes kept: a burst bigger than this between two
+# polls keeps its end (the cursor still moves past all of it).
+PEEK_MAX_BYTES = 200000
+PEEK_OFFSET_MARK = "__PEEK_OFFSET__ "
+
+
+def _poll_command(run_dir, since=0):
     """One poll of a run: its vitals line, then its answer once it wrote an
-    exit code, __LOST__ when its process is gone, else its peek."""
+    exit code, __LOST__ when its process is gone, else its peek: every
+    session event after byte `since` & the next cursor (`unclose --peek
+    <pid> since=<bytes>`; an older uncloseai-cli ignores the token & replays
+    its last events, with no cursor)."""
     # First line: uncloseai-cli's vitals (`unclose --vitals <pid>`, the
     # unclose-vitals/1 JSON: plan, turn, context, tools, files, model
     # health, tokens, time), asked like peek; an older uncloseai-cli
@@ -1023,9 +1032,18 @@ def _poll_command(run_dir):
         # block-buffered pipe dies with it unflushed: every poll came back
         # empty & the progress line never moved (2026-10-31).
         f"else PATH=/root/.local/bin:$PATH PYTHONUNBUFFERED=1 timeout 6 unclose --peek "
-        f"$(cat {run_dir}/pid) 2>&1 | sed -E '{ANSI}' "
-        f"| tail -n 12; fi"
+        f"\"$(cat {run_dir}/pid) since={int(since)}\" 2>&1 | sed -E '{ANSI}' "
+        f"| tail -c {PEEK_MAX_BYTES}; fi"
     )
+
+
+def _read_peek_offset(out):
+    """Split a peek's closing cursor line off: (text, next cursor or None)."""
+    head, _, last = out.rstrip().rpartition("\n")
+    last = last.strip()
+    if last.startswith(PEEK_OFFSET_MARK) and last[len(PEEK_OFFSET_MARK) :].isdigit():
+        return head, int(last[len(PEEK_OFFSET_MARK) :])
+    return out, None
 
 
 def _read_vitals(out):
@@ -1149,7 +1167,10 @@ class _DelegateRun:
 
     def follow(self):
         """Poll the run until it ends; its result."""
-        self.poll = _poll_command(self.run_dir)
+        # The peek's cursor: 0 reads the session from its start (a resumed
+        # run's log is rebuilt whole), then only what each poll finds new.
+        self.peek_offset = 0
+        self.recent = ""  # its newest activity, for an overseer's review
         self.stop = stop_command(self.run_dir)
         self.next_tick = time.monotonic() + DELEGATE_POLL_S
         self.watch = oversight.Watch(time.monotonic())
@@ -1168,7 +1189,9 @@ class _DelegateRun:
             if not self._wait_for_tick():
                 continue  # the top of the loop stops it & says why
             try:
-                polled = _execute(self.sandbox, self.poll, 30)
+                polled = _execute(
+                    self.sandbox, _poll_command(self.run_dir, self.peek_offset), 30
+                )
             except Exception as e:  # noqa: BLE001 — a blip costs one poll
                 if _transient(e):
                     continue
@@ -1202,7 +1225,10 @@ class _DelegateRun:
             return self._lost(out)
         if out.startswith("__EXIT__"):
             return self._exited(out)
-        return self._progressed(vitals, out.strip())
+        out, offset = _read_peek_offset(out)
+        if offset is not None:
+            self.peek_offset = offset
+        return self._progressed(vitals, out.strip(), new_only=offset is not None)
 
     def _lost(self, out):
         if self.restarts < DELEGATE_RESTARTS:
@@ -1274,10 +1300,16 @@ class _DelegateRun:
             self.context.progress("", vitals=self.last_vitals, card=self.card)
         return result
 
-    def _progressed(self, vitals, progress):
+    def _progressed(self, vitals, progress, new_only=False):
         """A run still going: note its progress, stop it when stalled or
-        its overseer says so, & show its card."""
+        its overseer says so, & show its card. new_only: `progress` is
+        exactly what the session wrote since the last poll (a cursor
+        peek), not a replay of its last rows."""
         now = time.monotonic()
+        if progress:
+            self.recent = (f"{self.recent}\n{progress}" if new_only else progress)[
+                -4000:
+            ]
         watch = self.watch
         watch.observe(vitals, progress, now)
         if watch.session_id and watch.session_id != self.sandbox.delegate_session_id:
@@ -1300,7 +1332,7 @@ class _DelegateRun:
                 self.task,
                 watch,
                 vitals,
-                progress,
+                self.recent,
             )
             self.card["oversight"] = verdict
             if verdict["decision"] == "stop":
@@ -1312,6 +1344,8 @@ class _DelegateRun:
         self._pulse(now)
         if (progress or vitals) and self.context.progress:
             extra = {"vitals": vitals} if vitals is not None else {}
+            if new_only:
+                extra["new_only"] = True
             self.context.progress(progress, card=self.card, **extra)
         return None
 
