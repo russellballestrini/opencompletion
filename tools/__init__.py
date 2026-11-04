@@ -133,7 +133,8 @@ SANDBOX_SHARE_FILE = {
         "name": "sandbox_share_file",
         "description": (
             "Give the person a file from this chat's sandbox, which they "
-            "cannot see; paste the markdown it returns."
+            "cannot see; paste the markdown it returns. Share each file you "
+            "make for them without asking, unless they said not to."
         ),
         "parameters": {
             "type": "object",
