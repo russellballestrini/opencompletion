@@ -58,21 +58,66 @@ def room(test_app, monkeypatch):
 
 def test_a_models_history_keeps_its_past_tool_results(room):
     import app as app_module
-    from models import Message, db
 
-    db.session.add(Message(username="ada", content="and now?", room_id=room.id))
-    db.session.commit()
     _, history = app_module.reply_history("lobby", "qwen")
-    assert [m["role"] for m in history] == ["user", "assistant", "user"]
-    # a reply's words carry no note a model could copy, & no made-up tool
-    # calls (Qwen copied {"about": ...} as a call's arguments, 2026-11-04)
-    assert history[1] == {"role": "assistant", "content": "It is live."}
-    # what its tools did rides on the next message from a person
-    after = history[2]["content"]
-    assert after.startswith("(tools in your last reply: ")
-    assert "rockrms/Rock → failed: HTTP 404" in after
-    assert after.endswith("\n\nand now?")
-    assert history[0]["content"] == "is rockrms/Rock up?"  # a person's: no note
+    # the reply as it happened: its calls (real argument names, rebuilt
+    # from the trail), their results, then its words
+    roles = [m["role"] for m in history]
+    assert roles == ["user", "assistant", "tool", "tool", "assistant"]
+    calls = history[1]["tool_calls"]
+    assert [c["function"]["name"] for c in calls] == ["web_fetch", "web_search"]
+    assert json.loads(calls[0]["function"]["arguments"]) == {
+        "url": "https://github.com/rockrms/Rock"
+    }
+    assert json.loads(calls[1]["function"]["arguments"]) == {"query": "rock rms github"}
+    assert [m["tool_call_id"] for m in history[2:4]] == [c["id"] for c in calls]
+    assert json.loads(history[2]["content"]) == {
+        "error": "HTTP 404: no page at this address"
+    }
+    assert json.loads(history[3]["content"]) == {"sources": ["a", "b"]}
+    assert history[4] == {"role": "assistant", "content": "It is live."}
+    assert history[0]["content"] == "is rockrms/Rock up?"
+
+
+def test_a_reply_goes_back_split_where_its_calls_happened():
+    # words, the calls made at that point, their results, the words after:
+    # its words alone read as narrating work it never called (fox, 2026-11-04)
+    from tools.loop import reply_turns
+
+    words = (
+        "Let me write it. Written; sharing. Here it is: ![c.png](/attachments/x/c.png)"
+    )
+    trail = [
+        {"tool": "offered", "names": ["sandbox_shell"], "status": "done", "at": 0},
+        {
+            "tool": "sandbox_write_file",
+            "label": "/root/work/c.py",
+            "status": "done",
+            "at": 16,
+            "detail": {"language": "py", "input": "print(1)"},
+        },
+        {
+            "tool": "sandbox_share_file",
+            "label": "/root/work/c.png",
+            "status": "done",
+            "at": 34,
+            "sources": [{"url": "/attachments/x/c.png"}],
+        },
+    ]
+    turns = reply_turns(words, trail, 9)
+    roles = [t["role"] for t in turns]
+    assert roles == ["assistant", "tool", "assistant", "tool", "assistant"]
+    assert turns[0]["content"] == "Let me write it."
+    write = json.loads(turns[0]["tool_calls"][0]["function"]["arguments"])
+    assert write == {"path": "/root/work/c.py", "content": "print(1)"}
+    assert turns[2]["content"] == " Written; sharing."
+    assert json.loads(turns[3]["content"]) == {
+        "markdown": "![c.png](/attachments/x/c.png)"
+    }
+    assert turns[4]["content"].startswith(" Here it is")
+    assert reply_turns("Just words.", None, 1) == [
+        {"role": "assistant", "content": "Just words."}
+    ]
 
 
 def test_notes_a_model_copied_are_left_out_of_its_history():

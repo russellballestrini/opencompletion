@@ -469,6 +469,89 @@ def sources_of(result):
     return []
 
 
+def _arguments_of(entry):
+    """A past call's arguments, rebuilt from its trail entry under the
+    names its tool takes: its label is its main argument & a code tool's
+    detail keeps its input (6000 chars)."""
+    detail = entry.get("detail") or {}
+    label = str(entry.get("label") or "")
+    code = detail.get("input") or ""
+    return {
+        "web_search": {"query": label},
+        "web_fetch": {"url": label},
+        "sandbox_shell": {"command": code or label},
+        "sandbox_write_file": {"path": label, "content": code},
+        "sandbox_share_file": {"path": label},
+        "run_code": {"language": detail.get("language") or label, "code": code},
+        "delegate": {"task": code or label},
+    }.get(entry["tool"], {})
+
+
+def _result_of(entry):
+    """What a past call came back with, as far as its trail kept it."""
+    if entry.get("status") == "error":
+        return {"error": str(entry.get("error") or "failed")}
+    detail = entry.get("detail") or {}
+    result = {
+        k: detail[k]
+        for k in ("stdout", "stderr", "exit_code")
+        if detail.get(k) not in (None, "")
+    }
+    urls = [s.get("url") for s in entry.get("sources") or [] if isinstance(s, dict)]
+    if entry["tool"] == "sandbox_share_file" and urls:
+        name = str(entry.get("label") or "").rsplit("/", 1)[-1]
+        result["markdown"] = f"![{name}]({urls[0]})"
+    elif urls:
+        result["sources"] = urls[:10]
+    return result or {"ok": True}
+
+
+def reply_turns(content, tool_trail, key):
+    """A past reply as it happened, for the history a model reads: its
+    words up to each round of calls, those calls (arguments rebuilt from
+    the trail), their results, then the words after. Its words alone read
+    as a reply narrating work it never called ("Let me pull... The chart
+    rendered"), & models copied that, writing results with no call at all
+    (fox, 2026-11-04). `key` (the reply's id) keeps call ids unique."""
+    if isinstance(tool_trail, str) or tool_trail is None:
+        try:
+            tool_trail = json.loads(tool_trail or "[]")
+        except ValueError:
+            tool_trail = []
+    rounds = {}
+    for entry in tool_trail:
+        if isinstance(entry, dict) and entry.get("tool") not in (None, "", "offered"):
+            at = entry.get("at")
+            # no offset kept (older trails): called before its words
+            at = at if isinstance(at, int) and not isinstance(at, bool) else 0
+            rounds.setdefault(min(max(at, 0), len(content)), []).append(entry)
+    turns, start, index = [], 0, 0
+    for at in sorted(rounds):
+        calls, results = [], []
+        for entry in rounds[at]:
+            call_id = f"past_{key}_{index}"
+            index += 1
+            calls.append(
+                {
+                    "id": call_id,
+                    "name": entry["tool"],
+                    "arguments": json.dumps(_arguments_of(entry), ensure_ascii=False),
+                }
+            )
+            results.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": call_id,
+                    "content": json.dumps(_result_of(entry), ensure_ascii=False)[:4000],
+                }
+            )
+        turns.append(assistant_turn(content[start:at], calls))
+        turns.extend(results)
+        start = at
+    turns.append({"role": "assistant", "content": content[start:]})
+    return turns
+
+
 def trail_lines(tool_trail):
     """What a reply's tools did & how each ended, one line each: "web_fetch
     https://a.org → failed: HTTP 404". `tool_trail` is Message.tool_trail
