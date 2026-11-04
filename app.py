@@ -1802,7 +1802,14 @@ def fit_max_tokens(kwargs):
 
 def room_from_refusal(kwargs, text):
     """The max_tokens that fits, from a refusal naming the context length &
-    the prompt's tokens (both remembered for the model), else None."""
+    the prompt's tokens (both remembered for the model), else None.
+
+    vLLM's "your prompt contains at least N input tokens" is no count: N is
+    the window less what we asked for, plus one, a floor on the prompt. Taken
+    as the count, each retry gave back ~257 tokens & was refused again until
+    the reply broke (fox, 2026-11-04). After a floor the retry asks for at
+    most half as much, & for what our own estimate of the prompt leaves,
+    whichever is less."""
     model = kwargs.get("model")
     length = CONTEXT_LENGTH.search(text)
     if not length:
@@ -1810,19 +1817,59 @@ def room_from_refusal(kwargs, text):
     window = int(length.group(1))
     used = PROMPT_TOKENS.search(text)
     used = int(used.group(1) or used.group(2)) if used else 0
-    per_token = CHARS_PER_TOKEN
+    floor = "at least" in text.lower()
+    learned = CONTEXT_WINDOWS.get(model)
+    per_token = learned[1] if learned else CHARS_PER_TOKEN
     if used:
         # 10% fewer characters a token than measured: a later prompt of
-        # other text may tokenize a little denser.
-        per_token = min(CHARS_PER_TOKEN, 0.9 * prompt_chars(kwargs) / used)
+        # other text may tokenize a little denser. A floor on the prompt's
+        # tokens is a ceiling on its characters a token: still safe to keep.
+        per_token = min(per_token, 0.9 * prompt_chars(kwargs) / used)
     if model:
         if model not in CONTEXT_WINDOWS:
             print(f"[INFO] {model}: {window}-token context; fitting max_tokens to it")
         CONTEXT_WINDOWS[model] = (window, max(per_token, 1.0))
     if not used:
         return None
-    room = window - used - CONTEXT_MARGIN
+    if floor:
+        estimate = int(prompt_chars(kwargs) / max(per_token, 1.0))
+        room = min(
+            window - max(used, estimate) - CONTEXT_MARGIN,
+            kwargs.get("max_tokens", window) // 2,
+        )
+    else:
+        room = window - used - CONTEXT_MARGIN
     return room if room >= MIN_ANSWER_TOKENS else None
+
+
+def shrink_history(kwargs):
+    """Make an ask's prompt smaller when it alone is past the model's
+    context: drop the oldest whole turn of history (from the first message
+    after the system ones up to the next message from a person), keeping
+    the last person's message & all after it; with no older turn left,
+    halve the longest tool result. False when nothing more can go."""
+    messages = list(kwargs.get("messages") or [])
+    people = [i for i, m in enumerate(messages) if m.get("role") == "user"]
+    first = next((i for i, m in enumerate(messages) if m.get("role") != "system"), None)
+    if first is not None and people and first < people[-1]:
+        cut = next(i for i in people if i > first)
+        kwargs["messages"] = messages[:first] + messages[cut:]
+        return True
+    results = [
+        i
+        for i, m in enumerate(messages)
+        if m.get("role") == "tool" and len(str(m.get("content") or "")) > 2000
+    ]
+    if not results:
+        return False
+    longest = max(results, key=lambda i: len(str(messages[i]["content"])))
+    text = str(messages[longest]["content"])
+    messages[longest] = dict(
+        messages[longest],
+        content=text[: len(text) // 2] + " …(cut to fit the model's context)",
+    )
+    kwargs["messages"] = messages
+    return True
 
 
 def open_completion(client, kwargs, skip_thinking=False, refusals=None):
@@ -1838,7 +1885,7 @@ def open_completion(client, kwargs, skip_thinking=False, refusals=None):
     tools to an error that was about something else."""
     kwargs = dict(kwargs)
     fit_max_tokens(kwargs)
-    for _ in range(4):
+    for _ in range(16):
         try:
             if skip_thinking:
                 return create_completion_skip_thinking(client, **kwargs)
@@ -1863,6 +1910,12 @@ def open_completion(client, kwargs, skip_thinking=False, refusals=None):
                     continue
                 print(f"[WARN] {kwargs.get('model')} refused max_tokens: {e}")
                 kwargs.pop("max_tokens")
+                continue
+            if CONTEXT_LENGTH.search(str(e)) and shrink_history(kwargs):
+                # The prompt alone is past its context: older turns go
+                print(
+                    f"[WARN] {kwargs.get('model')}: prompt past its context, shortened"
+                )
                 continue
             if "tool_choice" in kwargs and "tool" in text:
                 # Can't force a named tool: still offer them all.

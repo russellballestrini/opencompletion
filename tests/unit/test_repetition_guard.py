@@ -360,7 +360,8 @@ def test_a_cap_past_the_context_is_fitted_and_remembered(monkeypatch):
     prompt = [{"role": "user", "content": "x" * 120000}]  # ~40k tokens
     kwargs = {"model": "q", "messages": prompt, "max_tokens": 24576}
     assert app_module.open_completion(client, kwargs) == "stream"
-    assert [c["max_tokens"] for c in calls] == [24576, 65536 - 40961 - 256]
+    # "at least" is a floor: the retry asks for at most half
+    assert [c["max_tokens"] for c in calls] == [24576, 24576 // 2]
     calls.clear()
     assert app_module.open_completion(client, kwargs) == "stream"
     assert len(calls) == 1 and calls[0]["max_tokens"] <= 65536 - 40961
@@ -369,3 +370,87 @@ def test_a_cap_past_the_context_is_fitted_and_remembered(monkeypatch):
     short = {"model": "q", "messages": [{"role": "user", "content": "hi"}]}
     app_module.open_completion(client, short | {"max_tokens": 24576})
     assert calls[0]["max_tokens"] == 24576
+
+
+def vllm_like(window, counted, calls):
+    """A vLLM-ish server: the prompt is `counted(messages)` tokens; past the
+    window it refuses as vLLM does, naming a FLOOR (window - asked + 1) when
+    a max_tokens was asked, else the prompt's own count."""
+    import httpx
+    import openai
+
+    def refuse(text):
+        request = httpx.Request("POST", "http://model.test/v1/chat/completions")
+        return openai.BadRequestError(
+            f"Error code: 400 - {text}",
+            response=httpx.Response(400, request=request),
+            body=None,
+        )
+
+    def create(**kwargs):
+        calls.append(kwargs)
+        prompt = counted(kwargs["messages"])
+        asked = kwargs.get("max_tokens")
+        if asked is not None and prompt + asked > window:
+            raise refuse(
+                f"This model's maximum context length is {window} tokens. However, "
+                f"you requested {asked} output tokens and your prompt contains at "
+                f"least {window - asked + 1} input tokens"
+            )
+        if prompt >= window:
+            raise refuse(
+                f"This model's maximum context length is {window} tokens. However, "
+                f"your request has {prompt} input tokens."
+            )
+        return "stream"
+
+    return SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+    )
+
+
+def test_a_floor_in_the_refusal_never_breaks_the_reply(monkeypatch):
+    """fox, 2026-11-04: vLLM's "at least N input tokens" is a floor; taken
+    as the count each retry was refused again & the reply ended "could not
+    answer after its tools". The ask now converges & the reply goes on."""
+    import app as app_module
+
+    monkeypatch.setattr(app_module, "CONTEXT_WINDOWS", {})
+    calls = []
+    # 52k real prompt tokens in 120k characters: denser than our 3 chars/token
+    client = vllm_like(65536, lambda ms: 52000, calls)
+    kwargs = {
+        "model": "q",
+        "messages": [{"role": "user", "content": "x" * 120000}],
+        "max_tokens": 24576,
+    }
+    assert app_module.open_completion(client, kwargs) == "stream"
+    last = calls[-1]
+    assert "max_tokens" not in last or 52000 + last["max_tokens"] <= 65536
+    assert len(calls) <= 6
+
+
+def test_a_prompt_past_the_context_drops_its_oldest_turns(monkeypatch):
+    import app as app_module
+
+    monkeypatch.setattr(app_module, "CONTEXT_WINDOWS", {})
+    calls = []
+    big = "y" * 30000
+    history = [
+        {"role": "system", "content": "tools: ..."},
+        {"role": "user", "content": "old question"},
+        {"role": "assistant", "content": "", "tool_calls": [{"id": "p1"}]},
+        {"role": "tool", "tool_call_id": "p1", "content": big},
+        {"role": "assistant", "content": "old answer " + big},
+        {"role": "user", "content": "new question"},
+        {"role": "assistant", "content": "", "tool_calls": [{"id": "c1"}]},
+        {"role": "tool", "tool_call_id": "c1", "content": "fresh result"},
+    ]
+    # 1 token a character: the old turn alone is past a 40k window
+    client = vllm_like(40000, lambda ms: len(str(ms)), calls)
+    kwargs = {"model": "q", "messages": history, "max_tokens": 4096}
+    assert app_module.open_completion(client, kwargs) == "stream"
+    sent = calls[-1]["messages"]
+    assert [m["role"] for m in sent] == ["system", "user", "assistant", "tool"]
+    assert sent[1]["content"] == "new question"  # the current turn is whole
+    assert sent[3]["content"] == "fresh result"
