@@ -470,7 +470,7 @@ def trail_turns(tool_trail, key):
             return []
     calls, results = [], []
     for index, entry in enumerate(tool_trail[:12]):
-        if not isinstance(entry, dict) or not entry.get("tool"):
+        if not isinstance(entry, dict) or entry.get("tool") in (None, "", "offered"):
             continue
         call_id = f"past_{key}_{index}"
         about = str(entry.get("label") or "")[:120]
@@ -507,7 +507,7 @@ def trail_lines(tool_trail):
             return []
     lines = []
     for entry in tool_trail[:12]:
-        if not isinstance(entry, dict) or not entry.get("tool"):
+        if not isinstance(entry, dict) or entry.get("tool") in (None, "", "offered"):
             continue
         what = f"{entry['tool']} {entry.get('label') or ''}".strip()[:120]
         if entry.get("status") == "error":
