@@ -58,11 +58,33 @@ def test_a_models_history_keeps_its_past_tool_results(room):
     import app as app_module
 
     _, history = app_module.reply_history("lobby", "qwen")
-    reply = [m for m in history if m["role"] == "assistant"][0]["content"]
-    assert reply.startswith("It is live.\n\n(tools in this reply: ")
-    assert "rockrms/Rock → failed: HTTP 404" in reply
-    person = [m for m in history if m["role"] == "user"][0]["content"]
-    assert person == "is rockrms/Rock up?"  # only a model's replies carry a note
+    roles = [m["role"] for m in history]
+    # its tools as tool turns (one call each, then each result), then its words
+    assert roles == ["user", "assistant", "tool", "tool", "assistant"]
+    calls = history[1]["tool_calls"]
+    assert [c["function"]["name"] for c in calls] == ["web_fetch", "web_search"]
+    assert [m["tool_call_id"] for m in history[2:4]] == [c["id"] for c in calls]
+    assert json.loads(history[2]["content"]) == {
+        "status": "failed",
+        "error": "HTTP 404: no page at this address",
+    }
+    assert json.loads(history[3]["content"]) == {"status": "ok", "sources": 2}
+    # the reply's own words carry no note a model could learn to copy
+    assert history[4]["content"] == "It is live."
+    assert history[0]["content"] == "is rockrms/Rock up?"  # a person's: no tools
+
+
+def test_notes_a_model_copied_are_left_out_of_its_history():
+    import app as app_module
+
+    echoed = (
+        "Net profit: ~$55/month.\n\n(tools in this reply: none)\n\n"
+        "(tools in this reply: offered → ok)"
+    )
+    assert app_module.without_echoed_notes(echoed) == "Net profit: ~$55/month."
+    # words that only mention it mid-line stay
+    keep = "I wrote (tools in this reply: x) inline."
+    assert app_module.without_echoed_notes(keep) == keep
 
 
 def test_transcripts_carry_each_replys_tools(room, test_app):

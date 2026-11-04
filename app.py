@@ -1985,17 +1985,23 @@ def reply_history(room_name, model_name, resume=None):
                 include_images=vision_enabled and msg.id == most_recent_image_id,
             )
             if role == "assistant":
-                content += trail_note(msg.tool_trail)
+                # Its tools first, as tool turns, then its words
+                chat_history.extend(tools.loop.trail_turns(msg.tool_trail, msg.id))
+                content = without_echoed_notes(content)
             chat_history.append({"role": role, "content": content})
     return room_id, chat_history
 
 
-def trail_note(tool_trail):
-    """One line under a past reply in the history a model reads: what its
-    tools did & how each ended. Without it a model sees only what it said,
-    & can stand by "I fetched it" over the 404 it got (fox, 2026-11-02)."""
-    lines = tools.loop.trail_lines(tool_trail)
-    return f"\n\n(tools in this reply: {'; '.join(lines)})" if lines else ""
+ECHOED_TOOL_NOTE = re.compile(r"\n*^\(tools in this reply:[^\n]*\)[ \t]*$", re.M)
+
+
+def without_echoed_notes(content):
+    """A past reply minus "(tools in this reply: ...)" lines. We once put
+    that note in a reply's history text & models copied it into their own
+    replies; left in, those copies teach the next reply the same habit."""
+    if not isinstance(content, str) or "(tools in this reply:" not in content:
+        return content
+    return ECHOED_TOOL_NOTE.sub("", content).rstrip()
 
 
 def start_reply_message(model_name, room_id, resume=None):
