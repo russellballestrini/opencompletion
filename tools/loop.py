@@ -469,44 +469,6 @@ def sources_of(result):
     return []
 
 
-def trail_turns(tool_trail, key):
-    """A past reply's tools as the turns a model is trained on: one
-    assistant turn calling them, then each call's result, placed before
-    the reply's words. A note in the reply's own text got copied: models
-    began writing "(tools in this reply: ...)" lines themselves (fox,
-    2026-11-04). `key` (the reply's id) keeps call ids unique per room."""
-    if isinstance(tool_trail, str) or tool_trail is None:
-        try:
-            tool_trail = json.loads(tool_trail or "[]")
-        except ValueError:
-            return []
-    calls, results = [], []
-    for index, entry in enumerate(tool_trail[:12]):
-        if not isinstance(entry, dict) or entry.get("tool") in (None, "", "offered"):
-            continue
-        call_id = f"past_{key}_{index}"
-        about = str(entry.get("label") or "")[:120]
-        calls.append(
-            {
-                "id": call_id,
-                "name": entry["tool"],
-                "arguments": json.dumps({"about": about}, ensure_ascii=False),
-            }
-        )
-        if entry.get("status") == "error":
-            outcome = {"status": "failed", "error": str(entry.get("error") or "")[:200]}
-        else:
-            outcome = {"status": "ok", "sources": len(entry.get("sources") or [])}
-        results.append(
-            {
-                "role": "tool",
-                "tool_call_id": call_id,
-                "content": json.dumps(outcome, ensure_ascii=False),
-            }
-        )
-    return [assistant_turn("", calls)] + results if calls else []
-
-
 def trail_lines(tool_trail):
     """What a reply's tools did & how each ended, one line each: "web_fetch
     https://a.org → failed: HTTP 404". `tool_trail` is Message.tool_trail

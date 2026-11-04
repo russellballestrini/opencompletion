@@ -35,6 +35,8 @@ def test_trail_lines_say_what_each_call_did():
         "web_search rock rms github → ok, 2 sources",
     ]
     assert trail_lines(None) == [] and trail_lines("{not json") == []
+    # a delegated run's "offered" (the tools it was given) is no call
+    assert trail_lines([{"tool": "offered", "status": "done"}]) == []
 
 
 @pytest.fixture
@@ -56,22 +58,21 @@ def room(test_app, monkeypatch):
 
 def test_a_models_history_keeps_its_past_tool_results(room):
     import app as app_module
+    from models import Message, db
 
+    db.session.add(Message(username="ada", content="and now?", room_id=room.id))
+    db.session.commit()
     _, history = app_module.reply_history("lobby", "qwen")
-    roles = [m["role"] for m in history]
-    # its tools as tool turns (one call each, then each result), then its words
-    assert roles == ["user", "assistant", "tool", "tool", "assistant"]
-    calls = history[1]["tool_calls"]
-    assert [c["function"]["name"] for c in calls] == ["web_fetch", "web_search"]
-    assert [m["tool_call_id"] for m in history[2:4]] == [c["id"] for c in calls]
-    assert json.loads(history[2]["content"]) == {
-        "status": "failed",
-        "error": "HTTP 404: no page at this address",
-    }
-    assert json.loads(history[3]["content"]) == {"status": "ok", "sources": 2}
-    # the reply's own words carry no note a model could learn to copy
-    assert history[4]["content"] == "It is live."
-    assert history[0]["content"] == "is rockrms/Rock up?"  # a person's: no tools
+    assert [m["role"] for m in history] == ["user", "assistant", "user"]
+    # a reply's words carry no note a model could copy, & no made-up tool
+    # calls (Qwen copied {"about": ...} as a call's arguments, 2026-11-04)
+    assert history[1] == {"role": "assistant", "content": "It is live."}
+    # what its tools did rides on the next message from a person
+    after = history[2]["content"]
+    assert after.startswith("(tools in your last reply: ")
+    assert "rockrms/Rock → failed: HTTP 404" in after
+    assert after.endswith("\n\nand now?")
+    assert history[0]["content"] == "is rockrms/Rock up?"  # a person's: no note
 
 
 def test_notes_a_model_copied_are_left_out_of_its_history():

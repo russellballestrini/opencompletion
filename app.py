@@ -1954,6 +1954,7 @@ def reply_history(room_name, model_name, resume=None):
         )
 
         # Build chat history (oldest first) - include all text, only most recent image
+        tool_note = ""
         for msg in reversed(last_messages):
             is_image_msg = msg.is_base64_image() or extract_external_image_url(
                 msg.content
@@ -1985,21 +1986,45 @@ def reply_history(room_name, model_name, resume=None):
                 include_images=vision_enabled and msg.id == most_recent_image_id,
             )
             if role == "assistant":
-                # Its tools first, as tool turns, then its words
-                chat_history.extend(tools.loop.trail_turns(msg.tool_trail, msg.id))
                 content = without_echoed_notes(content)
+                chat_history.append({"role": role, "content": content})
+                # What its tools did rides on the next message from a person
+                tool_note = tools_note(msg.tool_trail)
+                continue
+            if tool_note:
+                content = with_note(content, tool_note)
+                tool_note = ""
             chat_history.append({"role": role, "content": content})
     return room_id, chat_history
 
 
-ECHOED_TOOL_NOTE = re.compile(r"\n*^\(tools in this reply:[^\n]*\)[ \t]*$", re.M)
+def tools_note(tool_trail):
+    """What a past reply's tools did & how each ended, for the next
+    message from a person: without it a model sees only what it said & can
+    stand by "I fetched it" over the 404 it got (fox, 2026-11-02). Not in
+    the reply's own words (models copied it into theirs) & not as tool
+    calls (we keep no real arguments; made-up ones were copied too: Qwen
+    called sandbox_write_file with neither path nor content, 2026-11-04)."""
+    lines = tools.loop.trail_lines(tool_trail)
+    return f"(tools in your last reply: {'; '.join(lines)})" if lines else ""
+
+
+def with_note(content, note):
+    if isinstance(content, list):  # a vision turn: a text part first
+        return [{"type": "text", "text": note}] + content
+    return f"{note}\n\n{content}"
+
+
+ECHOED_TOOL_NOTE = re.compile(
+    r"\n*^\(tools in (?:this|your last) reply:[^\n]*\)[ \t]*$", re.M
+)
 
 
 def without_echoed_notes(content):
     """A past reply minus "(tools in this reply: ...)" lines. We once put
     that note in a reply's history text & models copied it into their own
     replies; left in, those copies teach the next reply the same habit."""
-    if not isinstance(content, str) or "(tools in this reply:" not in content:
+    if not isinstance(content, str) or "(tools in " not in content:
         return content
     return ECHOED_TOOL_NOTE.sub("", content).rstrip()
 
