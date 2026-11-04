@@ -46,7 +46,6 @@ help:
 	@echo "  classifier-check     - Smoke test our classifier model (network)"
 	@echo "  backfill-titles      - Title untitled rooms for our sidebars (network)"
 	@echo "  backfill-blobs       - Move base64 images inside messages into our blob store"
-	@echo "  backfill-tool-notes  - Take copied (tools in this reply: ...) lines out of saved replies"
 	@echo "  chain-check          - Verify every room's hash chain, deleted rooms' too (fails on any break)"
 	@echo "  jev-bench            - Self-play Jev Reasoner's probability grid (no network)"
 	@echo "  arena                - Every battleship mode plays every other (network)"
@@ -312,16 +311,6 @@ backfill-blobs: venv
 	@echo "🗄️  Moving base64 images in messages into our blob store..."
 	@if [ -f vars.sh ]; then \
 		. ./vars.sh && OPENCOMPLETION_SKIP_MODEL_MAP=1 venv/bin/python app.py --backfill-blobs; \
-	else \
-		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \
-		exit 1; \
-	fi
-
-.PHONY: backfill-tool-notes
-backfill-tool-notes: venv
-	@echo "🧹 Taking copied tool notes out of saved replies..."
-	@if [ -f vars.sh ]; then \
-		. ./vars.sh && OPENCOMPLETION_SKIP_MODEL_MAP=1 venv/bin/python app.py --backfill-tool-notes; \
 	else \
 		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \
 		exit 1; \
