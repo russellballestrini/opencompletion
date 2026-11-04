@@ -1054,13 +1054,8 @@ def on_join(data):
     # Fetch previous messages from the database
     previous_messages = Message.visible(room.id).all()
 
-    # count the number of tokens in this room.
-    total_token_count = 0
-
     # Send the history of messages only to the newly connected client.
     for message in previous_messages:
-        if not message.is_base64_image():
-            total_token_count += message.token_count
         emit(
             "previous_messages",
             {
@@ -1097,7 +1092,25 @@ def on_join(data):
         room=room.name,
         include_self=False,
     )
-    emit("room_stats", {"tokens": total_token_count}, room=request.sid)
+    emit_room_stats(room, to=request.sid)
+
+
+def emit_room_stats(room, to=None):
+    """The conversation's size (its visible messages' tokens) in the room
+    controls: to one joiner, else to everyone in the room after a message,
+    a reply, an edit or a delete (it was sent on join only & went stale)."""
+    try:
+        tokens = sum(
+            m.count_tokens() or 0
+            for m in Message.visible(room.id).all()
+            if not m.is_base64_image()
+        )
+        db.session.commit()  # counts made now are kept
+    except Exception as e:  # noqa: BLE001 — a stat never breaks the chat
+        db.session.rollback()
+        print(f"[WARN] room stats for {room.name}: {e}")
+        return
+    socketio.emit("room_stats", {"tokens": tokens}, room=to or room.name)
 
 
 # Handle user leaving a room
@@ -1180,6 +1193,7 @@ def handle_message(data):
         },
         room=room.name,
     )
+    emit_room_stats(room)
 
     dispatch_message(
         room,
@@ -1344,6 +1358,7 @@ def handle_delete_message(data):
 
     # Notify all clients in the room to remove the message from their DOM
     emit("message_deleted", {"message_id": msg_id}, room=room.name)
+    emit_room_stats(room)
 
 
 @socketio.on("update_message")
@@ -1355,7 +1370,7 @@ def handle_update_message(data):
     if message:
         # Update the message content
         message.content = new_content
-        message.count_tokens()
+        message.count_tokens(fresh=True)
         db.session.add(message)
         db.session.commit()
         chain.append(
@@ -1377,6 +1392,7 @@ def handle_update_message(data):
             },
             room=room_name,
         )
+        emit_room_stats(room)
 
 
 def models_that_answered(message):
@@ -1472,6 +1488,7 @@ def handle_edit_and_resend(data):
         {"id": revision.id, "username": revision.username, "content": content},
         room=room.name,
     )
+    emit_room_stats(room)
     dispatch_message(
         room,
         revision.username,
@@ -1633,7 +1650,7 @@ def chat_claude(
             )
             if new_message:
                 new_message.content = message_content
-                new_message.count_tokens()
+                new_message.count_tokens(fresh=True)
                 db.session.add(new_message)
                 db.session.commit()
         socketio.emit(
@@ -1656,7 +1673,7 @@ def chat_claude(
         )
         if new_message:
             new_message.content = buffer
-            new_message.count_tokens()
+            new_message.count_tokens(fresh=True)
             db.session.add(new_message)
             db.session.commit()
 
@@ -2277,7 +2294,7 @@ class ReplyStream:
             )
             if new_message:
                 new_message.content = message_content
-                new_message.count_tokens()
+                new_message.count_tokens(fresh=True)
                 db.session.add(new_message)
                 db.session.commit()
         socketio.emit(
@@ -2703,7 +2720,7 @@ class ReplyStream:
                     json.dumps(self.tool_trail) if self.tool_trail else None
                 )
                 new_message.resume_state = None
-                new_message.count_tokens()
+                new_message.count_tokens(fresh=True)
                 db.session.add(new_message)
                 db.session.commit()
                 chain.append(
@@ -2726,6 +2743,11 @@ class ReplyStream:
         )
 
         socketio.emit("delete_processing_message", msg_id, room=room_name)
+        if isinstance(self.room_id, int):
+            with app.app_context():
+                room = db.session.get(Room, self.room_id)
+                if room is not None:
+                    emit_room_stats(room)
         if followups_enabled() and buffer.strip() and not self.notice:
             if room_name not in stop_requests:
                 gevent.spawn(
@@ -3009,7 +3031,7 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
             )
             if new_message:
                 new_message.content = message_content
-                new_message.count_tokens()
+                new_message.count_tokens(fresh=True)
                 db.session.add(new_message)
                 db.session.commit()
         socketio.emit(
@@ -3077,7 +3099,7 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
         )
         if new_message:
             new_message.content = buffer
-            new_message.count_tokens()
+            new_message.count_tokens(fresh=True)
             db.session.add(new_message)
             db.session.commit()
 

@@ -189,8 +189,10 @@ class Message(db.Model):
         self.room_id = room_id
         self.count_tokens()
 
-    def count_tokens(self):
-        if self.token_count is None:
+    def count_tokens(self, fresh=False):
+        """Its tokens, counted once & kept; fresh=True counts again (its
+        words changed: a finished reply, an edit)."""
+        if fresh or self.token_count is None:
             if self.is_base64_image():
                 self.token_count = 0
             elif not TIKTOKEN_AVAILABLE:

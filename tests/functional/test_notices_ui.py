@@ -169,3 +169,50 @@ def test_presence_folds_into_one_line_and_the_estimate_leaves_the_chat(
     html = client.get("/chat/lobby").get_data(as_text=True)
     out = run_probe(html, PRESENCE_PROBE, tmp_path, 1280)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+def test_the_rooms_size_follows_each_message_edit_and_delete(test_app, monkeypatch):
+    """fox, 2026-11-04: "Conversation: about 143 tokens" was sent on join
+    only & never moved. Everyone in the room hears the new size after a
+    message, an edit & a delete."""
+    import app as app_module
+
+    monkeypatch.setattr(app_module, "dispatch_message", lambda *a, **k: None)
+
+    def client():
+        return app_module.socketio.test_client(
+            app_module.app, flask_test_client=test_app.test_client()
+        )
+
+    ada, bob = client(), client()
+    for who, name in ((ada, "ada"), (bob, "bob")):
+        who.emit("join", {"room_name": "lobby", "username": name})
+    ada.get_received(), bob.get_received()
+
+    def size(heard):
+        stats = [e["args"][0]["tokens"] for e in heard if e["name"] == "room_stats"]
+        assert stats, "no room_stats"
+        return stats[-1]
+
+    ada.emit(
+        "chat_message",
+        {
+            "room_name": "lobby",
+            "username": "ada",
+            "message": "word " * 200,
+            "model": "None",
+        },
+    )
+    after_message = size(bob.get_received())
+    assert after_message > 150
+    ada.get_received()
+    from models import Message
+
+    mid = Message.query.filter_by(username="ada").one().id
+    ada.emit(
+        "update_message", {"message_id": mid, "content": "short", "room_name": "lobby"}
+    )
+    after_edit = size(bob.get_received())
+    assert after_edit < 10  # recounted, not the old count
+    ada.emit("delete_message", {"message_id": mid, "room_name": "lobby"})
+    assert size(bob.get_received()) == 0
