@@ -122,3 +122,47 @@ def test_a_dead_link_is_said_plainly(monkeypatch):
     error = web_fetch.fetch_page("https://github.com/rockrms/Rock")["error"]
     assert error.startswith("HTTP 404: no page at this address")
     assert "never describe it as if you read it" in error
+
+
+def test_offered_is_no_call():
+    # a delegated run's "offered" entry lists the tools it was given; nothing
+    # called it, so neither a model's history nor a transcript shows it
+    from tools.loop import trail_turns
+
+    trail = [{"tool": "offered", "label": "web_fetch, sandbox_shell", "status": "done"}]
+    assert trail_turns(trail, 1) == [] and trail_lines(trail) == []
+
+
+def test_backfill_takes_copied_notes_out_and_the_chain_still_holds(test_app):
+    import app as app_module
+    import chain
+    from models import Message, Room, db
+
+    room = Room(name="mining")
+    db.session.add(room)
+    db.session.commit()
+    words = "Net: ~$55/month.\n\n(tools in this reply: offered → ok)"
+    reply = Message(username="qwen", content=words, room_id=room.id)
+    person = Message(username="ada", content="how much?", room_id=room.id)
+    db.session.add_all([reply, person])
+    db.session.commit()
+    for msg, kind in ((person, "user"), (reply, "assistant")):
+        chain.append(
+            room.id,
+            room.name,
+            kind,
+            messageId=msg.id,
+            username=msg.username,
+            contentSha256=chain.sha256_text(msg.content),
+        )
+    key = chain.chain_of(room)
+    assert chain.verify(key)["ok"]
+
+    assert app_module.backfill_tool_notes() == 1
+    db.session.expire_all()  # the backfill wrote in its own app context
+    assert db.session.get(Message, reply.id).content == "Net: ~$55/month."
+    assert db.session.get(Message, person.id).content == "how much?"
+    last = json.loads(chain.events(key)[-1].line)
+    assert last["type"] == "edit" and last["messageId"] == reply.id
+    assert chain.verify(key)["ok"]  # chained as an edit: no content mismatch
+    assert app_module.backfill_tool_notes() == 0  # nothing left to clean

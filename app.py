@@ -3351,6 +3351,39 @@ def backfill_blobs():
     return moved, changed
 
 
+def backfill_tool_notes():
+    """Take "(tools in this reply: ...)" lines out of saved replies (`python
+    app.py --backfill-tool-notes`). We once put that note in the history a
+    model read & models copied it into what they wrote, so people saw it in
+    chat. Each change is chained as an edit, as any edit is, so the room's
+    chain still matches its messages. Returns the messages changed."""
+    changed = 0
+    with app.app_context():
+        found = Message.query.filter(
+            Message.content.contains("(tools in this reply:")
+        ).all()
+        for msg in found:
+            cleaned = without_echoed_notes(msg.content)
+            if cleaned == msg.content:
+                continue
+            msg.content = cleaned
+            msg.count_tokens()
+            db.session.commit()
+            room = db.session.get(Room, msg.room_id)
+            chain.append(
+                msg.room_id,
+                room.name if room else None,
+                "edit",
+                messageId=msg.id,
+                username="system",
+                reason="echoed tool notes removed",
+                contentSha256=chain.sha256_text(cleaned),
+            )
+            changed += 1
+            print(f"[INFO] message {msg.id}: echoed tool notes removed")
+    return changed
+
+
 def find_most_recent_code_block(room_name):
     with app.app_context():
         # Get the room object from the database
@@ -3621,6 +3654,11 @@ if __name__ == "__main__":
         help="Move base64 images inside messages into our blob store, then exit",
     )
     parser.add_argument(
+        "--backfill-tool-notes",
+        action="store_true",
+        help='Take copied "(tools in this reply: ...)" lines out of saved replies, then exit',
+    )
+    parser.add_argument(
         "--chain-check",
         action="store_true",
         help="Verify every room's hash chain (deleted rooms' too), then exit",
@@ -3655,6 +3693,10 @@ if __name__ == "__main__":
         bad = sum(not r["ok"] for r in reports)
         print(f"{len(reports)} chain(s), {bad} with a problem.")
         raise SystemExit(1 if bad else 0)
+
+    if args.backfill_tool_notes:
+        print(f"Cleaned {backfill_tool_notes()} message(s).")
+        raise SystemExit(0)
 
     if args.backfill_blobs:
         moved, changed = backfill_blobs()
