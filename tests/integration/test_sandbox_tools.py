@@ -567,6 +567,8 @@ def test_delegate_runs_unclose_with_a_token_only_its_vault_holds(unsandbox, room
         assert token not in command
     assert token not in json.dumps(result)
     assert ". /run/unsandbox/vault.sh" in start and "setsid nohup" in start
+    # it works where the chat's files are, never a dir of its own making
+    assert "cd /root/work &&" in start
     assert "unclose -p --no-markdown --model qwen" in start
     assert "make tests pass" in start
     # Our own model keys never reach the sandbox.

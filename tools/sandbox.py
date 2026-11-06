@@ -998,7 +998,11 @@ def _start_command(run_dir, model, task, session_id):
         f"wait $!; echo $? > {run_dir}/exit"
     )
     return (
-        f"mkdir -p {run_dir} && rm -f {run_dir}/exit && cd /root && "
+        # It works where the chat's own files are (/root/work, our tools'
+        # examples): from /root, uncloseai-cli's model made itself a
+        # ~/claude-workdir, a habit from other harnesses, & a sandbox held two
+        # work trees (fox, 2026-11-06).
+        f"mkdir -p {run_dir} /root/work && rm -f {run_dir}/exit && cd /root/work && "
         f"setsid nohup bash -c {shlex.quote(inner)} > /dev/null 2>&1 < /dev/null & "
         f"sleep 1; cat {run_dir}/pid"
     )
