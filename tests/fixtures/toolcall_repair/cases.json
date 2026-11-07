@@ -1,0 +1,205 @@
+[
+ {
+  "case": "raw newline in a body",
+  "raw": "{\"path\": \"/tmp/a.py\", \"content\": \"line1\nline2\"}",
+  "primary_key": null,
+  "aliases": null,
+  "args": {
+   "path": "/tmp/a.py",
+   "content": "line1\nline2"
+  },
+  "repairs": [
+   "json_repair"
+  ]
+ },
+ {
+  "case": "tab & control chars",
+  "raw": "{\"path\": \"/tmp/a.py\", \"content\": \"a\tb\u0001c\"}",
+  "primary_key": null,
+  "aliases": null,
+  "args": {
+   "path": "/tmp/a.py",
+   "content": "a\tb\u0001c"
+  },
+  "repairs": [
+   "json_repair"
+  ]
+ },
+ {
+  "case": "trailing comma",
+  "raw": "{\"path\": \"/tmp/a.py\", \"content\": \"x\",}",
+  "primary_key": null,
+  "aliases": null,
+  "args": {
+   "path": "/tmp/a.py",
+   "content": "x"
+  },
+  "repairs": [
+   "json_repair"
+  ]
+ },
+ {
+  "case": "markdown fence",
+  "raw": "```json\n{\"command\": \"ls -la\"}\n```",
+  "primary_key": null,
+  "aliases": null,
+  "args": {
+   "command": "ls -la"
+  },
+  "repairs": [
+   "json_repair"
+  ]
+ },
+ {
+  "case": "invalid escape",
+  "raw": "{\"command\": \"grep \\d+ file\"}",
+  "primary_key": null,
+  "aliases": null,
+  "args": {
+   "command": "grep \\d+ file"
+  },
+  "repairs": [
+   "json_repair"
+  ]
+ },
+ {
+  "case": "cut off mid object",
+  "raw": "{\"path\": \"/tmp/a.py\", \"content\": \"abc\"",
+  "primary_key": null,
+  "aliases": null,
+  "args": {
+   "path": "/tmp/a.py",
+   "content": "abc"
+  },
+  "repairs": [
+   "json_repair"
+  ]
+ },
+ {
+  "case": "nested arguments string",
+  "raw": {
+   "arguments": "{\"path\": \"/tmp/a.py\", \"content\": \"hi\"}"
+  },
+  "primary_key": null,
+  "aliases": null,
+  "args": {
+   "path": "/tmp/a.py",
+   "content": "hi"
+  },
+  "repairs": [
+   "nested_arguments"
+  ]
+ },
+ {
+  "case": "wrapper key",
+  "raw": {
+   "input": {
+    "command": "pwd"
+   }
+  },
+  "primary_key": null,
+  "aliases": null,
+  "args": {
+   "command": "pwd"
+  },
+  "repairs": [
+   "nested_arguments"
+  ]
+ },
+ {
+  "case": "key/value pairs",
+  "raw": [
+   {
+    "key": "path",
+    "value": "/tmp/a"
+   },
+   {
+    "key": "content",
+    "value": "b"
+   }
+  ],
+  "primary_key": null,
+  "aliases": null,
+  "args": {
+   "path": "/tmp/a",
+   "content": "b"
+  },
+  "repairs": [
+   "key_value_pairs"
+  ]
+ },
+ {
+  "case": "bare value to primary key",
+  "raw": "ls -la /root",
+  "primary_key": "command",
+  "aliases": null,
+  "args": {
+   "command": "ls -la /root"
+  },
+  "repairs": []
+ },
+ {
+  "case": "bare value, no primary key",
+  "raw": "ls -la /root",
+  "primary_key": null,
+  "aliases": null,
+  "args": {},
+  "repairs": []
+ },
+ {
+  "case": "alias rename",
+  "raw": {
+   "file_path": "/tmp/a.py",
+   "content": "x"
+  },
+  "primary_key": null,
+  "aliases": {
+   "file_path": "path"
+  },
+  "args": {
+   "path": "/tmp/a.py",
+   "content": "x"
+  },
+  "repairs": []
+ },
+ {
+  "case": "quoted path",
+  "raw": {
+   "path": "'/tmp/a b.txt'"
+  },
+  "primary_key": null,
+  "aliases": null,
+  "args": {
+   "path": "/tmp/a b.txt"
+  },
+  "repairs": []
+ },
+ {
+  "case": "unrepairable object",
+  "raw": "{\"path\": \"/tmp/a.py\", \"content\": \"he said \"hi\" twice\", \"x\": [}",
+  "primary_key": null,
+  "aliases": null,
+  "args": {},
+  "repairs": [
+   "json_repair"
+  ]
+ },
+ {
+  "case": "already fine",
+  "raw": "{\"query\": \"modbus energy meters\"}",
+  "primary_key": null,
+  "aliases": null,
+  "args": {
+   "query": "modbus energy meters"
+  },
+  "repairs": []
+ },
+ {
+  "case": "empty",
+  "raw": "",
+  "primary_key": null,
+  "aliases": null,
+  "args": {},
+  "repairs": []
+ }
+]

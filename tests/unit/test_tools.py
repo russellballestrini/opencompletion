@@ -293,6 +293,8 @@ def test_a_round_runs_each_call_and_tells_the_room(monkeypatch):
         ("web_fetch", "error", "server"),
     ]
     assert events[1]["sources"] == [{"url": "https://a.org/", "title": "A"}]
+    # what no repair could read is kept, to mine the next repair from
+    assert events[3]["unparsed"] == "not json"
     assert events[1]["label"] == "elmo"
 
 

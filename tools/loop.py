@@ -17,6 +17,8 @@ from dataclasses import replace
 
 import gevent
 
+import toolcall_repair
+
 # A long call's progress is a log: each report's new lines pushed under the
 # old ones (fox, 2026-10-31: a delegate's box was overwritten every poll).
 LOG_CHARS = 12000
@@ -254,12 +256,50 @@ def assistant_turn(content, calls):
     }
 
 
-def parse_arguments(raw):
-    try:
-        arguments = json.loads(raw or "{}")
-    except ValueError:
-        return None
-    return arguments if isinstance(arguments, dict) else None
+# Per tool: the field a bare, non-JSON value belongs to (none where junk
+# would pass for a value: a URL, a path), & the misnamed keys models send.
+REPAIR_HINTS = {
+    "web_search": ("query", {"q": "query", "search": "query", "search_query": "query"}),
+    "web_fetch": (None, {"link": "url", "href": "url", "uri": "url"}),
+    "run_code": (None, {"lang": "language", "source": "code", "script": "code"}),
+    "sandbox_shell": ("command", {"cmd": "command", "script": "command"}),
+    "sandbox_write_file": (
+        None,
+        {
+            "file_path": "path",
+            "filepath": "path",
+            "filename": "path",
+            "file": "path",
+            "text": "content",
+            "body": "content",
+            "data": "content",
+        },
+    ),
+    "sandbox_share_file": (
+        None,
+        {"file_path": "path", "filepath": "path", "file": "path"},
+    ),
+    "delegate": ("task", {"prompt": "task", "instructions": "task"}),
+}
+
+
+def parse_arguments(raw, name=None):
+    """A call's arguments as the model meant them, & the repairs that took:
+    (dict or None, [repair names]). toolcall_repair (vendored from
+    uncloseai-cli) mends what models break, a file body's raw newlines,
+    invalid escapes, a fence, trailing commas, an object cut off, arguments
+    nested in `arguments`, leaked parameter tags, misnamed keys; None when
+    nothing could be read (fox, 2026-11-06: sandbox_write_file failed
+    "arguments were not a JSON object" where uncloseai-cli would have
+    saved it)."""
+    text = raw.strip() if isinstance(raw, str) else raw
+    if text in (None, "", "{}"):
+        return {}, []
+    primary, aliases = REPAIR_HINTS.get(name, (None, None))
+    arguments, repairs = toolcall_repair.repair_arguments(
+        text, primary_key=primary, aliases=aliases
+    )
+    return (arguments or None), repairs
 
 
 OUT_OF_ROUNDS = (
@@ -296,7 +336,9 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
             continue
         log = []
         last = {}  # the newest vitals a long call reported
-        arguments = parse_arguments(call["arguments"])
+        arguments, repairs = parse_arguments(call["arguments"], call["name"])
+        if repairs:
+            print(f"[INFO] {call['name']} arguments repaired: {', '.join(repairs)}")
         label = label_for(call["name"], arguments or {})
         where = offered(context).get(call["name"])
         running = {
@@ -388,6 +430,11 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                 # 2026-11-01).
                 summarize(closing_notes(result, log), final=True)
         done = {"tool": call["name"], "label": label, "where": where}
+        if repairs:
+            done["repaired"] = repairs  # its arguments were mended (our save rate)
+        elif arguments is None:
+            # What no repair could read, kept to mine the next repair from
+            done["unparsed"] = str(call["arguments"])[:2000]
         shown = detail_of(call["name"], arguments or {}, result)
         if shown and arguments is not None and log:
             shown["log"] = log_text(log)  # kept with the reply, in its fold
