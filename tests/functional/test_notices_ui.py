@@ -216,3 +216,34 @@ def test_the_rooms_size_follows_each_message_edit_and_delete(test_app, monkeypat
     assert after_edit < 10  # recounted, not the old count
     ada.emit("delete_message", {"message_id": mid, "room_name": "lobby"})
     assert size(bob.get_received()) == 0
+
+
+def test_the_stat_says_what_the_next_reply_sends(test_app, monkeypatch):
+    """The room's total is no fullness: a reply reads its latest messages
+    (up to OPENCOMPLETION_HISTORY_LIMIT) faded to its model's window (fox,
+    2026-11-07: 102 messages read as full while a reply sent 17.8k of 64k).
+    With the window known, the stat says both."""
+    import app as app_module
+    from models import Message, Room, db
+
+    monkeypatch.setattr(app_module, "SYSTEM_USERS", ["qwen"])
+    monkeypatch.setattr(app_module, "CONTEXT_WINDOWS", {"qwen": (65536, 3.0)})
+    assert app_module.history_limit("qwen") == 200
+    assert app_module.history_limit("unknown-model") == 20
+    room = Room(name="big")
+    db.session.add(room)
+    db.session.commit()
+    for i in range(300):  # far past the window
+        who = "ada" if i % 2 else "qwen"
+        db.session.add(Message(username=who, content="word " * 400, room_id=room.id))
+    db.session.commit()
+    sent = []
+    monkeypatch.setattr(
+        app_module.socketio, "emit", lambda name, data, **k: sent.append((name, data))
+    )
+    app_module.emit_room_stats(room)
+    stats = [d for n, d in sent if n == "room_stats"][-1]
+    assert stats["window"] == 65536
+    # faded to fit, an answer's room left: what a reply would send
+    assert 0 < stats["next"] <= 65536 - 8192
+    assert stats["next"] < stats["tokens"]

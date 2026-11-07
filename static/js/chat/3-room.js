@@ -251,7 +251,13 @@ socket.on("presence", (data) => {
 socket.on("room_stats", (data) => {
     const stat = document.getElementById("room-token-estimate");
     if (!stat || !data || !Number.isFinite(data.tokens)) return;
-    stat.textContent = `Conversation: about ${data.tokens.toLocaleString()} tokens`;
+    // The room's total, & what the next reply sends of its model's window:
+    // a reply reads only the latest messages, so the total is no fullness.
+    let text = `Conversation: about ${data.tokens.toLocaleString()} tokens`;
+    if (Number.isFinite(data.next) && Number.isFinite(data.window)) {
+        text += ` · next reply sends about ${data.next.toLocaleString()} of ${data.window.toLocaleString()}`;
+    }
+    stat.textContent = text;
     stat.hidden = false;
 });
 

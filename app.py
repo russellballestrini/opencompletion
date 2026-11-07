@@ -1120,11 +1120,38 @@ def emit_room_stats(room, to=None):
             if not m.is_base64_image()
         )
         db.session.commit()  # counts made now are kept
+        stats = {"tokens": tokens}
+        stats.update(next_reply_size(room))
     except Exception as e:  # noqa: BLE001 — a stat never breaks the chat
         db.session.rollback()
         print(f"[WARN] room stats for {room.name}: {e}")
         return
-    socketio.emit("room_stats", {"tokens": tokens}, room=to or room.name)
+    socketio.emit("room_stats", stats, room=to or room.name)
+
+
+def next_reply_size(room):
+    """What the next reply sends its model (the one that answered last, else
+    the default's): its history (the room's latest messages, their tools
+    rebuilt) in tokens, against the model's window, when that is known. The room's own total is no measure of fullness: a
+    reply reads only its latest messages, faded to fit (fox, 2026-11-07: a
+    102-message room read as full at ~55k of 64k while a reply sent 17.8k)."""
+    last = (
+        Message.visible(room.id)
+        .filter(Message.username.in_(SYSTEM_USERS))
+        .order_by(Message.id.desc())
+        .first()
+    )
+    model = last.username if last else None
+    if not model and DEFAULT_MODEL.startswith("MODEL_"):
+        model = _model_for_num(DEFAULT_MODEL.split("_")[1])
+    learned = CONTEXT_WINDOWS.get(model)
+    if not learned:
+        return {}
+    window, per_token = learned
+    _, history = reply_history(room.name, model)
+    budget = window - answer_room() - CONTEXT_MARGIN if answer_room() else window
+    history, _ = fade.fit(history, None, budget, per_token)
+    return {"next": fade.tokens(history, None, per_token), "window": window}
 
 
 # Handle user leaving a room
@@ -2036,12 +2063,26 @@ def newest_image_id(last_messages, room_id):
     return None
 
 
+DEFAULT_HISTORY_LIMIT = 200
+UNFITTED_HISTORY_LIMIT = 20
+
+
+def history_limit(model_name):
+    """How many of a room's latest messages a reply reads. With its model's
+    context known, OPENCOMPLETION_HISTORY_LIMIT (200): the fade (fade.py)
+    then fits them to the window, so a long room keeps what fits instead of
+    a fixed 20 (fox, 2026-11-07: a reply sent 17.8k of 64k). Unknown, 20."""
+    if model_name and "gpt-4" in model_name:
+        return 1000
+    if CONTEXT_WINDOWS.get(model_name):
+        return max(1, _env_int("OPENCOMPLETION_HISTORY_LIMIT", DEFAULT_HISTORY_LIMIT))
+    return UNFITTED_HISTORY_LIMIT
+
+
 def reply_history(room_name, model_name, resume=None):
     """(room_id, chat_history): the room's latest messages, oldest first, as
     model_name reads them. A resumed reply is left out of its own history."""
-    limit = 20
-    if "gpt-4" in model_name:
-        limit = 1000
+    limit = history_limit(model_name)
 
     # Check if this is a vision-capable model
     vision_enabled = is_vision_model(model_name)
