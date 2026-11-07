@@ -6,6 +6,8 @@
 
 /* CSS Variables for Light and Dark Themes */
 :root {
+    /* Our left sidebar (app shell) on desktop. */
+    --app-sidebar-width: 288px;
     /* Background Colors */
     --bg-primary: #f5f5f7;
     --bg-secondary: #ffffff;
@@ -1258,7 +1260,7 @@ textarea:focus {
 
 @media (max-width: 1024px) {
     .app-shell.chat-shell {
-        grid-template-columns: 220px minmax(0, 1fr) 240px;
+        grid-template-columns: 240px minmax(0, 1fr) 240px;
     }
 }
 
@@ -1500,14 +1502,14 @@ a:hover {
 
 .app-shell {
     display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
     min-height: 100vh;
     min-height: 100dvh;
 }
 
 /* Chat adds its room controls (.utility-belt) as a third column. */
 .app-shell.chat-shell {
-    grid-template-columns: 260px minmax(0, 1fr) 280px;
+    grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr) 280px;
     height: 100vh;
     height: 100dvh;
 }
