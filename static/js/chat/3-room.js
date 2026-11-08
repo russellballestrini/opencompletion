@@ -9,10 +9,21 @@ function sanitizeUsername(username) {
     return username.split(',')[0].trim();
 }
 
+// A message that is one fenced code block & nothing else copies as its code,
+// without the fences (fox, 2026-11-08). Two blocks, words around one, or an
+// unclosed fence (still streaming) copy as written: null.
+function soleCodeBlockText(content) {
+    const m = /^(`{3,}|~{3,})[^\n]*\n([\s\S]*?)\n?\1[ \t]*$/.exec((content || '').trim());
+    if (!m) return null;
+    const fence = new RegExp('^' + m[1][0] + '{' + m[1].length + ',}[ \\t]*$', 'm');
+    return fence.test(m[2]) ? null : m[2];
+}
+
 // Function to copy message content to clipboard
 // `button` is passed in: window.event is gone by the time the promise settles.
 function copyMessageContent(content, button) {
-    navigator.clipboard.writeText(content).then(() => {
+    const code = soleCodeBlockText(content);
+    navigator.clipboard.writeText(code === null ? content : code).then(() => {
         if (!button) return;
         const originalText = button.textContent;
         button.textContent = 'Copied!';
