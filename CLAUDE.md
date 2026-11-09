@@ -76,7 +76,7 @@ git remote -v
 
 - OpenCompletion uses Caddy for web server (not nginx)
 - Multi-layer proxy architecture for accessing machine learning models
-- See `unturf-debugging.md` for network troubleshooting (gitignored)
+- Network troubleshooting notes are kept privately, not in this repo
 
 ## OpenCompletion Architecture
 
@@ -138,7 +138,7 @@ OpenCompletion integrates with our unsandbox API (https://unsandbox.com) for sec
 
 OpenCompletion uses our official unsandbox Python SDK (`un.py`) which provides a clean interface to our unsandbox API.
 
-**SDK Location**: `/home/fox/git/opencompletion/un.py` (single file, no dependencies beyond `requests`)
+**SDK Location**: `un.py` at the repo root (single file, no dependencies beyond `requests`)
 
 **SDK Documentation**: https://unsandbox.com/cli/python
 
@@ -435,7 +435,7 @@ like one that is off. Readouts carry `source: chat|classifier` plus the
 vendor's `confidence`, `instance` & `model`. `tests/conftest.py` pins the
 knob off so a developer's endpoint never turns a unit test into a vendor
 call; `tests/unit/test_classifier.py` exercises it with `urlopen` replaced.
-`make classifier-check` is the smoke test. Operation Voyeur: the key is read
+`make classifier-check` is the smoke test. Secret hygiene: the key is read
 inside the request builder only, never an argument, a result, an error or a
 log line.
 
