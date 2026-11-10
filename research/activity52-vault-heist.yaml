@@ -1,0 +1,397 @@
+# Vault Heist: a co-operative code-breaking game for a shared room.
+#
+# Our whole room is one crew at one vault door. Anyone may call out a code;
+# our step scripts keep every bit of truth (the secret code, the pegs, tries
+# left, loot), so a model only sorts what was said into a bucket & never
+# counts anything.
+#
+# Metadata (shared by our room):
+#   difficulty          easy | normal | hard (set by a pick_vault transition)
+#   secret              list of digits, our vault's code
+#   vault_code          the same code as text, shown once a round is over
+#   code_length         digits in a code
+#   max_digit           digits run 1..max_digit
+#   tries_left          guesses left before our alarm trips
+#   tries_total         guesses a round began with
+#   history             [{"guess": [..], "exact": n, "near": n}, ...]
+#   revealed            positions (0-based) our stethoscope gave away
+#   ruled_out           digits a loose tumbler told us are nowhere in our code
+#   report              markdown our script wrote for the last move
+#   vaults_played, vaults_cracked, streak, best_streak, loot_total
+#                       our crew's ledger, kept across rounds
+#   move                (temporary) guess | hint | chatter: what a bucket asks
+#                       our script to do with this response
+
+default_max_attempts_per_step: 3
+classifier_model: "MODEL_1"
+feedback_model: "MODEL_1"
+
+sections:
+  - section_id: "briefing"
+    title: "Briefing"
+    steps:
+      - step_id: "welcome"
+        title: "Welcome, crew"
+        content_blocks:
+          - "# 🔐 Vault Heist"
+          - "We are one crew at one vault door. Anyone in our room may call out a code: every guess spends one of our shared tries, so talk it over!"
+          - |
+            **How a guess is scored**
+
+            - 🟢 a right digit in its right place
+            - 🟡 a right digit in a wrong place
+            - ⚫ a digit that fits nowhere
+
+            Pegs are sorted, greens first: they tell us *how many*, never *which*. Digits may repeat inside a code.
+          - |
+            **Our kit**
+
+            - Say **hint** to press our stethoscope to the door: it gives away one place of our code & costs 2 tries.
+            - Now & then a loose tumbler rattles & rules a digit out for free. Now & then a guard strolls by & costs us a try.
+            - Crack a vault with tries to spare & our loot grows. Say **exit** at any time to slip away.
+
+      - step_id: "pick_vault"
+        title: "Pick a vault"
+        question: "Which vault do we hit? **Corner shop** (easy: 3 digits, 1 to 6, 8 tries), **city bank** (normal: 4 digits, 1 to 6, 10 tries) or **dragon hoard** (hard: 5 digits, 1 to 8, 12 tries)?"
+        tokens_for_ai: |
+          Sort what our crew said into one bucket:
+
+          - easy: they pick the corner shop, easy, simple, beginner, small, 3 digits, or "1" / "first".
+          - normal: they pick the city bank, normal, medium, standard, 4 digits, or "2" / "second". Also use this when they say anything like "any", "surprise us", "you pick" or just "yes" / "ready" / "go".
+          - hard: they pick the dragon hoard, hard, expert, difficult, 5 digits, or "3" / "third".
+          - set_language: they ask to play in another language.
+          - exit: they want to stop, quit, leave or exit.
+          - off_topic: anything else.
+        feedback_tokens_for_ai: |
+          You are our crew's lookout, whispering over a radio. Two short playful sentences, no more.
+          Never state, hint at or guess any digit of a code, and never explain rules.
+        processing_script: |
+          import random
+
+          levels = {
+              "easy": {
+                  "length": 3,
+                  "max_digit": 6,
+                  "tries": 8,
+                  "names": ["Corner Shop Safe", "Bakery Strongbox", "Arcade Coin Vault"],
+                  "loot": ["a sack of small change", "a tray of jam doughnuts", "a bucket of arcade tokens"],
+              },
+              "normal": {
+                  "length": 4,
+                  "max_digit": 6,
+                  "tries": 10,
+                  "names": ["City Bank Vault", "Museum Night Safe", "Casino Cage"],
+                  "loot": ["a stack of gold bars", "a jewelled crown", "a wall of poker chips"],
+              },
+              "hard": {
+                  "length": 5,
+                  "max_digit": 8,
+                  "tries": 12,
+                  "names": ["Dragon Hoard Gate", "Moon Base Reserve", "Sunken Treasury"],
+                  "loot": ["a hill of dragon gold", "a crate of moon diamonds", "a chest of pirate emeralds"],
+              },
+          }
+          level = levels.get(metadata.get("difficulty"), levels["normal"])
+          secret = [random.randint(1, level["max_digit"]) for _ in range(level["length"])]
+          pick = random.randrange(len(level["names"]))
+
+          metadata["secret"] = secret
+          metadata["vault_code"] = " ".join(str(d) for d in secret)
+          metadata["code_length"] = level["length"]
+          metadata["max_digit"] = level["max_digit"]
+          metadata["tries_left"] = level["tries"]
+          metadata["tries_total"] = level["tries"]
+          metadata["vault_name"] = level["names"][pick]
+          metadata["loot_name"] = level["loot"][pick]
+          metadata["history"] = []
+          metadata["revealed"] = []
+          metadata["ruled_out"] = []
+          metadata["report"] = ""
+          for key in ("vaults_played", "vaults_cracked", "streak", "best_streak", "loot_total"):
+              metadata.setdefault(key, 0)
+
+          script_result = {"vault": metadata["vault_name"]}
+        buckets:
+          - easy
+          - normal
+          - hard
+          - set_language
+          - exit
+          - off_topic
+        transitions:
+          easy:
+            metadata_add:
+              difficulty: "easy"
+            run_processing_script: true
+            content_blocks:
+              - "🏪 Tonight: our **{{metadata.vault_name}}**. Inside waits {{metadata.loot_name}}. A code of {{metadata.code_length}} digits, each 1 to {{metadata.max_digit}}."
+            ai_feedback:
+              tokens_for_ai: "Narrate our crew slipping up to the vault named in metadata.vault_name."
+            metadata_feedback_filter:
+              - vault_name
+              - loot_name
+            next_section_and_step: "heist:crack"
+          normal:
+            metadata_add:
+              difficulty: "normal"
+            run_processing_script: true
+            content_blocks:
+              - "🏦 Tonight: our **{{metadata.vault_name}}**. Inside waits {{metadata.loot_name}}. A code of {{metadata.code_length}} digits, each 1 to {{metadata.max_digit}}."
+            ai_feedback:
+              tokens_for_ai: "Narrate our crew slipping up to the vault named in metadata.vault_name."
+            metadata_feedback_filter:
+              - vault_name
+              - loot_name
+            next_section_and_step: "heist:crack"
+          hard:
+            metadata_add:
+              difficulty: "hard"
+            run_processing_script: true
+            content_blocks:
+              - "🐉 Tonight: our **{{metadata.vault_name}}**. Inside waits {{metadata.loot_name}}. A code of {{metadata.code_length}} digits, each 1 to {{metadata.max_digit}}."
+            ai_feedback:
+              tokens_for_ai: "Narrate our crew slipping up to the vault named in metadata.vault_name."
+            metadata_feedback_filter:
+              - vault_name
+              - loot_name
+            next_section_and_step: "heist:crack"
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "briefing:pick_vault"
+          exit:
+            content_blocks:
+              - "We fold up our map & melt into a crowd."
+            next_section_and_step: "wrap:goodbye"
+          off_topic:
+            content_blocks:
+              - "Say **easy**, **normal** or **hard** to pick a vault, or **exit** to call it a night."
+            counts_as_attempt: false
+            next_section_and_step: "briefing:pick_vault"
+
+  - section_id: "heist"
+    title: "Heist"
+    steps:
+      - step_id: "crack"
+        title: "Crack our vault"
+        question: "🔐 {{metadata.vault_name}}: **{{metadata.tries_left}}** tries left. Call out {{metadata.code_length}} digits, each 1 to {{metadata.max_digit}} (or say **hint** or **exit**)."
+        tokens_for_ai: |
+          Our crew is guessing a vault's code made of digits. Sort what was said into one bucket. Never judge whether a guess is right: a script does that.
+
+          - guess: the response holds a code to try, digits such as "1234", "1 2 3 4", "try 5-5-2-1" or "let's go with 3 6 1 2".
+          - hint: they ask for a hint, a clue, help with a digit, or our stethoscope.
+          - set_language: they ask to play in another language.
+          - exit: they want to stop, quit, give up, leave or exit.
+          - off_topic: anything else, such as chatter or a question with no code in it.
+        processing_script: |
+          import random
+          import re
+
+          text = str(metadata.get("user_response", "")).strip()
+          move = metadata.get("move", "guess")
+          n = metadata["code_length"]
+          top = metadata["max_digit"]
+          secret = metadata["secret"]
+          # Copies: our engine keeps a script's write only when a key's value
+          # differs from what it held before, so a list changed in place is lost.
+          history = list(metadata["history"])
+          revealed = list(metadata["revealed"])
+          ruled_out = list(metadata["ruled_out"])
+          tries = metadata["tries_left"]
+
+          digits = [int(d) for d in re.findall(r"\d", text)]
+          valid = len(digits) == n and all(1 <= d <= top for d in digits)
+          # Nothing but a well-formed code is a guess, whatever bucket it fell in.
+          bare = re.fullmatch(r"[\d\s,.\-]+", text) is not None
+          if valid and bare:
+              move = "guess"
+
+          lines = []
+          outcome = None
+          show_board = True
+
+          if move == "hint":
+              hidden = [i for i in range(n) if i not in revealed]
+              if len(hidden) <= 1:
+                  lines.append("🩺 Our stethoscope has nothing more to give: one place has to stay our own work.")
+              elif tries <= 2:
+                  lines.append(f"🩺 Too risky: a hint costs 2 tries & we have {tries}.")
+              else:
+                  place = random.choice(hidden)
+                  revealed.append(place)
+                  revealed.sort()
+                  tries -= 2
+                  lines.append(f"🩺 *tick... tick... thunk.* Place {place + 1} holds a **{secret[place]}**. That cost us 2 tries.")
+          elif not valid:
+              show_board = bool(history)
+              if move == "guess":
+                  lines.append(f"🤔 That is no code for this door. Call out exactly {n} digits, each 1 to {top}, such as `{' '.join(str(1 + i % top) for i in range(n))}`. No try spent.")
+              else:
+                  lines.append(f"🤫 Quiet on our line! Call out {n} digits (each 1 to {top}), say **hint**, or say **exit**. No try spent.")
+          elif any(turn["guess"] == digits for turn in history):
+              lines.append(f"🙃 We already tried `{' '.join(str(d) for d in digits)}`. No try spent.")
+          else:
+              exact = sum(1 for a, b in zip(secret, digits) if a == b)
+              shared = sum(min(secret.count(d), digits.count(d)) for d in range(1, top + 1))
+              near = shared - exact
+              tries -= 1
+              history.append({"guess": digits, "exact": exact, "near": near})
+              if exact == n:
+                  outcome = "won"
+              elif tries <= 0:
+                  outcome = "lost"
+              else:
+                  lines.append(f"`{' '.join(str(d) for d in digits)}` → **{exact}** 🟢 in place, **{near}** 🟡 out of place.")
+                  roll = random.random()
+                  absent = [d for d in range(1, top + 1) if d not in secret and d not in ruled_out]
+                  if roll < 0.08 and tries >= 3:
+                      tries -= 1
+                      lines.append("🔦 A guard strolls by! We freeze behind a pillar & lose a try.")
+                  elif roll < 0.22 and absent:
+                      loose = random.choice(absent)
+                      ruled_out.append(loose)
+                      ruled_out.sort()
+                      lines.append(f"🔩 A loose tumbler rattles: there is no **{loose}** anywhere in our code.")
+
+          if show_board and history:
+              board = ["```"]
+              for number, turn in enumerate(history, 1):
+                  pegs = "🟢" * turn["exact"] + "🟡" * turn["near"] + "⚫" * (n - turn["exact"] - turn["near"])
+                  board.append(f"{number:>2}.  {' '.join(str(d) for d in turn['guess'])}   {pegs}")
+              board.append("```")
+              lines.append("\n".join(board))
+          if show_board and revealed and outcome is None:
+              known = " ".join(str(secret[i]) if i in revealed else "_" for i in range(n))
+              lines.append(f"🩺 Known places: `{known}`")
+          if show_board and ruled_out and outcome is None:
+              lines.append("🔩 Nowhere in our code: " + ", ".join(str(d) for d in ruled_out))
+
+          script_result = {"outcome": outcome or "playing"}
+          if outcome:
+              code = " ".join(str(d) for d in secret)
+              metadata["vaults_played"] = metadata.get("vaults_played", 0) + 1
+              if outcome == "won":
+                  base = {3: 100, 4: 250, 5: 600}.get(n, 250)
+                  loot = base + (base // 5) * tries
+                  used = len(history)
+                  metadata["vaults_cracked"] = metadata.get("vaults_cracked", 0) + 1
+                  metadata["streak"] = metadata.get("streak", 0) + 1
+                  metadata["best_streak"] = max(metadata.get("best_streak", 0), metadata["streak"])
+                  metadata["loot_total"] = metadata.get("loot_total", 0) + loot
+                  lines.insert(0, f"🎉 **CLICK. Our {metadata['vault_name']} swings open!** Code `{code}` cracked in {used} of {metadata['tries_total']} tries. We carry off {metadata['loot_name']}: **{loot} gold** ({tries} tries to spare).")
+              else:
+                  metadata["streak"] = 0
+                  lines.insert(0, f"🚨 **Alarm!** Our last try is spent & shutters slam down. Our code was `{code}`. We scatter empty-handed.")
+              script_result["next_section_and_step"] = "heist:debrief"
+
+          metadata["tries_left"] = tries
+          metadata["history"] = history
+          metadata["revealed"] = revealed
+          metadata["ruled_out"] = ruled_out
+          metadata["report"] = "\n\n".join(lines)
+        buckets:
+          - guess
+          - hint
+          - set_language
+          - exit
+          - off_topic
+        transitions:
+          guess:
+            metadata_tmp_add:
+              move: "guess"
+            run_processing_script: true
+            content_blocks:
+              - "{{metadata.report}}"
+            next_section_and_step: "heist:crack"
+          hint:
+            metadata_tmp_add:
+              move: "hint"
+            run_processing_script: true
+            content_blocks:
+              - "{{metadata.report}}"
+            counts_as_attempt: false
+            next_section_and_step: "heist:crack"
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "heist:crack"
+          exit:
+            content_blocks:
+              - "🏃 We slip out a back door before anyone is wiser. For our records, this code was `{{metadata.vault_code}}`."
+            next_section_and_step: "wrap:goodbye"
+          off_topic:
+            metadata_tmp_add:
+              move: "chatter"
+            run_processing_script: true
+            content_blocks:
+              - "{{metadata.report}}"
+            counts_as_attempt: false
+            next_section_and_step: "heist:crack"
+
+      - step_id: "debrief"
+        title: "Debrief"
+        content_blocks:
+          - "📒 **Crew ledger:** {{metadata.vaults_cracked}} of {{metadata.vaults_played}} vaults cracked · {{metadata.loot_total}} gold · streak {{metadata.streak}} (best {{metadata.best_streak}})"
+        question: "Do we hit **another** vault, or **exit** & call it a night?"
+        tokens_for_ai: |
+          Sort what our crew said into one bucket:
+
+          - again: they want another vault, another round, to play again, to continue, "yes", "sure", "one more", or they name a difficulty (easy, normal, hard).
+          - set_language: they ask to play in another language.
+          - exit: they want to stop, quit, leave, exit, or say "no" / "call it a night".
+          - off_topic: anything else.
+        buckets:
+          - again
+          - set_language
+          - exit
+          - off_topic
+        transitions:
+          again:
+            metadata_remove:
+              - secret
+              - vault_code
+              - history
+              - revealed
+              - ruled_out
+              - report
+              - difficulty
+            content_blocks:
+              - "🗺️ Back to our map..."
+            next_section_and_step: "briefing:pick_vault"
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "heist:debrief"
+          exit:
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "wrap:goodbye"
+          off_topic:
+            content_blocks:
+              - "Say **another** for one more vault, or **exit** to call it a night."
+            counts_as_attempt: false
+            next_section_and_step: "heist:debrief"
+
+  - section_id: "wrap"
+    title: "Getaway"
+    steps:
+      - step_id: "goodbye"
+        title: "Getaway"
+        content_blocks:
+          - "# 🚐 Getaway"
+          - text: "Our crew's final ledger: **{{metadata.vaults_cracked}}** of **{{metadata.vaults_played}}** vaults cracked, **{{metadata.loot_total}} gold** carried off, best streak **{{metadata.best_streak}}**."
+            show_if:
+              vaults_played_gte: 1
+          - text: "No vault finished tonight. Our map stays folded for next time."
+            show_if:
+              vaults_played_lt: 1
+          - "Thanks for playing Vault Heist! Come back any night for a fresh code. 👋"
