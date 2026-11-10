@@ -96,14 +96,16 @@
            </div>
        </div>
 
+       {# Each list & its heading stay hidden while empty
+          (updateUserLists in 3-room.js). #}
        <div id="user-lists">
-           <div id="active-users-list">
+           <div id="active-users-list" hidden>
                <h3>Active Users</h3>
                <ul id="active-users">
                    <!-- Active users will be dynamically populated here -->
                </ul>
            </div>
-           <div id="inactive-users-list">
+           <div id="inactive-users-list" hidden>
                <h3>Inactive Users</h3>
                <ul id="inactive-users">
                    <!-- Inactive users will be dynamically populated here -->

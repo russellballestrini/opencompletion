@@ -123,6 +123,8 @@ style.css): show & hide with the attribute, never a display rule.
   `.is-unchained`, each saying its state in a `.verify-badge` & which
   check failed in `.verify-item-why`, never by colour alone. Its copy
   says what is not proved (the root is only this file's own).
+- **Who is here** room controls list Active Users & Inactive Users
+  (`#user-lists`); a list & its heading are `hidden` while it is empty.
 - **Tabs** `.tabs` > `.room-tab` with `role="tab"` & `aria-selected`.
 - **Empty states** `.empty-state` say what is missing & offer the next step.
 

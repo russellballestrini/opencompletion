@@ -184,6 +184,10 @@ function updateUserLists(activeUsers, inactiveUsers) {
 
     activeUserListElement.innerHTML = ''; // Clear the current list
     inactiveUserListElement.innerHTML = ''; // Clear the current list
+    // A heading over nobody says nothing: each list shows with its heading
+    // only while it has someone in it.
+    document.getElementById("active-users-list").hidden = !activeUsers.length;
+    document.getElementById("inactive-users-list").hidden = !inactiveUsers.length;
 
     // Populate the list with active users (desktop)
     activeUsers.forEach(user => {

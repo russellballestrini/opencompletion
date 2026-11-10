@@ -512,6 +512,41 @@ def test_chat_works_on_every_screen(client, tmp_path, width):
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
+USER_LISTS_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const shown = id => getComputedStyle(document.querySelector('#' + id + ' h3')).display !== 'none'
+        && document.querySelector('#' + id + ' h3').getClientRects().length > 0;
+    if (innerWidth <= 768) openDrawer('controls');
+    check(!shown('active-users-list') && !shown('inactive-users-list'), 'no headings before anyone is listed');
+    testSocket.deliver('active_users', {active_users: ['ada'], inactive_users: []});
+    check(shown('active-users-list'), 'Active Users shows with someone in it');
+    check(!shown('inactive-users-list'), 'Inactive Users hides while nobody is inactive');
+    testSocket.deliver('active_users', {active_users: ['ada'], inactive_users: ['bob']});
+    check(shown('inactive-users-list') && document.getElementById('inactive-users').textContent.includes('bob'), 'Inactive Users shows once someone is');
+    testSocket.deliver('active_users', {active_users: [], inactive_users: ['bob']});
+    check(!shown('active-users-list') && shown('inactive-users-list'), 'Active Users hides when empty');
+    testSocket.deliver('active_users', {active_users: [], inactive_users: []});
+    check(!shown('active-users-list') && !shown('inactive-users-list'), 'both hide again when everyone leaves');
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [375, 1280])
+def test_user_list_headings_hide_while_their_lists_are_empty(client, tmp_path, width):
+    """fox, 2026-11-10: room controls showed INACTIVE USERS over nobody."""
+    make_room("lobby")
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    assert '<div id="inactive-users-list" hidden>' in html
+    assert '<div id="active-users-list" hidden>' in html
+    out = run_probe(html, USER_LISTS_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
 MESSAGE_PROBE = r"""
 <script>
 window.addEventListener('load', () => {
