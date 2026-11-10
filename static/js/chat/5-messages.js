@@ -82,7 +82,8 @@ function addForkButton(buttonContainer, messageId) {
 // what it replaced (the earlier words & everything said after them), & this
 // pager opens each earlier version under the message, read only & only on
 // this screen. Our chat carries on from the newest; nothing a model reads
-// changes. Fetched on first use: GET /api/messages/<id>/versions.
+// changes. Fetched on first use: GET /api/messages/<id>/versions. An open
+// version offers Continue from here: a new chat from that version.
 function addVersionPager(wrapper, messageId, count) {
     if (!(count > 1) || wrapper.querySelector(":scope > .message-versions")) return;
     const pager = document.createElement("div");
@@ -113,7 +114,7 @@ function addVersionPager(wrapper, messageId, count) {
         older.disabled = shown <= 1;
         newer.disabled = shown >= count;
         if (panel) panel.remove();
-        panel = shown < count ? earlierVersionPanel(versions[shown - 1], shown, count) : null;
+        panel = shown < count ? earlierVersionPanel(versions[shown - 1], shown, count, messageId) : null;
         if (panel) wrapper.appendChild(panel);
         wrapper.classList.toggle("is-viewing-earlier", Boolean(panel));
     };
@@ -142,7 +143,9 @@ function addVersionPager(wrapper, messageId, count) {
 
 // One earlier version: the message as it was & what was said after it,
 // drawn like our chat (same bubbles, same markdown) inside a quiet frame.
-function earlierVersionPanel(rows, shown, count) {
+// Continue from here ends it: forkFromMessage() in base.html makes a new
+// chat holding the conversation as it stood in this version & opens it.
+function earlierVersionPanel(rows, shown, count, messageId) {
     const panel = document.createElement("div");
     panel.className = "earlier-version";
     const note = document.createElement("p");
@@ -164,6 +167,15 @@ function earlierVersionPanel(rows, shown, count) {
         item.appendChild(words);
         panel.appendChild(item);
     });
+    const actions = document.createElement("div");
+    actions.className = "earlier-version-actions";
+    const carryOn = document.createElement("button");
+    carryOn.type = "button";
+    carryOn.textContent = "Continue from here";
+    carryOn.title = `Continue from here: start a new chat holding our conversation as it stood in version ${shown}${CHAT_CONFIG.signedIn ? " (solo, only you)" : " (a public chatroom)"}. This chat stays as it is.`;
+    carryOn.onclick = () => forkFromMessage(messageId, carryOn, shown);
+    actions.appendChild(carryOn);
+    panel.appendChild(actions);
     return panel;
 }
 

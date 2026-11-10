@@ -106,7 +106,9 @@ style.css): show & hide with the attribute, never a display rule.
   `.earlier-version`, a dashed frame saying which version it is & that it
   is read only (a note that stays in view as it scrolls), so it never
   reads as part of our chat; meanwhile the current words step back
-  (`.is-viewing-earlier`). Message actions rest in `--text-secondary` at
+  (`.is-viewing-earlier`). Its one action, **Continue from here**
+  (`.earlier-version-actions`, outlined, at its end), starts a new chat
+  from that version; its title says solo or a public chatroom. Message actions rest in `--text-secondary` at
   full opacity (never dimmed below 4.5:1). A table in a message is ruled
   & scrolls inside itself when wide.
 - **Missing pages** `not_found.html` (`app.missing_page`): a wrong

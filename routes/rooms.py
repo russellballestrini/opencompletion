@@ -247,9 +247,12 @@ def create_room_api():
 FORK_THROTTLE = Throttle("OPENCOMPLETION_FORK_LIMIT", default=(10, 600))
 
 
-def fork_conversation(source_room, up_to=None):
+def fork_conversation(source_room, up_to=None, rows=None, **origin):
     """A new room holding a copy of `source_room`'s messages, in order,
-    through message `up_to` (every message when None). JSON response."""
+    through message `up_to` (every message when None). `rows`, a Message
+    query, copies those instead of what the room shows now (an earlier
+    version: fork_from_version) & `origin` says so in the fork's chain
+    event. JSON response."""
     user = auth.get_current_user()
     data = request.get_json(silent=True) or {}
     make_private = bool(data.get("private", False))
@@ -290,7 +293,7 @@ def fork_conversation(source_room, up_to=None):
     db.session.add(new_room)
     db.session.commit()
 
-    copied = Message.visible(source_room.id)
+    copied = Message.visible(source_room.id) if rows is None else rows
     if up_to is not None:
         copied = copied.filter(Message.id <= up_to)
     relinked = {}
@@ -317,6 +320,7 @@ def fork_conversation(source_room, up_to=None):
         fromRoom=source_room.name,
         fromHead=source_head[-1].hash if source_head else None,
         uptoMessageId=up_to,
+        **origin,
         copied=[
             {
                 "messageId": copy.id,
@@ -377,6 +381,38 @@ def fork_from_message(message_id):
         # as missing ones.
         return jsonify({"error": "Message not found"}), 404
     return fork_conversation(source_room, up_to=message.id)
+
+
+@bp.route(
+    "/api/messages/<int:message_id>/versions/<int:version>/fork", methods=["POST"]
+)
+def fork_from_version(message_id, version):
+    """Continue from an earlier version: a new room holding the
+    conversation as it stood in version `version` of this message (1 = the
+    oldest, as chat's pager counts & as /versions lists them): every
+    message the room showed before that version, then the version & what
+    was said after it (Message.as_it_stood). Fork's rules, limit & copying
+    (body: {"private": bool}); the room it came from is not changed."""
+    message = db.session.get(Message, message_id)
+    source_room = db.session.get(Room, message.room_id) if message else None
+    if (
+        not source_room
+        or message.superseded_by_id is not None
+        or room_access_denied(source_room, auth.get_current_user())
+    ):
+        return jsonify({"error": "Message not found"}), 404
+    branches = message.earlier_versions()
+    if not 1 <= version <= len(branches):
+        # Our current version is no earlier one: Fork continues from it.
+        return jsonify({"error": "Version not found"}), 404
+    branch = branches[version - 1]
+    return fork_conversation(
+        source_room,
+        up_to=branch[-1].id,
+        rows=Message.as_it_stood(branch),
+        revisionId=message.id,
+        version=version,
+    )
 
 
 @bp.route("/api/messages/<int:message_id>/versions")

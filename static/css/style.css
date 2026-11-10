@@ -446,6 +446,27 @@ body.chat-page {
     color: var(--text-secondary);
 }
 
+/* Continue from here, an earlier version's one action: a new chat from it
+   (forkFromMessage). Outlined, so it reads as a way out of a read-only
+   frame & not as more of what was said. */
+.earlier-version-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--space-3);
+}
+
+#chat .earlier-version-actions button {
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+    #chat .earlier-version-actions button {
+        min-height: 40px;
+    }
+}
+
 /* A table in a message: ruled, padded, scrolling inside itself when wide. */
 .message-content table {
     display: block;

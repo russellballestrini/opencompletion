@@ -202,6 +202,28 @@ class Message(db.Model):
             current = db.session.get(Message, current.revision_of_id)
         return branches
 
+    @classmethod
+    def as_it_stood(cls, branch):
+        """A room's conversation the moment before the edit that hid
+        `branch` (one of earlier_versions()): what the room showed then,
+        ending with that branch. Ids only grow & a row is hidden once, by
+        the revision made at that moment, so with R the revision that hid
+        this branch (its rows' superseded_by_id) a row was showing then
+        when it is older than R (id < R) & nothing made before R had
+        hidden it (superseded_by_id is None, or >= R). That is the branch
+        itself (== R), what still shows from before it (None) & what an
+        edit of an earlier message hid since (> R); a branch replaced
+        before R (< R) was already hidden, so it stays out."""
+        revision_id = branch[0].superseded_by_id
+        return cls.query.filter(
+            cls.room_id == branch[0].room_id,
+            cls.id < revision_id,
+            db.or_(
+                cls.superseded_by_id.is_(None),
+                cls.superseded_by_id >= revision_id,
+            ),
+        )
+
     def version_count(self):
         """How many versions of this message exist, itself included (1 for
         a message never edited & resent)."""

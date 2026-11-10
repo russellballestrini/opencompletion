@@ -79,15 +79,22 @@
         return [response, await response.json()];
     }
 
+    function openChat(name) {
+        window.location.href = `/chat/${encodeURIComponent(name)}`;
+    }
+
     // Fork at a model's reply: a new chat holding every message up to it.
-    // Signed in, the fork is private (like a new chat); a guest's is a
-    // public chatroom. Our server limits forks per address (429).
-    async function forkFromMessage(messageId, button) {
+    // Signed in, the fork is solo (like a new chat); a guest's is a
+    // public chatroom. Our server limits forks per address (429). With
+    // `version` (1 = the oldest), the new chat holds the conversation as
+    // it stood in that earlier version of an edited & resent message.
+    async function forkFromMessage(messageId, button, version) {
         if (button) button.disabled = true;
         try {
-            const [response, data] = await roomRequest(`/api/messages/${messageId}/fork`, 'POST', {private: CHAT_CONFIG.signedIn});
+            const from = version ? `${messageId}/versions/${version}` : messageId;
+            const [response, data] = await roomRequest(`/api/messages/${from}/fork`, 'POST', {private: CHAT_CONFIG.signedIn});
             if (response.ok) {
-                window.location.href = `/chat/${encodeURIComponent(data.room.name)}`;
+                openChat(data.room.name);
                 return;
             }
             alert(data.error || 'Could not fork this chat.');
