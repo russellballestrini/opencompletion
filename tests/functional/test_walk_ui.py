@@ -595,3 +595,51 @@ def test_signed_in_yours_is_unchanged(client, tmp_path):
     html = client.get("/browse").get_data(as_text=True)
     html = html.replace("<head>", "<head>" + OPENED_ROOMS, 1)
     passed(run_probe(html, SIGNED_IN_ROOMS_PROBE, tmp_path, 1280))
+
+
+# --- 7. Line breaks -----------------------------------------------------------
+
+POEM_PROBE = (
+    r"""
+<script>
+window.addEventListener('load', async () => {"""
+    + PROBE_HEAD
+    + r"""
+    const html = markdown => { const box = document.createElement('div'); box.innerHTML = renderMarkdown(markdown); return box; };
+    const poem = html('Roses are red\nViolets are blue\n\nSugar is sweet\nAnd so are you');
+    check(poem.querySelectorAll('p').length === 2, 'a blank line is still a new paragraph');
+    check(poem.querySelectorAll('br').length === 2, 'each line of verse keeps its break: ' + poem.innerHTML);
+    // What already rendered well renders as it did.
+    const code = html('```\nline one\nline two\n```');
+    check(!code.querySelector('br') && code.querySelector('pre code').textContent === 'line one\nline two\n', 'code keeps its own lines: ' + code.innerHTML);
+    const list = html('- one\n- two\n\n1. first\n2. second');
+    check(list.querySelectorAll('li').length === 4 && !list.querySelector('br'), 'lists are lists: ' + list.innerHTML);
+    const table = html('| a | b |\n|---|---|\n| 1 | 2 |');
+    check(table.querySelector('table') && table.querySelectorAll('td').length === 2 && !table.querySelector('br'), 'tables are tables');
+    const math = html('Sum:\n$$\\frac{1}{2}$$\nand $x^2$ inline');
+    check(math.querySelector('.katex-display') && math.querySelectorAll('.katex').length === 2 && !math.querySelector('.katex-error'), 'math is typeset: ' + math.textContent);
+    const heading = html('# Title\nwords\n\n> quoted\n> lines');
+    check(heading.querySelector('h1').textContent === 'Title' && heading.querySelector('blockquote'), 'headings & quotes');
+    check(soleCodeBlockText('```sh\necho hi\n```') === 'echo hi', 'a lone code block still copies as its code');
+
+    // In a conversation: a person's address & a model's verse.
+    testSocket.deliver('chat_message', {id: 3, username: 'ada', content: '12 Garden Lane\nSpringfield\nOR 97477'});
+    const address = document.querySelector('#message-3 .message-content');
+    check(address.querySelectorAll('br').length === 2, 'an address keeps its lines');
+    const tops = [...address.querySelectorAll('p:last-child')].map(p => p.getBoundingClientRect().height)[0];
+    check(tops >= 3 * 15, 'three lines tall on screen: ' + tops);
+    testSocket.deliver('message_chunk', {id: 4, username: 'hermes', model_name: 'hermes', content: 'Roses are red\nViolets '});
+    testSocket.deliver('message_chunk', {id: 4, username: 'hermes', model_name: 'hermes', content: 'are blue', is_complete: true});
+    const verse = document.querySelector('#message-4 .message-content');
+    check(verse && verse.querySelector('br') && verse.textContent.includes('Violets are blue'), 'a streamed reply keeps its lines');
+    finish();
+});
+</script>
+"""
+)
+
+
+def test_single_newlines_are_line_breaks(client, tmp_path):
+    make_room("lobby")
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    passed(run_probe(html, POEM_PROBE, tmp_path, 1280))

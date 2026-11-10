@@ -133,7 +133,8 @@ style.css): show & hide with the attribute, never a display rule.
   from that version; its title says solo or a public chatroom. Message actions rest in `--text-secondary` at
   full opacity (never dimmed below 4.5:1). A table in a message is ruled,
   keeps its words whole & scrolls inside itself when wide, never the
-  page. **(tested)**
+  page. **(tested)** A single newline is a line break (marked's `breaks`):
+  verse & addresses keep their lines. **(tested)**
 - **Deleted line** `.deleted-line` (`deletedLine` in `5-messages.js`)
   takes a deleted message's place for everyone in the room: one quiet,
   dashed, centred line, "A message from ada was deleted by bob." & a

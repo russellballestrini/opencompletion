@@ -9,9 +9,11 @@
 // taken out before marked (which eats its \\ & _), outside code, & put
 // back after DOMPurify as KaTeX's own HTML, which escapes what it's given
 // & with trust off runs no \href or \html commands.
+// A single newline is a line break (marked's `breaks`, as in a GitHub
+// comment): people & models write verse & addresses a line at a time.
 function renderMarkdown(markdown) {
     const math = protectMath(markdown);
-    const html = DOMPurify.sanitize(marked.marked(math.text), dompurify_config);
+    const html = DOMPurify.sanitize(marked.marked(math.text, {breaks: true}), dompurify_config);
     return math.found.length ? restoreMath(html, math) : html;
 }
 
