@@ -1284,6 +1284,18 @@ textarea:focus {
         justify-self: end;
     }
 
+    /* Phones: the drawer's close button needs its full 44px touch target. */
+    .sidebar-top {
+        min-height: 44px;
+        margin-bottom: 0;
+    }
+
+    /* Phones: the drawer's close button needs its full 44px touch target. */
+    .sidebar-top {
+        min-height: 44px;
+        margin-bottom: 0;
+    }
+
     .utility-belt {
         display: none;
         position: fixed;
@@ -1561,7 +1573,10 @@ a:hover {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 44px;
+    /* Snug around our name on desktop: no close button there, and the
+       sidebar's own gap below is halved (fox, 2026-11-10). */
+    min-height: 32px;
+    margin-bottom: calc(-1 * var(--space-2));
     padding: 0 var(--space-2);
 }
 
@@ -1771,9 +1786,13 @@ button.sidebar-more {
 
 .home-greeting {
     margin-bottom: var(--space-6);
-    font-size: 28px;
-    font-weight: 600;
+    /* A hero line: grows with the window, tight & bold (fox, 2026-11-10). */
+    font-size: clamp(36px, 4.6vw, 56px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
     text-align: center;
+    text-wrap: balance;
 }
 
 .composer {
@@ -2074,7 +2093,7 @@ button.sidebar-more {
     }
 
     .home-greeting {
-        font-size: 22px;
+        font-size: clamp(28px, 8vw, 36px);
     }
 
     /* Phones: a .phone-line starts its own line (our greeting's question,
