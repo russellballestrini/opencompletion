@@ -14,3 +14,6 @@ reports/
 unturf-debugging.md
 research/tmp*.yaml
 arena_results.json
+
+# Agent worktrees & local settings: never ours to lint or commit
+.claude/
