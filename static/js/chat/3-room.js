@@ -373,6 +373,11 @@ function deleteMessage(messageId, room_name) {
     socket.emit("delete_message", {"message_id": messageId, "room_name": room_name});
 }
 
+// Undo a delete: the message returns for everyone in the room.
+function restoreMessage(messageId, room_name) {
+    socket.emit("restore_message", {"message_id": messageId, "room_name": room_name});
+}
+
 // Event listener for form submission to send a message
 document.getElementById("message-form").addEventListener("submit", (e) => {
     e.preventDefault();

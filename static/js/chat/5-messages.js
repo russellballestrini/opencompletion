@@ -338,8 +338,8 @@ function thinkingBlock(text, open) {
     return details;
 }
 
-// Socket event for receiving previous messages
-socket.on("previous_messages", (data) => {
+// A stored message from history: on join, & when a deleted one is restored.
+function showStoredMessage(data) {
 
     if (document.getElementById("message-" + data.id)) {
         // If it exists, skip appending it
@@ -420,7 +420,10 @@ socket.on("previous_messages", (data) => {
     // Scroll to the bottom of the chat container
     document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
 
-});
+}
+
+// Socket event for receiving previous messages
+socket.on("previous_messages", showStoredMessage);
 
 // Socket event for deleting a processing message
 socket.on("delete_processing_message", (msg_id) => {
@@ -718,13 +721,81 @@ socket.on("followup_suggestions", (data) => {
     }
 });
 
-// Socket event for when a message is deleted
-socket.on("message_deleted", (data) => removeMessageElement(data.message_id));
+// Put a message, or a deleted message's line, where its id belongs in our
+// chat: before the first one with a larger id (messages are ordered by
+// id), else at the end.
+function placeById(element, messageId) {
+    const chat = document.getElementById("chat");
+    const later = [...chat.children].find((child) => {
+        if (child === element) return false;
+        const found = /^(?:message|deleted)-(\d+)$/.exec(child.id);
+        return found && Number(found[1]) > Number(messageId);
+    });
+    chat.insertBefore(element, later || null);
+}
+
+// A deleted message leaves one quiet line in its place: who wrote it, who
+// deleted it & Restore. Its words are gone from our page (the server keeps
+// them, & sends them again only when someone restores it).
+function deletedLine(data) {
+    const line = document.createElement("div");
+    line.className = "deleted-line";
+    line.id = "deleted-" + data.message_id;
+    const words = document.createElement("span");
+    const author = data.username || "someone";
+    words.textContent = data.deleted_by
+        ? `A message from ${author} was deleted by ${data.deleted_by}.`
+        : `A message from ${author} was deleted.`;
+    line.appendChild(words);
+    const restore = document.createElement("button");
+    restore.type = "button";
+    restore.className = "deleted-line-restore";
+    restore.textContent = "Restore";
+    restore.onclick = () => restoreMessage(data.message_id, room_name);
+    line.appendChild(restore);
+    return line;
+}
+
+// Socket event for when a message is deleted (& on join, for each message
+// deleted lately): the message goes; while it can be restored a line
+// takes its place.
+socket.on("message_deleted", (data) => {
+    const old = document.getElementById("deleted-" + data.message_id);
+    if (old) old.remove();
+    const wrapper = document.getElementById("message-" + data.message_id);
+    const line = data.restorable ? deletedLine(data) : null;
+    if (line && wrapper) wrapper.before(line);
+    removeMessageElement(data.message_id);
+    if (line && !wrapper) placeById(line, data.message_id);
+});
+
+// Someone restored a deleted message: it returns to its place for everyone.
+socket.on("message_restored", (data) => {
+    const chat = document.getElementById("chat");
+    const line = document.getElementById("deleted-" + data.id);
+    if (line) line.remove();
+    if (document.getElementById("message-" + data.id)) return;
+    const scrolledTo = chat.scrollTop;
+    showStoredMessage(data);
+    const wrapper = document.getElementById("message-" + data.id);
+    placeById(wrapper, data.id);
+    // Back in the middle of our chat, it never pulls a reader to the end.
+    if (wrapper !== chat.lastElementChild || userHasScrolledUp) chat.scrollTop = scrolledTo;
+});
+
+socket.on("restore_refused", (data) => {
+    chatTools.say(data.error);
+});
 
 // Edit & resend hid these (the edited message & everything after it); the
 // server keeps them as an earlier branch, so we only take them off the page.
 socket.on("messages_hidden", (data) => {
-    (data.ids || []).forEach(removeMessageElement);
+    (data.ids || []).forEach((id) => {
+        removeMessageElement(id);
+        // A deleted message in that branch can no longer be restored.
+        const line = document.getElementById("deleted-" + id);
+        if (line) line.remove();
+    });
 });
 
 socket.on("edit_resend_refused", (data) => {
