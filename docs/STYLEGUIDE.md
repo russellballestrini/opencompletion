@@ -81,7 +81,12 @@ style.css): show & hide with the attribute, never a display rule.
 - **Chat actions** a `.chat-actions-btn` (⋯, `data-chat-actions`) on each
   sidebar chat & room card opens `.chat-actions-menu` (`chat-actions.js`):
   what it offers comes from `_room_actions_data.html`'s data attributes.
-  It shows on hover or focus, always on touch screens.
+  It shows on hover or focus, always on touch screens. A room that offers
+  its viewer nothing carries no ⋯ (never an empty menu). A guest's own
+  rows (`chatListItem` in `utils.js`, from this browser's history) offer
+  Rename & Refresh title for a room anyone may retitle, by the id our
+  server gave when the room was recorded. A new title reaches every row
+  of its room, found by name (`showRoomTitle`).
 - **Follow-ups** `.followups` of `.followup-chip`s under our newest reply;
   `.scroll-bottom` (↓) floats above the composer once you scroll up.
 - **Tool lines** `.message-tools` of `.message-tool`s inside a reply

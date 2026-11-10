@@ -9,7 +9,7 @@
 <li data-room-id="{{ room.id }}" {% include "_room_actions_data.html" %}><a href="{{ url_for('chat', room_name=room.name) }}" title="{{ room.title or room.name }}"{% if room.name == _current %} aria-current="page"{% endif %}>
     <span class="chat-list-name">{{ room.title or room.name }}</span>
     {% if tag %}<span class="chat-list-tag" aria-label="{{ tag_label }}">{{ tag }}</span>{% endif %}
-</a><button type="button" class="chat-actions-btn" data-chat-actions aria-label="Chat actions" title="Rename, refresh title, archive or delete">⋯</button></li>
+</a>{% if not room.owner_id or (user and room.owner_id == user.id) %}<button type="button" class="chat-actions-btn" data-chat-actions aria-label="Chat actions" title="Rename, refresh title, archive or delete">⋯</button>{% endif %}</li>
 {%- endmacro %}
 <aside id="app-sidebar" class="app-sidebar" aria-label="Chats">
     <div class="sidebar-top">

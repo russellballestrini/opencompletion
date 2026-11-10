@@ -71,7 +71,7 @@ const CHAT_ACTIONS = [
         run: async room => {
             const title = prompt('Rename this chat', room.title || room.name);
             if (title === null || !title.trim()) return;
-            const data = await roomAction(`/api/rooms/${room.id}/title`, 'POST', {title});
+            const data = await roomAction(`/api/rooms/${room.id}/title`, 'POST', {title, name: room.name});
             showRoomTitle(room, data.title);
         },
     },
@@ -80,7 +80,7 @@ const CHAT_ACTIONS = [
         hint: 'A model titles this chat afresh from its conversation',
         show: room => room.canRetitle,
         run: async room => {
-            const data = await roomAction(`/api/rooms/${room.id}/title`, 'POST', {generate: true});
+            const data = await roomAction(`/api/rooms/${room.id}/title`, 'POST', {generate: true, name: room.name});
             showRoomTitle(room, data.title);
         },
     },
@@ -122,10 +122,16 @@ function openChatActions(button) {
     const row = chatRow(button);
     if (!row) return;
     const room = rowRoom(row);
+    const offered = CHAT_ACTIONS.filter(action => action.show(room));
+    // Nothing to offer: never an empty menu, & no ⋯ promising one.
+    if (!offered.length) {
+        button.hidden = true;
+        return;
+    }
     const menu = document.createElement('div');
     menu.className = 'chat-actions-menu';
     menu.setAttribute('role', 'menu');
-    CHAT_ACTIONS.filter(action => action.show(room)).forEach(action => {
+    offered.forEach(action => {
         const item = document.createElement('button');
         item.type = 'button';
         item.setAttribute('role', 'menuitem');

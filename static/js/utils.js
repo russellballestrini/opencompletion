@@ -16,7 +16,10 @@ function slugify(str) {
 // (signed-in people get theirs from the server). Names & titles only, never
 // message text, and never a private room: whoever uses this browser after
 // its owner signs out must not read one. Entries carry public: true; older
-// unmarked ones (which may be private) are never shown.
+// unmarked ones (which may be private) are never shown. An entry also keeps
+// what our chat actions menu needs: the room's id & whether anyone may
+// rename it (an unowned public room: routes.rooms.may_retitle), as our
+// server said when the room was recorded; our server checks again.
 const RECENT_CHATS_KEY = 'recentChats';
 const RECENT_CHATS_MAX = 30;
 
@@ -31,9 +34,22 @@ function recentChats() {
     }
 }
 
-function rememberRecentChat(name, title) {
+// `facts` ({id, anyoneMayRetitle}) come from our server: a room just made
+// (createChatRoom), else the open chat's own page (CHAT_CONFIG), else
+// what this browser recorded before.
+function rememberRecentChat(name, title, facts) {
     const previous = recentChats().find(c => c.name === name);
-    const entry = {name, title: title || (previous && previous.title) || null, public: true};
+    const page = window.CHAT_CONFIG && window.CHAT_CONFIG.roomName === name && window.CHAT_CONFIG.roomId
+        ? {id: window.CHAT_CONFIG.roomId, anyoneMayRetitle: window.CHAT_CONFIG.anyoneMayRetitle}
+        : null;
+    const known = facts || page || previous || {};
+    const entry = {
+        name,
+        title: title || (previous && previous.title) || null,
+        public: true,
+        id: known.id || null,
+        anyoneMayRetitle: known.anyoneMayRetitle === true,
+    };
     const list = [entry, ...recentChats().filter(c => c.name !== name)].slice(0, RECENT_CHATS_MAX);
     try { localStorage.setItem(RECENT_CHATS_KEY, JSON.stringify(list)); } catch (e) {}
 }
@@ -42,18 +58,35 @@ function forgetRecentChats() {
     try { localStorage.removeItem(RECENT_CHATS_KEY); } catch (e) {}
 }
 
+// A recorded room takes a new title where it sits (no reordering: a title
+// changing is not us opening it).
+function retitleRecentChat(name, title) {
+    const list = recentChats();
+    const entry = list.find(c => c.name === name);
+    if (!entry || !title || entry.title === title) return;
+    entry.title = title;
+    try { localStorage.setItem(RECENT_CHATS_KEY, JSON.stringify(list)); } catch (e) {}
+}
+
 function forgetRecentChat(name) {
     const list = recentChats().filter(c => c.name !== name);
     try { localStorage.setItem(RECENT_CHATS_KEY, JSON.stringify(list)); } catch (e) {}
 }
 
 // One row of our sidebar's chat lists, the same markup _app_sidebar.html
-// renders, built with DOM methods (a title is never HTML).
+// renders, built with DOM methods (a title is never HTML). `room` says
+// what its viewer may do (canRetitle, canRemove: _room_actions_data.html's
+// attributes); a row with nothing to offer, or no id to ask our server
+// about, carries no ⋯ at all.
 function chatListItem(room, tag, tagLabel) {
     const item = document.createElement('li');
     if (room.id) item.dataset.roomId = room.id;
     item.dataset.roomName = room.name;
     item.dataset.roomTitle = room.title || '';
+    const canRetitle = Boolean(room.id) && room.canRetitle === true;
+    const canRemove = Boolean(room.id) && room.canRemove === true;
+    item.dataset.canRetitle = String(canRetitle);
+    item.dataset.canRemove = String(canRemove);
     const link = document.createElement('a');
     link.href = `/chat/${encodeURIComponent(room.name)}`;
     link.title = room.title || room.name;
@@ -69,8 +102,8 @@ function chatListItem(room, tag, tagLabel) {
         link.appendChild(badge);
     }
     item.appendChild(link);
-    // Our chat actions menu (chat-actions.js): with no permissions known
-    // here, it offers what anyone may do; our server decides the rest.
+    if (!canRetitle && !canRemove) return item;
+    // Our chat actions menu (chat-actions.js); our server checks again.
     const actions = document.createElement('button');
     actions.type = 'button';
     actions.className = 'chat-actions-btn';
@@ -91,7 +124,15 @@ function fillGuestChats(current) {
     const chats = recentChats();
     const publicRows = [...document.querySelectorAll('#public-chats li[data-room-name]')];
     chats.forEach(chat => {
-        const item = chatListItem(chat);
+        // What a guest may do with a room: rename one anyone may rename.
+        // Our server's own row for it, when this page has one, knows best.
+        const row = publicRows.find(r => r.dataset.roomName === chat.name);
+        const item = chatListItem({
+            name: chat.name,
+            title: (row && row.dataset.roomTitle) || chat.title,
+            id: row ? Number(row.dataset.roomId) : chat.id,
+            canRetitle: row ? row.dataset.canRetitle === 'true' : chat.anyoneMayRetitle === true,
+        });
         if (chat.name === current) item.querySelector('a').setAttribute('aria-current', 'page');
         list.appendChild(item);
         publicRows.filter(row => row.dataset.roomName === chat.name).forEach(row => row.remove());
@@ -147,7 +188,8 @@ function newRoomName(words) {
 
 // Make a new room named after `words` (home's first message, an
 // activity's title): solo (only its owner, needs sign in) or a public
-// chatroom. Resolves to our server's {id, name, is_private}.
+// chatroom. Resolves to our server's {id, name, is_private,
+// anyone_may_retitle}.
 async function createChatRoom(words, isPrivate) {
     for (let attempt = 0; attempt < 3; attempt++) {
         const name = newRoomName(words);

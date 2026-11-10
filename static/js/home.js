@@ -114,7 +114,8 @@ async function startChat() {
     }
     sendButton.disabled = true;
     try {
-        const room = (await createChatRoom(message || homeTools.firstFileName(), mode === 'private')).name;
+        const made = await createChatRoom(message || homeTools.firstFileName(), mode === 'private');
+        const room = made.name;
         // Files upload into the new chat & go as links below the text.
         if (homeTools.hasFiles()) {
             const links = await homeTools.uploadAll(room);
@@ -127,7 +128,7 @@ async function startChat() {
             return;
         }
         try { localStorage.setItem('selectedModel', modelSelect.value); } catch (e) {}
-        if (mode !== 'private') rememberRecentChat(room);
+        if (mode !== 'private') rememberRecentChat(room, null, {id: made.id, anyoneMayRetitle: made.anyone_may_retitle});
         homeDraft.clear();  // sent: it lives in its chat now
         // tests/functional/test_home.py records the address instead of leaving.
         const open = window.startChatNavigate || (url => { window.location.href = url; });

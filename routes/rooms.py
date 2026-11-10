@@ -265,6 +265,8 @@ def create_room_api():
         "title": new_room.title,
         "is_private": new_room.is_private,
         "is_new": True,  # Flag to indicate this is a new room, not an update
+        # What a sidebar row's ⋯ may offer someone who is not its owner
+        "anyone_may_retitle": anyone_may_retitle(new_room),
     }
     emit_room_list_update(new_room, new_room_data)
 
@@ -275,6 +277,7 @@ def create_room_api():
                 "id": new_room.id,
                 "name": new_room.name,
                 "is_private": new_room.is_private,
+                "anyone_may_retitle": anyone_may_retitle(new_room),
             },
         }
     )
@@ -489,6 +492,12 @@ def message_versions(message_id):
     )
 
 
+def anyone_may_retitle(room):
+    """True for an unowned public room: what a guest's browser records
+    beside a room it opened, so its sidebar row offers Rename."""
+    return bool(room) and not room.is_private and not room.owner_id
+
+
 def may_retitle(room, user):
     """Who may rename a room or refresh its title: its owner, or anyone
     who may open an unowned public room (as /title new always allowed)."""
@@ -516,6 +525,10 @@ def retitle_room(room_id):
     data = request.get_json(silent=True) or {}
     if not isinstance(data, dict):
         data = {}
+    # A browser's remembered id may outlive its room (SQLite reuses ids):
+    # a name sent along must still be this room's, or nothing is renamed.
+    if data.get("name") and data.get("name") != room.name:
+        return jsonify({"error": "Room not found"}), 404
     if data.get("generate"):
         title = DEPS["retitle_room"](room)
         if not title:

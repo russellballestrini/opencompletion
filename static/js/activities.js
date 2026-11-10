@@ -73,7 +73,7 @@
                     body: JSON.stringify({title: card.dataset.title}),
                 }).catch(() => {});
             }
-            rememberRecentChat(room.name, card.dataset.title);
+            rememberRecentChat(room.name, card.dataset.title, {id: room.id, anyoneMayRetitle: room.anyone_may_retitle});
             // tests/functional/test_activities_ui.py records the address instead of leaving.
             const open = window.startChatNavigate || (url => { window.location.href = url; });
             open(`/chat/${encodeURIComponent(room.name)}`);
