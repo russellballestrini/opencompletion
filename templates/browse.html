@@ -8,7 +8,9 @@
 <p class="page-subtitle">Most recently active first. <a href="/">Start a room</a></p>
 
 {# One list, filtered here: yours (any you created, solo or public), solo
-   (yours, only you) or public (everyone's). ?show= opens on one. #}
+   (yours, only you) or public (everyone's). ?show= opens on one. A guest's
+   rooms are known only to their browser: the script below fills Yours
+   from the rooms it opened (utils.js recentChats), as our sidebar does. #}
 <div class="rooms-toolbar">
     <div class="segmented" role="radiogroup" aria-label="Show">
         {% for key, label in [('mine', 'Yours'), ('solo', 'Solo'), ('public', 'Public')] %}
@@ -91,6 +93,27 @@
         const heading = document.getElementById('rooms-list-heading');
         const scopeWords = {mine: 'Your rooms', solo: 'Your solo rooms', public: 'Public rooms'};
         const searched = {{ query|tojson }};
+        const signedIn = {{ 'true' if user else 'false' }};
+        // A guest's Yours is what our sidebar calls Your rooms: the public
+        // rooms this browser opened (our server knows no guest's rooms, so
+        // it counted 0 beside a sidebar listing four). It counts the rooms
+        // listed here, so the two agree; solo rooms still need an account.
+        if (!signedIn) {
+            const opened = new Set(recentChats().map(chat => chat.name));
+            const mine = cards.filter(card => opened.has(card.dataset.roomName));
+            mine.forEach(card => { card.dataset.scopes = card.dataset.scopes + ' mine'; });
+            const yours = options.find(o => o.dataset.show === 'mine');
+            yours.querySelector('.segmented-count').textContent = mine.length;
+            yours.disabled = false;
+            yours.title = 'Public rooms you opened in this browser';
+            emptyWords.mine = 'No rooms opened in this browser yet';
+            scopeWords.mine = 'Rooms you opened in this browser';
+            // Our server opens a guest on Public; a link to Yours means it.
+            if (new URL(location.href).searchParams.get('show') === 'mine') {
+                options.forEach(o => o.setAttribute('aria-checked', String(o === yours)));
+                document.querySelector('.rooms-search input[name="show"]').value = 'mine';
+            }
+        }
         let show = (options.find(o => o.getAttribute('aria-checked') === 'true') || options[0]).dataset.show;
 
         function apply() {

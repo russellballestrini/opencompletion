@@ -522,3 +522,76 @@ def test_chat_waits_for_its_model_list(client, tmp_path, probe, saved):
         models_stub(saved),
     )
     passed(run_probe(html, probe, tmp_path, 1280))
+
+
+# --- 6. A guest's Yours on our Rooms page --------------------------------
+
+OPENED_ROOMS = """<script>
+localStorage.setItem('recentChats', JSON.stringify([
+    {name: 'lobby', title: null, public: true},
+    {name: 'garden', title: null, public: true},
+    {name: 'long-gone', title: null, public: true},
+]));
+</script>"""
+
+GUEST_ROOMS_PROBE = (
+    r"""
+<script>
+window.addEventListener('load', async () => {"""
+    + PROBE_HEAD
+    + r"""
+    const option = show => document.querySelector(`.segmented-option[data-show="${show}"]`);
+    const visible = () => [...document.querySelectorAll('#room-grid .room-card-wrap')].filter(c => !c.hidden).map(c => c.dataset.roomName).sort().join();
+    const sidebar = [...document.querySelectorAll('#your-chats li')].map(li => li.dataset.roomName);
+    check(sidebar.length === 3, 'our sidebar lists this browser\'s rooms: ' + sidebar);
+    const yours = option('mine');
+    // Two of the three are still rooms; that is what Yours lists & counts.
+    check(yours.querySelector('.segmented-count').textContent.trim() === '2', 'Yours counts the rooms it lists: ' + yours.textContent.trim());
+    check(!yours.disabled, 'a guest can open Yours');
+    check(/this browser/.test(yours.title), 'it says whose they are: ' + yours.title);
+    check(option('public').getAttribute('aria-checked') === 'true' && visible() === 'cellar,garden,lobby', 'a guest still opens on Public: ' + visible());
+    // This test page has no address a filter could be kept in.
+    history.replaceState = () => {};
+    yours.click();
+    check(yours.getAttribute('aria-checked') === 'true' && visible() === 'garden,lobby', 'Yours lists the rooms this browser opened: ' + visible());
+    check(option('solo').disabled, 'solo rooms still need an account');
+    finish();
+});
+</script>
+"""
+)
+
+SIGNED_IN_ROOMS_PROBE = (
+    r"""
+<script>
+window.addEventListener('load', async () => {"""
+    + PROBE_HEAD
+    + r"""
+    const yours = document.querySelector('.segmented-option[data-show="mine"]');
+    const visible = () => [...document.querySelectorAll('#room-grid .room-card-wrap')].filter(c => !c.hidden).map(c => c.dataset.roomName).sort().join();
+    check(yours.querySelector('.segmented-count').textContent.trim() === '1', 'signed in, Yours is what our server counted: ' + yours.textContent.trim());
+    check(yours.getAttribute('aria-checked') === 'true' && visible() === 'adas-room', 'and lists only rooms you created: ' + visible());
+    finish();
+});
+</script>
+"""
+)
+
+
+def test_a_guests_yours_lists_the_rooms_their_browser_opened(client, tmp_path):
+    for name in ("lobby", "garden", "cellar"):
+        make_room(name, message="hi")
+    html = client.get("/browse").get_data(as_text=True)
+    html = html.replace("<head>", "<head>" + OPENED_ROOMS, 1)
+    passed(run_probe(html, GUEST_ROOMS_PROBE, tmp_path, 1280))
+
+
+def test_signed_in_yours_is_unchanged(client, tmp_path):
+    ada = make_user("ada@example.test", "ada")
+    make_room("lobby", message="hi")
+    make_room("garden", message="hi")
+    make_room("adas-room", owner=ada)
+    sign_in(client, ada)
+    html = client.get("/browse").get_data(as_text=True)
+    html = html.replace("<head>", "<head>" + OPENED_ROOMS, 1)
+    passed(run_probe(html, SIGNED_IN_ROOMS_PROBE, tmp_path, 1280))

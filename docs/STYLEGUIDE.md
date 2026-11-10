@@ -72,7 +72,7 @@ style.css): show & hide with the attribute, never a display rule.
   its title leads (`.room-card-name`), its name sits under it
   (`.room-card-slug`), `.badge-private` (Solo) or `.badge-public` &
   "active 2h ago" (`ago` filter). Our Rooms page filters one list with a
-  `.segmented` radio group (Yours · Solo · Public, `?show=`) & a text box that filters by title or name as you type & searches messages on Enter (`?q=`, `search_messages`; old `/search` links redirect there). A search shows two headed lists, no room in both: rooms whose messages mention the words (`.rooms-found`), then the other rooms named or titled like them (`#rooms-list-heading` + `#room-grid`), each saying so when empty.
+  `.segmented` radio group (Yours · Solo · Public, `?show=`; a guest's Yours lists & counts the public rooms their browser opened, as our sidebar's Your rooms does, & says so) & a text box that filters by title or name as you type & searches messages on Enter (`?q=`, `search_messages`; old `/search` links redirect there). A search shows two headed lists, no room in both: rooms whose messages mention the words (`.rooms-found`), then the other rooms named or titled like them (`#rooms-list-heading` + `#room-grid`), each saying so when empty.
 - **Activities** a `.room-grid` of `.activity-card`s (a `.room-card` that
   is an `<article>`, not a link): title, its file's name
   (`.room-card-slug`), one line (`.activity-card-description`), then
