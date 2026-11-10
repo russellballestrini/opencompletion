@@ -183,6 +183,7 @@ def test_edit_and_delete_stay_inside_their_room(test_app, app_module):
     )
     client.emit("delete_message", {"message_id": target.id, "room_name": "lobby"})
     assert db.session.get(Message, target.id).content == "original"
+    assert db.session.get(Message, target.id).deleted_at is None
 
     # In its own public room, our collaborative edit still works.
     client.emit(
@@ -191,7 +192,8 @@ def test_edit_and_delete_stay_inside_their_room(test_app, app_module):
     )
     assert db.session.get(Message, target.id).content == "edited"
     client.emit("delete_message", {"message_id": target.id, "room_name": "other"})
-    assert db.session.get(Message, target.id) is None
+    # Deleted: kept as a row, hidden, until restored (test_undo_delete.py)
+    assert db.session.get(Message, target.id).deleted_at is not None
 
 
 def test_private_room_messages_are_owner_only(test_app, app_module):
@@ -203,13 +205,14 @@ def test_private_room_messages_are_owner_only(test_app, app_module):
 
     guest = socket_client(app_module, http_client(test_app))
     guest.emit("delete_message", {"message_id": target.id, "room_name": "secret"})
-    assert db.session.get(Message, target.id) is not None
+    assert db.session.get(Message, target.id).deleted_at is None
 
     owner_socket = socket_client(app_module, http_client(test_app, owner))
     owner_socket.emit(
         "delete_message", {"message_id": target.id, "room_name": "secret"}
     )
-    assert db.session.get(Message, target.id) is None
+    # Deleted: kept as a row, hidden, until restored (test_undo_delete.py)
+    assert db.session.get(Message, target.id).deleted_at is not None
 
 
 def test_activity_status_reveals_nothing_about_private_rooms(test_app, app_module):

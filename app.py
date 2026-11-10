@@ -377,6 +377,7 @@ def find_saved_base64_for_url(external_url: str, room_id: int) -> str | None:
         # Search for messages containing "Fetched from {external_url}"
         saved_msg = Message.query.filter(
             Message.room_id == room_id,
+            Message.deleted_at.is_(None),
             Message.content.like(f'%alt="Fetched from {escaped_url}"%', escape="\\"),
         ).first()
 
@@ -984,7 +985,10 @@ def resume_interrupted_replies():
     reply reattaches to the run, shows it live again (Stop included) &
     carries on when it ends (fox, 2026-10-31). Returns how many."""
     with app.app_context():
-        waiting = Message.query.filter(Message.resume_state.isnot(None)).all()
+        # A deleted reply is gone: nobody watches it, so it is not resumed.
+        waiting = Message.query.filter(
+            Message.resume_state.isnot(None), Message.deleted_at.is_(None)
+        ).all()
         jobs = []
         for message in waiting:
             room = db.session.get(Room, message.room_id)
@@ -1102,24 +1106,12 @@ def on_join(data):
 
     # Send the history of messages only to the newly connected client.
     for message in previous_messages:
-        emit(
-            "previous_messages",
-            {
-                "id": message.id,
-                "username": message.username,
-                "content": message.content,
-                # A model's reply can be forked from (static/js/chat/5-messages.js).
-                "from_model": message.username in SYSTEM_USERS
-                and message.username != "system",
-                # Edited & resent: its pager shows what it replaced.
-                "versions": message.version_count(),
-                "thinking": message.thinking,
-                "tools": trail_as_of_now(
-                    message.tool_trail, room_name, resuming=bool(message.resume_state)
-                ),
-            },
-            room=request.sid,
-        )
+        emit("previous_messages", history_entry(message, room_name), room=request.sid)
+    # Messages deleted lately, each a line offering Restore in its place
+    # (our page puts it there by id): who wrote it & who deleted it, never
+    # its words.
+    for marker in deleted_markers(room):
+        emit("message_deleted", marker, room=request.sid)
 
     # A room whose replies came before titling (or whose title call failed)
     # still shows its slug in every sidebar: title it in the background,
@@ -1141,6 +1133,76 @@ def on_join(data):
         include_self=False,
     )
     emit_room_stats(room, to=request.sid)
+
+
+def history_entry(message, room_name):
+    """A stored message as our page draws it from history (on join, & when
+    a deleted one is restored)."""
+    return {
+        "id": message.id,
+        "username": message.username,
+        "content": message.content,
+        # A model's reply can be forked from (static/js/chat/5-messages.js).
+        "from_model": message.username in SYSTEM_USERS and message.username != "system",
+        # Edited & resent: its pager shows what it replaced.
+        "versions": message.version_count(),
+        "thinking": message.thinking,
+        "tools": trail_as_of_now(
+            message.tool_trail, room_name, resuming=bool(message.resume_state)
+        ),
+    }
+
+
+DEFAULT_DELETED_RETENTION_HOURS = 24
+
+
+def deleted_retention_s():
+    """OPENCOMPLETION_DELETED_RETENTION_HOURS (24; 0 = never) in seconds:
+    how long a deleted message shows as a line offering Restore. Past it
+    the row is still kept, hidden for good."""
+    hours = _env_float(
+        "OPENCOMPLETION_DELETED_RETENTION_HOURS", DEFAULT_DELETED_RETENTION_HOURS
+    )
+    return max(0, int(hours * 3600))
+
+
+def restorable(message):
+    """Whether a deleted message is still inside its Restore window."""
+    window = deleted_retention_s()
+    return bool(
+        window
+        and message.deleted_at is not None
+        and message.deleted_at >= int(time.time()) - window
+    )
+
+
+def deleted_marker(message_id, author, deleted_by):
+    """What a room hears of a deleted message: never its words."""
+    return {
+        "message_id": message_id,
+        "username": author,
+        "deleted_by": deleted_by,
+        "restorable": True,
+    }
+
+
+def deleted_markers(room):
+    """Markers for a room's messages deleted inside the Restore window,
+    oldest first; ones an Edit & resend replaced since are left out."""
+    window = deleted_retention_s()
+    if not window:
+        return []
+    rows = (
+        db.session.query(Message.id, Message.username, Message.deleted_by)
+        .filter(
+            Message.room_id == room.id,
+            Message.superseded_by_id.is_(None),
+            Message.deleted_at >= int(time.time()) - window,
+        )
+        .order_by(Message.id)
+        .all()
+    )
+    return [deleted_marker(*row) for row in rows]
 
 
 def emit_room_stats(room, to=None):
@@ -1406,16 +1468,19 @@ def on_stop_replies(data):
         stop_requests.add(room_name)
 
 
-def message_in_room(message_id, room_name):
+def message_in_room(message_id, room_name, deleted=False):
     """(message, room) when `message_id` lives in `room_name` & the caller
     may use that room, else (None, None). Edits & deletes act on one room's
     messages only; an ID from another room, or a private room the caller
-    does not own, is ignored."""
+    does not own, is ignored. A deleted message is as unknown as a missing
+    one, except to Restore (`deleted=True`), which finds only those."""
     room = Room.query.filter_by(name=room_name).first()
     if not room or room_access_denied(room, auth.get_current_user()):
         return None, None
     message = db.session.get(Message, message_id)
     if not message or message.room_id != room.id:
+        return None, None
+    if (message.deleted_at is not None) != deleted:
         return None, None
     return message, room
 
@@ -1442,8 +1507,15 @@ def handle_delete_message(data):
     message, room = message_in_room(msg_id, data.get("room_name"))
     if not message:
         return
+    if message.superseded_by_id:
+        return  # an earlier version is read only; our page never offers it
+    # The row stays, marked: every reader skips it (Message.visible) & a
+    # Restore brings it back. Anyone may delete here, so a delete that
+    # could not be undone was vandalism nobody could repair.
+    who = acting(room)
     author = message.username
-    db.session.delete(message)
+    message.deleted_at = int(time.time())
+    message.deleted_by = who["by"]
     db.session.commit()
     # username stays the message's author, as every such line has read.
     chain.append(
@@ -1452,11 +1524,64 @@ def handle_delete_message(data):
         "delete",
         messageId=msg_id,
         username=author,
-        **acting(room),
+        **who,
     )
 
-    # Notify all clients in the room to remove the message from their DOM
-    emit("message_deleted", {"message_id": msg_id}, room=room.name)
+    # Everyone in the room swaps the message for a line offering Restore
+    # (with no Restore window, it just goes).
+    marker = deleted_marker(msg_id, author, who["by"])
+    marker["restorable"] = restorable(message)
+    emit("message_deleted", marker, room=room.name)
+    emit_room_stats(room)
+
+
+@socketio.on("restore_message")
+def handle_restore_message(data):
+    """Undo a delete, for everyone in the room: the message returns to its
+    place with the words it had. Anyone who may open the room may restore,
+    as anyone may delete; the chain names who (`by`).
+
+    Not refused while a reply streams: a streaming reply read its history
+    when it began, so a message returning changes nothing it holds, &
+    Delete is not refused then either (an undo must be no harder to reach
+    than what it undoes)."""
+    data = data or {}
+    msg_id = data.get("message_id")
+    if not isinstance(msg_id, int):
+        return
+    message, room = message_in_room(msg_id, data.get("room_name"), deleted=True)
+    if not message:
+        return
+    refusal = None
+    if message.superseded_by_id:
+        # Edit & resend replaced this part of the conversation since: back
+        # in place it would sit inside a branch nobody is reading.
+        refusal = (
+            "An Edit & resend replaced that part of our chat since: "
+            "it can't be restored."
+        )
+    elif not restorable(message):
+        refusal = "That message was deleted too long ago to restore here."
+    if refusal:
+        emit(
+            "restore_refused",
+            {"message_id": msg_id, "error": refusal},
+            room=request.sid,
+        )
+        return
+    message.deleted_at = None
+    message.deleted_by = None
+    db.session.commit()
+    chain.append(
+        room.id,
+        room.name,
+        "restore",
+        messageId=message.id,
+        username=message.username,
+        contentSha256=chain.sha256_text(message.content),
+        **acting(room),
+    )
+    emit("message_restored", history_entry(message, room.name), room=room.name)
     emit_room_stats(room)
 
 
@@ -1547,8 +1672,10 @@ def handle_edit_and_resend(data):
         return
 
     models = models_that_answered(message) or [data.get("model") or "None"]
+    # Deleted messages in the branch are superseded with it, so none can
+    # be restored into a conversation that moved on.
     branch = (
-        Message.visible(room.id)
+        Message.query.filter_by(room_id=room.id, superseded_by_id=None)
         .filter(Message.id >= message.id)
         .order_by(Message.id)
         .all()

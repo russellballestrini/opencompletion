@@ -413,10 +413,11 @@ def fork_from_message(message_id):
     if (
         not source_room
         or message.superseded_by_id is not None
+        or message.deleted_at is not None
         or room_access_denied(source_room, auth.get_current_user())
     ):
-        # A private room's messages, & ones an edit replaced, are as unknown
-        # as missing ones.
+        # A private room's messages, ones an edit replaced & deleted ones
+        # are as unknown as missing ones.
         return jsonify({"error": "Message not found"}), 404
     return fork_conversation(source_room, up_to=message.id)
 
@@ -464,6 +465,7 @@ def message_versions(message_id):
     if (
         not room
         or message.superseded_by_id is not None
+        or message.deleted_at is not None
         or room_access_denied(room, auth.get_current_user())
     ):
         return jsonify({"error": "Message not found"}), 404
@@ -809,6 +811,7 @@ def search_messages(keywords, user=None):
         .join(Room, Message.room_id == Room.id)
         .filter(visible)
         .filter(Message.superseded_by_id.is_(None))
+        .filter(Message.deleted_at.is_(None))
         .filter(
             db.or_(
                 *[

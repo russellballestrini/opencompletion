@@ -157,7 +157,10 @@ class Message(db.Model):
     every version of a conversation is kept as a tree of branches: a
     revision's hidden branch is the rows superseded by it, starting at its
     revision_of_id (earlier_versions(); chat's version pager shows them).
-    Read a room through Message.visible().
+    Delete never deletes either: a deleted message stays as a row marked
+    `deleted_at` & `deleted_by`, gone for every reader until someone
+    restores it (app.handle_restore_message). Only deleting its room
+    removes a row. Read a room through Message.visible().
     """
 
     id = db.Column(db.Integer, primary_key=True)
@@ -167,6 +170,10 @@ class Message(db.Model):
     room_id = db.Column(db.Integer, db.ForeignKey("room.id"), nullable=False)
     superseded_by_id = db.Column(db.Integer, index=True)
     revision_of_id = db.Column(db.Integer)
+    # Deleted (Unix seconds) & by whom (the name they joined under), until
+    # restored: both empty for a message in its conversation.
+    deleted_at = db.Column(db.Integer)
+    deleted_by = db.Column(db.String(128))
     # A model's thinking, kept beside its reply (shown collapsed above it) &
     # never sent back to a model as history.
     thinking = db.Column(db.Text)
@@ -181,18 +188,24 @@ class Message(db.Model):
 
     @classmethod
     def visible(cls, room_id):
-        """A room's current conversation: no superseded branches."""
-        return cls.query.filter_by(room_id=room_id, superseded_by_id=None)
+        """A room's current conversation: no superseded branches, no
+        deleted messages."""
+        return cls.query.filter_by(
+            room_id=room_id, superseded_by_id=None, deleted_at=None
+        )
 
     def earlier_versions(self):
         """The branches this message's edits replaced, oldest first: each a
         list of rows, the version as it was & everything said after it. A
-        version itself edited again leads one further back."""
+        version itself edited again leads one further back. A message
+        deleted before its branch was replaced stays out."""
         branches, current = [], self
         while current is not None and current.revision_of_id:
             branch = (
                 Message.query.filter_by(
-                    room_id=self.room_id, superseded_by_id=current.id
+                    room_id=self.room_id,
+                    superseded_by_id=current.id,
+                    deleted_at=None,
                 )
                 .order_by(Message.id)
                 .all()

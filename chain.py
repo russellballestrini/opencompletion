@@ -8,7 +8,9 @@ hash-linked to the room's previous event & kept in RoomEvent, insert-only:
     tool        a tool call's result, as the model was handed it, chained
                 BEFORE the reply that cites it (resultSha256, status, error)
     assistant   a model's reply, naming the tool events it sat beside
-    edit        a message changed in place; delete: one removed
+    edit        a message changed in place; delete: one removed (its row
+                stays, hidden); restore: a deleted one put back, with the
+                digest of the words that returned
     supersede   an edit & resend: the revision & the messages it hid
     fork        the first event of a forked room: where it came from
     attachment  a file a message carries (its blob's sha256)
@@ -236,8 +238,8 @@ def verify(chain):
 
 def _latest(chained):
     """messageId -> (RoomEvent, contentSha256) of the last event to record
-    each message's words (user, assistant, edit, or a fork's copy); a
-    delete forgets it."""
+    each message's words (user, assistant, edit, restore, or a fork's
+    copy); a delete forgets it until a restore records it again."""
     latest = {}
     for e in chained:
         try:
@@ -245,7 +247,7 @@ def _latest(chained):
         except ValueError:
             continue
         kind = body.get("type")
-        if kind in ("user", "assistant", "edit") and body.get("messageId"):
+        if kind in ("user", "assistant", "edit", "restore") and body.get("messageId"):
             latest[body["messageId"]] = (e, body.get("contentSha256"))
         elif kind == "fork":
             for copy in body.get("copied") or []:
