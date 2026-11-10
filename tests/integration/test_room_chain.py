@@ -356,6 +356,16 @@ def test_downloads_are_merkle_backed_and_check_without_us(test_app, quiet):
     assert (
         chain.verify_message(answer["content"], answer["chain"], "0" * 64)[0] is False
     )
+    # New words with their digest written into the old line: the line no
+    # longer hashes to the hash it carries, whatever its proof says
+    forged = dict(answer["chain"], contentSha256=chain.sha256_text("forged"))
+    forged["line"] = forged["line"].replace(
+        answer["chain"]["contentSha256"], forged["contentSha256"]
+    )
+    assert chain.verify_message("forged", forged, root) == (
+        False,
+        "the event line does not hash to its event",
+    )
 
     md = client.get(
         "/download_chat_history_md", query_string={"room_name": "lobby"}

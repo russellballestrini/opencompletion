@@ -319,7 +319,9 @@ def verify_message(content, block, root=None):
     if not block:
         return False, "not chained"
     split = P.split_chained_line(block["line"].encode("utf-8"))
-    if split is None or split[1] != block["event"]:
+    # Hashed afresh: the hash a line carries in its tail is only a claim
+    # (a line rewritten around new words still carries the old one).
+    if split is None or not (P.line_hash(split[0]) == split[1] == block["event"]):
         return False, "the event line does not hash to its event"
     body = json.loads(split[0])
     if body.get("type") == "fork":  # a fork's event records every copy
