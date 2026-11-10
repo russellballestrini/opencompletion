@@ -89,6 +89,55 @@ def quiet(monkeypatch):
     monkeypatch.setitem(DEPS, "system_users", ["qwen"])
 
 
+def test_an_edit_or_delete_names_who_did_it_beside_the_author(test_app, quiet):
+    """In a public chatroom anyone may edit or delete any message: the
+    chain says who, by the name their socket joined under, never a name
+    the event claims."""
+    from models import Message
+
+    room = make_room("lobby")
+    ada = socket_for(test_app)
+    bob = socket_for(test_app, username="bob")
+    for words in ("first", "second"):
+        ada.emit(
+            "chat_message",
+            {
+                "room_name": "lobby",
+                "username": "ada",
+                "message": words,
+                "model": "None",
+            },
+        )
+    first = Message.query.filter_by(content="first").one()
+    second = Message.query.filter_by(content="second").one()
+    bob.emit(
+        "update_message",
+        {
+            "room_name": "lobby",
+            "message_id": first.id,
+            "content": "vandalised",
+            "username": "ada",
+        },
+    )
+    bob.emit(
+        "delete_message",
+        {"room_name": "lobby", "message_id": second.id, "username": "ada"},
+    )
+    ada.emit("delete_message", {"room_name": "lobby", "message_id": first.id})
+
+    edit, deleted, own = bodies(room)[2:]
+    assert (edit["type"], edit["username"], edit["by"]) == ("edit", "ada", "bob")
+    assert (deleted["type"], deleted["username"], deleted["by"]) == (
+        "delete",
+        "ada",
+        "bob",
+    )
+    assert (own["username"], own["by"]) == ("ada", "ada")
+    # Guests here: no account to name.
+    assert edit["byUserId"] is None and deleted["byUserId"] is None
+    assert chain.verify(chain.chain_of(room))["ok"]
+
+
 def test_messages_edits_deletes_and_resends_are_chained(test_app, quiet):
     room = make_room("lobby")
     ada = socket_for(test_app)

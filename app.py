@@ -1420,16 +1420,40 @@ def message_in_room(message_id, room_name):
     return message, room
 
 
+def acting(room):
+    """Who is doing this, for a chained event: `by`, the name this socket
+    joined the room under (never a name the event claims; None when it
+    never joined), & `byUserId`, their account when signed in. In a public
+    chatroom anyone may edit or delete any message, so a chain that named
+    only a message's author could never say who changed it."""
+    joined = UserSession.query.filter_by(
+        session_id=request.sid, room_id=room.id
+    ).first()
+    user = auth.get_current_user()
+    return {
+        "by": joined.username if joined else None,
+        "byUserId": user.id if user else None,
+    }
+
+
 @socketio.on("delete_message")
 def handle_delete_message(data):
     msg_id = data["message_id"]
     message, room = message_in_room(msg_id, data.get("room_name"))
     if not message:
         return
-    deleted_by = message.username
+    author = message.username
     db.session.delete(message)
     db.session.commit()
-    chain.append(room.id, room.name, "delete", messageId=msg_id, username=deleted_by)
+    # username stays the message's author, as every such line has read.
+    chain.append(
+        room.id,
+        room.name,
+        "delete",
+        messageId=msg_id,
+        username=author,
+        **acting(room),
+    )
 
     # Notify all clients in the room to remove the message from their DOM
     emit("message_deleted", {"message_id": msg_id}, room=room.name)
@@ -1455,6 +1479,7 @@ def handle_update_message(data):
             messageId=message.id,
             username=message.username,
             contentSha256=chain.sha256_text(new_content),
+            **acting(room),
         )
 
         # Emit an event to update the message on all clients
