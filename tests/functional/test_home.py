@@ -34,7 +34,8 @@ def test_home_is_an_empty_chat(client):
     html = client.get("/").get_data(as_text=True)
     assert 'id="composer"' in html
     assert re.search(
-        r"Tabula rasa, in a beginning, <span class=\"phone-line\">where do we start\?</span>",
+        # "in&nbsp;a beginning" stays together on phones
+        r"Tabula rasa, in(?:&nbsp;| )a beginning, <span class=\"phone-line\">where do we start\?</span>",
         html,
     )
     assert 'data-mode="private"' in html and 'data-mode="chatroom"' in html
