@@ -83,15 +83,18 @@ function chatListItem(room, tag, tagLabel) {
 }
 
 // A guest's "Your chats" come from this browser's history; `current`
-// names the open chat, if any.
+// names the open chat, if any. A room listed here leaves Public rooms, so
+// no room shows twice (signed in, our server does the same).
 function fillGuestChats(current) {
     const list = document.getElementById('your-chats');
     if (!list || list.dataset.signedIn === 'true') return;
     const chats = recentChats();
+    const publicRows = [...document.querySelectorAll('#public-chats li[data-room-name]')];
     chats.forEach(chat => {
         const item = chatListItem(chat);
         if (chat.name === current) item.querySelector('a').setAttribute('aria-current', 'page');
         list.appendChild(item);
+        publicRows.filter(row => row.dataset.roomName === chat.name).forEach(row => row.remove());
     });
     document.getElementById('your-chats-empty').hidden = chats.length > 0;
 }

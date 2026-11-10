@@ -1,6 +1,7 @@
 {# Our one app sidebar, on our home & every chat: our name on top, your
    chats & public ones in a middle that scrolls, you at the bottom.
-   Needs user, your_chats & public_chats (routes.pages.sidebar_chats);
+   Needs user, your_chats & public_chats (routes.pages.sidebar_chats;
+   a room of yours is never also under Public rooms);
    room_name marks the open chat & active_nav the page. A drawer on phones (openDrawer('rooms')). #}
 {% set _current = room_name|default(none) %}
 {% set _nav = active_nav|default('chat' if _current else 'home') %}
@@ -55,6 +56,8 @@
             </ul>
             {% if public_chats %}
             <a class="sidebar-more" href="/browse?show=public">All public rooms →</a>
+            {% elif your_chats|rejectattr('is_private')|list %}
+            <p class="sidebar-empty">No public rooms but yours yet.</p>
             {% else %}
             <p class="sidebar-empty">No public rooms yet. Start a chatroom & it shows up here.</p>
             {% endif %}

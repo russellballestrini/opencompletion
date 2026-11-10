@@ -54,7 +54,9 @@ SIDEBAR_CHATS = 30
 def sidebar_chats(user):
     """What _app_sidebar.html lists, on our home & every chat: rooms you
     own (private ones too), newest first, and public rooms. Never anyone
-    else's private room."""
+    else's private room, & no room in both lists: a public room of yours
+    sits under Your rooms only (fox, 2026-11-10: the open room showed
+    twice, both rows highlighted)."""
     your_chats = []
     if user:
         your_chats = (
@@ -63,9 +65,13 @@ def sidebar_chats(user):
             .limit(SIDEBAR_CHATS)
             .all()
         )
+    public_chats = Room.query.filter_by(is_private=False, is_archived=False)
+    if your_chats:
+        public_chats = public_chats.filter(
+            Room.id.notin_([room.id for room in your_chats])
+        )
     public_chats = (
-        Room.query.filter_by(is_private=False, is_archived=False)
-        .order_by(Room.updated_at.desc(), Room.id.desc())
+        public_chats.order_by(Room.updated_at.desc(), Room.id.desc())
         .limit(SIDEBAR_CHATS)
         .all()
     )

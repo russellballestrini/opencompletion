@@ -60,11 +60,72 @@ def test_your_chats_hold_your_rooms_and_never_anyone_elses_private_one(client):
     mine = sidebar(html, "your-chats-heading")
     assert "my-secret" in mine and "my-public" in mine
     assert "their-secret" not in html
-    assert "my-secret" not in sidebar(html, "public-chats-heading")
+    public = sidebar(html, "public-chats-heading")
+    assert "my-secret" not in public
+    # A public room of yours is listed once, under Your rooms.
+    assert "my-public" not in public and html.count('data-room-name="my-public"') == 1
     # Our user sits at the bottom of our sidebar, linking to settings.
     assert re.search(
         r'class="sidebar-user-link" href="/profile">.*?me</span>', html, re.S
     )
+
+
+def test_no_room_sits_in_both_sidebar_lists(client):
+    """fox, 2026-11-10: the open room showed under Your rooms & again under
+    Public rooms, both highlighted. Someone else's public room stays under
+    Public rooms; a guest's server-made lists never overlap either."""
+    me = make_user("me@example.test", "me")
+    other = make_user("other@example.test", "other")
+    make_room("my-public", owner=me, message="hi")
+    make_room("their-public", owner=other, message="hi")
+    make_room("lobby", message="hi")
+    guest = client.get("/chat/my-public").get_data(as_text=True)
+    assert guest.count('aria-current="page"') == 1
+    assert "my-public" in sidebar(guest, "public-chats-heading")
+    sign_in(client, me)
+    html = client.get("/chat/my-public").get_data(as_text=True)
+    mine = sidebar(html, "your-chats-heading")
+    public = sidebar(html, "public-chats-heading")
+    assert "my-public" in mine and "my-public" not in public
+    assert "their-public" in public and "lobby" in public
+    assert "their-public" not in mine and "lobby" not in mine
+    assert html.count('aria-current="page"') == 1  # the open room, once
+
+
+def test_a_sidebar_with_only_your_public_rooms_says_so(client):
+    me = make_user("me@example.test", "me")
+    make_room("my-public", owner=me)
+    sign_in(client, me)
+    public = sidebar(client.get("/").get_data(as_text=True), "public-chats-heading")
+    assert "No public rooms but yours yet." in public
+    assert "Start a chatroom" not in public
+
+
+GUEST_SIDEBAR_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    // A guest who opened lobby before (this browser's history).
+    window.recentChats = () => [{name: 'lobby', title: null, public: true}];
+    fillGuestChats('lobby');
+    const rows = [...document.querySelectorAll('#app-sidebar li[data-room-name="lobby"]')];
+    check(rows.length === 1 && rows[0].closest('#your-chats'), 'a room you opened is listed once, under Your rooms: ' + rows.length);
+    check(document.querySelectorAll('#app-sidebar a[aria-current="page"]').length === 1, 'the open room is marked once');
+    check(document.querySelector('#public-chats li[data-room-name="garden"]'), 'other public rooms stay');
+    check(!document.querySelector('#your-chats li[data-room-name="garden"]'), 'a room never opened is not yours');
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+def test_a_guests_opened_room_is_listed_once(client, tmp_path):
+    make_room("lobby", message="hi")
+    make_room("garden", message="hi")
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    out = run_probe(html, GUEST_SIDEBAR_PROBE, tmp_path, 1280)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
 def test_archived_rooms_leave_our_sidebar(client):

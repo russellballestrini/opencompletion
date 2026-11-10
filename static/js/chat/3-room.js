@@ -377,7 +377,8 @@ socket.on("update_room_title", (data) => {
 // A new or retitled room, live in our sidebar (_app_sidebar.html). Rows
 // come from chatListItem() in utils.js, the same markup the server renders.
 socket.on('update_room_list', function(updatedRoom) {
-    // A public room you own sits in both lists: rename every row of it.
+    // A room sits in one list (yours, else public); rename every row of
+    // it all the same.
     const rows = document.querySelectorAll(`#app-sidebar li[data-room-id="${updatedRoom.id}"]`);
     if (rows.length) {
         const label = updatedRoom.title || updatedRoom.name;
