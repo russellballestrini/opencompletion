@@ -54,3 +54,20 @@ def test_health_is_503_without_saying_why(test_app, monkeypatch):
     assert response.status_code == 503
     assert response.json == {"status": "error", "database": "error"}
     assert "secret" not in response.get_data(as_text=True)
+
+
+def test_version_says_what_our_start_did_to_our_database(test_app, monkeypatch):
+    import db_migrate
+
+    # Started some way that skips db_migrate (as these tests are): say so.
+    monkeypatch.setattr(db_migrate, "LAST", {})
+    body = test_app.test_client().get("/version").json
+    assert (body["migrations"], body["migration"]) == ("not run", None)
+
+    monkeypatch.setattr(
+        db_migrate, "LAST", {"state": "migrated", "revision": "2026111001"}
+    )
+    body = test_app.test_client().get("/version").json
+    assert (body["migrations"], body["migration"]) == ("migrated", "2026111001")
+    # A state & a revision only: never a path or an address.
+    assert "/" not in str(body["migrations"]) + str(body["migration"])

@@ -22,6 +22,16 @@ import os
 import sqlite3
 import time
 
+# What bring_up_to_date did in this process, for /version: {"state",
+# "revision"}, empty when it never ran (our app was started some way that
+# skips it). States: off, new, current, migrated, unstamped, unknown.
+LAST = {}
+
+
+def _did(state, revision, line):
+    LAST.update(state=state, revision=revision)
+    return line
+
 
 def auto_migrate_enabled():
     return (os.environ.get("OPENCOMPLETION_AUTO_MIGRATE") or "on").lower() != "off"
@@ -75,7 +85,11 @@ def bring_up_to_date(app):
     """See this module's docstring. Call inside nothing: it opens its own
     app context."""
     if not auto_migrate_enabled():
-        return "Database migrations: left alone (OPENCOMPLETION_AUTO_MIGRATE=off)"
+        return _did(
+            "off",
+            None,
+            "Database migrations: left alone (OPENCOMPLETION_AUTO_MIGRATE=off)",
+        )
     from flask_migrate import stamp, upgrade
     from sqlalchemy import inspect
 
@@ -89,28 +103,34 @@ def bring_up_to_date(app):
         if not tables:
             db.create_all()
             stamp(revision="head")
-            return f"Database migrations: new database created at {head}"
+            return _did(
+                "new", head, f"Database migrations: new database created at {head}"
+            )
 
         if current is None:
             # An old `make init-db` made these tables: which migration
             # they match is a person's call (README, "Upgrading").
             db.create_all()
-            return (
+            return _did(
+                "unstamped",
+                None,
                 "[WARN] Database migrations: tables but no migration stamp, so "
                 "nothing was migrated. Stamp the revision its schema matches "
-                "(README: Upgrading an existing database), then restart"
+                "(README: Upgrading an existing database), then restart",
             )
 
         if current == head:
-            return f"Database migrations: up to date at {head}"
+            return _did("current", head, f"Database migrations: up to date at {head}")
 
         try:
             script.get_revision(current)
         except Exception:  # alembic's own error types vary by version
-            return (
+            return _did(
+                "unknown",
+                current,
                 f"[WARN] Database migrations: stamped {current}, which this "
                 f"code does not know (our newest is {head}); nothing was "
-                "changed. A database newer than its code?"
+                "changed. A database newer than its code?",
             )
 
         copy = backup_sqlite(db, current)
@@ -123,6 +143,9 @@ def bring_up_to_date(app):
                 f"database migration stopped at {now}, short of {head}"
                 + (f"; a copy from before is at {copy}" if copy else "")
             )
-        return f"Database migrations: {current} -> {head}" + (
-            f" (a copy from before: {copy})" if copy else ""
+        return _did(
+            "migrated",
+            head,
+            f"Database migrations: {current} -> {head}"
+            + (f" (a copy from before: {copy})" if copy else ""),
         )

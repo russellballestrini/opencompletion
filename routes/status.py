@@ -1,5 +1,6 @@
-"""What a deploy check asks: which commit is running (/version) & whether
-we answer with our database behind us (/health).
+"""What a deploy check asks: which commit is running & what our start did
+to our database (/version), & whether we answer with our database behind
+us (/health).
 
 Neither calls a model endpoint: a dead MODEL_ENDPOINT_n must not make a
 health check hang or fail (the app already fails over between them), and
@@ -13,6 +14,7 @@ import time
 from flask import Blueprint, current_app, jsonify
 from sqlalchemy import text
 
+import db_migrate
 from models import db
 
 bp = Blueprint("status", __name__)
@@ -64,6 +66,11 @@ def version():
             commit=info["commit"] or "unknown",
             committed_at=info["committed_at"],
             started_at=STARTED_AT,
+            # What our start did to our database (db_migrate.py): "not run"
+            # means we were started some way that skips it, so a deploy
+            # carrying a migration would need it run by hand.
+            migrations=db_migrate.LAST.get("state", "not run"),
+            migration=db_migrate.LAST.get("revision"),
         )
     )
 

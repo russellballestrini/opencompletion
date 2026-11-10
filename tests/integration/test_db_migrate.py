@@ -38,7 +38,12 @@ def run(database, code, **env):
 
 
 def up(database, **env):
-    out = run(database, "print(db_migrate.bring_up_to_date(app.app))", **env)
+    out = run(
+        database,
+        "print(db_migrate.bring_up_to_date(app.app)); print('LAST', db_migrate.LAST)",
+        **env,
+    )
+    up.last = [line for line in out.splitlines() if line.startswith("LAST ")][-1]
     return [line for line in out.splitlines() if "Database migrations" in line][-1]
 
 
@@ -93,6 +98,7 @@ def test_a_database_behind_is_copied_aside_then_migrated(tmp_path, head):
     line = up(database)
 
     assert line.startswith(f"Database migrations: {behind} -> {head}")
+    assert up.last == f"LAST {{'state': 'migrated', 'revision': '{head}'}}"
     assert stamp(database) == head
     with sqlite3.connect(database) as con:
         assert con.execute("SELECT content FROM message").fetchall() == [("kept",)]
