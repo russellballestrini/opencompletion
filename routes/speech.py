@@ -9,6 +9,13 @@ listing a model owns its entry); /speech/audio streams /audio/speech back
 from an endpoint that lists the requested model, falling through to the
 next one when an endpoint is down or answers 5xx. /speech/transcribe sends
 our mic's recordings to /audio/transcriptions the same way.
+
+Our own speech service lists its voices at /voices. An endpoint with no
+such route (OpenAI's API: a 404) is read from its /models instead, as chat
+& image models are: every speech model it lists today is offered, so none
+is named here & a retired one drops out by itself. Its voices can't be
+listed, so SPEECH_VOICES_n names them (else OPENAI_VOICES). An endpoint
+that does answer /voices is never touched by any of this.
 """
 
 import os
@@ -37,6 +44,26 @@ _models_cache = {}
 # A transcription model by its id: stt-1-parakeet, whisper-1, ...transcribe.
 STT_MODEL = re.compile(r"^(stt|whisper)|transcri|parakeet|asr", re.I)
 DEFAULT_STT_MODEL = "whisper-1"
+# A speech model by its id (tts-1, gpt-4o-mini-tts, ...), for an endpoint
+# with no /voices; SPEECH_TTS_MODELS (a regex) names another server's.
+TTS_MODEL = re.compile(os.environ.get("SPEECH_TTS_MODELS") or r"tts", re.I)
+# A dated or numbered copy of a model listed beside it (tts-1-1106,
+# gpt-4o-mini-tts-2025-12-15): left out, so a picker offers each model once.
+SNAPSHOT = re.compile(r"-(\d{4}-\d{2}-\d{2}|\d{4})$")
+# OpenAI's API lists no voices; these are the ones every speech model of
+# theirs has answered to. SPEECH_VOICES_n (comma separated) replaces them
+# for endpoint n.
+OPENAI_VOICES = (
+    "alloy",
+    "ash",
+    "coral",
+    "echo",
+    "fable",
+    "nova",
+    "onyx",
+    "sage",
+    "shimmer",
+)
 
 
 def speech_endpoints(env=None):
@@ -64,6 +91,54 @@ def _headers(api_key):
     return {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
 
+def endpoint_voices(base_url, env=None):
+    """The voices SPEECH_VOICES_n names for the endpoint at `base_url`
+    (comma separated), else OPENAI_VOICES: for an endpoint that lists
+    speech models & no voices."""
+    env = os.environ if env is None else env
+    prefix = "SPEECH_ENDPOINT_"
+    for name, value in env.items():
+        if name.startswith(prefix) and (value or "").strip().rstrip("/") == base_url:
+            named = env.get(f"SPEECH_VOICES_{name[len(prefix):]}") or ""
+            voices = [v.strip() for v in named.split(",") if v.strip()]
+            if voices:
+                return voices
+    return list(OPENAI_VOICES)
+
+
+def _models_at(base_url, api_key):
+    """The model ids one endpoint lists at /models; raises as requests does."""
+    response = requests.get(
+        f"{base_url}/models", headers=_headers(api_key), timeout=VOICES_TIMEOUT_S
+    )
+    response.raise_for_status()
+    return [
+        m.get("id")
+        for m in response.json().get("data") or []
+        if isinstance(m, dict) and m.get("id")
+    ]
+
+
+def _without_snapshots(ids):
+    """`ids` less each dated copy of a model that is itself in `ids`."""
+    return [
+        i for i in ids if SNAPSHOT.sub("", i) == i or SNAPSHOT.sub("", i) not in ids
+    ]
+
+
+def _voices_from_models(base_url, api_key):
+    """Voice entries for an endpoint with no /voices route, from the speech
+    models its /models lists; [] when it lists none or does not answer."""
+    try:
+        listed = _models_at(base_url, api_key)
+    except (requests.RequestException, ValueError, AttributeError) as exc:
+        print(f"[WARN] speech models from {base_url} failed: {exc}")
+        return []
+    speech = [i for i in listed if TTS_MODEL.search(i) and not STT_MODEL.search(i)]
+    voices = endpoint_voices(base_url)
+    return [{"id": i, "voices": voices} for i in _without_snapshots(speech)]
+
+
 def _load_voices(verbose=False):
     """Merged voices across endpoints, cached VOICES_TTL_S. None when no
     endpoint answered. verbose (startup) prints what each endpoint lists,
@@ -79,8 +154,14 @@ def _load_voices(verbose=False):
                 headers=_headers(api_key),
                 timeout=VOICES_TIMEOUT_S,
             )
-            response.raise_for_status()
-            models = response.json().get("data") or []
+            if response.status_code == 404:
+                # No such route: an endpoint like OpenAI's, read from its
+                # /models. A /voices that is down or errors stays a failure,
+                # so our own service never gets another's voice names.
+                models = _voices_from_models(base_url, api_key)
+            else:
+                response.raise_for_status()
+                models = response.json().get("data") or []
         except (requests.RequestException, ValueError, AttributeError) as exc:
             print(f"[WARN] speech voices from {base_url} failed: {exc}")
             continue
@@ -113,28 +194,19 @@ def _load_models(verbose=False):
     cached = _models_cache.get("at")
     if not verbose and cached is not None and time.monotonic() - cached < VOICES_TTL_S:
         return _models_cache["ids"]
-    ids = []
+    ids, by_endpoint = [], {}
     for base_url, api_key in speech_endpoints():
         try:
-            response = requests.get(
-                f"{base_url}/models",
-                headers=_headers(api_key),
-                timeout=VOICES_TIMEOUT_S,
-            )
-            response.raise_for_status()
-            listed = [
-                m.get("id")
-                for m in response.json().get("data") or []
-                if isinstance(m, dict) and m.get("id")
-            ]
+            listed = _models_at(base_url, api_key)
         except (requests.RequestException, ValueError, AttributeError) as exc:
             if verbose:
                 print(f"[WARN] speech models from {base_url} failed: {exc}")
             continue
         if verbose:
             print(f"[DEBUG] {base_url} returned speech models: {listed}")
+        by_endpoint[base_url] = listed
         ids += [i for i in listed if i not in ids]
-    _models_cache.update(at=time.monotonic(), ids=ids)
+    _models_cache.update(at=time.monotonic(), ids=ids, by_endpoint=by_endpoint)
     return ids
 
 
@@ -149,6 +221,21 @@ def stt_model():
         if STT_MODEL.search(model_id):
             return model_id, "listed by our speech endpoint"
     return DEFAULT_STT_MODEL, "default; no endpoint lists one"
+
+
+def stt_model_for(base_url):
+    """The transcription model to ask one endpoint for: SPEECH_STT_MODEL
+    when set (everywhere, as before), else one that endpoint itself lists
+    (never a diarizing or dated one while a plain one is listed), else
+    stt_model()'s. So each endpoint is asked for a model it knows: our own
+    service for stt-1-parakeet, OpenAI's for whichever it lists today."""
+    model, why = stt_model()
+    if why == "SPEECH_STT_MODEL":
+        return model
+    listed = _models_cache.get("by_endpoint", {}).get(base_url) or []
+    own = _without_snapshots([i for i in listed if STT_MODEL.search(i)])
+    plain = [i for i in own if "diariz" not in i.lower()]
+    return (plain or own or [model])[0]
 
 
 def log_startup():
@@ -263,9 +350,9 @@ def speech_transcribe():
         response.headers["Retry-After"] = str(retry_after)
         return response, 429
 
-    model, _ = stt_model()
     last_error = "no speech endpoint configured"
     for base_url, api_key in speech_endpoints():
+        model = stt_model_for(base_url)
         try:
             answer = requests.post(
                 f"{base_url}/audio/transcriptions",
