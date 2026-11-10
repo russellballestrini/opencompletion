@@ -38,5 +38,6 @@ include =
     battleship_arena.py
     chain.py
     fade.py
+    db_migrate.py
     gevent_asyncio.py
 show_missing = True

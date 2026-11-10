@@ -3917,6 +3917,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # A deploy is a restart: our database follows our code before anything
+    # reads it (db_migrate.py). A migration that fails stops us here.
+    import db_migrate
+
+    print(db_migrate.bring_up_to_date(app))
+
     if args.chain_check:
         with app.app_context():
             reports = [chain.verify(key) for key in chain.chains()]

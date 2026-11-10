@@ -119,3 +119,7 @@ export ENABLE_CODE_GEN_FILENAMES="true"
 # database always; set a directory to also append each line to
 # <dir>/opencompletion-<chain>.jsonl for an outside witness (unfirehose).
 #export OPENCOMPLETION_CHAIN_MIRROR="$HOME/.uncloseai/unfirehose/opencompletion"
+
+# Each start brings our database up to date (a SQLite file is copied aside
+# first: <db>.before-<revision>.bak). off = migrate by hand, make upgrade-db.
+#export OPENCOMPLETION_AUTO_MIGRATE=off

@@ -114,10 +114,9 @@ Installation
    example ``uncloseai``; unset, it says OpenCompletion.
 
 4. Create our database tables (a SQLite file in ``instance/`` unless
-   ``SQLALCHEMY_DATABASE_URI`` says otherwise), then mark migrations current::
+   ``SQLALCHEMY_DATABASE_URI`` says otherwise), stamped at our newest migration::
 
     make init-db
-    source vars.sh && FLASK_APP=app venv/bin/flask db stamp head
 
 5. Run it::
 
@@ -126,8 +125,12 @@ Installation
 Upgrading an existing database
 ------------------------------
 
-``make init-db`` only creates missing tables; it never adds columns to a
-table that exists. After pulling new code, back up & apply migrations::
+Our app does this itself: each start (``python app.py``, ``make init-db``,
+our container) copies a SQLite database aside
+(``instance/chat.db.before-<revision>.bak``) & applies every migration it is
+behind, before anything reads it. A migration that fails stops the start &
+leaves that copy. ``OPENCOMPLETION_AUTO_MIGRATE=off`` turns this off; by
+hand it is still::
 
     cp instance/chat.db instance/chat.db.bak
     make upgrade-db
