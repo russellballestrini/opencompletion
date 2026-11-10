@@ -10,6 +10,10 @@ from gevent import monkey
 
 monkey.patch_all()
 
+import gevent_asyncio  # noqa: E402
+
+gevent_asyncio.wake_executor_jobs()  # as app.py does beside its patch
+
 import asyncio  # noqa: E402
 import http.server  # noqa: E402
 import json  # noqa: E402

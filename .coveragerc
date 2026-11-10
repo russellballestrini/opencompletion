@@ -37,4 +37,5 @@ include =
     battleship_arena.py
     chain.py
     fade.py
+    gevent_asyncio.py
 show_missing = True

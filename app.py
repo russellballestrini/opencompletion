@@ -6,6 +6,12 @@ from gevent import monkey
 
 monkey.patch_all()
 
+# Under that patch asyncio's executor jobs must wake their loop themselves
+# on CPython 3.13.12+ (gevent_asyncio.py), or a second one never returns.
+import gevent_asyncio  # noqa: E402
+
+gevent_asyncio.wake_executor_jobs()
+
 
 import json
 import time
