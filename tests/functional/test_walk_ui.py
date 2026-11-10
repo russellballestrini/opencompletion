@@ -318,3 +318,207 @@ def test_a_wide_table_scrolls_and_keeps_its_words_whole(client, tmp_path, width)
     make_room("lobby")
     html = client.get("/chat/lobby").get_data(as_text=True)
     passed(run_probe(html, TABLE_PROBE, tmp_path, width))
+
+
+# --- 5. The model picker while its list loads -----------------------------
+
+
+# Our server's /models, answered when a probe says so (`modelsReply.send`)
+# or never. MODELS_WAIT_MS (4 s) is past the page's virtual-time budget:
+# that one wait is shortened, every other timer keeps its time.
+def models_stub(saved_model=None):
+    saved = (
+        f"localStorage.setItem('selectedModel', {json.dumps(saved_model)});"
+        if saved_model
+        else "localStorage.removeItem('selectedModel');"
+    )
+    return (
+        """<script>
+localStorage.removeItem('modelList');
+localStorage.removeItem('modelListExpiration');
+"""
+        + saved
+        + """
+window.modelsReply = {};
+window.modelsReply.arrived = new Promise(resolve => {
+    window.modelsReply.send = models => resolve({ok: true, json: () => Promise.resolve({models})});
+});
+window.fetch = url => String(url) === '/models'
+    ? window.modelsReply.arrived
+    : Promise.reject(new TypeError('offline test page'));
+const realSetTimeout = window.setTimeout;
+window.setTimeout = (fn, ms, ...rest) => realSetTimeout(fn, ms >= 4000 ? 40 : ms, ...rest);
+</script>"""
+    )
+
+
+HOME_MODELS_HEAD = (
+    r"""
+<script>
+window.addEventListener('load', async () => {"""
+    + PROBE_HEAD
+    + r"""
+    const created = [];
+    const models = window.modelsReply;
+    window.fetch = (url, options) => {
+        if (String(url) === '/models') return models.arrived;
+        if (String(url) === '/api/rooms/create') {
+            const body = JSON.parse(options.body);
+            created.push(body);
+            return Promise.resolve({ok: true, json: () => Promise.resolve({room: {id: 9, name: body.name, anyone_may_retitle: true}})});
+        }
+        return Promise.reject(new TypeError('offline'));
+    };
+    let opened = null;
+    window.startChatNavigate = url => { opened = url; };
+    const input = document.getElementById('composer-input');
+    const picker = document.getElementById('composer-model');
+    const send = document.getElementById('composer-send');
+    const shown = () => picker.options[picker.selectedIndex].textContent;
+    const pending = () => JSON.parse(sessionStorage.getItem('pendingMessage') || 'null');
+    sessionStorage.removeItem('pendingMessage');
+
+    check(shown() === 'Loading models…' && picker.disabled, 'the picker says our list is loading: ' + shown());
+    check(shown() !== 'People only (no model)', 'it never claims people only meanwhile');
+    input.value = 'Why is the sky blue?';
+    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
+    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
+"""
+)
+
+HOME_LIST_ARRIVES_PROBE = HOME_MODELS_HEAD + r"""
+    await wait(20);
+    check(created.length === 0 && !opened, 'Send waits for our model list: ' + created.length);
+    check(send.disabled, 'Send shows it is busy');
+    models.send(['hermes', 'qwen']);
+    await wait(60);
+    check(created.length === 1, 'one room once the list is in: ' + created.length);
+    check(pending() && pending().model === 'hermes', 'a first visit gets a model that answers: ' + JSON.stringify(pending()));
+    check(!picker.disabled && shown() === 'hermes', 'the picker shows it: ' + shown());
+    check(![...picker.options].some(o => o.textContent === 'Loading models…'), 'the loading line is gone');
+    check(recentChats()[0] && recentChats()[0].id === 9 && recentChats()[0].anyoneMayRetitle === true, 'the new room is recorded with its id');
+    finish();
+});
+</script>
+"""
+
+HOME_SAVED_MODEL_PROBE = HOME_MODELS_HEAD + r"""
+    await wait(200);
+    check(created.length === 1, 'a list that never comes still sends: ' + created.length);
+    check(pending() && pending().model === 'qwen', 'with the model picked before: ' + JSON.stringify(pending()));
+    check(localStorage.getItem('selectedModel') === 'qwen', 'our saved model is kept');
+    finish();
+});
+</script>
+"""
+
+HOME_NO_MODEL_PROBE = HOME_MODELS_HEAD + r"""
+    await wait(200);
+    check(created.length === 0 && !opened, 'no silent room is started: ' + created.length);
+    check(/model list has not loaded/.test(document.getElementById('composer-error').textContent), 'it says why: ' + document.getElementById('composer-error').textContent);
+    check(!send.disabled && input.value === 'Why is the sky blue?', 'our words wait, Send works again');
+    // The list arrives: now it sends.
+    models.send(['hermes']);
+    await wait(20);
+    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
+    await wait(60);
+    check(created.length === 1 && pending() && pending().model === 'hermes', 'then it sends with a model: ' + JSON.stringify(pending()));
+    finish();
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize(
+    "probe,saved",
+    [
+        (HOME_LIST_ARRIVES_PROBE, None),
+        (HOME_SAVED_MODEL_PROBE, "qwen"),
+        (HOME_NO_MODEL_PROBE, None),
+    ],
+    ids=["list-arrives", "saved-model", "no-model"],
+)
+def test_home_waits_for_its_model_list(client, tmp_path, probe, saved):
+    html = before_script(
+        client.get("/").get_data(as_text=True), "home.js", models_stub(saved)
+    )
+    passed(run_probe(html, probe, tmp_path, 1280))
+
+
+def test_home_with_no_model_list_says_people_only(client, tmp_path):
+    """Our server did not answer /models at all (every probe's default):
+    the picker stops loading & says what is true."""
+    probe = (
+        r"""
+<script>
+window.addEventListener('load', async () => {"""
+        + PROBE_HEAD
+        + r"""
+    const picker = document.getElementById('composer-model');
+    check(!picker.disabled && picker.options[picker.selectedIndex].textContent === 'People only (no model)', 'people only, said plainly');
+    check(picker.options.length === 1, 'no loading line left');
+    finish();
+});
+</script>
+"""
+    )
+    passed(run_probe(client.get("/").get_data(as_text=True), probe, tmp_path, 1280))
+
+
+CHAT_MODELS_HEAD = (
+    r"""
+<script>
+window.addEventListener('load', async () => {"""
+    + PROBE_HEAD
+    + r"""
+    const models = window.modelsReply;
+    const picker = document.getElementById('model-select');
+    const box = document.getElementById('message');
+    const shown = () => picker.options[picker.selectedIndex].textContent;
+    const said = () => testSocket.sent.filter(([event]) => event === 'chat_message').map(([, data]) => data);
+    check(shown() === 'Loading models…' && picker.disabled, 'the picker says our list is loading: ' + shown());
+    box.value = 'Why is the sky blue?';
+    document.getElementById('send-button').click();
+    box.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
+    await wait(20);
+"""
+)
+
+CHAT_LIST_ARRIVES_PROBE = CHAT_MODELS_HEAD + r"""
+    check(said().length === 0, 'Send waits for our model list');
+    check(box.value === 'Why is the sky blue?', 'our words stay in the box meanwhile');
+    models.send(['hermes', 'qwen']);
+    await wait(60);
+    check(said().length === 1, 'sent once, when the list is in: ' + said().length);
+    check(said()[0] && said()[0].model === 'qwen' && said()[0].message === 'Why is the sky blue?', 'with our saved model: ' + JSON.stringify(said()[0]));
+    check(!picker.disabled && shown() === 'qwen' && picker.options[0].value === 'None' && picker.options[0].textContent === 'People only (no model)', 'the picker is itself again: ' + shown());
+    check(box.value === '', 'the box is cleared once sent');
+    finish();
+});
+</script>
+"""
+
+CHAT_NO_MODEL_PROBE = CHAT_MODELS_HEAD + r"""
+    await wait(200);
+    check(said().length === 0, 'nothing is sent to nobody');
+    check(box.value === 'Why is the sky blue?', 'our words are kept');
+    check(/model list has not loaded/.test(document.querySelector('.composer-status').textContent), 'it says why');
+    finish();
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize(
+    "probe,saved",
+    [(CHAT_LIST_ARRIVES_PROBE, "qwen"), (CHAT_NO_MODEL_PROBE, None)],
+    ids=["list-arrives", "no-model"],
+)
+def test_chat_waits_for_its_model_list(client, tmp_path, probe, saved):
+    make_room("lobby")
+    html = before_script(
+        client.get("/chat/lobby").get_data(as_text=True),
+        "chat/3-room.js",
+        models_stub(saved),
+    )
+    passed(run_probe(html, probe, tmp_path, 1280))

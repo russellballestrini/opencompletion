@@ -47,7 +47,8 @@ function showMode() {
         button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
     });
     const locked = mode === 'private' && !HOME_CONFIG.signedIn;
-    input.disabled = modelSelect.disabled = sendButton.disabled = locked;
+    input.disabled = sendButton.disabled = locked;
+    modelSelect.disabled = locked || homeModels.loading();
     composer.querySelectorAll('.composer-tool').forEach(tool => { tool.disabled = locked; });
     composer.classList.toggle('composer-locked', locked);
     if (locked) {
@@ -73,7 +74,12 @@ modeButtons.forEach(button => {
 });
 
 // Models: the same list & saved choice chat uses (localStorage selectedModel).
+// Until our list arrives the picker says it is loading (utils.js
+// modelsLoading) & Send waits for it.
+const homeModels = modelsLoading(modelSelect);
+
 function fillModels(models) {
+    homeModels.done();
     models.forEach(id => {
         const option = document.createElement('option');
         option.value = id;
@@ -90,7 +96,9 @@ function fillModels(models) {
 fetch('/models')
     .then(response => response.json())
     .then(data => fillModels(data.models || []))
-    .catch(() => {});
+    // No list (our server did not answer): people only, & it says so.
+    .catch(() => homeModels.done())
+    .finally(() => showMode());
 
 modelSelect.addEventListener('change', () => {
     try { localStorage.setItem('selectedModel', modelSelect.value); } catch (e) {}
@@ -113,6 +121,17 @@ async function startChat() {
         return;
     }
     sendButton.disabled = true;
+    // A Send faster than our model list waits for it; a list that never
+    // comes sends with the model picked before, never silently with none.
+    let model = modelSelect.value;
+    if (homeModels.loading()) {
+        model = await homeModels.wait() ? modelSelect.value : savedModel();
+        if (!model) {
+            errorEl.textContent = MODELS_NOT_LOADED;
+            sendButton.disabled = false;
+            return;
+        }
+    }
     try {
         const made = await createChatRoom(message || homeTools.firstFileName(), mode === 'private');
         const room = made.name;
@@ -122,12 +141,12 @@ async function startChat() {
             message = [message, links].filter(Boolean).join('\n\n');
         }
         // Without this handoff the new chat would open without our message.
-        if (!keepPendingMessage(room, message, modelSelect.value)) {
+        if (!keepPendingMessage(room, message, model)) {
             errorEl.textContent = 'This browser would not keep your message (storage blocked or full), so the chat was not opened. Allow site storage & try again.';
             sendButton.disabled = false;
             return;
         }
-        try { localStorage.setItem('selectedModel', modelSelect.value); } catch (e) {}
+        try { localStorage.setItem('selectedModel', model); } catch (e) {}
         if (mode !== 'private') rememberRecentChat(room, null, {id: made.id, anyoneMayRetitle: made.anyone_may_retitle});
         homeDraft.clear();  // sent: it lives in its chat now
         // tests/functional/test_home.py records the address instead of leaving.

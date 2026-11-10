@@ -252,9 +252,18 @@ def is_vision_model(model_name: str) -> bool:
 CONTEXT_WINDOWS = {}
 
 
+# When our model map was last built (0: never) & whether a background
+# refresh is running: /models answers from the map it has (get_models).
+_model_map_refreshed_at = 0.0
+_model_map_refresh = None
+
+
 def initialize_model_map():
-    MODEL_CLIENT_MAP.clear()
-    MODEL_ENDPOINTS.clear()
+    """Ask every endpoint for its models & build our map. Listing waits on
+    the network (other greenlets run meanwhile), so the new map is built
+    aside & swapped in at once: nobody reads a half-built one."""
+    global _model_map_refreshed_at
+    client_map, endpoints = {}, {}
     for ep_config in ENDPOINTS:
         base_url = ep_config["base_url"]
         api_key = ep_config["api_key"]
@@ -277,9 +286,16 @@ def initialize_model_map():
             if m.id and isinstance(window, int) and window > 0:
                 CONTEXT_WINDOWS.setdefault(m.id, (window, 3.0))
         for model_id in _endpoint_models[base_url]:
-            MODEL_ENDPOINTS.setdefault(model_id, []).append((client, base_url))
-            if model_id not in MODEL_CLIENT_MAP:
-                MODEL_CLIENT_MAP[model_id] = (client, base_url)
+            endpoints.setdefault(model_id, []).append((client, base_url))
+            if model_id not in client_map:
+                client_map[model_id] = (client, base_url)
+
+    # In place (others hold these dicts), with no network wait in between.
+    MODEL_CLIENT_MAP.clear()
+    MODEL_CLIENT_MAP.update(client_map)
+    MODEL_ENDPOINTS.clear()
+    MODEL_ENDPOINTS.update(endpoints)
+    _model_map_refreshed_at = time.time()
 
     # Grow SYSTEM_USERS in place (activity.py holds a reference to this
     # list) and never remove names: messages from a model that left the
@@ -817,20 +833,32 @@ routes.register(
 )
 
 
-_model_map_refreshed_at = 0.0
+def refresh_model_map():
+    """Build our model map again; a failure keeps the map we have."""
+    global _model_map_refreshed_at
+    try:
+        initialize_model_map()
+    except Exception as e:
+        print(f"[WARN] Model map refresh failed: {e}")
+        # Not again until the next TTL: a broken refresh must not loop.
+        _model_map_refreshed_at = time.time()
 
 
 @app.route("/models", methods=["GET"])
 def get_models():
-    # Refresh rotation periodically: drop endpoints that went down and pick
-    # up ones that recovered, without restarting the app.
-    global _model_map_refreshed_at
-    if time.time() - _model_map_refreshed_at > ENDPOINT_HEALTH_TTL:
-        _model_map_refreshed_at = time.time()
-        try:
-            initialize_model_map()
-        except Exception as e:
-            print(f"[WARN] Model map refresh failed: {e}")
+    """Our model list, at once, from the map we have. A map older than
+    ENDPOINT_HEALTH_TTL is refreshed in the background (one refresh at a
+    time), dropping endpoints that went down & picking up ones that
+    recovered without a restart: a page never waits on a dead endpoint's
+    timeout for its picker (1.5 s with two down, 2026-11-10). Only a map
+    never built (OPENCOMPLETION_SKIP_MODEL_MAP) is built while we wait."""
+    global _model_map_refresh
+    if not _model_map_refreshed_at:
+        refresh_model_map()
+    elif time.time() - _model_map_refreshed_at > ENDPOINT_HEALTH_TTL and (
+        _model_map_refresh is None or _model_map_refresh.ready()
+    ):
+        _model_map_refresh = gevent.spawn(refresh_model_map)
     return jsonify({"models": list(MODEL_CLIENT_MAP.keys())})
 
 

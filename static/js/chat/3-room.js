@@ -87,6 +87,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     // Function to populate the model dropdown
     function populateModelDropdown(models) {
+        chatModels.done();
         // Clear options starting from index 1 (preserve "None" at index 0)
         while (modelSelectDesktop.options.length > 1) {
             modelSelectDesktop.remove(1);
@@ -118,7 +119,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const models = JSON.parse(cachedData);
         populateModelDropdown(models);
     } else {
-        // Fetch from backend and update cache
+        // Fetch from backend and update cache. Until it answers the picker
+        // says it is loading (utils.js modelsLoading) & Send waits for it.
+        chatModels = modelsLoading(modelSelectDesktop);
         fetch('/models')
             .then(response => response.json())
             .then(data => {
@@ -128,7 +131,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 localStorage.setItem(cacheKey, JSON.stringify(models));
                 localStorage.setItem(cacheExpirationKey, Date.now() + cacheDuration);
             })
-            .catch(error => console.error("Error fetching models:", error));
+            .catch(error => {
+                // No list: people only, & the picker says so.
+                chatModels.done();
+                console.error("Error fetching models:", error);
+            });
     }
 
     // Voices: the same list, saved choice & default as our home page (utils.js)
@@ -309,13 +316,30 @@ const chatTools = composerTools(document.getElementById("message-form"), documen
 const chatDraft = keepDraft(document.getElementById("message"), "room:" + room_name);
 // Enter or Send again while files upload must not send them twice.
 let uploadingFiles = false;
+// Our model picker while its list loads (set where the list is fetched);
+// a Send in that window waits for it, once.
+let chatModels = {loading: () => false, done() {}, wait: () => Promise.resolve(true)};
+let waitingForModels = false;
 
 // Function to handle sending the message. Attached files upload first & go
 // as links below the text; if one fails, nothing is sent.
 async function sendMessage() {
     const messageTextarea = document.getElementById("message");
+    let model = document.getElementById("model-select").value;
+    // A Send faster than our model list waits for it; a list that never
+    // comes sends with the model picked before, never silently with none.
+    if (chatModels.loading()) {
+        if (waitingForModels) return;
+        waitingForModels = true;
+        const loaded = await chatModels.wait();
+        waitingForModels = false;
+        model = loaded ? document.getElementById("model-select").value : savedModel();
+        if (!model) {
+            chatTools.say(MODELS_NOT_LOADED);
+            return;
+        }
+    }
     const message = messageTextarea.value;
-    const model = document.getElementById("model-select").value;
     let messageToSend = message.trim();
     if (uploadingFiles) return;
     if (chatTools.hasFiles()) {

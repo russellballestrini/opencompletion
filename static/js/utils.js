@@ -232,6 +232,45 @@ function takePendingMessage(roomName) {
     return null;
 }
 
+// A model picker (home & chat) while its list is on its way: it says
+// "Loading models…" & is disabled, never "People only" (a walk of our
+// app, 2026-11-10: a quick Send started a silent room). done() ends that,
+// list or no list. wait() resolves true once it has ended, false after
+// MODELS_WAIT_MS: Send waits on it, then sends with savedModel() if any.
+const MODELS_WAIT_MS = 4000;
+const MODELS_NOT_LOADED = 'Our model list has not loaded yet, so no model would answer. Wait a moment & send again.';
+
+function savedModel() {
+    try { return localStorage.getItem('selectedModel'); } catch (e) { return null; }
+}
+
+function modelsLoading(select) {
+    const option = document.createElement('option');
+    // Its value is what the picker held before ("None"): whoever else
+    // reads the picker in this window gets what they always got.
+    option.value = 'None';
+    option.textContent = 'Loading models…';
+    select.prepend(option);
+    option.selected = true;
+    select.disabled = true;
+    select.dataset.loading = 'true';
+    let settle;
+    const settled = new Promise(resolve => { settle = resolve; });
+    const picker = {
+        loading: () => select.dataset.loading === 'true',
+        done() {
+            if (!picker.loading()) return;
+            option.remove();
+            delete select.dataset.loading;
+            select.disabled = false;
+            settle(true);
+        },
+        wait: () => picker.loading()
+            ? Promise.race([settled, new Promise(resolve => setTimeout(() => resolve(false), MODELS_WAIT_MS))])
+            : Promise.resolve(true),
+    };
+    return picker;
+}
 
 // Voices for a voice picker (chat & home): our speech service's list
 // (/speech/voices, a minute's cache), the voice picked before (localStorage

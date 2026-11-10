@@ -59,6 +59,10 @@ style.css): show & hide with the attribute, never a display rule.
   alone (its group names the speech model). At 480px or narrower our bar
   takes two rows: the pickers (the model gets what the voice leaves), then
   speak & attach on our left, Stop & Send on our right. **(tested)**
+  While our model list loads its picker says "Loading models…", disabled
+  (`modelsLoading` in `utils.js`), never "People only", & Send waits for
+  the list: 4s at most, then it sends with the model picked before or
+  says the list has not loaded. **(tested)**
 - **Cards** `.card` group a task; `.page-title` + `.page-subtitle` open a page.
 - **Forms** `.form-group` > `label` + `.form-input` + `.form-hint`. A label
   sits above every field; placeholders show format, never the label.
