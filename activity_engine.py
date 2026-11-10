@@ -14,6 +14,7 @@ passed in:
   RoomIO posts to a room & its database, guarded_ai's TerminalIO prints.
 """
 
+import copy
 import json
 import random
 
@@ -385,7 +386,9 @@ def _run_script(turn, script):
     user_response) are kept, then its script_result's metadata. Returns
     script_result."""
     before = turn.state.dict_metadata
-    metadata = dict(before)
+    # A deep copy: a script changing a list or dict in place (an append)
+    # must differ from `before`, or its write is never kept.
+    metadata = copy.deepcopy(before)
     metadata["user_response"] = turn.user_response
     result = turn.io.run_script(metadata, script) or {}
     metadata.pop("user_response", None)

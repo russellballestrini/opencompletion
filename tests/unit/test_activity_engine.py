@@ -114,6 +114,33 @@ def test_a_post_script_reads_the_answer_and_its_writes_stick():
     assert "user_response" not in state.dict_metadata
 
 
+def test_a_script_changing_a_list_or_dict_in_place_keeps_its_change():
+    """A script that appends to a list in metadata wrote nothing: its
+    metadata shared that list with our before-copy, so no change showed."""
+    activity = yaml.safe_load("""
+sections:
+  - section_id: s1
+    title: One
+    steps:
+      - step_id: q1
+        title: Q1
+        question: "A guess?"
+        buckets: [guess]
+        processing_script: |
+          metadata["log"].append(metadata["user_response"])
+          metadata["tally"]["guesses"] += 1
+        transitions:
+          guess:
+            run_processing_script: true
+            next_section_and_step: "s1:q1"
+""")
+    state = MemoryState("s1", "q1", metadata={"log": [], "tally": {"guesses": 0}})
+    io = RecordingIO("guess", "guess")
+    activity_engine.answer(activity, state, "123", "ada", io)
+    activity_engine.answer(activity, state, "456", "ada", io)
+    assert state.dict_metadata == {"log": ["123", "456"], "tally": {"guesses": 2}}
+
+
 def test_the_last_step_completes():
     state, io = start(scratch=1)
     io.verdicts = ["number"]
