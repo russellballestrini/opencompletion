@@ -115,6 +115,7 @@ function addVersionPager(wrapper, messageId, count) {
         if (panel) panel.remove();
         panel = shown < count ? earlierVersionPanel(versions[shown - 1], shown, count) : null;
         if (panel) wrapper.appendChild(panel);
+        wrapper.classList.toggle("is-viewing-earlier", Boolean(panel));
     };
     const go = async (by) => {
         if (!versions) {

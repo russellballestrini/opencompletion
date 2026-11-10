@@ -357,13 +357,14 @@ body.chat-page {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-1);
-    opacity: 0.55;
-    transition: opacity 0.15s ease;
 }
 
-.message-wrapper:hover > .button-container,
-.message-wrapper:focus-within > .button-container {
-    opacity: 1;
+/* Quiet at rest in our secondary text colour (never dimmed further: 0.55
+   opacity left these words at 2:1 against our page), full colour once
+   their message is hovered or holds focus. */
+#chat .message-wrapper:hover > .button-container button,
+#chat .message-wrapper:focus-within > .button-container button {
+    color: var(--text-primary);
 }
 
 /* Versions of an edited & resent message (5-messages.js addVersionPager):
@@ -408,10 +409,17 @@ body.chat-page {
     align-self: stretch;
     min-width: 0;
     margin-top: var(--space-1);
-    padding: var(--space-3) var(--space-4);
-    border: 1px dashed var(--border-color);
-    border-radius: var(--radius-lg);
+    padding: 0 var(--space-4) var(--space-3);
+    border: 1px dashed var(--text-secondary);
+    border-left: 3px solid var(--text-secondary);
+    border-radius: var(--radius-md);
     background-color: var(--bg-secondary);
+}
+
+/* While an earlier version is open, the message it replaced it with steps
+   back, so "1/3" never seems to label our current words. */
+.message-wrapper.is-viewing-earlier > .message-content {
+    opacity: 0.55;
 }
 
 .earlier-version > .message-wrapper {
@@ -422,10 +430,42 @@ body.chat-page {
     margin-bottom: 0;
 }
 
+/* Its note stays in view however far the version scrolls, so a long one
+   never reads as our live chat. */
 .earlier-version-note {
-    margin: 0 0 var(--space-3);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0 calc(-1 * var(--space-4)) var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    border-bottom: 1px dashed var(--border-color);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    background-color: var(--bg-secondary);
     font-size: 12px;
+    font-weight: 600;
     color: var(--text-secondary);
+}
+
+/* A table in a message: ruled, padded, scrolling inside itself when wide. */
+.message-content table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    margin: var(--space-3) 0;
+}
+
+.message-content th,
+.message-content td {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: top;
+}
+
+.message-content th {
+    background-color: var(--bg-tertiary);
+    font-weight: 600;
 }
 
 .code-block-button-container {
@@ -2257,7 +2297,9 @@ button.sidebar-more {
 
 .chat-actions-menu {
     position: fixed;
-    z-index: 1000;
+    /* Above a phone's drawers (1001): a sidebar chat's menu opens over the
+       drawer it was asked from. */
+    z-index: 1003;
     display: grid;
     min-width: 168px;
     padding: var(--space-1);
