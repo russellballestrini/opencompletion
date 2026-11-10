@@ -160,7 +160,7 @@ async function fetchTTSStreaming(cleanText, model, voice) {
 // (fox, 2026-10-31: it read code & delegation aloud). The glow walks the
 // same nodes, so spoken & lit sentences stay in step.
 const UNSPOKEN = "pre, code, kbd, samp, table, button, details, .message-tools, " +
-    ".code-block-button-container, .followups, .message-header, script, style, .katex";
+    ".code-block-button-container, .followups, .message-header, .message-part[data-label], script, style, .katex";
 
 function speakableNodes(container, skip) {
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {

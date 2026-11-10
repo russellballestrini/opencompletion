@@ -574,11 +574,17 @@ body.chat-page {
     min-width: 0;
 }
 
+/* A streaming reply's sender: the same words & look as the name history
+   draws on top of a message (senderLabel in 5-messages.js), so a reply
+   reads alike live & after a reload. */
 .message-header {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: var(--space-1);
+    font-size: 15px;
+    line-height: 1.65;
+    margin-bottom: var(--space-2);
+}
+
+.message-header p:last-child {
+    margin-bottom: 0;
 }
 
 .message-content {

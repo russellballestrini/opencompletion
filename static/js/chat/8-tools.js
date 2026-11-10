@@ -148,11 +148,13 @@ socket.on("tool_request", async (data) => {
 // that is a tool list, else a new one after the text so far.
 function toolLines(messageWrapper, data) {
     const content = replyFlow(messageWrapper);
-    replyHeader(messageWrapper, data.asker, data.model_name);
+    replyHeader(messageWrapper, data.model_name);
     const last = content.lastElementChild;
     if (last && last.classList.contains("message-tools")) return last;
     const lines = document.createElement("ul");
     lines.className = "message-tools";
+    // Where in the reply's text it happened (5-messages.js redrawWords).
+    if (Number.isInteger(data.at)) lines.dataset.at = data.at;
     content.appendChild(lines);
     return lines;
 }
@@ -702,10 +704,15 @@ function toolDetail(detail, running, tool) {
 // lines carried `at` put every line first.
 function renderFlow(container, content, trail, label) {
     container.replaceChildren();
-    const addText = (text) => {
+    // Each part of the text knows where it starts (`from`), & the sender's
+    // name is no part of it (data-label): a reply still streaming
+    // carries on in its last part (5-messages.js currentTextPart).
+    const addText = (text, from) => {
         if (!text.trim()) return;
         const part = document.createElement("div");
         part.className = "message-part";
+        if (from === undefined) part.dataset.label = "1";
+        else part.dataset.from = from;
         part.innerHTML = renderMarkdown(text);
         container.appendChild(part);
     };
@@ -715,13 +722,14 @@ function renderFlow(container, content, trail, label) {
     for (const entry of trail) {
         const at = Number.isInteger(entry.at) ? Math.min(Math.max(entry.at, pos), content.length) : pos;
         if (at > pos) {
-            addText(content.slice(pos, at));
+            addText(content.slice(pos, at), pos);
             pos = at;
             lines = null;
         }
         if (!lines) {
             lines = document.createElement("ul");
             lines.className = "message-tools";
+            lines.dataset.at = pos;
             container.appendChild(lines);
         }
         const line = document.createElement("li");
@@ -733,7 +741,7 @@ function renderFlow(container, content, trail, label) {
         drawToolLine(line, entry);
         lines.appendChild(line);
     }
-    addText(content.slice(pos));
+    addText(content.slice(pos), pos);
 }
 
 // Which line an event belongs to: its tool & what it was about.
@@ -742,14 +750,10 @@ function toolKey(data) {
 }
 
 socket.on("tool_activity", (data) => {
-    const wrapperId = "message-" + data.id;
-    let messageWrapper = document.getElementById(wrapperId);
-    if (!messageWrapper) {
-        messageWrapper = document.createElement("div");
-        messageWrapper.className = "message-wrapper is-model";
-        messageWrapper.id = wrapperId;
-        document.getElementById("chat").appendChild(messageWrapper);
-    }
+    // The words before this line go on the page first (5-messages.js draws
+    // chunks once a frame), so words & tools keep the order they came in.
+    flushStreamNow();
+    const messageWrapper = streamingWrapper(data.id);
     const lines = toolLines(messageWrapper, data);
     let line = lines.lastElementChild;
     // A running line is updated in place by its own later events: its end,

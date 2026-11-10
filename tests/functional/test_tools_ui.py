@@ -110,7 +110,7 @@ window.addEventListener('load', async () => {
         // A reply whose first thing is a tool still has its header on top.
         deliver('tool_activity', {id: 41, tool: 'offered', names: ['run_code'], status: 'done', asker: 'ada', model_name: 'qwen', at: 0});
         const body41 = document.querySelector('#message-41 .message-body');
-        check(body41.firstElementChild.classList.contains('message-header') && /ada \(qwen\)/.test(body41.firstElementChild.textContent), 'header first even before any text');
+        check(body41.firstElementChild.classList.contains('message-header') && body41.firstElementChild.textContent.trim() === 'qwen:', 'header first even before any text');
         // History cuts the saved text at each line's `at`.
         deliver('previous_messages', {id: 42, username: 'qwen', content: 'Let me look. Found two files.', tools: [
             {tool: 'offered', names: ['sandbox_shell'], status: 'done', at: 0},

@@ -211,51 +211,22 @@ socket.on("chat_message", (data) => {
     if (stored) {
         newMessage.dataset.rawMarkdown = data.content;
 
-        // Create a container for the buttons
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "button-container";
-
-        // Create the delete button
-        const deleteButton = document.createElement("button");
-        deleteButton.textContent = "Delete";
-        deleteButton.onclick = () => deleteMessage(data.id, room_name);
-        buttonContainer.appendChild(deleteButton);
-
-        // Create the edit button
-        const editButton = document.createElement("button");
-        editButton.textContent = "Edit";
-        editButton.className = "edit-button";
-        editButton.onclick = () => editMessage(data.id, newMessage, data.content);
-        buttonContainer.appendChild(editButton);
-
-        // Create the copy button
-        const copyButton = document.createElement("button");
-        copyButton.textContent = "Copy";
-        copyButton.className = "copy-button";
-        copyButton.onclick = () => copyMessageContent(data.content, copyButton);
-        buttonContainer.appendChild(copyButton);
-
-        // Create the play button for TTS
-        const playButton = document.createElement("button");
-        playButton.textContent = "Play";
-        playButton.onclick = () => speakText(data.content, playButton, data.id);
-        buttonContainer.appendChild(playButton);
-
-        // Create the download button for TTS audio (hidden initially)
-        const downloadButton = document.createElement("button");
-        downloadButton.textContent = "Download";
-        downloadButton.className = "tts-download-button";
-        downloadButton.style.display = "none";
-        downloadButton.dataset.messageId = data.id;
-        buttonContainer.appendChild(downloadButton);
-
+        const buttonContainer = messageButtons(data.id, newMessage, false);
         messageWrapper.appendChild(buttonContainer);
     }
 
     messageWrapper.appendChild(newMessage);
     if (stored) addVersionPager(messageWrapper, data.id, data.versions);
 
-    document.getElementById("chat").appendChild(messageWrapper);
+    // A reply that failed arrives whole under the id it was streaming as:
+    // it takes that reply's place, never a second element with its id.
+    const streamed = stored && document.getElementById(messageWrapper.id);
+    if (streamed && streamed.dataset.streaming) {
+        forgetStream(data.id);
+        streamed.replaceWith(messageWrapper);
+    } else {
+        document.getElementById("chat").appendChild(messageWrapper);
+    }
 
     // Apply syntax highlighting to code blocks within the message
     // Don't truncate new messages - only truncate on page load (previous_messages)
@@ -322,32 +293,90 @@ socket.on("chat_message", (data) => {
 
 // A model's thinking as a collapsible block above its reply: open while it
 // streams, collapsed once the answer starts, & from history (saved with the
-// reply as Message.thinking) collapsed. Text only, never markup.
+// reply as Message.thinking) collapsed. Text only, never markup: one text
+// node, so a streamed piece is appended to it, never the whole re-set.
 function thinkingBlock(text, open) {
     const details = document.createElement("details");
     details.className = "message-thinking";
     details.open = open;
-    const summary = document.createElement("summary");
-    summary.textContent = open ? "thinking…" : "thinking (click to expand)";
-    details.appendChild(summary);
+    if (open) details.dataset.state = "streaming";
+    details.appendChild(document.createElement("summary"));
     const body = document.createElement("div");
     body.className = "message-thinking-body";
     body.style.opacity = "0.6";
     body.style.fontStyle = "italic";
     body.style.whiteSpace = "pre-wrap";
-    body.textContent = text;
+    body.appendChild(document.createTextNode(text));
     details.appendChild(body);
+    // Its summary says what a click does now, open or closed.
+    details.addEventListener("toggle", () => labelThinking(details));
+    labelThinking(details);
     return details;
 }
 
-// A stored message from history: on join, & when a deleted one is restored.
-function showStoredMessage(data) {
+function labelThinking(details, state) {
+    if (state !== undefined) details.dataset.state = state;
+    const summary = details.querySelector("summary");
+    if (details.dataset.state === "stopped") summary.textContent = "thinking (where it stopped)";
+    else if (details.dataset.state === "streaming") summary.textContent = "thinking…";
+    else summary.textContent = details.open ? "thinking (click to collapse)" : "thinking (click to expand)";
+}
 
-    if (document.getElementById("message-" + data.id)) {
-        // If it exists, skip appending it
-        return;
-    }
+// A message's action row. Copy, Edit & Play read its words when clicked
+// (`content.dataset.rawMarkdown`), so an edit, or a reply that grew since
+// its row was drawn, is never acted on as it once was.
+function messageButtons(id, content, fromModel) {
+    const buttonContainer = document.createElement("div");
+    buttonContainer.className = "button-container";
+    const words = () => content.dataset.rawMarkdown || "";
 
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "Delete";
+    deleteButton.onclick = () => deleteMessage(id, room_name);
+    buttonContainer.appendChild(deleteButton);
+
+    const editButton = document.createElement("button");
+    editButton.textContent = "Edit";
+    editButton.className = "edit-button";
+    editButton.onclick = () => editMessage(id, content);
+    buttonContainer.appendChild(editButton);
+
+    const copyButton = document.createElement("button");
+    copyButton.textContent = "Copy";
+    copyButton.className = "copy-button";
+    copyButton.onclick = () => copyMessageContent(words(), copyButton);
+    buttonContainer.appendChild(copyButton);
+
+    const playButton = document.createElement("button");
+    playButton.textContent = "Play";
+    playButton.onclick = () => speakText(words(), playButton, id);
+    buttonContainer.appendChild(playButton);
+
+    // TTS audio download (hidden until there is audio)
+    const downloadButton = document.createElement("button");
+    downloadButton.textContent = "Download";
+    downloadButton.className = "tts-download-button";
+    downloadButton.style.display = "none";
+    downloadButton.dataset.messageId = id;
+    buttonContainer.appendChild(downloadButton);
+    if (fromModel) addForkButton(buttonContainer, id);
+    return buttonContainer;
+}
+
+// Code blocks in freshly drawn words: highlighted, numbered, with Copy.
+// History truncates long ones; live words never do.
+function dressCodeBlocks(container, truncate) {
+    container.querySelectorAll("pre code").forEach((block) => {
+        const wasTruncated = truncate ? truncateCodeBlock(block) : false;
+        hljs.highlightElement(block);
+        addLineNumbers(block);
+        addCopyButtonToCodeBlock(block, wasTruncated);
+    });
+}
+
+// A stored message as our server holds it (history, or a reply's state on
+// the instant we joined), drawn but not yet on the page.
+function drawStoredMessage(data) {
     const messageWrapper = document.createElement("div");
     messageWrapper.className = "message-wrapper";
     messageWrapper.id = "message-" + data.id;
@@ -355,91 +384,86 @@ function showStoredMessage(data) {
 
     const newMessage = document.createElement("div");
     newMessage.className = "message-content";
-
-    newMessage.innerHTML = renderMarkdown(`${senderLabel(data.username)}\n\n${data.content}`);
-
     newMessage.dataset.rawMarkdown = data.content;
+    const tools = data.tools || [];
+    if (data.from_model || tools.length) {
+        // A model's reply is a flow: its name, then its words cut at each
+        // tool line's `at` (8-tools.js renderFlow), so a reply still
+        // streaming carries on in its last part.
+        renderFlow(newMessage, data.content, tools, senderLabel(data.username));
+    } else {
+        newMessage.innerHTML = renderMarkdown(`${senderLabel(data.username)}\n\n${data.content}`);
+    }
 
-    // Create a container for the buttons
-    const buttonContainer = document.createElement("div");
-    buttonContainer.className = "button-container";
-
-    // Create the delete button
-    const deleteButton = document.createElement("button");
-    deleteButton.textContent = "Delete";
-    deleteButton.onclick = () => deleteMessage(data.id, room_name);
-    buttonContainer.appendChild(deleteButton);
-
-    // Create the edit button
-    const editButton = document.createElement("button");
-    editButton.textContent = "Edit";
-    editButton.className = "edit-button";
-    editButton.onclick = () => editMessage(data.id, newMessage);
-    buttonContainer.appendChild(editButton);
-
-    // Create the copy button
-    const copyButton = document.createElement("button");
-    copyButton.textContent = "Copy";
-    copyButton.className = "copy-button";
-    copyButton.onclick = () => copyMessageContent(data.content, copyButton);
-    buttonContainer.appendChild(copyButton);
-
-    // Create the play button for TTS
-    const playButton = document.createElement("button");
-    playButton.textContent = "Play";
-    playButton.onclick = () => speakText(data.content, playButton, data.id);
-    buttonContainer.appendChild(playButton);
-
-    // Create the download button for TTS audio (hidden initially)
-    const downloadButton = document.createElement("button");
-    downloadButton.textContent = "Download";
-    downloadButton.className = "tts-download-button";
-    downloadButton.style.display = "none";
-    downloadButton.dataset.messageId = data.id;
-    buttonContainer.appendChild(downloadButton);
-    if (data.from_model) addForkButton(buttonContainer, data.id);
-
-    messageWrapper.appendChild(buttonContainer);
-    if (data.thinking) messageWrapper.appendChild(thinkingBlock(data.thinking, false));
-    // A reply that used tools reads in the order it happened: its text cut
-    // at each tool line's `at` (8-tools.js renderFlow).
-    if (data.tools && data.tools.length) {
-        renderFlow(newMessage, data.content, data.tools, senderLabel(data.username));
+    // A reply still streaming gets its actions when it ends, like one we
+    // watched from its first word.
+    if (!data.streaming) {
+        messageWrapper.appendChild(messageButtons(data.id, newMessage, data.from_model));
+    }
+    if (data.thinking) {
+        messageWrapper.appendChild(thinkingBlock(data.thinking, Boolean(data.streaming) && !data.content));
     }
     messageWrapper.appendChild(newMessage);
     addVersionPager(messageWrapper, data.id, data.versions);
-
-    document.getElementById("chat").appendChild(messageWrapper);
-
-    // Apply syntax highlighting to code blocks within the message
-    newMessage.querySelectorAll("pre code").forEach((block) => {
-        const wasTruncated = truncateCodeBlock(block);
-        hljs.highlightElement(block);
-        addLineNumbers(block);
-        addCopyButtonToCodeBlock(block, wasTruncated);
-    });
-
-    // Scroll to the bottom of the chat container
-    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
-
+    return messageWrapper;
 }
 
-// Socket event for receiving previous messages
+// A stored message put on our page: from history on a join, & when a
+// deleted one is restored.
+function showStoredMessage(data) {
+    const chat = document.getElementById("chat");
+    const existing = document.getElementById("message-" + data.id);
+    // Already on our page (we rejoined): it stays, unless it was streaming
+    // when we lost our connection or streams now. Then our server's copy
+    // replaces ours: chunks we missed while away are in it, & a reply that
+    // ended meanwhile gets its whole text & its actions.
+    if (existing && !existing.dataset.streaming && !data.streaming) return;
+
+    forgetStream(data.id);
+    const messageWrapper = drawStoredMessage(data);
+    if (existing) {
+        existing.remove();
+        placeById(messageWrapper, data.id);
+    } else {
+        chat.appendChild(messageWrapper);
+    }
+    dressCodeBlocks(messageWrapper.querySelector(":scope > .message-content"), true);
+
+    if (data.streaming) {
+        // Carry on from exactly here: every chunk sent before this
+        // snapshot is in it, every chunk after it is appended to it.
+        messageWrapper.dataset.streaming = "1";
+        messageBuffers[data.id] = data.content;
+        const stream = streamOf(data.id);
+        stream.shown = data.content.length;
+        stream.answered = Boolean(data.content);
+    }
+
+    if (!existing || !userHasScrolledUp) chat.scrollTop = chat.scrollHeight;
+}
+
+// Socket event for receiving previous messages: our room as our server
+// holds it, sent on every join (the first & each reconnect).
 socket.on("previous_messages", showStoredMessage);
 
-// Socket event for deleting a processing message
-socket.on("delete_processing_message", (msg_id) => {
-    // A reply has ended: its "Processing..." placeholder goes, the oldest
-    // one (each reply sent one, in order), & nothing else, so notices &
-    // other replies' placeholders stay.
+// A reply's "Processing..." placeholder goes when its first chunk shows
+// (thinking or words), else when it ends. Either way each reply takes one,
+// the oldest (each reply sent one, in order), & nothing else, so notices &
+// other replies' placeholders stay.
+const placeholderGone = new Set();
+
+function removeOldestPlaceholder() {
     const placeholder = document.querySelector('#chat [id^="message-processing-"]');
     if (placeholder) placeholder.remove();
-    // Clear the message buffer and header for the corresponding message ID
-    delete messageBuffers[msg_id];
-    delete messageHeaders[msg_id];
+}
+
+socket.on("delete_processing_message", (msg_id) => {
+    // A reply has ended: its placeholder goes now unless its first chunk
+    // took it already.
+    if (!placeholderGone.delete(msg_id)) removeOldestPlaceholder();
 });
 
-// A streaming reply's body: its header (who & which model) on top, then
+// A streaming reply's body: its header (which model) on top, then
 // its content, a flow of text parts (.message-part) & tool lists
 // (.message-tools) in the order they came. Made on its first chunk or
 // tool line, whichever comes first.
@@ -468,190 +492,318 @@ function replyFlow(messageWrapper) {
     return content;
 }
 
-function replyHeader(messageWrapper, name, model) {
+// Whose reply this is, in the same words & look as from history: the
+// model's name, as senderLabel() writes every sender. Who asked is not kept
+// with a reply, so a live header naming them changed on every reload.
+function replyHeader(messageWrapper, model) {
     const header = messageWrapper.querySelector(".message-header");
-    if (header && name && model) {
-        header.innerHTML = renderMarkdown(`**${name} (${model}):**`);
+    if (header && model && header.dataset.model !== model) {
+        header.dataset.model = model;
+        header.innerHTML = renderMarkdown(senderLabel(model));
     }
 }
 
 // The text part new words go into: the last one, unless a tool list came
-// after it.
-function currentTextPart(content) {
+// after it (or it is the reply's name). A new part starts at `from`, its
+// offset into the reply's text.
+function currentTextPart(content, from) {
     const last = content.lastElementChild;
-    if (last && last.classList.contains("message-part")) return last;
+    if (last && last.classList.contains("message-part") && !last.dataset.label) return last;
     const part = document.createElement("div");
     part.className = "message-part";
+    part.dataset.from = from;
     content.appendChild(part);
     return part;
 }
 
-// A dictionary to hold buffers for each message ID
+// A reply's words drawn again from `text`, whole: each tool list stays
+// where it happened (its `at`, an offset into the text) & the reply's name
+// stays on top. For a reply whose text on our page turned out not to be
+// our server's.
+function redrawWords(content, text) {
+    const kept = [...content.children].filter((el) =>
+        el.classList.contains("message-tools") || el.dataset.label);
+    content.replaceChildren();
+    let pos = 0;
+    const addText = (upTo) => {
+        const raw = text.slice(pos, upTo);
+        if (raw.trim()) {
+            const part = currentTextPart(content, pos);
+            part.innerHTML = renderMarkdown(raw);
+        }
+        pos = upTo;
+    };
+    for (const el of kept) {
+        if (el.classList.contains("message-tools")) {
+            const at = Number(el.dataset.at);
+            if (Number.isInteger(at) && at > pos) addText(Math.min(at, text.length));
+        }
+        content.appendChild(el);
+    }
+    addText(text.length);
+    dressCodeBlocks(content, false);
+}
+
+// Each streaming reply's words so far, by message id: what our server has
+// sent, whether or not it is on the page yet.
 const messageBuffers = {};
-// A dictionary to track message headers (username/model) for each message ID
-const messageHeaders = {};
+// What has arrived for each streaming reply & waits for our next frame.
+const streams = {};
 
-// Socket event for receiving chunks of a message
-socket.on("message_chunk", (data) => {
-    const wrapperId = "message-" + data.id;
-    let messageWrapper = document.getElementById(wrapperId);
-    let targetMessageElement;
+function streamOf(id) {
+    if (!streams[id]) {
+        streams[id] = {
+            id,
+            thinking: "",       // thinking not on the page yet
+            shown: 0,           // how much of messageBuffers[id] is
+            words: false,       // an answer chunk waits to be drawn
+            answered: false,    // its answer has begun (thinking collapsed)
+            model: null,
+            keepThinkingOpen: false,
+            complete: null,     // its completion event, once it came
+            renderAfter: 0,     // no markdown render before this (ms)
+        };
+    }
+    return streams[id];
+}
 
-    // If the message wrapper doesn't exist, create it
+function forgetStream(id) {
+    delete streams[id];
+    delete messageBuffers[id];
+}
+
+// A streaming reply's element, made on its first chunk or tool line.
+function streamingWrapper(id) {
+    let messageWrapper = document.getElementById("message-" + id);
     if (!messageWrapper) {
         messageWrapper = document.createElement("div");
         messageWrapper.className = "message-wrapper is-model";
-        messageWrapper.id = wrapperId;
+        messageWrapper.id = "message-" + id;
         document.getElementById("chat").appendChild(messageWrapper);
     }
+    messageWrapper.dataset.streaming = "1";
+    return messageWrapper;
+}
 
-    // Reasoning channel: lazy-create a collapsible <details> block above
-    // the message-content div. Only appears if the server actually streams
-    // delta.reasoning_content (i.e., thinking is on AND the model is using it).
-    // Auto-collapses below on the first content delta.
-    // Fallback guard: with Thinking OFF the server already suppresses reasoning
-    // at the model, but if a model ignores the switch and streams anyway, drop it.
+// Socket event for receiving chunks of a message. A chunk only joins what
+// is waiting: our page is written at most once a frame (flushStreams),
+// however fast chunks come. Written per chunk, each one cost more as a
+// reply grew (6 ms at 1.5k characters of thinking, 42 ms at 15k, chunks
+// 19 ms apart), our page fell behind its socket until the connection
+// dropped, & the reply ended short (fox, 2026-11-10).
+socket.on("message_chunk", (data) => {
+    // Reasoning channel (delta.reasoning_content): its own block above the
+    // answer. With Thinking OFF the server already suppresses reasoning at
+    // the model, but if a model ignores the switch and streams anyway,
+    // drop it.
+    if (data.reasoning_content && !enableThinking) return;
+    const messageWrapper = streamingWrapper(data.id);
+    const stream = streamOf(data.id);
+
     if (data.reasoning_content) {
-        if (!enableThinking) return;
-        let thinkingDetails = messageWrapper.querySelector(".message-thinking");
-        if (!thinkingDetails) {
-            // Ensure a message-body wrapper exists to anchor against
-            let messageBodyWrapper = messageWrapper.querySelector(".message-body");
-            if (!messageBodyWrapper) {
-                messageBodyWrapper = document.createElement("div");
-                messageBodyWrapper.className = "message-body";
-                messageWrapper.appendChild(messageBodyWrapper);
-            }
-            thinkingDetails = thinkingBlock("", true);
-            // Insert at top of message-body so thinking appears above the answer
-            messageBodyWrapper.insertBefore(thinkingDetails, messageBodyWrapper.firstChild);
+        stream.thinking += data.reasoning_content;
+    } else {
+        if (!(data.id in messageBuffers)) {
+            // A reply history drew & no one told us was streaming: its new
+            // words join the ones it has, never replace them.
+            const drawn = messageWrapper.querySelector(":scope > .message-content");
+            messageBuffers[data.id] = (drawn && drawn.dataset.rawMarkdown) || "";
+            stream.shown = messageBuffers[data.id].length;
         }
-        const body = thinkingDetails.querySelector(".message-thinking-body");
-        body.textContent += data.reasoning_content;
+        messageBuffers[data.id] += data.content || "";
+        stream.words = true;
+        if (data.model_name) stream.model = data.model_name;
+        if (data.keep_thinking_open) stream.keepThinkingOpen = true;
+        if (data.is_complete) stream.complete = data;
+    }
+
+    // Its first chunk to show takes its placeholder: thinking & words say
+    // more than "Processing..." beside them.
+    if ((data.reasoning_content || data.content) && !placeholderGone.has(data.id)) {
+        placeholderGone.add(data.id);
+        removeOldestPlaceholder();
+    }
+    scheduleFlush();
+});
+
+// One write per frame. requestAnimationFrame pauses in a hidden tab, so a
+// timer stands behind it: whichever comes first draws, & a reply finishing
+// in a background tab still ends whole (& chimes).
+const STREAM_TIMER_MS = 250;
+let flushFrame = null;
+let flushTimer = null;
+let flushLater = null;
+
+function scheduleFlush() {
+    if (flushFrame !== null || flushTimer !== null) return;
+    const run = () => flushStreamNow(false);
+    if (typeof requestAnimationFrame === "function" && !document.hidden) {
+        flushFrame = requestAnimationFrame(run);
+    }
+    flushTimer = setTimeout(run, STREAM_TIMER_MS);
+}
+
+// Draw everything waiting, now. Called before anything that must land
+// after the words so far (a tool line, a reply's links) & by our tests,
+// which have no frames to wait for. `force` skips the render throttle.
+function flushStreamNow(force = true) {
+    if (flushFrame !== null) cancelAnimationFrame(flushFrame);
+    if (flushTimer !== null) clearTimeout(flushTimer);
+    flushFrame = flushTimer = null;
+    flushStreams(force);
+}
+
+// How many times our page was written for streamed chunks (our tests read
+// it: far fewer than chunks).
+let streamWrites = 0;
+
+function flushStreams(force) {
+    let wrote = false;
+    let wait = 0;
+    const now = performance.now();
+    for (const stream of Object.values(streams)) {
+        if (!stream.thinking && !stream.words) continue;
+        const messageWrapper = document.getElementById("message-" + stream.id);
+        if (!messageWrapper) {  // deleted while it streamed
+            forgetStream(stream.id);
+            continue;
+        }
+        if (stream.thinking) {
+            showThinking(messageWrapper, stream);
+            wrote = true;
+        }
+        if (!stream.words) continue;
+        // Markdown is rendered whole each time: a long answer waits a few
+        // times what its last render cost, so rendering never takes most
+        // of our page's time. Its end never waits.
+        if (!force && !stream.complete && now < stream.renderAfter) {
+            wait = Math.max(wait, stream.renderAfter - now);
+            continue;
+        }
+        showWords(messageWrapper, stream);
+        wrote = true;
+    }
+    if (wrote) {
+        streamWrites++;
+        // Follow the stream only for a reader at our newest message.
         if (!userHasScrolledUp) {
-            document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+            const chat = document.getElementById("chat");
+            chat.scrollTop = chat.scrollHeight;
         }
-        return;  // reasoning deltas don't touch buffer/markdown render
     }
-
-    targetMessageElement = replyFlow(messageWrapper);
-
-    // First content delta after thinking: auto-collapse the thinking block
-    // so the answer is the visible focus. Thinking stays one click away. A
-    // reply our server stopped (a loop, the token cap) keeps it open: the
-    // thinking is what shows why.
-    const thinkingDetails = messageWrapper.querySelector(".message-thinking");
-    if (thinkingDetails && data.keep_thinking_open) {
-        const summary = thinkingDetails.querySelector("summary");
-        if (summary) summary.textContent = "thinking (where it stopped)";
-    } else if (thinkingDetails && thinkingDetails.open) {
-        thinkingDetails.open = false;
-        const summary = thinkingDetails.querySelector("summary");
-        if (summary) summary.textContent = "thinking (click to expand)";
+    if (wait && flushLater === null) {
+        flushLater = setTimeout(() => {
+            flushLater = null;
+            scheduleFlush();
+        }, wait);
     }
+}
 
-    // If the message buffer for this ID doesn't exist, create it
-    if (!messageBuffers[data.id]) {
-        messageBuffers[data.id] = "";
+function showThinking(messageWrapper, stream) {
+    let details = messageWrapper.querySelector(".message-thinking");
+    if (!details) {
+        details = thinkingBlock("", true);
+        // Above the answer: before a reply history drew, else on top of
+        // our streaming body.
+        const drawn = messageWrapper.querySelector(":scope > .message-content");
+        if (drawn) {
+            messageWrapper.insertBefore(details, drawn);
+        } else {
+            let body = messageWrapper.querySelector(".message-body");
+            if (!body) {
+                body = document.createElement("div");
+                body.className = "message-body";
+                messageWrapper.appendChild(body);
+            }
+            body.insertBefore(details, body.firstChild);
+        }
     }
+    details.querySelector(".message-thinking-body").firstChild.appendData(stream.thinking);
+    stream.thinking = "";
+}
 
-    // Store header info on first chunk and update header element
-    if (data.is_first_chunk && data.username && data.model_name) {
-        messageHeaders[data.id] = {
-            username: data.username,
-            model_name: data.model_name
-        };
-        
-        replyHeader(messageWrapper, data.username, data.model_name);
+function showWords(messageWrapper, stream) {
+    const id = stream.id;
+    const content = replyFlow(messageWrapper);
+    stream.words = false;
+
+    // The answer began: collapse its thinking, once, so the answer is the
+    // visible focus (thinking stays one click away, & a reader who opens it
+    // again keeps it open). A reply our server stopped (a loop, the token
+    // cap) keeps it open: the thinking is what shows why.
+    const details = messageWrapper.querySelector(".message-thinking");
+    if (details && stream.keepThinkingOpen) {
+        labelThinking(details, "stopped");
+    } else if (details && !stream.answered) {
+        details.open = false;
+        labelThinking(details, "");
     }
-
-    // Append the chunk to the buffer
-    messageBuffers[data.id] += data.content;
+    stream.answered = true;
+    replyHeader(messageWrapper, stream.model);
 
     // The text since the last tool line is its own part, so text & tools
     // read in the order they came (8-tools.js adds the tool lists).
-    const part = currentTextPart(targetMessageElement);
-    part.dataset.raw = (part.dataset.raw || "") + data.content;
-    part.innerHTML = renderMarkdown(part.dataset.raw);
-
-    // Store the raw markdown in a data attribute for later use in editing (without header for clean editing)
-    targetMessageElement.dataset.rawMarkdown = messageBuffers[data.id];
-
-    // Apply syntax highlighting to code blocks within the content
-    // Don't truncate streaming messages - only truncate on page load (previous_messages)
-    part.querySelectorAll("pre code").forEach((block) => {
-        hljs.highlightElement(block);
-        addLineNumbers(block);
-        addCopyButtonToCodeBlock(block, false);
-    });
-
-    // Scroll to the bottom of the chat container, but skip it if the user has scrolled up.
-    if (!userHasScrolledUp) {
-        document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+    const text = messageBuffers[id];
+    if (text.length > stream.shown) {
+        const started = performance.now();
+        const part = currentTextPart(content, stream.shown);
+        part.innerHTML = renderMarkdown(text.slice(Number(part.dataset.from) || 0));
+        dressCodeBlocks(part, false);
+        stream.shown = text.length;
+        const cost = performance.now() - started;
+        stream.renderAfter = performance.now() + Math.min(500, cost * 3);
     }
+    // What Copy & Edit use (without header, for clean editing)
+    content.dataset.rawMarkdown = text;
 
-    // Check if the message is complete and add buttons if they haven't been added
-    if (data.is_complete && !messageWrapper.querySelector(".button-container")) {
-        // Create a container for the buttons
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "button-container";
+    if (stream.complete) finishReply(messageWrapper, content, stream);
+}
 
-        // Create the delete button
-        const deleteButton = document.createElement("button");
-        deleteButton.textContent = "Delete";
-        deleteButton.onclick = () => deleteMessage(data.id, room_name);
-        buttonContainer.appendChild(deleteButton);
-
-        // Create the edit button
-        const editButton = document.createElement("button");
-        editButton.textContent = "Edit";
-        editButton.className = "edit-button";
-        editButton.onclick = () => editMessage(data.id, targetMessageElement);
-        buttonContainer.appendChild(editButton);
-
-        // Create the copy button
-        const copyButton = document.createElement("button");
-        copyButton.textContent = "Copy";
-        copyButton.className = "copy-button";
-        copyButton.onclick = () => copyMessageContent(messageBuffers[data.id], copyButton);
-        buttonContainer.appendChild(copyButton);
-
-        // Create the play button for TTS
-        const playButton = document.createElement("button");
-        playButton.textContent = "Play";
-        playButton.onclick = () => {
-            // Use content from the content element (clean text without header)
-            const cleanText = targetMessageElement.textContent || targetMessageElement.innerText || "";
-            speakText(cleanText, playButton, data.id);
-        };
-        buttonContainer.appendChild(playButton);
-
-        // Create the download button for TTS audio (hidden initially)
-        const downloadButton = document.createElement("button");
-        downloadButton.textContent = "Download";
-        downloadButton.className = "tts-download-button";
-        downloadButton.style.display = "none";
-        downloadButton.dataset.messageId = data.id;
-        buttonContainer.appendChild(downloadButton);
-        // Every streamed message is a model's reply.
-        addForkButton(buttonContainer, data.id);
-
-        // Insert the button container at the beginning of the message wrapper (before header and content)
-        messageWrapper.insertBefore(buttonContainer, messageWrapper.firstChild);
-        
-        // Auto-play TTS if enabled and message is complete (only when streaming finishes)
-        if (autoPlayTTS && data.is_complete && messageBuffers[data.id] && messageBuffers[data.id].trim() !== "") {
-            const playButton = Array.from(buttonContainer.querySelectorAll("button")).find(btn => btn.textContent === "Play");
-            if (playButton) {
-                setTimeout(() => {
-                    // Use content from the content element (clean text without header)
-                    const cleanText = targetMessageElement.textContent || targetMessageElement.innerText || "";
-                    queueTTS(cleanText, playButton, data.id);
-                }, 50); // Small delay to let the message render
-            }
+// A reply ended. Our server's whole text came with the signal (`final`) &
+// is what we keep: a chunk we never got (a dropped socket) is put right
+// here, never left as a short reply marked complete.
+function finishReply(messageWrapper, content, stream) {
+    const id = stream.id;
+    const data = stream.complete;
+    if (typeof data.final === "string" && data.final !== messageBuffers[id]) {
+        messageBuffers[id] = data.final;
+        content.dataset.rawMarkdown = data.final;
+        redrawWords(content, data.final);
+        if (messageWrapper.sharedLinks) applyMessageLinks(messageWrapper, messageWrapper.sharedLinks);
+    }
+    replyHeader(messageWrapper, data.model_name);
+    let details = messageWrapper.querySelector(".message-thinking");
+    if (enableThinking && typeof data.thinking === "string" && data.thinking) {
+        if (!details) {
+            stream.thinking = data.thinking;
+            showThinking(messageWrapper, stream);
+            details = messageWrapper.querySelector(".message-thinking");
+            details.open = false;
+        } else {
+            const node = details.querySelector(".message-thinking-body").firstChild;
+            if (node.data !== data.thinking) node.data = data.thinking;
         }
     }
-});
+    if (details && details.dataset.state === "streaming") labelThinking(details, "");
+    const text = messageBuffers[id];
+    delete messageWrapper.dataset.streaming;
+    forgetStream(id);
+
+    // Its actions, unless it has them (a reply history drew complete).
+    if (messageWrapper.querySelector(".button-container")) return;
+    const buttonContainer = messageButtons(id, content, true);
+    const playButton = Array.from(buttonContainer.querySelectorAll("button")).find(btn => btn.textContent === "Play");
+    // Read aloud from the page: clean text without header
+    const spoken = () => content.textContent || content.innerText || "";
+    playButton.onclick = () => speakText(spoken(), playButton, id);
+    // Before header and content
+    messageWrapper.insertBefore(buttonContainer, messageWrapper.firstChild);
+
+    // Auto-play TTS if enabled, only once streaming finishes
+    if (autoPlayTTS && text && text.trim() !== "") {
+        setTimeout(() => queueTTS(spoken(), playButton, id), 50); // Small delay to let the message render
+    }
+}
 
 
 // Take a message off the page & out of our speech queue & cache.
@@ -818,8 +970,15 @@ function forgetCachedAudio(messageId) {
 // attachment; a path with no file becomes words saying so. Swapped in
 // place, so the reply's text & tool lines keep their order.
 socket.on("message_links", (data) => {
+    flushStreamNow();  // the links are in words that may not be drawn yet
     const wrapper = document.getElementById("message-" + data.id);
     if (!wrapper) return;
+    // Kept: a reply redrawn at its end (finishReply) gets them again.
+    wrapper.sharedLinks = data;
+    applyMessageLinks(wrapper, data);
+});
+
+function applyMessageLinks(wrapper, data) {
     for (const [path, url] of Object.entries(data.links || {})) {
         wrapper.querySelectorAll("a").forEach((a) => { if (a.getAttribute("href") === path) a.setAttribute("href", url); });
         wrapper.querySelectorAll("img").forEach((img) => { if (img.getAttribute("src") === path) img.setAttribute("src", url); });
@@ -836,7 +995,7 @@ socket.on("message_links", (data) => {
             el.replaceWith(said);
         });
     }
-});
+}
 
 socket.on("message_updated", (data) => {
     forgetCachedAudio(data.message_id);
