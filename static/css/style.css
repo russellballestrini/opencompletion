@@ -1787,7 +1787,7 @@ button.sidebar-more {
 .home-greeting {
     margin-bottom: var(--space-6);
     /* A hero line: grows with the window, tight & bold (fox, 2026-11-10). */
-    font-size: clamp(36px, 4.6vw, 56px);
+    font-size: clamp(30px, 3.6vw, 44px);
     font-weight: 700;
     line-height: 1.1;
     letter-spacing: -0.02em;
@@ -2093,7 +2093,7 @@ button.sidebar-more {
     }
 
     .home-greeting {
-        font-size: clamp(28px, 8vw, 36px);
+        font-size: clamp(24px, 7vw, 30px);
     }
 
     /* Phones: a .phone-line starts its own line (our greeting's question,
