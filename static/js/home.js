@@ -103,29 +103,6 @@ voiceSelect.addEventListener('change', () => {
     try { localStorage.setItem('selectedVoice', voiceSelect.value); } catch (e) {}
 });
 
-// A readable, unique room name: the first words of the message plus a
-// random tail, within our server's rule [a-z0-9][a-z0-9_-]{0,63}.
-function newRoomName(message) {
-    const words = slugify(message.split(/\s+/).slice(0, 6).join(' ')).replace(/[-_]+$/, '').slice(0, 40);
-    const tail = Math.random().toString(36).slice(2, 8);
-    return (words ? `${words}-` : 'chat-') + tail;
-}
-
-async function createRoom(message) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-        const name = newRoomName(message);
-        const response = await fetch('/api/rooms/create', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name, is_private: mode === 'private'}),
-        });
-        const data = await response.json();
-        if (response.ok) return data.room.name;
-        if (data.error !== 'Room name already exists') throw new Error(data.error || 'Could not start a chat');
-    }
-    throw new Error('Could not find a free room name. Please try again.');
-}
-
 async function startChat() {
     // Enter can arrive again while a room is being made: one chat per send.
     if (sendButton.disabled) return;
@@ -137,16 +114,14 @@ async function startChat() {
     }
     sendButton.disabled = true;
     try {
-        const room = await createRoom(message || homeTools.firstFileName());
+        const room = (await createChatRoom(message || homeTools.firstFileName(), mode === 'private')).name;
         // Files upload into the new chat & go as links below the text.
         if (homeTools.hasFiles()) {
             const links = await homeTools.uploadAll(room);
             message = [message, links].filter(Boolean).join('\n\n');
         }
         // Without this handoff the new chat would open without our message.
-        try {
-            sessionStorage.setItem('pendingMessage', JSON.stringify({room, message, model: modelSelect.value}));
-        } catch (e) {
+        if (!keepPendingMessage(room, message, modelSelect.value)) {
             errorEl.textContent = 'This browser would not keep your message (storage blocked or full), so the chat was not opened. Allow site storage & try again.';
             sendButton.disabled = false;
             return;

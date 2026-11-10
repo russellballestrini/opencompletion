@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+{% set active_nav = 'activities' %}
+
+{% block title %}Activities - {{ brand_name }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Activities</h1>
+<p class="page-subtitle">Games & lessons a whole room shares: everyone there sees one game & anyone may answer. Play opens a new public chatroom with it running; anyone with its link can join.</p>
+
+{% if cards %}
+{# One list, filtered here: by kind (?kind= opens on one) & by the words
+   typed, matched against each card's title, description & file name. #}
+<div class="rooms-toolbar activities-toolbar">
+    <div class="segmented" role="radiogroup" aria-label="Kind">
+        <button type="button" class="segmented-option" role="radio" data-kind="all" aria-checked="{{ 'true' if shown_kind == 'all' else 'false' }}">
+            All<span class="segmented-count">{{ cards|length }}</span>
+        </button>
+        {% for kind, label in kinds %}
+        <button type="button" class="segmented-option" role="radio" data-kind="{{ kind }}" aria-checked="{{ 'true' if shown_kind == kind else 'false' }}">
+            {{ label }}<span class="segmented-count">{{ counts[kind] }}</span>
+        </button>
+        {% endfor %}
+    </div>
+    <div class="rooms-search" role="search">
+        <label class="visually-hidden" for="activities-filter">Filter activities by title or description</label>
+        <input id="activities-filter" class="form-input rooms-filter" type="search" placeholder="Filter activities" autocomplete="off">
+    </div>
+</div>
+<p id="activities-error" class="error-message" role="alert"></p>
+
+<div class="room-grid" id="activity-grid">
+    {% for card in cards %}
+    {% include "_activity_card.html" %}
+    {% endfor %}
+</div>
+
+<div class="empty-state" id="activities-empty" hidden>
+    <h3 id="activities-empty-title">No activities match</h3>
+    <p><button type="button" class="btn btn-secondary" id="activities-clear">Show every activity</button></p>
+</div>
+{% else %}
+<div class="empty-state">
+    <h3>No activities are listed on this server</h3>
+    <p>We list activities from our server's own files, & this server is not set up to read them. In a room, <code>/activity</code> followed by an activity's path still starts one.</p>
+    <p><a class="btn" href="/">Start a room</a></p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if cards %}<script src="{{ url_for('static', filename='js/activities.js') }}"></script>{% endif %}
+{% endblock %}

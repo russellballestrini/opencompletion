@@ -2,7 +2,6 @@
 downloads, and our one rule for who may open a private room."""
 
 import json
-import os
 import time
 import re
 import secrets
@@ -18,6 +17,7 @@ from flask import (
     url_for,
 )
 
+import activity_gallery
 import auth
 from models import ActivityState, Message, Room, UserSession, db
 from routes import DEPS
@@ -94,24 +94,62 @@ def ago(epoch_seconds):
     return "just now"
 
 
+def activity_cards():
+    """Every activity this server can start, as our gallery's cards
+    (activity_gallery: title, description & kind, each activity's own or
+    derived from its YAML; no script is run, no model asked). One source
+    for `/api/activities`, chat's chooser & our Activities page.
+
+    With --local-activities that is research/*.yaml. From S3 we have no
+    lister yet (the bucket is asked only for a file someone names with
+    `/activity <key>`), so the list is empty there & our page says so."""
+    if current_app.config.get("LOCAL_ACTIVITIES"):
+        return [
+            activity_gallery.local_card(path)
+            for path in activity_gallery.local_paths("research")
+        ]
+    return []
+
+
 @bp.route("/api/activities", methods=["GET"])
 def get_activities():
-    """Return the list of available activities."""
-    activities = []
+    """Available activities: `activities` is every path `/activity` takes
+    (chat's chooser reads it); `details` says more about each, in the same
+    order: path, name, title, description, kind (game, lesson or tool) &
+    readable (false for a file we could not read: its name only, no
+    description & no kind)."""
+    cards = activity_cards()
+    return jsonify({"activities": [c["path"] for c in cards], "details": cards})
 
-    if current_app.config.get("LOCAL_ACTIVITIES"):
-        # List local activity files from research directory
-        research_dir = "research"
-        if os.path.exists(research_dir):
-            for filename in sorted(os.listdir(research_dir)):
-                if filename.endswith((".yaml", ".yml")):
-                    activities.append(f"research/{filename}")
-    else:
-        # For S3 activities, you would list from S3
-        # This is a placeholder - you'd need to implement S3 listing
-        pass
 
-    return jsonify({"activities": activities})
+# Our gallery's filters, in order, & what each is called there.
+ACTIVITY_KINDS = [("game", "Games"), ("lesson", "Lessons"), ("tool", "Tools")]
+
+
+@bp.route("/activities")
+def activities_page():
+    """Our Activities gallery: a card per activity, Play opens a new
+    public chatroom running it (static/js/activities.js). Only files named
+    activity* are shown: research/SPEC.yaml is our format's reference, not
+    something to play, though `/activity` still starts it."""
+    cards = [
+        card for card in activity_cards() if card["name"].lower().startswith("activity")
+    ]
+    cards.sort(key=lambda card: card["title"].lower())
+    counts = {kind: 0 for kind, _ in ACTIVITY_KINDS}
+    for card in cards:
+        if card["kind"] in counts:
+            counts[card["kind"]] += 1
+    # ?kind= opens on one kind; a kind with nothing in it opens on all.
+    shown_kind = request.args.get("kind")
+    return render_template(
+        "activities.html",
+        user=auth.get_current_user(),
+        cards=cards,
+        kinds=[(k, label) for k, label in ACTIVITY_KINDS if counts[k]],
+        counts=counts,
+        shown_kind=shown_kind if counts.get(shown_kind) else "all",
+    )
 
 
 @bp.route("/api/rooms", methods=["GET"])

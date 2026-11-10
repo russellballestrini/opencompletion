@@ -137,9 +137,46 @@ function collapseYourChats() {
     if (all) more.after(all);
 }
 
-// Our home page hands its first message to the chat page it opens: kept in
+// A readable, unique room name: the first words of what the room is for
+// plus a random tail, within our server's rule [a-z0-9][a-z0-9_-]{0,63}.
+function newRoomName(words) {
+    const lead = slugify(words.split(/\s+/).slice(0, 6).join(' ')).replace(/[-_]+$/, '').slice(0, 40);
+    const tail = Math.random().toString(36).slice(2, 8);
+    return (lead ? `${lead}-` : 'chat-') + tail;
+}
+
+// Make a new room named after `words` (home's first message, an
+// activity's title): solo (only its owner, needs sign in) or a public
+// chatroom. Resolves to our server's {id, name, is_private}.
+async function createChatRoom(words, isPrivate) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+        const name = newRoomName(words);
+        const response = await fetch('/api/rooms/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, is_private: Boolean(isPrivate)}),
+        });
+        const data = await response.json();
+        if (response.ok) return data.room;
+        if (data.error !== 'Room name already exists') throw new Error(data.error || 'Could not start a chat');
+    }
+    throw new Error('Could not find a free room name. Please try again.');
+}
+
+// Our home page hands its first message to the chat page it opens (our
+// Activities page its `/activity <path>` command the same way): kept in
 // sessionStorage (this tab only) & sent once that room's page has joined.
 const PENDING_MESSAGE_KEY = 'pendingMessage';
+
+// False when this browser would not keep it (storage blocked or full).
+function keepPendingMessage(room, message, model) {
+    try {
+        sessionStorage.setItem(PENDING_MESSAGE_KEY, JSON.stringify({room, message, model}));
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
 
 function takePendingMessage(roomName) {
     let pending = null;

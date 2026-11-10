@@ -26,13 +26,16 @@ STYLESHEET = ROOT / "static" / "css" / "style.css"
 pytestmark = pytest.mark.functional
 
 # Every page a person can open; chat is its own app shell.
-PAGES = ["/", "/browse", "/browse?q=zzz", "/profile", "/auth", "/verify"]
+PAGES = ["/", "/browse", "/browse?q=zzz", "/activities", "/profile", "/auth", "/verify"]
 ALL_PAGES = PAGES + ["/styleguide", "/chat/lobby"]
 WIDTHS = [320, 375, 768, 1280]
 
 
 @pytest.fixture
-def client(test_app):
+def client(test_app, monkeypatch):
+    # /activities lists research/*.yaml, every activity we ship, so its
+    # layout & copy are checked on our real gallery, not an empty one.
+    monkeypatch.setitem(test_app.config, "LOCAL_ACTIVITIES", True)
     return test_app.test_client()
 
 
@@ -738,7 +741,7 @@ window.addEventListener('load', () => {
     const sidebar = document.getElementById('app-sidebar');
     const toggle = document.querySelector('.page-topbar .drawer-toggle');
     const shown = el => el.getBoundingClientRect().height > 0;
-    const links = ['/', '/browse', '/profile', '/auth?next=/browse'];
+    const links = ['/', '/browse', '/activities', '/profile', '/auth?next=/browse'];
     links.forEach(href => check(sidebar.querySelector(`a[href="${href}"]`), 'sidebar links ' + href));
     check(sidebar.querySelector('[data-theme-toggle]'), 'theme toggle in our sidebar');
     check(sidebar.querySelector('a[href="/browse"][aria-current="page"]'), 'current page marked');

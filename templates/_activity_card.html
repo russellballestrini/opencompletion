@@ -1,0 +1,18 @@
+{# One activity in our gallery (activities.html & /styleguide). `card` is
+   activity_gallery's: path, name, title, description, kind & readable.
+   Its title leads, its file's name sits under it, then one line saying
+   what it is, its kind & Play. A file we could not read shows its name
+   only: no description, no kind & nothing to press. #}
+<article class="room-card activity-card" data-kind="{{ card.kind or '' }}" data-title="{{ card.title }}" data-description="{{ card.description }}" data-name="{{ card.name }}" data-path="{{ card.path }}">
+    <h3 class="room-card-name">{{ card.title }}</h3>
+    <p class="room-card-slug">{{ card.name }}</p>
+    {% if card.readable %}
+    {% if card.description %}<p class="activity-card-description">{{ card.description }}</p>{% endif %}
+    <div class="activity-card-foot">
+        <span class="badge badge-public">{{ card.kind|capitalize }}</span>
+        <button type="button" class="btn activity-play" data-play aria-label="Play {{ card.title }} in a new chatroom">Play</button>
+    </div>
+    {% else %}
+    <p class="activity-card-description">We could not read this activity's file, so it can't be started from here.</p>
+    {% endif %}
+</article>

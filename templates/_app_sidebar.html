@@ -27,6 +27,10 @@
                 <svg class="sidebar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9.5 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 20v-2a4 4 0 0 0-3-3.9M16 2.1a4 4 0 0 1 0 7.8"/></svg>
                 Rooms
             </a>
+            <a class="sidebar-link" href="/activities"{% if _nav == 'activities' %} aria-current="page"{% endif %}>
+                <svg class="sidebar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9h4M9 7v4M15.5 9.5h.01M18 12h.01M6.5 5h11a4 4 0 0 1 3.9 3.2l1 6.3a3 3 0 0 1-5.1 2.6L15 15H9l-2.3 2.1a3 3 0 0 1-5.1-2.6l1-6.3A4 4 0 0 1 6.5 5z"/></svg>
+                Activities
+            </a>
             <a class="sidebar-link" href="/verify"{% if _nav == 'verify' %} aria-current="page"{% endif %}>
                 <svg class="sidebar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6zM9 12l2 2 4-4"/></svg>
                 Verify a transcript

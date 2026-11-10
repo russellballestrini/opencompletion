@@ -1124,6 +1124,52 @@ textarea:focus {
     margin-top: var(--space-1);
 }
 
+/* One activity in our gallery (_activity_card.html): a room card that is
+   not a link, its kind & Play pinned to its foot however long it reads. */
+.activity-card {
+    grid-template-rows: auto auto 1fr auto;
+    align-content: start;
+}
+
+.activity-card .room-card-name {
+    padding-right: 0;  /* no ⋯ menu to clear */
+}
+
+.activity-card-description {
+    margin: var(--space-1) 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.activity-card-foot {
+    grid-row: 4;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+.activity-play {
+    min-width: 88px;
+}
+
+/* Four kinds & their counts must fit a 320px phone: tighter options, &
+   the row wraps before it would scroll. */
+.activities-toolbar .segmented {
+    flex-wrap: wrap;
+    border-radius: var(--radius-lg);
+}
+
+@media (max-width: 480px) {
+    .activities-toolbar .segmented-option {
+        padding: 0 var(--space-3);
+        gap: var(--space-1);
+    }
+}
+
 /* The Rooms page's filter (Yours · Solo · Public) & its text filter. */
 .rooms-toolbar {
     display: flex;

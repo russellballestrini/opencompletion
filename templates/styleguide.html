@@ -84,6 +84,14 @@
             <p class="room-card-meta"><span class="badge badge-private">Solo</span> active 5m ago</p>
         </a>
     </div>
+    {# One activity of our gallery (/activities); no script here, so its
+       Play starts nothing. #}
+    <div class="room-grid">
+        {% set card = {'path': 'research/activity52-vault-heist.yaml', 'name': 'activity52-vault-heist', 'title': 'Vault Heist', 'description': 'A card says what an activity is in one line, its kind & Play.', 'kind': 'game', 'readable': true} %}
+        {% include "_activity_card.html" %}
+        {% set card = {'path': 'research/activity-unreadable.yaml', 'name': 'activity-unreadable', 'title': 'Unreadable', 'description': '', 'kind': none, 'readable': false} %}
+        {% include "_activity_card.html" %}
+    </div>
     <div class="followups" aria-label="Suggested follow-ups">
         <button type="button" class="followup-chip">Follow-up suggestions sit under our newest reply</button>
         <button type="button" class="followup-chip">A click sends that question</button>
