@@ -226,7 +226,26 @@ def test_base64_images_inside_messages_move_to_the_blob_store(test_app):
     assert app_module.backfill_blobs() == (0, 0)  # twice changes nothing
 
 
-def test_dalle_images_are_kept_as_attachments(test_app, monkeypatch):
+def image_client(monkeypatch, app_module, answer):
+    """Our endpoint for image models, answered in-process; what it was asked."""
+    asked = []
+
+    def generate(**request):
+        asked.append(request)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    fake = SimpleNamespace(images=SimpleNamespace(generate=generate))
+    monkeypatch.setattr(app_module, "get_client_for_model", lambda model: fake)
+    sent = []
+    monkeypatch.setattr(app_module.socketio, "emit", lambda *a, **k: sent.append(a))
+    return asked, sent
+
+
+def test_a_generated_image_is_kept_as_an_attachment_and_is_its_models_reply(
+    test_app, monkeypatch
+):
     import base64
 
     import app as app_module
@@ -236,20 +255,90 @@ def test_dalle_images_are_kept_as_attachments(test_app, monkeypatch):
     image = SimpleNamespace(
         b64_json=base64.b64encode(PNG).decode(), revised_prompt="A cat <b>"
     )
-    fake = SimpleNamespace(
-        images=SimpleNamespace(generate=lambda **k: SimpleNamespace(data=[image]))
+    asked, sent = image_client(
+        monkeypatch, app_module, SimpleNamespace(data=[image], output_format="png")
     )
-    monkeypatch.setattr(app_module, "OpenAI", lambda: fake)
-    sent = []
-    monkeypatch.setattr(app_module.socketio, "emit", lambda *a, **k: sent.append(a))
-    app_module.generate_dalle_image("lobby", "a cat", "fox")
+    app_module.generate_image("lobby", "a cat", "fox", "gpt-image-2")
+
+    # A GPT image model always answers base64 & refuses response_format.
+    assert asked == [
+        {"model": "gpt-image-2", "prompt": "a cat", "n": 1, "size": "1024x1024"}
+    ]
     attachment = Attachment.query.one()
     message = Message.query.one()
+    assert message.username == "gpt-image-2"
     assert message.content == (
-        f"![a cat](/attachments/{attachment.public_id}/dall-e.png)\n\nA cat &lt;b&gt;"
+        f"![a cat](/attachments/{attachment.public_id}/image.png)\n\nA cat &lt;b&gt;"
     )
     assert "base64" not in message.content
     assert client_for(test_app).get(attachment.url).data == PNG
+    posted = [a[1] for a in sent if a[0] == "chat_message"]
+    assert posted[0]["from_model"] is True and posted[0]["username"] == "gpt-image-2"
+    assert [a[0] for a in sent][0] == "delete_processing_message"
+
+
+def test_an_image_request_follows_its_model_and_our_settings(monkeypatch):
+    import app as app_module
+
+    monkeypatch.delenv("OPENCOMPLETION_IMAGE_SIZE", raising=False)
+    monkeypatch.delenv("OPENCOMPLETION_IMAGE_QUALITY", raising=False)
+    # A DALL-E another server still offers answers a URL unless asked.
+    assert app_module.image_request("dall-e-3", "a cat")["response_format"] == (
+        "b64_json"
+    )
+    assert "quality" not in app_module.image_request("gpt-image-2", "a cat")
+    monkeypatch.setenv("OPENCOMPLETION_IMAGE_SIZE", "1536x1024")
+    monkeypatch.setenv("OPENCOMPLETION_IMAGE_QUALITY", "low")
+    request = app_module.image_request("gpt-image-2", "a cat")
+    assert (request["size"], request["quality"]) == ("1536x1024", "low")
+
+
+@pytest.mark.parametrize(
+    "model, draws",
+    [
+        ("gpt-image-2", True),
+        ("gpt-image-1-mini", True),
+        ("chatgpt-image-latest", True),
+        ("dall-e-3", True),
+        ("gpt-5", False),
+        ("adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic", False),
+        ("None", False),
+        (None, False),
+    ],
+)
+def test_image_models_are_told_from_chat_models_by_id(model, draws):
+    import app as app_module
+
+    assert app_module.is_image_model(model) is draws
+
+
+def test_a_refused_image_says_which_model_and_why(test_app, monkeypatch):
+    import app as app_module
+    from models import Attachment, Message
+
+    make_room("lobby")
+    image_client(monkeypatch, app_module, RuntimeError("model <gone>"))
+    app_module.generate_image("lobby", "a cat", "fox", "dall-e-3")
+
+    assert Attachment.query.count() == 0
+    assert Message.query.one().content == (
+        "Error generating image with dall-e-3: model &lt;gone&gt;"
+    )
+
+
+def test_picking_an_image_model_draws_instead_of_chatting(test_app, monkeypatch):
+    import app as app_module
+
+    room = make_room("lobby")
+    spawned = []
+    monkeypatch.setattr(
+        app_module.gevent, "spawn", lambda fn, *a, **k: spawned.append((fn, a))
+    )
+    monkeypatch.setattr(app_module, "emit", lambda *a, **k: None)
+    app_module.dispatch_message(room, "fox", "a cat", ["gpt-image-2"])
+    assert spawned == [
+        (app_module.generate_image, ("lobby", "a cat", "fox", "gpt-image-2"))
+    ]
 
 
 def test_uploads_are_limited_per_address(test_app):

@@ -1348,8 +1348,8 @@ def dispatch_message(
             gevent.spawn(
                 stoppable_reply, chat_claude, username, room_name, model_name=model
             )
-        elif "dall-e" in model:
-            gevent.spawn(generate_dalle_image, room_name, message, username)
+        elif is_image_model(model):
+            gevent.spawn(generate_image, room_name, message, username, model)
         else:
             # All other models (Groq, Together, Mistral, etc.) use OpenAI client
             gevent.spawn(
@@ -3436,42 +3436,85 @@ def generate_new_title(room_name, username):
         )
 
 
-def generate_dalle_image(room_name, message, username):
-    """A DALL-E 3 image for `message`, kept in our blob store as an
-    attachment of the room & posted as its markdown with the prompt DALL-E
-    revised, like any file in a chat (served under the room's rule)."""
+# Models that draw instead of chat, by id. OpenAI's /v1/models lists them
+# beside its chat models (gpt-image-2, ...; dall-e-2 & dall-e-3 left its API
+# on 2026-05-12), so our picker offers whichever exist today & no id is
+# written here. OPENCOMPLETION_IMAGE_MODELS (a regex) names another server's.
+IMAGE_MODELS = re.compile(
+    os.environ.get("OPENCOMPLETION_IMAGE_MODELS")
+    or r"^(gpt-image|chatgpt-image|dall-e)",
+    re.I,
+)
+
+
+def is_image_model(model):
+    return bool(model and IMAGE_MODELS.search(model))
+
+
+def image_request(model, prompt):
+    """What we send /images/generations for `model`: one image at
+    OPENCOMPLETION_IMAGE_SIZE (1024x1024) & OPENCOMPLETION_IMAGE_QUALITY
+    (unset: the model's own default; low, medium or high price an image
+    very differently). GPT image models always answer base64 & refuse
+    response_format; a DALL-E still served elsewhere must be asked for it."""
+    request = {
+        "model": model,
+        "prompt": prompt,
+        "n": 1,
+        "size": os.environ.get("OPENCOMPLETION_IMAGE_SIZE") or "1024x1024",
+    }
+    quality = os.environ.get("OPENCOMPLETION_IMAGE_QUALITY")
+    if quality:
+        request["quality"] = quality
+    if model.lower().startswith("dall-e"):
+        request["response_format"] = "b64_json"
+    return request
+
+
+def generate_image(room_name, message, username, model):
+    """An image for `message` from the image model picked, asked of the
+    endpoint that lists it, kept in our blob store as an attachment of the
+    room & posted as the model's reply: its markdown with the prompt as the
+    model revised it (when it says), like any file in a chat (served under
+    the room's rule)."""
     import html
 
+    image, error = None, "it sent no image"
     try:
-        response = OpenAI().images.generate(
-            model="dall-e-3",
-            prompt=message,
-            n=1,
-            size="1024x1024",
-            response_format="b64_json",
-        )
-        image = base64.b64decode(response.data[0].b64_json)
-        revised_prompt = response.data[0].revised_prompt or ""
+        client = get_client_for_model(model) or OpenAI()
+        response = client.images.generate(**image_request(model, message))
+        first = response.data[0]
+        if getattr(first, "b64_json", None):
+            image = base64.b64decode(first.b64_json)
+        revised_prompt = getattr(first, "revised_prompt", None) or ""
     except Exception as e:
-        image, error = None, e
+        error = e
 
     with app.app_context():
         room = get_room(room_name)
         if image is None:
-            content = f"Error generating image: {html.escape(str(error))}"
+            content = f"Error generating image with {model}: {html.escape(str(error))}"
         else:
+            mime = "image/" + (getattr(response, "output_format", None) or "png")
             attachment = save_attachment(
-                room.id, image, "dall-e.png", "image/png", username
+                room.id, image, "image." + mime.split("/")[1], mime, username
             )
             content = attachment_markdown(attachment, message[:200])
             if revised_prompt:
                 content += "\n\n" + html.escape(revised_prompt)
-        new_message = Message(username=username, content=content, room_id=room.id)
+        new_message = Message(username=model, content=content, room_id=room.id)
         db.session.add(new_message)
         db.session.commit()
+        # Its "Processing..." placeholder goes (the oldest one in the room).
+        socketio.emit("delete_processing_message", new_message.id, room=room_name)
         socketio.emit(
             "chat_message",
-            {"id": new_message.id, "username": username, "content": content},
+            {
+                "id": new_message.id,
+                "username": model,
+                "content": content,
+                "from_model": True,
+            },
             room=room_name,
         )
 

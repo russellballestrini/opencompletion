@@ -34,6 +34,12 @@ export MODEL_API_KEY_6="gone"
 
 # OpenAI endpoint.
 export MODEL_ENDPOINT_7="https://api.openai.com/v1"
+# Its /models lists image models (gpt-image-...) beside chat models: pick
+# one in a chat & our message is drawn, not answered. One image costs far
+# more at high quality than low; unset, a model uses its own default.
+#export OPENCOMPLETION_IMAGE_SIZE="1024x1024"
+#export OPENCOMPLETION_IMAGE_QUALITY="low"   # low | medium | high
+#export OPENCOMPLETION_IMAGE_MODELS="^(gpt-image|chatgpt-image|dall-e)"   # a regex over model ids
 export MODEL_API_KEY_7="gone"
 export OPENAI_API_KEY="gone"
 
