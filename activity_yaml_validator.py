@@ -804,8 +804,9 @@ class ActivityYAMLValidator:
                 return
 
             try:
-                # Parse the code to check for syntax errors
-                ast.parse(code)
+                # Compile, never run: a script is exec'd as a module's top
+                # level, where ast.parse alone lets a `return` through.
+                compile(code, location, "exec")
             except SyntaxError as e:
                 self.errors.append(f"{location}: Python syntax error - {e}")
             except Exception as e:

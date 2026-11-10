@@ -374,8 +374,9 @@ sections:
               result["parsed_value"] = None
               result["is_even"] = False
 
-          # Return dict of values to add to metadata
-          return result
+          # Hand our values back: a script runs as top-level code, so it
+          # assigns script_result (a `return` here is a SyntaxError)
+          script_result = {"metadata": result}
 
         # Processing script runs DURING transition (if run_processing_script: true)
         # Has access to user_response in metadata
@@ -392,7 +393,10 @@ sections:
           if result["final_score"] > 100:
               result["achievement"] = "high_scorer"
 
-          return result
+          # script_result["metadata"] is added to metadata; an optional
+          # script_result["next_section_and_step"] ("section:step") sends
+          # our activity there, over the transition's own target
+          script_result = {"metadata": result}
 
         transitions:
           number:
@@ -933,13 +937,12 @@ question: "What is {{metadata.num1}} + {{metadata.num2}}?"
 # - step_id: "addition"
 #   pre_script: |
 #     import random
-#     result = {
+#     script_result = {
 #       "metadata": {
 #         "num1": random.randint(1, 10),
 #         "num2": random.randint(1, 10)
 #       }
 #     }
-#     return result
 #
 #   question: "What is {{metadata.num1}} + {{metadata.num2}}?"
 #

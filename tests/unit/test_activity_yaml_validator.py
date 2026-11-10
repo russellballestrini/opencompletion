@@ -366,6 +366,40 @@ sections:
         finally:
             os.unlink(temp_file)
 
+    def test_a_script_returning_at_its_top_level_is_an_error(self):
+        """Scripts run as a module's top level (exec): `return` there is a
+        SyntaxError when a learner answers, so it must fail validation."""
+        top_level_return = """
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Test Step"
+        question: "Test?"
+        processing_script: |
+          result = {"metadata": {"seen": True}}
+          return result
+        buckets:
+          - test
+        transitions:
+          test:
+            run_processing_script: true
+            next_section_and_step: "section_1:step_2"
+
+      - step_id: "step_2"
+        title: "Final"
+        content_blocks:
+          - "Done"
+"""
+        temp_file = self.create_temp_yaml(top_level_return)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertFalse(is_valid)
+            self.assertTrue(any("'return' outside function" in e for e in errors))
+        finally:
+            os.unlink(temp_file)
+
     def test_invalid_transitions(self):
         """Test validation of transition references"""
         invalid_transitions = """
