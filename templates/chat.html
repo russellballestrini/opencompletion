@@ -32,15 +32,23 @@
             <div class="composer-bar">
                 {% include "_composer_tools.html" %}
                 {# The voice Play & Read replies aloud speak in: beside the model
-                   whenever our speech service lists voices (3-room.js). #}
-                <label class="visually-hidden" for="voice-select">Voice</label>
-                <select id="voice-select" class="composer-model composer-voice" title="The voice Play & Read replies aloud speak in" hidden>
-                    <!-- Voices will be populated from API -->
-                </select>
-                <label class="visually-hidden" for="model-select">Model</label>
-                <select id="model-select" class="composer-model">
-                    <option value="None">People only (no model)</option>
-                </select>
+                   whenever our speech service lists voices (3-room.js). Each
+                   picker is a .composer-pick: an icon says which it is when
+                   a phone clips its words. #}
+                <label class="composer-pick composer-pick-voice" title="The voice Play & Read replies aloud speak in">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zM16.5 8.5a5 5 0 0 1 0 7M19.5 5.5a9 9 0 0 1 0 13"/></svg>
+                    <span class="visually-hidden">Voice</span>
+                    <select id="voice-select" class="composer-model composer-voice" hidden>
+                        <!-- Voices will be populated from API -->
+                    </select>
+                </label>
+                <label class="composer-pick composer-pick-model" title="The model that answers">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>
+                    <span class="visually-hidden">Model</span>
+                    <select id="model-select" class="composer-model">
+                        <option value="None">People only (no model)</option>
+                    </select>
+                </label>
                 <button type="button" id="stop-button" class="composer-stop" onclick="stopReplies()" aria-label="Stop the reply" title="Stop: end the reply that is streaming in; what it wrote so far stays" hidden>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
                 </button>

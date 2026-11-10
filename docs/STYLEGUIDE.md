@@ -52,6 +52,12 @@ style.css): show & hide with the attribute, never a display rule.
   controls are `.btn-toggle`: JavaScript sets `data-on` & words naming what
   a tap does ("Enable thinking" / "Disable thinking"); CSS colours the
   state green, JavaScript never sets colours.
+- **Composer pickers** each select in a `.composer-bar` sits in a
+  `.composer-pick` label: an icon saying which it is (voice, model), its
+  name for screen readers, then the select, which shows a voice's name
+  alone (its group names the speech model). At 480px or narrower our bar
+  takes two rows: the pickers (the model gets what the voice leaves), then
+  speak & attach on our left, Stop & Send on our right. **(tested)**
 - **Cards** `.card` group a task; `.page-title` + `.page-subtitle` open a page.
 - **Forms** `.form-group` > `label` + `.form-input` + `.form-hint`. A label
   sits above every field; placeholders show format, never the label.
@@ -144,6 +150,10 @@ style.css): show & hide with the attribute, never a display rule.
   Escape. **(tested)**
 - Only chat locks page scrolling (`body.chat-page`); every other page
   scrolls. **(tested)**
+- A composer that grows (a long draft, attached files, a phone's
+  keyboard) never covers our newest message: at the bottom (or within
+  40px of it) chat stays there (`keepNewestInView` in `3-room.js`);
+  scrolled up, nothing moves. **(tested)**
 - Hover is never the only way in: anything on hover also works on tap or
   focus.
 - Focus is always visible (3px `--focus-ring`); motion stops under

@@ -1952,15 +1952,51 @@ button.sidebar-more {
     gap: var(--space-2);
 }
 
-.composer-model {
+/* A picker in our bar (voice, model): a label holding an icon that says
+   which it is, its name for screen readers & the select. The icon still
+   tells them apart when a narrow bar clips their words. */
+.composer-pick {
+    display: flex;
     min-width: 0;
     max-width: 60%;
+    align-items: center;
+    padding-left: var(--space-2);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+/* No voices listed: the voice select is hidden, so its icon goes too. */
+.composer-pick:has(> select[hidden]) {
+    display: none;
+}
+
+.composer-pick svg {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.composer-pick:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.composer-model {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
     min-height: 40px;
-    padding: 0 var(--space-2);
+    padding: 0 var(--space-2) 0 var(--space-1);
     border: none;
     border-radius: var(--radius-md);
     background: none;
-    color: var(--text-secondary);
+    color: inherit;
     font: inherit;
     font-weight: 600;
     text-overflow: ellipsis;
@@ -1969,13 +2005,8 @@ button.sidebar-more {
 
 /* The voice picker beside the model, in its look: narrower, it names a
    voice. */
-.composer-voice {
+.composer-pick-voice {
     max-width: 30%;
-}
-
-.composer-model:hover {
-    background-color: var(--bg-hover);
-    color: var(--text-primary);
 }
 
 .composer-send {
@@ -2213,6 +2244,45 @@ button.sidebar-more {
 
     .composer-model {
         font-size: 16px;
+    }
+}
+
+/* Narrow phones: one row clipped both pickers to "tts-…" & "Peopl…".
+   Our bar takes two rows: the pickers on top (the model gets what the
+   voice leaves), then speak & attach on our left, Stop & Send on our
+   right. ::before is the line break between them. */
+@media (max-width: 480px) {
+    .composer-bar {
+        flex-wrap: wrap;
+        row-gap: 0;
+    }
+
+    .composer-bar::before {
+        content: "";
+        order: 2;
+        flex-basis: 100%;
+        height: 0;
+    }
+
+    .composer-pick {
+        order: 1;
+        min-height: 44px;
+    }
+
+    .composer-pick-voice {
+        flex: 0 1 auto;
+        max-width: 38%;
+    }
+
+    .composer-pick-model {
+        flex: 1 1 0;
+        max-width: none;
+    }
+
+    .composer-tools,
+    .composer-stop,
+    .composer-send {
+        order: 3;
     }
 }
 

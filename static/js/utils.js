@@ -179,7 +179,9 @@ function fillVoiceSelect(select, voicesData) {
         voices.forEach(voice => {
             const option = document.createElement('option');
             option.value = `${modelData.id}:${voice}`;
-            option.textContent = `${modelData.id} - ${voice}`;
+            // Its group already names the speech model: the closed picker
+            // shows the voice alone, which fits a phone ("tts-…" said nothing).
+            option.textContent = voice;
             optgroup.appendChild(option);
         });
         select.appendChild(optgroup);
