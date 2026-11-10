@@ -71,8 +71,17 @@ window.addEventListener('load', async () => {
             files.items.add(new File([text], name, {type: 'application/json'}));
             input.files = files.files;
             input.dispatchEvent(new Event('change', {bubbles: true}));
-            for (let i = 0; i < 200; i++) {
-                await new Promise(resolve => setTimeout(resolve, 5));
+            // Reading & hashing a file is real work on other threads, which
+            // this page's virtual clock never waits for: timers alone ran
+            // out on a slow runner first (CI, 2026-11-10). Yield by message,
+            // which costs no virtual time, until the verdict lands.
+            const turn = () => new Promise(resolve => {
+                const channel = new MessageChannel();
+                channel.port1.onmessage = resolve;
+                channel.port2.postMessage(0);
+            });
+            for (let i = 0; i < 400000; i++) {
+                await turn();
                 if (verdict.textContent !== before && !verdict.textContent.startsWith('Checking ')) return;
             }
             problems.push('no verdict for ' + name);
