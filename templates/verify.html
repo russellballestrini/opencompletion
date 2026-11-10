@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% set active_nav = 'verify' %}
+
+{% block title %}Verify a transcript - {{ brand_name }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Verify a transcript</h1>
+<p class="page-subtitle">Check that a room's JSON download still says what its room's chain recorded. Your browser does the checking: the file is never uploaded & no request leaves this page.</p>
+
+{# Behaviour: static/js/verify.js (chain.verify_message, ported). A file
+   dropped anywhere on this page is checked. #}
+<section id="verify-drop" class="card verify-drop" aria-labelledby="verify-pick-heading">
+    <h2 id="verify-pick-heading">A JSON transcript</h2>
+    <p class="muted">Drop it here, or pick it. In a room, it is <strong>Download history: JSON</strong> in that room's controls.</p>
+    <button type="button" id="verify-pick" class="btn">Choose a transcript</button>
+    <input type="file" id="verify-file" accept=".json,application/json" aria-label="A JSON transcript" hidden>
+</section>
+
+<div id="verify-verdict" class="alert verify-verdict" role="status" aria-live="polite"></div>
+<dl id="verify-facts" class="verify-facts" hidden></dl>
+<ol id="verify-results" class="verify-list" aria-label="Each message" hidden></ol>
+
+<section class="card" aria-labelledby="verify-checked-heading">
+    <h2 id="verify-checked-heading">What is checked</h2>
+    <p>For each message in the file:</p>
+    <ol class="verify-steps">
+        <li>its words hash (SHA-256) to the digest its chain event recorded;</li>
+        <li>that event's line hashes to the event's own hash;</li>
+        <li>a Merkle proof leads from that hash to the root named in the file.</li>
+    </ol>
+    <p class="muted">Change one letter of a message, an event line, a proof step or the root, & that message fails, with the check that caught it.</p>
+</section>
+
+<section class="card" aria-labelledby="verify-unchecked-heading">
+    <h2 id="verify-unchecked-heading">What is not checked</h2>
+    <ul class="verify-steps">
+        <li><strong>That the root is one our server holds.</strong> A file made up whole, root included, agrees with itself. Compare its root with the room's chain (<code>GET /api/rooms/&lt;id&gt;/chain.jsonl</code>, open to whoever may open the room; the file names its path) or with a copy an outside witness kept.</li>
+        <li><strong>That nothing was left out.</strong> A message removed from the file, together with its proof, leaves no trace here.</li>
+        <li><strong>Names, roles & tool results.</strong> Only each message's words are checked; who the file says wrote them, & what it says a machine learning model's tools returned, are not.</li>
+        <li><strong>Whether the words are true.</strong> A verified reply is the reply that was written, right or wrong.</li>
+    </ul>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/verify.js') }}"></script>
+{% endblock %}

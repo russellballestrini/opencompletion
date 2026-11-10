@@ -176,4 +176,15 @@ python -m pytest -q</pre>
         </li>
     </ul>
 </section>
+
+<section class="card" aria-labelledby="sg-verify">
+    <h2 id="sg-verify">Verify a transcript</h2>
+    <p class="muted">One verdict, then a line per message: its state in words, never colour alone. <a href="/verify">Our page</a>.</p>
+    <div class="alert verify-verdict alert-error">1 message of 3 failed. This file was changed after it was downloaded, or it is damaged.</div>
+    <ol class="verify-list">
+        <li class="verify-item is-verified"><div class="verify-item-head"><span class="verify-item-who">1. ada</span><span class="badge verify-badge">Verified</span></div><p class="verify-item-words">is rockrms/Rock up?</p></li>
+        <li class="verify-item is-failed"><div class="verify-item-head"><span class="verify-item-who">2. qwen</span><span class="badge verify-badge">Failed</span></div><p class="verify-item-words">It is live.</p><p class="verify-item-why">Failed: the words do not match the digest the chain recorded.</p></li>
+        <li class="verify-item is-unchained"><div class="verify-item-head"><span class="verify-item-who">3. ada</span><span class="badge verify-badge">No proof</span></div><p class="verify-item-words">before chains</p><p class="verify-item-why">Not chained: this message has no event or proof in this file.</p></li>
+    </ol>
+</section>
 {% endblock %}

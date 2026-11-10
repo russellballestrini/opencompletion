@@ -9,13 +9,14 @@ marked **(tested)** in real headless Chromium at 320, 375, 768 & 1280px.
 
 | Template | What it is |
 |---|---|
-| `layout.html` | Our one shell for every page: `_head.html`, `utils.js`, `_app_sidebar.html` on the left, a page on the right (`.app-main` > `<main class="page">`, a ☰ `.page-topbar` on phones). Pages fill `title`, `content`, `scripts` & optional `page_class` (`page-narrow` for forms); set `active_nav` (`home`, `browse`, `profile`, `auth`) to mark the current page. |
-| `_app_sidebar.html` | Every link we have: our name on top; New chat, Rooms (search lives there); Your rooms (the newest 5, then Show all) & Public rooms (scroll on their own); you at the bottom (`.sidebar-user`: settings & theme), Sign in for guests. Data comes from the `sidebar` context processor (`routes.pages.sidebar_chats`). |
+| `layout.html` | Our one shell for every page: `_head.html`, `utils.js`, `_app_sidebar.html` on the left, a page on the right (`.app-main` > `<main class="page">`, a ☰ `.page-topbar` on phones). Pages fill `title`, `content`, `scripts` & optional `page_class` (`page-narrow` for forms); set `active_nav` (`home`, `browse`, `verify`, `profile`, `auth`) to mark the current page. |
+| `_app_sidebar.html` | Every link we have: our name on top; New chat, Rooms (search lives there), Verify a transcript; Your rooms (the newest 5, then Show all) & Public rooms (scroll on their own); you at the bottom (`.sidebar-user`: settings & theme), Sign in for guests. Data comes from the `sidebar` context processor (`routes.pages.sidebar_chats`). |
 | `home.html` | Our home (`/`), extends `layout.html` & replaces `main`: Solo / Chatroom switch (`.mode-btn`, `aria-pressed`; Solo is a room only its owner opens, `is_private` underneath) & one `.composer`, whose `.composer-bar` holds `_composer_tools.html` (attach & mic, `static/js/composer.js`) beside the model picker & Send; chat adds a Stop button (`.composer-stop`) while a reply streams. Behaviour in `static/js/home.js`. |
 | `base.html` | Chat, extends `layout.html`: vendored chat libraries, `.chat-shell` adds room controls (`.utility-belt`) as a third column, sign-in dialog. `chat.html` reuses home's `.composer`. |
 | `_head.html` | Meta, Open Graph, theme applied before first paint, our one stylesheet. |
 | `_auth_steps.html` + `static/js/auth.js` | Email-code sign in, shared by `/auth` & chat's sign-in dialog. `data-after` on `#auth-flow` decides what success does. |
 | `_room_card.html` | One room in a grid (browse & search). |
+| `verify.html` + `static/js/verify.js` | Verify a transcript (`/verify`): a room's JSON download checked in the reader's browser, never uploaded. |
 
 Rules:
 
@@ -97,7 +98,15 @@ style.css): show & hide with the attribute, never a display rule.
   column. One that was edited & resent carries `.message-versions`, a
   quiet `‹ 2/2 ›` pager; an earlier version opens under it as
   `.earlier-version`, a dashed frame saying which version it is & that it
-  is read only, so it never reads as part of our chat.
+  is read only (a note that stays in view as it scrolls), so it never
+  reads as part of our chat; meanwhile the current words step back
+  (`.is-viewing-earlier`). Message actions rest in `--text-secondary` at
+  full opacity (never dimmed below 4.5:1). A table in a message is ruled
+  & scrolls inside itself when wide.
+- **Missing pages** `not_found.html` (`app.missing_page`): a wrong
+  address, a name no room may have & someone's solo chat answer as an
+  `.empty-state` in our shell, saying what is missing & offering New chat
+  & Rooms. Our API keeps its short replies.
   Math is KaTeX's `.katex` (inline) & `.katex-display` (its own line,
   scrolling sideways when wider than the column), typeset from `$…$` &
   `$$…$$` by `renderMarkdown`.
@@ -105,6 +114,15 @@ style.css): show & hide with the attribute, never a display rule.
   last reply streaming in a room ends after 15s or more, or while the tab
   is in the background; `#done-chime-btn` mutes it (localStorage
   `doneChime`, on by default).
+- **Verify** (`/verify`, `verify.js`) a dashed `.verify-drop` card with
+  one Choose button (a file dropped anywhere on its page counts); one
+  `.verify-verdict` alert (`.alert-success` every message verified,
+  `.alert-error` some failed or the file is junk, plain when it carries no
+  proofs); `.verify-facts` (the file's room, chain & root); a
+  `.verify-list` of `.verify-item`s, `.is-verified` / `.is-failed` /
+  `.is-unchained`, each saying its state in a `.verify-badge` & which
+  check failed in `.verify-item-why`, never by colour alone. Its copy
+  says what is not proved (the root is only this file's own).
 - **Tabs** `.tabs` > `.room-tab` with `role="tab"` & `aria-selected`.
 - **Empty states** `.empty-state` say what is missing & offer the next step.
 

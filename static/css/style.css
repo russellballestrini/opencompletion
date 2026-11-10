@@ -2897,3 +2897,122 @@ button.sidebar-more {
         margin-top: var(--space-1);
     }
 }
+
+/* ========================================
+   VERIFY A TRANSCRIPT (/verify, static/js/verify.js)
+   A drop target, one verdict, the file's chain facts & a line per
+   message saying verified, failed (& which check) or no proof.
+   ======================================== */
+
+.verify-drop {
+    border-style: dashed;
+    text-align: center;
+}
+
+.verify-drop[data-over="true"] {
+    border-color: var(--focus-ring);
+    background-color: var(--bg-hover);
+}
+
+.verify-verdict {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.verify-facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--space-1) var(--space-4);
+    margin: 0 0 var(--space-4);
+    font-size: 13px;
+}
+
+.verify-facts dt {
+    color: var(--text-secondary);
+}
+
+.verify-facts dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.verify-list {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-6);
+    padding: 0;
+    list-style: none;
+}
+
+.verify-item {
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border-color);
+    border-left-width: 3px;
+    border-radius: var(--radius-md);
+    background-color: var(--bg-secondary);
+}
+
+.verify-item.is-verified {
+    border-left-color: var(--button-success);
+}
+
+.verify-item.is-failed {
+    border-left-color: var(--button-danger);
+}
+
+.verify-item-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.verify-item-who {
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.verify-item.is-verified .verify-badge {
+    color: var(--text-success);
+}
+
+.verify-item.is-failed .verify-badge {
+    color: var(--text-error);
+}
+
+.verify-item-words,
+.verify-item-why {
+    margin: var(--space-1) 0 0;
+    overflow-wrap: anywhere;
+}
+
+.verify-item-words {
+    color: var(--text-secondary);
+}
+
+.verify-item.is-failed .verify-item-why {
+    color: var(--text-error);
+}
+
+.verify-steps {
+    margin: 0 0 var(--space-3);
+    padding-left: var(--space-5);
+    overflow-wrap: anywhere;
+}
+
+.verify-steps li + li {
+    margin-top: var(--space-2);
+}
+
+@media (max-width: 768px) {
+    .verify-facts {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+    }
+
+    .verify-facts dd + dt {
+        margin-top: var(--space-2);
+    }
+}

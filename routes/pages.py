@@ -152,6 +152,15 @@ def styleguide():
     return render_template("styleguide.html", user=auth.get_current_user())
 
 
+@bp.route("/verify")
+def verify_page():
+    """Verify a transcript: a room's JSON download checked against its own
+    chain root by the reader's browser (static/js/verify.js, a port of
+    chain.verify_message). Nothing is uploaded; this route only serves
+    the page."""
+    return render_template("verify.html", user=auth.get_current_user())
+
+
 @bp.route("/profile")
 def profile_page():
     """Profile settings page — works for both authenticated users and guests."""

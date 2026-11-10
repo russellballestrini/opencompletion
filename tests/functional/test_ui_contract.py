@@ -26,7 +26,7 @@ STYLESHEET = ROOT / "static" / "css" / "style.css"
 pytestmark = pytest.mark.functional
 
 # Every page a person can open; chat is its own app shell.
-PAGES = ["/", "/browse", "/browse?q=zzz", "/profile", "/auth"]
+PAGES = ["/", "/browse", "/browse?q=zzz", "/profile", "/auth", "/verify"]
 ALL_PAGES = PAGES + ["/styleguide", "/chat/lobby"]
 WIDTHS = [320, 375, 768, 1280]
 
