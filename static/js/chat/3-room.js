@@ -52,6 +52,24 @@ function syncDropdownsAndQueryString() {
     localStorage.setItem('selectedVoice', currentVoice);
 }
 
+// Our composer grew & took height from the messages: at our newest message
+// (or within 40px of it) before, we stay there; scrolled up, nothing moves.
+// `scrollTopBefore` is where the messages were scrolled before the change,
+// when our caller knows (measuring a textarea lets a browser move it).
+// True when it pinned us to the bottom.
+let chatPaneHeight = null;
+function keepNewestInView(scrollTopBefore) {
+    const chat = document.getElementById("chat");
+    const before = chatPaneHeight;
+    chatPaneHeight = chat.clientHeight;
+    // First look, or more room: a browser keeps the bottom itself.
+    if (before === null || chatPaneHeight >= before) return false;
+    const top = scrollTopBefore === undefined ? chat.scrollTop : scrollTopBefore;
+    if (chat.scrollHeight - top - before > 40) return false;
+    chat.scrollTop = chat.scrollHeight;
+    return true;
+}
+
 document.addEventListener('DOMContentLoaded', (event) => {
     const chatContainer = document.getElementById("chat");
     const modelSelectDesktop = document.getElementById("model-select");
@@ -127,6 +145,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
         chatContainer.scrollTo({top: chatContainer.scrollHeight, behavior: 'smooth'});
         userHasScrolledUp = false;
     });
+
+    // Whatever takes height from our messages (a long draft, attached
+    // files, a phone's keyboard) keeps our newest message in view.
+    keepNewestInView();
+    new ResizeObserver(() => keepNewestInView()).observe(chatContainer);
 
     // NOTE: Model and voice restoration happens in populateModelDropdown() and
     // fillVoiceSelect() (utils.js) AFTER the async fetch completes. Don't set values
@@ -320,6 +343,7 @@ async function sendMessage() {
         messageTextarea.value = "";
         // Reset textarea height after sending
         messageTextarea.style.height = 'auto';
+        keepNewestInView();
     }
 }
 
@@ -365,10 +389,15 @@ document.getElementById("message").addEventListener("keydown", function(e) {
 
 // Auto-grow textarea as user types
 document.getElementById("message").addEventListener("input", function() {
+    const chat = document.getElementById("chat");
+    const scrolledTo = chat.scrollTop;
     // Reset height to auto to get the correct scrollHeight
     this.style.height = 'auto';
     // Set height to scrollHeight to fit content
     this.style.height = this.scrollHeight + 'px';
+    // A taller draft never covers our newest message; someone reading
+    // further up stays where they were.
+    if (!keepNewestInView(scrolledTo)) chat.scrollTop = scrolledTo;
 });
 
 // Socket event for updating the room title
