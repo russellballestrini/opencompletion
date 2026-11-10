@@ -121,6 +121,14 @@ style.css): show & hide with the attribute, never a display rule.
   from that version; its title says solo or a public chatroom. Message actions rest in `--text-secondary` at
   full opacity (never dimmed below 4.5:1). A table in a message is ruled
   & scrolls inside itself when wide.
+- **Deleted line** `.deleted-line` (`deletedLine` in `5-messages.js`)
+  takes a deleted message's place for everyone in the room: one quiet,
+  dashed, centred line, "A message from ada was deleted by bob." & a
+  `.deleted-line-restore` button, **Restore** (underlined, 40px tall on
+  phones). It says who, never what: the words are off our page until
+  someone restores them, & then the message returns where it was. A line
+  nobody can act on is never shown (past its Restore window, or after an
+  Edit & resend replaced that part of our chat). **(tested)**
 - **Missing pages** `not_found.html` (`app.missing_page`): a wrong
   address, a name no room may have & someone's solo chat answer as an
   `.empty-state` in our shell, saying what is missing & offering New chat
