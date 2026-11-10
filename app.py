@@ -99,6 +99,9 @@ cancellation_requests = {}
 # many replies each room has streaming (stoppable_reply keeps both).
 stop_requests = set()
 streaming_replies = {}
+# Each reply streaming now, by its message id (ReplyStream): a client that
+# joins mid-reply is handed its words so far from here, not from our last save.
+live_replies = {}
 
 import openai
 from openai import OpenAI
@@ -1121,9 +1124,9 @@ def on_join(data):
     # From here on this client hears the room: our home page's first message
     # waits for this before it is sent (static/js/chat/3-room.js).
     emit("joined", {"room_name": room_name}, room=request.sid)
-    # Joining mid-reply: show Stop too.
-    if streaming_replies.get(room_name):
-        emit_streaming(room_name, to=request.sid)
+    # Joining mid-reply shows Stop; a client back after its reply ended
+    # hears zero & drops a Stop it would otherwise keep forever.
+    emit_streaming(room_name, to=request.sid)
 
     # update the title bar with the proper room title, if it exists for just this new client.
     if room.title:
@@ -1134,7 +1137,16 @@ def on_join(data):
 
     # Send the history of messages only to the newly connected client.
     for message in previous_messages:
-        emit("previous_messages", history_entry(message, room_name), room=request.sid)
+        payload = {**history_entry(message, room_name), "streaming": False}
+        # A reply streaming right now: its words, thinking & tool lines as
+        # of this instant, from memory. This client is already in the room
+        # (join_room above) & nothing yields between this read & the emit,
+        # so every chunk before it is in here & every chunk after follows:
+        # the page ends with exactly our text.
+        live = live_replies.get(message.id)
+        if live is not None:
+            payload.update(live.snapshot())
+        emit("previous_messages", payload, room=request.sid)
     # Messages deleted lately, each a line offering Restore in its place
     # (our page puts it there by id): who wrote it & who deleted it, never
     # its words.
@@ -1939,7 +1951,7 @@ def chat_claude(
 
     socketio.emit(
         "message_chunk",
-        {"id": msg_id, "content": "", "is_complete": True},
+        {"id": msg_id, "content": "", "is_complete": True, "final": buffer},
         room=room_name,
     )
 
@@ -2464,6 +2476,21 @@ class ReplyStream:
         self.cap, self.cap_name = None, "OPENCOMPLETION_MAX_TOKENS"
         self.footnote = ""
         self.notice = ""
+        # The tool lines the room sees now: tool_trail plus one still running.
+        self.shown_trail = list(self.tool_trail)
+
+    def snapshot(self):
+        """This reply as it stands, for a client joining while it streams
+        (on_join). Memory only: reading it never yields to the stream."""
+        now = {
+            "content": self.buffer,
+            "tools": list(self.shown_trail) or None,
+            "streaming": True,
+        }
+        # A resumed reply's earlier thinking is in its Message, not here.
+        if self.thinking_parts:
+            now["thinking"] = "".join(self.thinking_parts)
+        return now
 
     def prepare(self, tool_context, resume):
         """The first ask's arguments, with the tools this reply may call."""
@@ -2593,6 +2620,7 @@ class ReplyStream:
     def fail(self, e):
         """The first ask failed: the reply becomes its error."""
         msg_id, model_name = self.msg_id, self.model_name
+        live_replies.pop(msg_id, None)
         with app.app_context():
             message_content = f"{model_name} Error: {e}"
             new_message = (
@@ -2722,6 +2750,7 @@ class ReplyStream:
                 db.session.commit()
 
     def save_progress(self, trail):
+        self.shown_trail = list(trail)
         with app.app_context():
             reply = db.session.get(Message, self.msg_id)
             if reply is not None:
@@ -3051,9 +3080,20 @@ class ReplyStream:
                 )
                 chain.checkpoint(self.room_id)
 
+        # The end of a reply is authoritative: its whole text & thinking go
+        # with the signal, so a page that missed a chunk (a dropped socket,
+        # a tab asleep) never keeps a short reply marked complete.
+        live_replies.pop(msg_id, None)
         socketio.emit(
             "message_chunk",
-            {"id": msg_id, "content": "", "is_complete": True},
+            {
+                "id": msg_id,
+                "content": "",
+                "is_complete": True,
+                "final": buffer,
+                "thinking": "".join(self.thinking_parts) or None,
+                "model_name": self.model_name,
+            },
             room=room_name,
         )
 
@@ -3106,7 +3146,23 @@ def chat_gpt(
         chat_history,
     )
     reply.prepare(tool_context, resume)
+    live_replies[reply.msg_id] = reply
+    finished = False
+    try:
+        finished = stream_reply(reply, resume)
+    finally:
+        # However it ended (finish & fail drop it themselves, an exception
+        # must too), it streams no more.
+        if live_replies.get(reply.msg_id) is reply:
+            del live_replies[reply.msg_id]
+    if finished:
+        title_untitled_room(room_name)
 
+
+def stream_reply(reply, resume):
+    """chat_gpt's reply, from its first ask to its end. True once it
+    finished; False when its first ask failed (the reply is its error)."""
+    openai_client, model_name = reply.openai_client, reply.model_name
     try:
         # An endpoint that fails before streaming hands over to another
         # endpoint serving this same model. A resumed reply has nothing to
@@ -3119,7 +3175,7 @@ def chat_gpt(
     except Exception as e:
         reply.fail(e)
         # exit early to avoid clobbering the error message.
-        return None
+        return False
 
     if reply.tool_schemas and not resume:
         # The reply's first line names the tools it may call, so a reply
@@ -3132,7 +3188,7 @@ def chat_gpt(
     reply.add_closing_notices()
     reply.share_linked_files()
     reply.finish()
-    title_untitled_room(room_name)
+    return True
 
 
 # What a reply linking files that are not there is told (correct_dead_links).
@@ -3420,7 +3476,7 @@ def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.
 
     socketio.emit(
         "message_chunk",
-        {"id": msg_id, "content": "", "is_complete": True},
+        {"id": msg_id, "content": "", "is_complete": True, "final": buffer},
         room=room_name,
     )
 
