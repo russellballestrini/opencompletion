@@ -9,13 +9,14 @@ marked **(tested)** in real headless Chromium at 320, 375, 768 & 1280px.
 
 | Template | What it is |
 |---|---|
-| `layout.html` | Our one shell for every page: `_head.html`, `utils.js`, `_app_sidebar.html` on the left, a page on the right (`.app-main` > `<main class="page">`, a ☰ `.page-topbar` on phones). Pages fill `title`, `content`, `scripts` & optional `page_class` (`page-narrow` for forms); set `active_nav` (`home`, `browse`, `verify`, `profile`, `auth`) to mark the current page. |
-| `_app_sidebar.html` | Every link we have: our name on top; New chat, Rooms (search lives there), Verify a transcript; Your rooms (the newest 5, then Show all) & Public rooms (scroll on their own; a room under Your rooms is never repeated under Public rooms); you at the bottom (`.sidebar-user`: settings & theme), Sign in for guests. Data comes from the `sidebar` context processor (`routes.pages.sidebar_chats`). |
+| `layout.html` | Our one shell for every page: `_head.html`, `utils.js`, `_app_sidebar.html` on the left, a page on the right (`.app-main` > `<main class="page">`, a ☰ `.page-topbar` on phones). Pages fill `title`, `content`, `scripts` & optional `page_class` (`page-narrow` for forms); set `active_nav` (`home`, `browse`, `activities`, `verify`, `profile`, `auth`) to mark the current page. |
+| `_app_sidebar.html` | Every link we have: our name on top; New chat, Rooms (search lives there), Activities, Verify a transcript; Your rooms (the newest 5, then Show all) & Public rooms (scroll on their own; a room under Your rooms is never repeated under Public rooms); you at the bottom (`.sidebar-user`: settings & theme), Sign in for guests. Data comes from the `sidebar` context processor (`routes.pages.sidebar_chats`). |
 | `home.html` | Our home (`/`), extends `layout.html` & replaces `main`: Solo / Chatroom switch (`.mode-btn`, `aria-pressed`; Solo is a room only its owner opens, `is_private` underneath) & one `.composer`, whose `.composer-bar` holds `_composer_tools.html` (attach & mic, `static/js/composer.js`) beside the model picker & Send; chat adds a Stop button (`.composer-stop`) while a reply streams. Behaviour in `static/js/home.js`. |
 | `base.html` | Chat, extends `layout.html`: vendored chat libraries, `.chat-shell` adds room controls (`.utility-belt`) as a third column, sign-in dialog. `chat.html` reuses home's `.composer`. |
 | `_head.html` | Meta, Open Graph, theme applied before first paint, our one stylesheet. |
 | `_auth_steps.html` + `static/js/auth.js` | Email-code sign in, shared by `/auth` & chat's sign-in dialog. `data-after` on `#auth-flow` decides what success does. |
 | `_room_card.html` | One room in a grid (browse & search). |
+| `activities.html` + `_activity_card.html` + `static/js/activities.js` | Our Activities gallery (`/activities`): a `.room-grid` of activity cards, a kind filter, a text filter & Play. |
 | `verify.html` + `static/js/verify.js` | Verify a transcript (`/verify`): a room's JSON download checked in the reader's browser, never uploaded. |
 
 Rules:
@@ -68,6 +69,15 @@ style.css): show & hide with the attribute, never a display rule.
   (`.room-card-slug`), `.badge-private` (Solo) or `.badge-public` &
   "active 2h ago" (`ago` filter). Our Rooms page filters one list with a
   `.segmented` radio group (Yours · Solo · Public, `?show=`) & a text box that filters by title or name as you type & searches messages on Enter (`?q=`, `search_messages`; old `/search` links redirect there). A search shows two headed lists, no room in both: rooms whose messages mention the words (`.rooms-found`), then the other rooms named or titled like them (`#rooms-list-heading` + `#room-grid`), each saying so when empty.
+- **Activities** a `.room-grid` of `.activity-card`s (a `.room-card` that
+  is an `<article>`, not a link): title, its file's name
+  (`.room-card-slug`), one line (`.activity-card-description`), then
+  `.activity-card-foot` pinned to its bottom: a kind `.badge` (Game,
+  Lesson, Tool) & one **Play** `.btn`. A `.segmented` group filters by kind
+  (All · Games · Lessons · Tools, each with its count, `?kind=`; a kind
+  with none is left out) & a text box by title, description or file name
+  as you type; no match is an `.empty-state` that clears both. A file we
+  could not read says so & has no Play.
 - **Chat actions** a `.chat-actions-btn` (⋯, `data-chat-actions`) on each
   sidebar chat & room card opens `.chat-actions-menu` (`chat-actions.js`):
   what it offers comes from `_room_actions_data.html`'s data attributes.
