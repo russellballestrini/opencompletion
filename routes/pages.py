@@ -55,7 +55,7 @@ def sidebar_chats(user):
     """What _app_sidebar.html lists, on our home & every chat: rooms you
     own (private ones too), newest first, and public rooms. Never anyone
     else's private room, & no room in both lists: a public room of yours
-    sits under Your rooms only (fox, 2026-11-10: the open room showed
+    sits under Your rooms only (a walk of our app, 2026-11-10: the open room showed
     twice, both rows highlighted)."""
     your_chats = []
     if user:

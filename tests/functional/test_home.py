@@ -71,7 +71,7 @@ def test_your_chats_hold_your_rooms_and_never_anyone_elses_private_one(client):
 
 
 def test_no_room_sits_in_both_sidebar_lists(client):
-    """fox, 2026-11-10: the open room showed under Your rooms & again under
+    """A walk of our app, 2026-11-10: the open room showed under Your rooms & again under
     Public rooms, both highlighted. Someone else's public room stays under
     Public rooms; a guest's server-made lists never overlap either."""
     me = make_user("me@example.test", "me")

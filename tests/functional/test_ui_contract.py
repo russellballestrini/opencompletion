@@ -334,7 +334,7 @@ window.addEventListener('load', () => {
 
 @pytest.mark.parametrize("width", [375, 1280])
 def test_a_search_shows_two_headed_lists_and_no_room_twice(client, tmp_path, width):
-    """fox, 2026-11-10: a search's rooms were followed by our whole list
+    """A walk of our app, 2026-11-10: a search's rooms were followed by our whole list
     again, unheaded, so every match showed twice."""
     make_room("lobby", message="a muppet said hi")
     make_room("both-muppet", message="muppet muppet")
@@ -538,7 +538,7 @@ window.addEventListener('load', () => {
 
 @pytest.mark.parametrize("width", [375, 1280])
 def test_user_list_headings_hide_while_their_lists_are_empty(client, tmp_path, width):
-    """fox, 2026-11-10: room controls showed INACTIVE USERS over nobody."""
+    """A walk of our app, 2026-11-10: room controls showed INACTIVE USERS over nobody."""
     make_room("lobby")
     html = client.get("/chat/lobby").get_data(as_text=True)
     assert '<div id="inactive-users-list" hidden>' in html
