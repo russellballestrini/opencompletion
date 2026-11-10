@@ -1080,6 +1080,8 @@ def on_join(data):
                 # A model's reply can be forked from (static/js/chat/5-messages.js).
                 "from_model": message.username in SYSTEM_USERS
                 and message.username != "system",
+                # Edited & resent: its pager shows what it replaced.
+                "versions": message.version_count(),
                 "thinking": message.thinking,
                 "tools": trail_as_of_now(
                     message.tool_trail, room_name, resuming=bool(message.resume_state)
@@ -1527,7 +1529,12 @@ def handle_edit_and_resend(data):
     )
     emit(
         "chat_message",
-        {"id": revision.id, "username": revision.username, "content": content},
+        {
+            "id": revision.id,
+            "username": revision.username,
+            "content": content,
+            "versions": revision.version_count(),
+        },
         room=room.name,
     )
     emit_room_stats(room)

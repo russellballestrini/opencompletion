@@ -17,6 +17,9 @@ def app_module(test_app, monkeypatch):
         app_module.gevent, "spawn", lambda fn, *a, **k: spawned.append((fn, a, k))
     )
     monkeypatch.setattr(app_module, "SYSTEM_USERS", ["qwen", "hermes", "system"])
+    import routes
+
+    monkeypatch.setitem(routes.DEPS, "system_users", app_module.SYSTEM_USERS)
     app_module.spawned = spawned
     return app_module
 
@@ -192,3 +195,90 @@ def test_a_replaced_message_cannot_be_forked(test_app, app_module):
     )
     response = test_app.test_client().post(f"/api/messages/{ask.id}/fork", json={})
     assert response.status_code == 404
+
+
+def resend(client, message, content):
+    client.emit(
+        "edit_and_resend",
+        {"message_id": message.id, "content": content, "room_name": "lobby"},
+    )
+    return next(
+        e["args"][0]
+        for e in client.get_received()
+        if e["name"] == "chat_message" and e["args"][0].get("content") == content
+    )
+
+
+def test_an_edited_message_lists_each_earlier_version_with_what_followed(
+    test_app, app_module
+):
+    from models import Message
+
+    room = make_room("lobby")
+    first = say(room, "ada", "list three muppets")
+    say(room, "qwen", "Elmo, Grover, Oscar")
+    client = client_for(test_app, app_module)
+
+    # The edit arrives saying it is version 2 of 2.
+    posted = resend(client, first, "list two muppets")
+    assert posted["versions"] == 2
+    second = Message.visible(room.id).one()
+    say(room, "qwen", "Elmo, Grover")
+    assert resend(client, second, "list one muppet")["versions"] == 3
+    third = Message.visible(room.id).one()
+
+    body = test_app.test_client().get(f"/api/messages/{third.id}/versions").json
+    assert [[(m["username"], m["content"]) for m in v] for v in body["versions"]] == [
+        [("ada", "list three muppets"), ("qwen", "Elmo, Grover, Oscar")],
+        [("ada", "list two muppets"), ("qwen", "Elmo, Grover")],
+    ]
+    assert [m["from_model"] for m in body["versions"][0]] == [False, True]
+
+    # Someone opening the room is told too; a message never edited has one.
+    http = test_app.test_client()
+    bob = app_module.socketio.test_client(app_module.app, flask_test_client=http)
+    bob.emit("join", {"room_name": "lobby", "username": "bob"})
+    history = [
+        e["args"][0] for e in bob.get_received() if e["name"] == "previous_messages"
+    ]
+    assert [(m["content"], m["versions"]) for m in history] == [("list one muppet", 3)]
+    assert say(room, "bob", "hi").version_count() == 1
+
+
+def test_versions_answer_only_for_a_message_someone_may_see(test_app, app_module):
+    from models import Message, db
+
+    room = make_room("lobby")
+    first = say(room, "ada", "first try")
+    client = client_for(test_app, app_module)
+    resend(client, first, "second try")
+    revision = Message.visible(room.id).one()
+    http = test_app.test_client()
+
+    # A replaced message & a missing one are equally unknown.
+    assert http.get(f"/api/messages/{first.id}/versions").status_code == 404
+    assert http.get("/api/messages/99999/versions").status_code == 404
+    assert http.get(f"/api/messages/{revision.id}/versions").status_code == 200
+
+    # A solo room's earlier versions are its owner's alone.
+    room.is_private, room.owner_id = True, 4242
+    db.session.commit()
+    assert http.get(f"/api/messages/{revision.id}/versions").status_code == 404
+
+
+def test_an_earlier_version_whose_messages_were_deleted_is_not_counted(
+    test_app, app_module
+):
+    from models import Message, db
+
+    room = make_room("lobby")
+    first = say(room, "ada", "first try")
+    client = client_for(test_app, app_module)
+    resend(client, first, "second try")
+    revision = Message.visible(room.id).one()
+    db.session.delete(db.session.get(Message, first.id))
+    db.session.commit()
+
+    assert revision.version_count() == 1
+    body = test_app.test_client().get(f"/api/messages/{revision.id}/versions").json
+    assert body == {"versions": []}

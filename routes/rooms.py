@@ -379,6 +379,40 @@ def fork_from_message(message_id):
     return fork_conversation(source_room, up_to=message.id)
 
 
+@bp.route("/api/messages/<int:message_id>/versions")
+def message_versions(message_id):
+    """What Edit & resend replaced, for chat's version pager: each earlier
+    version of this message with everything said after it, oldest first,
+    under the room's access rule. Read only: nothing here changes what a
+    room shows or what a model reads."""
+    message = db.session.get(Message, message_id)
+    room = db.session.get(Room, message.room_id) if message else None
+    if (
+        not room
+        or message.superseded_by_id is not None
+        or room_access_denied(room, auth.get_current_user())
+    ):
+        return jsonify({"error": "Message not found"}), 404
+    system_users = DEPS["system_users"]
+    return jsonify(
+        {
+            "versions": [
+                [
+                    {
+                        "id": row.id,
+                        "username": row.username,
+                        "content": row.content,
+                        "from_model": row.username in system_users
+                        and row.username != "system",
+                    }
+                    for row in branch
+                ]
+                for branch in message.earlier_versions()
+            ]
+        }
+    )
+
+
 def may_retitle(room, user):
     """Who may rename a room or refresh its title: its owner, or anyone
     who may open an unowned public room (as /title new always allowed)."""

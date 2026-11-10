@@ -154,9 +154,10 @@ class Message(db.Model):
     Edit & resend never deletes: the edited message & everything after it
     stay as rows, hidden by `superseded_by_id` (the revision that replaced
     them), & the revision names what it revises in `revision_of_id`. So
-    every version of a conversation is kept as a tree of branches we can
-    show later: a revision's hidden branch is the rows superseded by it,
-    starting at its revision_of_id. Read a room through Message.visible().
+    every version of a conversation is kept as a tree of branches: a
+    revision's hidden branch is the rows superseded by it, starting at its
+    revision_of_id (earlier_versions(); chat's version pager shows them).
+    Read a room through Message.visible().
     """
 
     id = db.Column(db.Integer, primary_key=True)
@@ -182,6 +183,31 @@ class Message(db.Model):
     def visible(cls, room_id):
         """A room's current conversation: no superseded branches."""
         return cls.query.filter_by(room_id=room_id, superseded_by_id=None)
+
+    def earlier_versions(self):
+        """The branches this message's edits replaced, oldest first: each a
+        list of rows, the version as it was & everything said after it. A
+        version itself edited again leads one further back."""
+        branches, current = [], self
+        while current is not None and current.revision_of_id:
+            branch = (
+                Message.query.filter_by(
+                    room_id=self.room_id, superseded_by_id=current.id
+                )
+                .order_by(Message.id)
+                .all()
+            )
+            if branch:
+                branches.insert(0, branch)
+            current = db.session.get(Message, current.revision_of_id)
+        return branches
+
+    def version_count(self):
+        """How many versions of this message exist, itself included (1 for
+        a message never edited & resent)."""
+        if not self.revision_of_id:
+            return 1
+        return len(self.earlier_versions()) + 1
 
     def __init__(self, username, content, room_id):
         self.username = username

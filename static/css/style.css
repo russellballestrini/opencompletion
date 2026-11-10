@@ -366,6 +366,68 @@ body.chat-page {
     opacity: 1;
 }
 
+/* Versions of an edited & resent message (5-messages.js addVersionPager):
+   a quiet "‹ 1/2 ›" under its bubble; an earlier version opens below it in
+   a frame, so it never reads as part of our chat. */
+.message-versions {
+    order: 3;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.message-versions-place {
+    min-width: 3ch;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+#chat .message-versions button {
+    min-width: 32px;
+    font-size: 16px;
+}
+
+#chat .message-versions button:disabled {
+    opacity: 0.35;
+    cursor: default;
+    background: none;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    #chat .message-versions button {
+        min-width: 40px;
+        min-height: 40px;
+    }
+}
+
+.earlier-version {
+    order: 4;
+    align-self: stretch;
+    min-width: 0;
+    margin-top: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-secondary);
+}
+
+.earlier-version > .message-wrapper {
+    margin-bottom: var(--space-4);
+}
+
+.earlier-version > .message-wrapper:last-child {
+    margin-bottom: 0;
+}
+
+.earlier-version-note {
+    margin: 0 0 var(--space-3);
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
 .code-block-button-container {
     display: flex;
     flex-wrap: wrap;

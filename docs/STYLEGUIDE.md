@@ -94,7 +94,10 @@ style.css): show & hide with the attribute, never a display rule.
   `.is-mine` on the right in our accent's tint; `.is-model` replies are
   plain text across the pane, so who said what reads at a glance. A
   message being edited (`.message-edit`) opens its bubble to the whole
-  column.
+  column. One that was edited & resent carries `.message-versions`, a
+  quiet `‹ 2/2 ›` pager; an earlier version opens under it as
+  `.earlier-version`, a dashed frame saying which version it is & that it
+  is read only, so it never reads as part of our chat.
   Math is KaTeX's `.katex` (inline) & `.katex-display` (its own line,
   scrolling sideways when wider than the column), typeset from `$…$` &
   `$$…$$` by `renderMarkdown`.

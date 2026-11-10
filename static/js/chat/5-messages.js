@@ -78,6 +78,94 @@ function addForkButton(buttonContainer, messageId) {
     buttonContainer.appendChild(forkButton);
 }
 
+// Versions, on a message that was edited & resent: Edit & resend keeps
+// what it replaced (the earlier words & everything said after them), & this
+// pager opens each earlier version under the message, read only & only on
+// this screen. Our chat carries on from the newest; nothing a model reads
+// changes. Fetched on first use: GET /api/messages/<id>/versions.
+function addVersionPager(wrapper, messageId, count) {
+    if (!(count > 1) || wrapper.querySelector(":scope > .message-versions")) return;
+    const pager = document.createElement("div");
+    pager.className = "message-versions";
+    pager.setAttribute("role", "group");
+    pager.setAttribute("aria-label", "Versions of this message");
+    const step = (text, label) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = text;
+        button.setAttribute("aria-label", label);
+        button.title = label;
+        return button;
+    };
+    const older = step("‹", "Earlier version");
+    const newer = step("›", "Later version");
+    const place = document.createElement("span");
+    place.className = "message-versions-place";
+    place.setAttribute("aria-live", "polite");
+    pager.append(older, place, newer);
+
+    let versions = null;
+    let shown = count;
+    let panel = null;
+    const draw = () => {
+        place.textContent = `${shown}/${count}`;
+        place.title = shown < count ? `Version ${shown} of ${count}, as it was` : `Version ${count} of ${count}, our current one`;
+        older.disabled = shown <= 1;
+        newer.disabled = shown >= count;
+        if (panel) panel.remove();
+        panel = shown < count ? earlierVersionPanel(versions[shown - 1], shown, count) : null;
+        if (panel) wrapper.appendChild(panel);
+    };
+    const go = async (by) => {
+        if (!versions) {
+            try {
+                const response = await fetch(`/api/messages/${messageId}/versions`);
+                if (!response.ok) throw new Error(response.status);
+                versions = (await response.json()).versions;
+            } catch (error) {
+                chatTools.say("Couldn't load that earlier version. Try again.");
+                return;
+            }
+            // Someone may have deleted an earlier version's messages since.
+            count = versions.length + 1;
+            shown = count;
+        }
+        shown = Math.min(count, Math.max(1, shown + by));
+        draw();
+    };
+    older.onclick = () => go(-1);
+    newer.onclick = () => go(1);
+    draw();
+    wrapper.appendChild(pager);
+}
+
+// One earlier version: the message as it was & what was said after it,
+// drawn like our chat (same bubbles, same markdown) inside a quiet frame.
+function earlierVersionPanel(rows, shown, count) {
+    const panel = document.createElement("div");
+    panel.className = "earlier-version";
+    const note = document.createElement("p");
+    note.className = "earlier-version-note";
+    note.textContent = `Version ${shown} of ${count}, as it was. Read only: our chat carries on from version ${count}.`;
+    panel.appendChild(note);
+    rows.forEach((row) => {
+        const item = document.createElement("div");
+        item.className = "message-wrapper";
+        markSender(item, row.username, row.from_model);
+        const words = document.createElement("div");
+        words.className = "message-content";
+        words.innerHTML = renderMarkdown(`${senderLabel(row.username)}\n\n${row.content}`);
+        words.querySelectorAll("pre code").forEach((block) => {
+            hljs.highlightElement(block);
+            addLineNumbers(block);
+            addCopyButtonToCodeBlock(block, false);
+        });
+        item.appendChild(words);
+        panel.appendChild(item);
+    });
+    return panel;
+}
+
 // Socket event for receiving a new message
 // A message we never store (someone joined, an activity step, a reply's
 // "Processing..." placeholder) carries an id of its own, notice-… or
@@ -150,6 +238,7 @@ socket.on("chat_message", (data) => {
     }
 
     messageWrapper.appendChild(newMessage);
+    if (stored) addVersionPager(messageWrapper, data.id, data.versions);
 
     document.getElementById("chat").appendChild(messageWrapper);
 
@@ -303,6 +392,7 @@ socket.on("previous_messages", (data) => {
         renderFlow(newMessage, data.content, data.tools, senderLabel(data.username));
     }
     messageWrapper.appendChild(newMessage);
+    addVersionPager(messageWrapper, data.id, data.versions);
 
     document.getElementById("chat").appendChild(messageWrapper);
 
