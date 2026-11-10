@@ -70,7 +70,7 @@ git remote -v
 - `make backfill-titles` - Title every untitled room holding a conversation (network: a chat model)
 - `make backfill-blobs` - Move base64 images kept inside messages (old DALL-E & vision replies) into our blob store (no network)
 - `make chain-check` - Verify every room's hash chain, deleted rooms' included (`app.py --chain-check`, needs vars.sh): the line rule & links, checkpoints, & live messages against their chained digests; fails on any break
-- `make coverage-check` - Fail below our 82% coverage floor (CI job `coverage`; `.coveragerc` counts tools/, activity_engine, blob_store, classifier & the game modules too); raise it as tests land, never lower it
+- `make coverage-check` - Fail below our 82% coverage floor (CI job `coverage`; `.coveragerc` counts tools/, activity_engine, blob_store, chain, fade, classifier & the game modules too); raise it as tests land, never lower it
 
 ### Network Infrastructure
 

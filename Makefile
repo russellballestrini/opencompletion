@@ -197,7 +197,7 @@ ci: lint test
 # Production-only metrics.
 PYTHON ?= venv/bin/python
 REPORT_DIR ?= reports
-QUALITY_SOURCES := activity.py activity_utils.py activity_yaml_validator.py app.py auth.py init_db.py models.py research/guarded_ai.py routes/__init__.py routes/accounts.py routes/code.py routes/pages.py routes/rooms.py
+QUALITY_SOURCES := activity.py activity_engine.py activity_utils.py activity_yaml_validator.py app.py auth.py battleship_arena.py battleship_modes.py blob_store.py chain.py classifier.py fade.py init_db.py jev_hunter.py models.py repetition_guard.py research/guarded_ai.py routes/__init__.py routes/accounts.py routes/code.py routes/files.py routes/pages.py routes/rooms.py routes/sandbox_proxy.py routes/speech.py routes/status.py throttle.py tools/__init__.py tools/browser.py tools/loop.py tools/oversight.py tools/policy.py tools/sandbox.py tools/web_fetch.py
 TEST_PATHS ?= tests/
 COVERAGE_MIN ?= 0
 

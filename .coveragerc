@@ -34,4 +34,7 @@ include =
     repetition_guard.py
     jev_hunter.py
     battleship_modes.py
+    battleship_arena.py
+    chain.py
+    fade.py
 show_missing = True
