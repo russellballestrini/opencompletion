@@ -405,9 +405,10 @@ def fetch_external_image_as_base64(image_url: str) -> str | None:
         return _external_image_cache[image_url]
 
     try:
-        proxy_url = f"{CORS_PROXY_URL}?uri_target={image_url}"
+        # The address is one parameter's value, as 2-vision.js sends it
+        # (encodeURIComponent): unencoded, its own `&` & `#` cut it short.
         with httpx.Client(timeout=15.0) as client:
-            response = client.get(proxy_url)
+            response = client.get(CORS_PROXY_URL, params={"uri_target": image_url})
 
             if response.status_code == 403:
                 print(f"Image blocked by robots.txt: {image_url}")
