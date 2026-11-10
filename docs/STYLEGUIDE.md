@@ -127,8 +127,9 @@ style.css): show & hide with the attribute, never a display rule.
   (`.is-viewing-earlier`). Its one action, **Continue from here**
   (`.earlier-version-actions`, outlined, at its end), starts a new chat
   from that version; its title says solo or a public chatroom. Message actions rest in `--text-secondary` at
-  full opacity (never dimmed below 4.5:1). A table in a message is ruled
-  & scrolls inside itself when wide.
+  full opacity (never dimmed below 4.5:1). A table in a message is ruled,
+  keeps its words whole & scrolls inside itself when wide, never the
+  page. **(tested)**
 - **Deleted line** `.deleted-line` (`deletedLine` in `5-messages.js`)
   takes a deleted message's place for everyone in the room: one quiet,
   dashed, centred line, "A message from ada was deleted by bob." & a

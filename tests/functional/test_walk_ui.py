@@ -264,3 +264,57 @@ def test_followup_chips_look_like_chips_after_a_replys_actions(client, tmp_path,
     make_room("lobby")
     html = client.get("/chat/lobby").get_data(as_text=True)
     passed(run_probe(html, CHIPS_PROBE, tmp_path, width))
+
+
+# --- 4. Tables on a phone -----------------------------------------------
+
+TABLE_PROBE = (
+    r"""
+<script>
+window.addEventListener('load', async () => {"""
+    + PROBE_HEAD
+    + r"""
+    const table = [
+        '| Name | Diameter (km) | Day length | Moons | Discovered | Notes |',
+        '|---|---|---|---|---|---|',
+        '| Mercury | 4,879 | 1,408 hours | 0 | Antiquity | Smallest planet |',
+        '| Venus | 12,104 | 5,832 hours | 0 | Antiquity | Hottest planet |',
+        '| Neptune | 49,244 | 16 hours | 16 | 1846 | Farthest planet |',
+    ].join('\n');
+    testSocket.deliver('chat_message', {id: 6, username: 'hermes', content: 'Planets:\n\n' + table, from_model: true});
+    testSocket.deliver('chat_message', {id: 7, username: 'ada', content: table});
+    for (const id of [6, 7]) {
+        const el = document.querySelector(`#message-${id} table`);
+        check(el, 'a table renders in message ' + id);
+        if (!el) continue;
+        // One word, one line: never "Na/m/e" or "M/er/cu/ry".
+        for (const cell of el.querySelectorAll('th, td')) {
+            const word = cell.textContent.trim();
+            if (/\s/.test(word)) continue;
+            const range = document.createRange();
+            range.selectNodeContents(cell);
+            const lines = new Set([...range.getClientRects()].map(r => Math.round(r.top)));
+            check(lines.size === 1, `"${word}" stays whole in message ${id}: ${lines.size} lines`);
+        }
+        check(getComputedStyle(el).overflowX === 'auto' && el.scrollWidth > el.clientWidth, `a wide table scrolls inside message ${id}: ${el.scrollWidth} in ${el.clientWidth}`);
+        const column = document.getElementById('message-' + id).getBoundingClientRect();
+        check(el.getBoundingClientRect().right <= column.right + 1, 'the table stays inside its message ' + id);
+    }
+    const chat = document.getElementById('chat');
+    check(chat.scrollWidth <= chat.clientWidth + 1, 'our chat does not scroll sideways');
+    check(document.documentElement.scrollWidth <= window.innerWidth + 1, 'the page does not scroll sideways');
+    // Words outside a table still break when they must.
+    testSocket.deliver('chat_message', {id: 8, username: 'hermes', content: 'x'.repeat(400), from_model: true});
+    check(document.documentElement.scrollWidth <= window.innerWidth + 1, 'a long word still wraps');
+    finish();
+});
+</script>
+"""
+)
+
+
+@pytest.mark.parametrize("width", [320, 390])
+def test_a_wide_table_scrolls_and_keeps_its_words_whole(client, tmp_path, width):
+    make_room("lobby")
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    passed(run_probe(html, TABLE_PROBE, tmp_path, width))

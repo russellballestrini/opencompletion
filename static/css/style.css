@@ -512,13 +512,17 @@ body.chat-page {
     }
 }
 
-/* A table in a message: ruled, padded, scrolling inside itself when wide. */
+/* A table in a message: ruled, padded, scrolling inside itself when wide.
+   Its words stay whole (a message's own break-word would squeeze every
+   column to a letter before the table ever scrolled). */
 .message-content table {
     display: block;
     max-width: 100%;
     overflow-x: auto;
     border-collapse: collapse;
     margin: var(--space-3) 0;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .message-content th,
