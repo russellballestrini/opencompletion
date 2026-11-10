@@ -166,3 +166,52 @@ def test_a_remembered_id_never_renames_another_room(client):
     )
     assert right.status_code == 200
     assert db.session.get(Room, lobby.id).title == "Lobby talk"
+
+
+# --- 2. A title reaches every row ---------------------------------------
+
+GUEST_TITLE_PROBE = (
+    r"""
+<script>
+window.addEventListener('load', async () => {"""
+    + PROBE_HEAD
+    + r"""
+    // A guest whose rows come from this browser alone (no id on them).
+    document.querySelectorAll('#public-chats li').forEach(row => row.remove());
+    localStorage.setItem('recentChats', JSON.stringify([
+        {name: 'lobby', title: null, public: true},
+        {name: 'elsewhere', title: null, public: true},
+    ]));
+    fillGuestChats('lobby');
+    const row = name => document.querySelector(`#your-chats li[data-room-name="${name}"]`);
+    check(row('lobby') && !row('lobby').dataset.roomId, 'a guest row without an id');
+
+    testSocket.deliver('update_room_title', {title: 'Weekend <b>plans</b>'});
+    check(document.getElementById('chat-title').textContent === 'Weekend <b>plans</b>', 'top bar shows the title');
+    const name = row('lobby').querySelector('.chat-list-name');
+    check(name.textContent === 'Weekend <b>plans</b>' && !name.querySelector('b'), 'our open room\'s row shows it too, as text: ' + name.textContent);
+    check(row('lobby').querySelector('a').title === 'Weekend <b>plans</b>', 'its link is titled alike');
+
+    // Another room of ours is retitled elsewhere: found by name.
+    testSocket.deliver('update_room_list', {id: 77, name: 'elsewhere', title: 'Far away'});
+    check(row('elsewhere').querySelector('.chat-list-name').textContent === 'Far away', 'a row with no id is renamed by its room\'s name');
+    const kept = recentChats();
+    check(kept.find(c => c.name === 'elsewhere').title === 'Far away', 'this browser keeps the new title');
+    check(kept[0].name === 'lobby', 'a retitled room does not jump our list: ' + kept.map(c => c.name));
+    // A row our server rendered (with an id) is renamed all the same.
+    const served = row('elsewhere').cloneNode(true);
+    served.dataset.roomId = '77';
+    document.getElementById('public-chats').appendChild(served);
+    testSocket.deliver('update_room_list', {id: 77, name: 'elsewhere', title: 'Further still'});
+    check(served.querySelector('.chat-list-name').textContent === 'Further still', 'every row of a room is renamed');
+    finish();
+});
+</script>
+"""
+)
+
+
+def test_a_title_reaches_a_guests_rows(client, tmp_path):
+    make_room("lobby", message="hi")
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    passed(run_probe(html, GUEST_TITLE_PROBE, tmp_path, 1280))

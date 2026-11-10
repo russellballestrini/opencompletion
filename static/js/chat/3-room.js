@@ -410,24 +410,34 @@ socket.on("update_room_title", (data) => {
     document.title = data.title; // Update the window's title
     document.getElementById("chat-title").textContent = data.title;
     if (!CHAT_CONFIG.isPrivate) rememberRecentChat(room_name, data.title);
+    // Every row showing this room, a guest's (no id, from this browser's
+    // history) as much as a signed-in one's (chat-actions.js).
+    if (data.title) showRoomTitle({name: room_name}, data.title);
 });
 
 // A new or retitled room, live in our sidebar (_app_sidebar.html). Rows
 // come from chatListItem() in utils.js, the same markup the server renders.
 socket.on('update_room_list', function(updatedRoom) {
     // A room sits in one list (yours, else public); rename every row of
-    // it all the same.
-    const rows = document.querySelectorAll(`#app-sidebar li[data-room-id="${updatedRoom.id}"]`);
+    // it all the same, found by its name: a guest's rows (this browser's
+    // history) may carry no id.
+    const rows = document.querySelectorAll(`#app-sidebar li[data-room-name="${CSS.escape(updatedRoom.name)}"]`);
     if (rows.length) {
-        const label = updatedRoom.title || updatedRoom.name;
-        rows.forEach(row => {
-            row.querySelector('.chat-list-name').textContent = label;
-            row.querySelector('a').title = label;
-        });
+        if (updatedRoom.title) {
+            showRoomTitle(updatedRoom, updatedRoom.title);
+            retitleRecentChat(updatedRoom.name, updatedRoom.title);
+        }
     } else if (updatedRoom.is_new) {
         const list = document.getElementById(updatedRoom.is_private ? 'your-chats' : 'public-chats');
         if (!list) return;
-        list.prepend(chatListItem(updatedRoom, updatedRoom.is_private ? '🔒' : '', 'solo'));
+        // A solo room's news reaches only its owner, who may do anything
+        // with it; a public one offers what anyone may do.
+        const room = {
+            ...updatedRoom,
+            canRetitle: updatedRoom.is_private || updatedRoom.anyone_may_retitle === true,
+            canRemove: Boolean(updatedRoom.is_private),
+        };
+        list.prepend(chatListItem(room, updatedRoom.is_private ? '🔒' : '', 'solo'));
         if (updatedRoom.is_private) document.getElementById('your-chats-empty').hidden = true;
     }
 });
