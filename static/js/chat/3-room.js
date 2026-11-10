@@ -168,12 +168,27 @@ document.addEventListener('DOMContentLoaded', (event) => {
     voiceSelectDesktop.addEventListener("change", syncDropdownsAndQueryString);
 });
 
-// Socket event when the user connects
-socket.on("connect", () => {
-    // Sanitize the username before joining
-    const sanitizedUsername = sanitizeUsername(username);
-    socket.emit("join", {"username": sanitizedUsername, "room_name": room_name});
-});
+// Join our room: on every connection, the first & each reconnect (a new
+// connection is in no room until it asks). Our server answers with the
+// room as it stands, so whatever we missed while away is put right
+// (5-messages.js: previous_messages). Once per connection, however often
+// we are asked.
+let joinedConnection = null;
+function joinRoom() {
+    if (!socket.connected || joinedConnection === (socket.id || true)) return;
+    joinedConnection = socket.id || true;
+    socket.emit("join", {"username": sanitizeUsername(username), "room_name": room_name});
+}
+socket.on("connect", joinRoom);
+socket.on("disconnect", () => { joinedConnection = null; });
+
+// Called by chat.html once every chat script has loaded, so no event can
+// arrive before its handler. A socket that connected already (it never
+// should: base.html makes it with autoConnect off) joins now all the same.
+function startChat() {
+    if (socket.connected) joinRoom();
+    else socket.connect();
+}
 
 // We hear our room now: remember it for our home page's "Your chats" and
 // send the first message our home page handed over, if it was for here.

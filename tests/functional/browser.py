@@ -31,17 +31,41 @@ _browser_cache = {}
 
 # socket.io is swapped for a fake: `testSocket.deliver(event, data)` plays a
 # server event into the page's handlers & `testSocket.sent` records emits.
+# Like a real one it connects when made unless `io({autoConnect: false})`,
+# & a connection lands on its own time: a probe says when (`land()`), drops
+# it (`drop()`), or sets one of these before our page's scripts run:
+#   window.TEST_SOCKET_LANDS = "at once"  connect() lands before it returns
+#   window.TEST_SOCKET_LANDS = "early"    connected as soon as io() returns,
+#                                         whatever autoConnect says: before
+#                                         any handler is attached
+# A streamed chunk is drawn on our page's next frame; `deliver` draws it at
+# once (window.flushStreamNow) so a probe reads what a person would see,
+# unless `testSocket.frames = true` leaves frames to our page.
 FAKE_SOCKET = """<script>
-window.io = () => {
+window.io = (options) => {
     const handlers = {};
     const socket = {
         sent: [],
+        connected: false,
+        frames: false,
         on(event, fn) { (handlers[event] = handlers[event] || []).push(fn); },
         off() {},
         emit(event, data) { socket.sent.push([event, data]); },
-        deliver(event, data) { (handlers[event] || []).forEach(fn => fn(data)); }
+        deliver(event, data) {
+            (handlers[event] || []).forEach(fn => fn(data));
+            if (!socket.frames && window.flushStreamNow) window.flushStreamNow();
+        },
+        connect() {
+            if (!socket.connected && window.TEST_SOCKET_LANDS) socket.land();
+        },
+        land() { socket.connected = true; socket.deliver("connect"); },
+        drop(reason) {
+            socket.connected = false;
+            socket.deliver("disconnect", reason || "transport close");
+        }
     };
     window.testSocket = socket;
+    if (window.TEST_SOCKET_LANDS === "early" || !options || options.autoConnect !== false) socket.connect();
     return socket;
 };
 </script>"""

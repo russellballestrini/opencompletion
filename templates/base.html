@@ -19,8 +19,10 @@
     <script src="{{ url_for('static', filename='vendor/katex-0.19.1.min.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/katex-0.19.1.min.css') }}">
     <script>
-      // Connect to the server using socket.io
-      const socket = io();
+      // Our socket, not yet connecting: chat.html connects it once every
+      // chat script has attached its handlers (startChat in 3-room.js). A
+      // connection that landed first was never told to join its room.
+      const socket = io({autoConnect: false});
     </script>
 {% endblock %}
 
