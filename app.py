@@ -881,6 +881,22 @@ def describe_image():
         return jsonify({"error": str(e)}), 500
 
 
+def missing_page(heading, detail, status):
+    """A page that says what is missing & offers a way on, in our shell
+    (themes, a phone's viewport), never a bare line of text."""
+    return render_template("not_found.html", heading=heading, detail=detail), status
+
+
+@app.errorhandler(404)
+def page_not_found(error):
+    # Our API & files answer scripts: they keep their own short replies.
+    if request.path.startswith(("/api/", "/attachments/", "/static/")):
+        return error
+    return missing_page(
+        "Nothing here", "No page lives at this address. It may have moved.", 404
+    )
+
+
 @app.route("/chat/<room_name>")
 def chat(room_name):
     user = auth.get_current_user()
@@ -891,11 +907,20 @@ def chat(room_name):
     # A room that doesn't exist yet is created in get_room() when someone
     # joins, so only a name that may become a room gets a chat page.
     if room is None and not valid_room_name(room_name):
-        return "No such room", 404
+        return missing_page(
+            "No such room",
+            "A room's name is up to 64 lowercase letters, numbers, - or _, "
+            "starting with a letter or number.",
+            404,
+        )
 
     # Check if they're trying to access a private room they don't own
     if room_access_denied(room, user):
-        return "Access denied: this is someone's solo chat", 403
+        return missing_page(
+            "This is someone's solo chat",
+            "Only its owner can open it. If it is yours, sign in.",
+            403,
+        )
 
     # Use authenticated user's display name, or None (will prompt on client side)
     username = user.display_name if user else None

@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ heading }} - {{ brand_name }}{% endblock %}
+{% block page_class %}page-narrow{% endblock %}
+
+{% block content %}
+<div class="empty-state">
+    <h1 class="page-title">{{ heading }}</h1>
+    <p>{{ detail }}</p>
+    <p><a class="btn" href="/">Start a new chat</a></p>
+    <p><a href="/browse">Browse our rooms</a></p>
+</div>
+{% endblock %}
