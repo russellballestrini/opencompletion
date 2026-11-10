@@ -1,3 +1,7 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Magic 8 Ball"
+description: "Ask a yes or no question & see what our Magic 8 Ball answers."
+kind: "game"
 default_max_attempts_per_step: 1
 sections:
   - section_id: "section_1"

@@ -1,3 +1,6 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Introduction to machine learning"
+description: "A short sample lesson asking what we understand by machine learning."
 default_max_attempts_per_step: 3
 sections:
   - section_id: "section_1"

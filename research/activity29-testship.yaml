@@ -1,3 +1,5 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+description: "Battleship with a one-square fleet: a quick game for testing its flow."
 default_max_attempts_per_step: 9
 tokens_for_ai_rubric: |
   based on the game without knowing where each ship was, score the process each player used to target ships.

@@ -1,3 +1,5 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+kind: "game"
 default_max_attempts_per_step: 30
 
 tokens_for_ai_rubric: |

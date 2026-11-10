@@ -1144,6 +1144,55 @@ sections:
         finally:
             os.unlink(temp_file)
 
+    # What our Activities gallery shows: optional title, description & kind.
+    GALLERY_ACTIVITY = """
+{keys}
+sections:
+  - section_id: "s"
+    title: "Section"
+    steps:
+      - step_id: "only"
+        title: "Only"
+        content_blocks: ["Hello."]
+"""
+
+    def gallery_errors(self, keys):
+        temp_file = self.create_temp_yaml(self.GALLERY_ACTIVITY.format(keys=keys))
+        try:
+            is_valid, errors, _ = self.validator.validate_file(temp_file)
+            return is_valid, errors
+        finally:
+            os.unlink(temp_file)
+
+    def test_gallery_keys_are_optional(self):
+        is_valid, errors = self.gallery_errors("")
+        self.assertTrue(is_valid, errors)
+
+    def test_gallery_keys_pass_as_strings(self):
+        for kind in ("game", "lesson", "tool", "Game"):
+            is_valid, errors = self.gallery_errors(
+                f'title: "Vault Heist"\ndescription: "Crack a code."\nkind: "{kind}"'
+            )
+            self.assertTrue(is_valid, errors)
+
+    def test_gallery_keys_must_be_non_empty_strings(self):
+        for keys, field in (
+            ("title: 29", "title"),
+            ('title: ""', "title"),
+            ("description: [a, list]", "description"),
+            ("kind: true", "kind"),
+        ):
+            is_valid, errors = self.gallery_errors(keys)
+            self.assertFalse(is_valid, keys)
+            self.assertIn(f"{field} must be a non-empty string", errors)
+
+    def test_gallery_kind_must_be_one_we_know(self):
+        is_valid, errors = self.gallery_errors('kind: "puzzle"')
+        self.assertFalse(is_valid)
+        self.assertTrue(
+            any("kind must be one of game, lesson, tool" in e for e in errors), errors
+        )
+
 
 if __name__ == "__main__":
     # Run the tests

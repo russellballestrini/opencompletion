@@ -15,6 +15,8 @@ import argparse
 from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
 
+from activity_gallery import KINDS as GALLERY_KINDS
+
 
 class ValidationError(Exception):
     """Custom exception for validation errors"""
@@ -167,6 +169,20 @@ class ActivityYAMLValidator:
         if "feedback_model" in data:
             if not isinstance(data["feedback_model"], str):
                 self.errors.append("feedback_model must be a string")
+
+        # What our Activities gallery shows (activity_gallery.py): each is
+        # optional & derived from the activity when left out.
+        for field in ("title", "description", "kind"):
+            if field in data and (
+                not isinstance(data[field], str) or not data[field].strip()
+            ):
+                self.errors.append(f"{field} must be a non-empty string")
+        if isinstance(data.get("kind"), str) and data["kind"].strip():
+            if data["kind"].strip().lower() not in GALLERY_KINDS:
+                self.errors.append(
+                    f"kind must be one of {', '.join(GALLERY_KINDS)}"
+                    f" (got '{data['kind']}')"
+                )
 
     def _validate_sections(self, sections: List[Dict[str, Any]]):
         """Validate sections structure"""

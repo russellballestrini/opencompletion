@@ -1,3 +1,7 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Math Plotter"
+description: "Name a mathematical function & see it plotted in our room."
+kind: "tool"
 default_max_attempts_per_step: 3
 
 # Common processing script for all plotting steps

@@ -22,6 +22,10 @@
 #   move                (temporary) guess | hint | chatter: what a bucket asks
 #                       our script to do with this response
 
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Vault Heist"
+description: "Crack a vault's code together: anyone in our room may call out a guess, & every guess spends one of our shared tries."
+kind: "game"
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"

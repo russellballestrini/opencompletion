@@ -13,6 +13,23 @@
 # ==============================================================================
 # These fields apply to the entire activity
 
+# What our Activities gallery (/activities) shows on this activity's card.
+# All three are optional strings: left out, each is derived from the
+# activity itself, with no model asked & no script run (activity_gallery.py):
+#   title        the first step's first "# heading" when it shares a word
+#                with the file's name, else the file's name
+#                (activity29-battleship.yaml -> "Battleship")
+#   description  the first step's opening prose, cut at a sentence within
+#                about 140 characters
+#   kind         "game" when a step has a processing_script or pre_script or
+#                a transition draws from metadata_random/metadata_tmp_random,
+#                else "lesson"
+# Say them here when the derived ones read badly. kind must be "game",
+# "lesson" or "tool"; "tool" is never derived.
+title: "Activity Specification"
+description: "Our reference for every mechanic an activity YAML may use."
+kind: "lesson"
+
 # Maximum number of times a user can attempt each step before auto-advancing
 # Default: 3
 # Optional

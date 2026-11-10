@@ -1,3 +1,7 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Battleship"
+description: "Hunt a hidden fleet on a 10x10 grid before an enemy admiral of our choosing, from random shots to a probability grid, sinks ours."
+kind: "game"
 default_max_attempts_per_step: 9
 tokens_for_ai_rubric: |
   based on the game without knowing where each ship was, score the process each player used to target ships.

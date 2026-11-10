@@ -1,3 +1,5 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+description: "We & our computer each hide on a 3x3 board, then take turns striking squares: hit their hiding place first to win."
 default_max_attempts_per_step: 9
 sections:
   - section_id: "section_1"

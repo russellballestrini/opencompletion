@@ -1,3 +1,6 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Dinosaur Time Machine"
+description: "Travel to the Triassic, Jurassic & Cretaceous with a machine learning guide & meet what lived there."
 default_max_attempts_per_step: 5
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"

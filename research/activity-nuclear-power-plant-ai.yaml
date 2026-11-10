@@ -3,6 +3,9 @@
 # Mix of current technology ramped up with near-future innovations
 # Uses MODEL_1 (Hermes) for excellent role-playing and character consistency
 
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Nuclear Power Plant Operator"
+description: "Role-play ARIA, a machine learning operator running a near-future nuclear power station through its shifts & emergencies."
 default_max_attempts_per_step: 5
 classifier_model: "MODEL_1"  # Hermes - excellent for AI character role-play
 feedback_model: "MODEL_1"    # Hermes - maintains character consistency
