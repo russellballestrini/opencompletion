@@ -1171,7 +1171,8 @@ textarea:focus {
     overflow-wrap: anywhere;
 }
 
-/* What a message search found, above the list of rooms. */
+/* What a message search found, above the list of rooms; that list then
+   carries a heading of its own (#rooms-list-heading). */
 .rooms-found {
     margin-bottom: var(--space-6);
     padding-bottom: var(--space-4);

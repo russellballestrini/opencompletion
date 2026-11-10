@@ -247,7 +247,7 @@ def test_search_lives_on_the_rooms_page(client):
     make_room("second-room", message="wombat two wombat")
     page = client.get("/browse?q=wombat").get_data(as_text=True)
     found = page[page.index('class="rooms-found"') : page.index('id="room-grid"')]
-    assert "Messages that mention “wombat” · 2 rooms" in found
+    assert "Rooms whose messages mention “wombat” · 2 rooms" in found
     assert found.index("second-room") < found.index("first-room")  # most first
     moved = client.get("/search?keywords=wombat")
     assert moved.status_code == 302 and moved.headers["Location"].endswith(
@@ -255,6 +255,102 @@ def test_search_lives_on_the_rooms_page(client):
     )
     assert client.get("/search").headers["Location"].endswith("/browse")
     assert 'href="/search"' not in client.get("/").get_data(as_text=True)
+
+
+def test_a_search_marks_the_rooms_it_already_lists(client):
+    """A room found by its messages is marked in our list of rooms below
+    (data-found) & starts hidden there, so no room shows twice; that list
+    carries a heading of its own only beside a search."""
+    make_room("lobby", message="a muppet said hi")
+    make_room("muppet-show", message="curtain up")
+    page = client.get("/browse?q=muppet").get_data(as_text=True)
+    grid = page[page.index('id="room-grid"') :]
+    cards = dict(
+        re.findall(r'data-room-name="([^"]+)"[^>]*data-scopes="[^"]+"([^>]*)>', grid)
+    )
+    assert cards == {"lobby": " data-found hidden", "muppet-show": ""}
+    assert "Other rooms named or titled like “muppet”</h2>" in page
+    plain = client.get("/browse").get_data(as_text=True)
+    assert "data-found" not in plain
+    assert '<h2 id="rooms-list-heading" class="rooms-found-heading" hidden>' in plain
+
+
+ROOMS_SEARCH_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const shown = el => !el.hidden && getComputedStyle(el).display !== 'none';
+    const names = scope => [...document.querySelectorAll(scope + ' .room-card-wrap')].filter(shown).map(c => c.dataset.roomName).sort().join();
+    const heading = document.getElementById('rooms-list-heading');
+    const empty = document.getElementById('rooms-empty');
+    const box = document.getElementById('rooms-filter');
+    const type = words => { box.value = words; box.dispatchEvent(new Event('input')); };
+
+    // Searched: two headed lists, & no room in both
+    check(document.getElementById('rooms-found-heading').textContent.includes('Rooms whose messages mention “muppet” · 2 rooms'), 'found rooms say what they are');
+    check(names('.rooms-found') === 'both-muppet,lobby', 'found by messages: ' + names('.rooms-found'));
+    check(shown(heading) && heading.textContent === 'Other rooms named or titled like “muppet”', 'our list says what it is: ' + heading.textContent);
+    check(names('#room-grid') === 'muppet-show', 'only other rooms named like it: ' + names('#room-grid'));
+    check(!shown(empty), 'no empty state beside a room');
+    check(document.documentElement.scrollWidth <= innerWidth, 'horizontal overflow');
+
+    // Typing still filters, & our heading follows the words
+    type('gard');
+    check(heading.textContent === 'Rooms named or titled like “gard”', 'heading follows typing: ' + heading.textContent);
+    check(names('#room-grid') === 'garden', 'typing filters: ' + names('#room-grid'));
+    check(shown(document.getElementById('rooms-search-messages')), 'message search offered for new words');
+    type('both');
+    check(names('#room-grid') === 'both-muppet', 'other words find a room listed above too: ' + names('#room-grid'));
+    type('');
+    check(heading.textContent === 'Public rooms' && names('#room-grid') === 'both-muppet,garden,lobby,muppet-show', 'an empty box lists every room: ' + names('#room-grid'));
+    type('zebra');
+    check(shown(empty) && empty.textContent.includes('No rooms are named or titled like “zebra”'), 'no room named like it says so');
+
+    // Back to the searched words: found rooms leave our list again
+    type('muppet');
+    check(names('#room-grid') === 'muppet-show', 'searched words again: ' + names('#room-grid'));
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+ROOMS_SEARCH_EMPTY_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const shown = el => !el.hidden && getComputedStyle(el).display !== 'none';
+    const grid = [...document.querySelectorAll('#room-grid .room-card-wrap')].filter(shown);
+    const empty = document.getElementById('rooms-empty');
+    check(grid.length === 0, 'a room found above is not repeated: ' + grid.map(c => c.dataset.roomName));
+    check(shown(document.getElementById('rooms-list-heading')), 'our second list keeps its heading');
+    check(shown(empty) && empty.textContent.includes('No other rooms are named or titled like “wombat”'), 'an empty second list says so: ' + empty.textContent.trim());
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [375, 1280])
+def test_a_search_shows_two_headed_lists_and_no_room_twice(client, tmp_path, width):
+    """fox, 2026-11-10: a search's rooms were followed by our whole list
+    again, unheaded, so every match showed twice."""
+    make_room("lobby", message="a muppet said hi")
+    make_room("both-muppet", message="muppet muppet")
+    make_room("muppet-show", message="curtain up")
+    make_room("garden", message="tomatoes")
+    html = client.get("/browse?show=public&q=muppet").get_data(as_text=True)
+    out = run_probe(html, ROOMS_SEARCH_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+def test_a_search_with_no_other_rooms_says_so(client, tmp_path):
+    make_room("lobby", message="wombat")
+    make_room("garden", message="tomatoes")
+    html = client.get("/browse?show=public&q=wombat").get_data(as_text=True)
+    out = run_probe(html, ROOMS_SEARCH_EMPTY_PROBE, tmp_path, 375)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
 def test_private_room_updates_stay_inside_the_room(test_app):

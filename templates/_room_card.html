@@ -1,8 +1,9 @@
 {# One room in a grid: browse & search. `room` is a Room or a search
-   result (both carry name, title & is_private); `meta` & `scopes` (the
-   Rooms page's filters it belongs to: mine, solo, public) are optional.
+   result (both carry name, title & is_private); `meta`, `scopes` (the
+   Rooms page's filters it belongs to: mine, solo, public) & `also_found`
+   (a message search already lists it above: data-found) are optional.
    Its title leads; its name (the link's slug) sits under it. #}
-<div class="room-card-wrap" data-room-id="{{ room.id }}" {% include "_room_actions_data.html" %}{% if scopes is defined %} data-scopes="{{ scopes|join(' ') }}"{% endif %}>
+<div class="room-card-wrap" data-room-id="{{ room.id }}" {% include "_room_actions_data.html" %}{% if scopes is defined %} data-scopes="{{ scopes|join(' ') }}"{% endif %}{% if also_found is defined and also_found %} data-found hidden{% endif %}>
 <a href="{{ url_for('chat', room_name=room.name) }}" class="room-card">
     <div class="room-card-header">
         <h3 class="room-card-name">{{ room.title or room.name }}</h3>

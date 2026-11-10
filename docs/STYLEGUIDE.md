@@ -61,7 +61,7 @@ style.css): show & hide with the attribute, never a display rule.
   its title leads (`.room-card-name`), its name sits under it
   (`.room-card-slug`), `.badge-private` (Solo) or `.badge-public` &
   "active 2h ago" (`ago` filter). Our Rooms page filters one list with a
-  `.segmented` radio group (Yours · Solo · Public, `?show=`) & a text box that filters by title or name as you type & searches messages on Enter (`?q=`, `search_messages`; old `/search` links redirect there).
+  `.segmented` radio group (Yours · Solo · Public, `?show=`) & a text box that filters by title or name as you type & searches messages on Enter (`?q=`, `search_messages`; old `/search` links redirect there). A search shows two headed lists, no room in both: rooms whose messages mention the words (`.rooms-found`), then the other rooms named or titled like them (`#rooms-list-heading` + `#room-grid`), each saying so when empty.
 - **Chat actions** a `.chat-actions-btn` (⋯, `data-chat-actions`) on each
   sidebar chat & room card opens `.chat-actions-menu` (`chat-actions.js`):
   what it offers comes from `_room_actions_data.html`'s data attributes.
