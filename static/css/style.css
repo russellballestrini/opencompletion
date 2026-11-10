@@ -2552,15 +2552,20 @@ button.sidebar-more {
     stroke-linejoin: round;
 }
 
-/* Follow-up suggestions under our newest model reply. */
+/* Follow-up suggestions under our newest model reply: after the reply's
+   own actions (order 2) & any version pager, never between a reply & its
+   actions. Chips are outlined pills, not chat's quiet buttons, so their
+   rules name #chat to outrank `#chat button`. */
 .followups {
+    order: 5;
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
     margin-top: var(--space-3);
 }
 
-.followup-chip {
+.followup-chip,
+#chat .followup-chip {
     max-width: 100%;
     min-height: 36px;
     padding: var(--space-1) var(--space-3);
@@ -2576,9 +2581,18 @@ button.sidebar-more {
 }
 
 .followup-chip:hover,
-.followup-chip:focus-visible {
+.followup-chip:focus-visible,
+#chat .followup-chip:hover,
+#chat .followup-chip:focus-visible {
     border-color: var(--button-primary);
     background-color: var(--bg-hover);
+}
+
+@media (max-width: 768px) {
+    .followup-chip,
+    #chat .followup-chip {
+        min-height: 40px;
+    }
 }
 
 /* ========================================

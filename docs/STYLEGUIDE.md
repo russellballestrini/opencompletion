@@ -87,8 +87,11 @@ style.css): show & hide with the attribute, never a display rule.
   Rename & Refresh title for a room anyone may retitle, by the id our
   server gave when the room was recorded. A new title reaches every row
   of its room, found by name (`showRoomTitle`).
-- **Follow-ups** `.followups` of `.followup-chip`s under our newest reply;
-  `.scroll-bottom` (↓) floats above the composer once you scroll up.
+- **Follow-ups** `.followups` of `.followup-chip`s under our newest reply,
+  after its own actions: outlined pills in our text colour (their rules
+  name `#chat` to outrank chat's quiet buttons), 40px tall on phones.
+  **(tested)** `.scroll-bottom` (↓) floats above the composer once you
+  scroll up.
 - **Tool lines** `.message-tools` of `.message-tool`s inside a reply
   (`8-tools.js`), each a two-column grid: a status dot (`::before`:
   running pulses in our accent, done green, `.is-error` red) & the line.

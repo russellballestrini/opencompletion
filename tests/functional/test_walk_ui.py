@@ -215,3 +215,52 @@ def test_a_title_reaches_a_guests_rows(client, tmp_path):
     make_room("lobby", message="hi")
     html = client.get("/chat/lobby").get_data(as_text=True)
     passed(run_probe(html, GUEST_TITLE_PROBE, tmp_path, 1280))
+
+
+# --- 3. Follow-up chips ---------------------------------------------------
+
+CHIPS_PROBE = (
+    r"""
+<script>
+window.addEventListener('load', async () => {"""
+    + PROBE_HEAD
+    + r"""
+    testSocket.deliver('chat_message', {id: 5, username: 'hermes', content: 'Kermit, Piggy & Gonzo.', from_model: true});
+    testSocket.deliver('followup_suggestions', {message_id: 5, suggestions: ['Who made the Muppets?', 'Which one is the oldest?']});
+    const wrapper = document.getElementById('message-5');
+    const chips = [...wrapper.querySelectorAll('.followup-chip')];
+    check(chips.length === 2, 'two chips: ' + chips.length);
+    const look = getComputedStyle(chips[0]);
+    check(look.borderTopStyle === 'solid' && look.borderTopWidth === '1px', 'a chip is outlined: ' + look.borderTopStyle + ' ' + look.borderTopWidth);
+    check(look.backgroundColor !== 'rgba(0, 0, 0, 0)', 'a chip has its own surface: ' + look.backgroundColor);
+    const words = getComputedStyle(wrapper.querySelector('.message-content')).color;
+    check(look.color === words, 'a chip reads in our text colour, not a quiet grey: ' + look.color);
+    check(parseFloat(look.borderTopLeftRadius) >= 16, 'a chip is a pill: ' + look.borderTopLeftRadius);
+    const phone = window.innerWidth <= 768;
+    chips.forEach(chip => {
+        const height = chip.getBoundingClientRect().height;
+        check(height >= (phone ? 40 : 36), 'a chip is tall enough to tap: ' + height);
+    });
+    // A reply, then its own actions, then what to ask next.
+    const content = wrapper.querySelector('.message-content').getBoundingClientRect();
+    const actions = wrapper.querySelector(':scope > .button-container').getBoundingClientRect();
+    const row = wrapper.querySelector('.followups').getBoundingClientRect();
+    check(content.bottom <= actions.top + 1, 'actions come after the reply');
+    check(actions.bottom <= row.top + 1, 'chips come after the reply\'s actions: ' + actions.bottom + ' vs ' + row.top);
+    check(document.documentElement.scrollWidth <= window.innerWidth + 1, 'the page does not scroll sideways');
+    // A chip still sends its question.
+    chips[0].click();
+    const sent = testSocket.sent.find(([event]) => event === 'chat_message');
+    check(sent && sent[1].message === 'Who made the Muppets?', 'a chip sends its question');
+    finish();
+});
+</script>
+"""
+)
+
+
+@pytest.mark.parametrize("width", [375, 1280])
+def test_followup_chips_look_like_chips_after_a_replys_actions(client, tmp_path, width):
+    make_room("lobby")
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    passed(run_probe(html, CHIPS_PROBE, tmp_path, width))
