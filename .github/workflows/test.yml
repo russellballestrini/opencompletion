@@ -22,6 +22,8 @@ env:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    # A job takes ~3 minutes; a hang once ran 6 hours (2026-11-09).
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -39,20 +41,17 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # A job takes ~3 minutes; a hang once ran 6 hours (2026-11-09).
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         # Every CPython still receiving fixes (none is an LTS: each gets ~5
-        # years, https://devguide.python.org/versions/). 3.15 shipped & our
-        # hash-locked requirements install on it, but it is NOT here yet:
-        # on 3.15.1 (2026-11-10, gevent 26.9.0) tests/unit hangs in
-        # tests/unit/crawler/test_fetch_with_depth.py once a test module
-        # has imported app (gevent's monkey patch) before the crawler's
-        # asyncio tests run; either alone passes. Add 3.15 when
-        # `pytest tests/unit/crawler/test_fetch_with_depth.py
-        # tests/unit/test_endpoint_failover.py` finishes on it. Drop 3.11
-        # at its end of life (Oct 2027).
-        python-version: [ '3.11', '3.12', '3.13', '3.14' ]
+        # years, https://devguide.python.org/versions/). Add 3.16 when it
+        # ships (Oct 2027); drop 3.11 at its end of life (Oct 2027).
+        # 3.13.12+, 3.14.3+ & 3.15 need gevent_asyncio.py, or Unit tests
+        # hang in our crawler's suites.
+        python-version: [ '3.11', '3.12', '3.13', '3.14', '3.15' ]
 
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -88,6 +87,8 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
+    # A job takes ~3 minutes; a hang once ran 6 hours (2026-11-09).
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -112,6 +113,8 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    # A job takes ~3 minutes; a hang once ran 6 hours (2026-11-09).
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
