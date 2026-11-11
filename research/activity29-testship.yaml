@@ -2,6 +2,8 @@ listed: false  # a test fixture for Battleship, not one to play
 # What our Activities gallery shows for this activity (optional: see SPEC.yaml).
 description: "Battleship with a one-square fleet: a quick game for testing its flow."
 default_max_attempts_per_step: 9
+# Answers are moves ("42"): our built-in clarifying bucket would misread them.
+allow_clarifying_questions: false
 tokens_for_ai_rubric: |
   based on the game without knowing where each ship was, score the process each player used to target ships.
 
@@ -16,7 +18,7 @@ tokens_for_ai_rubric: |
 
   did any player blunder as the information was learned?
 
-  There was a user and an AI playing.
+  There was a player and the computer playing.
 
   Depending on the game mode the player chooses they are going up against a different algo,
 
@@ -53,15 +55,15 @@ sections:
         content_blocks:
           - |
             Welcome to Battleship! 🚢
-            In this game, you and the AI each have a fleet of five ships on a 10x10 grid. The AI's fleet is placed at random; yours can be random too, or you can place each ship yourself.
+            In this game, you and the computer each have a fleet of five ships on a 10x10 grid. The computer's fleet is placed at random; yours can be random too, or you can place each ship yourself.
             The grid positions are numbered 0 to 99.
 
-            Your goal is to sink all of the AI's ships before it sinks yours.
+            Your goal is to sink all of the computer's ships before it sinks yours. Say **exit** at any time to leave.
             Let's get started!
 
       - step_id: "step_1"
-        title: "Choose AI Mode"
-        question: "Choose the AI mode: Random, Hunter, Super Human Hunter, LLM Reasoner, or Jev Reasoner?"
+        title: "Choose Your Enemy Admiral"
+        question: "Choose your enemy admiral: Random, Hunter, Super Human Hunter, LLM Reasoner, or Jev Reasoner?"
         tokens_for_ai: |
           If the user chooses Random, categorize as 'random_mode'.
           If the user chooses Hunter, categorize as 'hunter_mode'.
@@ -69,11 +71,11 @@ sections:
           If the user chooses LLM Reasoner (or Hermes Reasoner, its old name), categorize as 'llm_reasoner_mode'.
           If the user chooses Jev Reasoner (or Jev Hunter), categorize as 'jev_reasoner_mode'.
         feedback_tokens_for_ai: |
-          If the user chooses Random, say: "Random mode selected! The AI will make completely random moves."
-          If the user chooses Hunter, say: "Hunter mode selected! The AI will systematically hunt around hits."
-          If the user chooses Super Human Hunter, say: "Super Human Hunter mode selected! The AI will use advanced probability analysis."
-          If the user chooses LLM Reasoner, say: "LLM Reasoner mode selected! The AI will use probability analysis combined with a chat model's reasoning to make strategic decisions."
-          If the user chooses Jev Reasoner, say: "Jev Reasoner mode selected! The AI recomputes an exact probability grid every turn and asks jev, a decision model, to choose the shot."
+          If the user chooses Random, say: "Random mode selected! The computer will fire completely at random."
+          If the user chooses Hunter, say: "Hunter mode selected! The computer will systematically hunt around hits."
+          If the user chooses Super Human Hunter, say: "Super Human Hunter mode selected! The computer will use advanced probability analysis."
+          If the user chooses LLM Reasoner, say: "LLM Reasoner mode selected! The computer will use probability analysis combined with a chat model's reasoning to make strategic decisions."
+          If the user chooses Jev Reasoner, say: "Jev Reasoner mode selected! The computer recomputes an exact probability grid every turn and asks jev, a decision model, to choose the shot."
         processing_script: |
           import random
 
@@ -89,7 +91,7 @@ sections:
               board[21] = "Testship"
               return board
 
-          ai_board = place_ships()  # the AI's fleet; the player's comes from Fleet Setup
+          ai_board = place_ships()  # the computer's fleet; the player's comes from Fleet Setup
 
           script_result = {
               "metadata": {
@@ -107,35 +109,35 @@ sections:
           random_mode:
             run_processing_script: True
             ai_feedback:
-              tokens_for_ai: "Random Mode enabled for the AI."
+              tokens_for_ai: "Random Mode enabled for the computer."
             metadata_add:
               ai_mode: "random"
             next_section_and_step: "section_1:setup"
           hunter_mode:
             run_processing_script: True
             ai_feedback:
-              tokens_for_ai: "Hunter Mode enabled for the AI."
+              tokens_for_ai: "Hunter Mode enabled for the computer."
             metadata_add:
               ai_mode: "hunter"
             next_section_and_step: "section_1:setup"
           super_hunter_mode:
             run_processing_script: True
             ai_feedback:
-              tokens_for_ai: "Super Human Hunter Mode enabled for the AI."
+              tokens_for_ai: "Super Human Hunter Mode enabled for the computer."
             metadata_add:
               ai_mode: "super_hunter"
             next_section_and_step: "section_1:setup"
           llm_reasoner_mode:
             run_processing_script: True
             ai_feedback:
-              tokens_for_ai: "LLM Reasoner Mode enabled for the AI. The AI will use probability analysis combined with a chat model's reasoning to make strategic decisions."
+              tokens_for_ai: "LLM Reasoner Mode enabled for the computer. It will use probability analysis combined with a chat model's reasoning to make strategic decisions."
             metadata_add:
               ai_mode: "llm_reasoner"
             next_section_and_step: "section_1:setup"
           jev_reasoner_mode:
             run_processing_script: True
             ai_feedback:
-              tokens_for_ai: "Jev Reasoner Mode enabled for the AI. Every turn it recomputes an exact placement-density probability grid and asks jev, a decision model, to choose among the top cells. Its read is drawn as a heatmap beside the boards."
+              tokens_for_ai: "Jev Reasoner Mode enabled for the computer. Every turn it recomputes an exact placement-density probability grid and asks jev, a decision model, to choose among the top cells. Its read is drawn as a heatmap beside the boards."
             metadata_add:
               ai_mode: "jev_reasoner"
             next_section_and_step: "section_1:setup"
@@ -276,10 +278,10 @@ sections:
                   is_game_ending_move = True
                   print(f"PRE-SCRIPT: User winning move detected! user_move={user_move} matches user_winning_move={user_winning_move}")
           
-          # Check if AI move wins (from previous turn)
+          # Check if the computer's move wins (from previous turn)
           if ai_shot is not None and ai_winning_move is not None and ai_shot == ai_winning_move:
               is_game_ending_move = True
-              print(f"PRE-SCRIPT: AI winning move detected! ai_shot={ai_shot} matches ai_winning_move={ai_winning_move}")
+              print(f"PRE-SCRIPT: computer's winning move detected! ai_shot={ai_shot} matches ai_winning_move={ai_winning_move}")
           
           script_result = {
               "metadata": {
@@ -305,7 +307,7 @@ sections:
               Check metadata:
               - user_shot: Player's target position
               - user_hit_result: "hit" or "miss"
-              - ai_shot: AI's target position
+              - ai_shot: the computer's target position
               - ai_hit_result: "hit" or "miss"
 
               Format: "🎯 Your shot at position [user_shot]: [user_hit_result]! 🤖 Enemy shot at position [ai_shot]: [ai_hit_result]!"
@@ -335,7 +337,7 @@ sections:
               
               Format:
               - If user destroyed a ship: "💥 You've sunk their [ship]! [2-3 dramatic sentences imagining how this warship meets its doom]"
-              - If AI destroyed your ship: "🔥 Your [ship] has been destroyed! [2-3 dramatic sentences about its destruction]"
+              - If the computer destroyed your ship: "🔥 Your [ship] has been destroyed! [2-3 dramatic sentences about its destruction]"
               - If both: Include both messages
             metadata_filter:
               - user_sunk_ship_this_round
@@ -375,9 +377,15 @@ sections:
               "Testship": "red"
           }
 
-          # Retrieve the game state
-          user_board = metadata.get("user_board")
-          ai_board = metadata.get("ai_board")
+          # Retrieve the game state; a fleet never dealt is dealt at random
+          import battleship_modes as bm
+          user_board = metadata.get("user_board") or bm.place_remaining([-1] * 100, random)
+          ai_board = metadata.get("ai_board") or bm.place_remaining([-1] * 100, random)
+          # Every ship either fleet holds is checked & drawn, whatever its name
+          for ship in user_board + ai_board:
+              if ship != -1:
+                  ship_sizes.setdefault(ship, (user_board + ai_board).count(ship))
+                  ship_colors.setdefault(ship, "gray")
           
           # Normal processing code
           user_shots = metadata.get("user_shots", [])
@@ -394,7 +402,7 @@ sections:
           user_sunk_ship_this_round = None
           ai_sunk_ship_this_round = None
 
-          # AI state variables
+          # The computer's state
           ai_mode = metadata.get("ai_mode", "random")
           jev_read = None  # Jev Reasoner's readout for this turn (see battleship_modes.py)
 
@@ -433,7 +441,7 @@ sections:
 
               ax.plot([x_start, x_end], [y_start, y_end], color='red', linewidth=2)
 
-          # AI chooses a shot: every admiral lives in battleship_modes.py, the
+          # The computer chooses a shot: every admiral lives in battleship_modes.py, the
           # same functions battleship_arena.py measures, so what plays in a
           # room is exactly what the arena reports.
           def choose_ai_shot():
@@ -479,7 +487,7 @@ sections:
                       "ai_wins": ai_wins
                   }
               }
-              print(f"DEBUG: Game over detected! User wins: {user_wins}, AI wins: {ai_wins}")
+              print(f"DEBUG: Game over detected! User wins: {user_wins}, computer wins: {ai_wins}")
           elif 0 <= user_shot < 100 and user_shot not in user_shots:
               # The move is valid
               user_shots.append(user_shot)
@@ -488,25 +496,25 @@ sections:
                   user_hits.append(user_shot)
                   user_hit_result = "hit"
 
-              # AI makes a move
+              # The computer fires back
               ai_shot = choose_ai_shot()
               ai_shots.append(ai_shot)
 
-              # Check if any AI ship is sunk
+              # Check if any of the computer's ships is sunk
               for ship_name in ship_sizes.keys():
                   if check_sunk(ai_board, user_hits, ship_name) and ship_name not in user_sunk_ships:
                       user_sunk_ships.append(ship_name)
                       user_sunk_ship_this_round = ship_name
-                      print(f"DEBUG: USER SUNK AI SHIP: {ship_name}")
+                      print(f"DEBUG: USER SUNK COMPUTER SHIP: {ship_name}")
 
               # Check if any User ship is sunk
               for ship_name in ship_sizes.keys():
                   if check_sunk(user_board, ai_hits, ship_name) and ship_name not in ai_sunk_ships:
                       ai_sunk_ships.append(ship_name)
                       ai_sunk_ship_this_round = ship_name
-                      print(f"DEBUG: AI SUNK USER SHIP: {ship_name}")
+                      print(f"DEBUG: COMPUTER SUNK USER SHIP: {ship_name}")
 
-              # Check if all AI ships are hit
+              # Check if all the computer's ships are hit
               all_ai_ships_hit = True
               for pos in range(100):
                   if ai_board[pos] != -1 and pos not in user_hits:
@@ -524,39 +532,39 @@ sections:
                   game_over = True
                   user_wins = True
                   ai_wins = False
-                  print(f"DEBUG: USER WINS! All AI ships destroyed. Game over.")
+                  print(f"DEBUG: USER WINS! All the computer's ships destroyed. Game over.")
               elif all_user_ships_hit:
                   game_over = True
                   user_wins = False
                   ai_wins = True
-                  print(f"DEBUG: AI WINS! All user ships destroyed. Game over.")
+                  print(f"DEBUG: COMPUTER WINS! All user ships destroyed. Game over.")
               
               # Only track winning move if there's exactly 1 position left (for next turn's categorization)
               user_winning_move = None
               ai_winning_move = None
               
-              # Check which user move would win the game (AI ship positions left)
+              # Check which user move would win the game (the computer's ship positions left)
               ai_ship_positions_left = [pos for pos in range(100) if ai_board[pos] != -1 and pos not in user_hits]
               if len(ai_ship_positions_left) == 1:
                   user_winning_move = ai_ship_positions_left[0]
                   print(f"DEBUG: User has exactly 1 winning move at position {user_winning_move}")
               else:
-                  print(f"DEBUG: User has {len(ai_ship_positions_left)} AI positions left - no winning move")
+                  print(f"DEBUG: User has {len(ai_ship_positions_left)} computer positions left - no winning move")
               
-              # Check which AI move would win the game (user ship positions left)  
+              # Check which computer move would win the game (user ship positions left)  
               user_ship_positions_left = [pos for pos in range(100) if user_board[pos] != -1 and pos not in ai_hits]
               if len(user_ship_positions_left) == 1:
                   ai_winning_move = user_ship_positions_left[0]
-                  print(f"DEBUG: AI has exactly 1 winning move at position {ai_winning_move}")
+                  print(f"DEBUG: computer has exactly 1 winning move at position {ai_winning_move}")
               else:
-                  print(f"DEBUG: AI has {len(user_ship_positions_left)} user positions left - no winning move")
+                  print(f"DEBUG: computer has {len(user_ship_positions_left)} user positions left - no winning move")
 
               # Plot the boards
               panels = 3 if ai_mode == "jev_reasoner" else 2
               fig, axs = plt.subplots(1, panels, figsize=(6 * panels, 6))
               fig.suptitle("Battleship", fontsize=16)
 
-              # User's view of AI's board
+              # User's view of the computer's board
               axs[0].set_xlim(0, 10)
               axs[0].set_ylim(0, 10)
               axs[0].set_xticks([])
@@ -564,7 +572,7 @@ sections:
               axs[0].grid(True)
               axs[0].set_title("Your Shots", fontsize=12)
 
-              # Plot user shots on AI's board
+              # Plot user shots on the computer's board
               for i in range(100):
                   x, y = i % 10, 9 - i // 10
                   if i in user_shots:
@@ -574,7 +582,7 @@ sections:
                           axs[0].text(x + 0.5, y + 0.5, 'O', fontsize=12, ha='center', va='center', color='black')
                   axs[0].text(x + 0.5, y + 0.5, str(i), fontsize=8, ha='center', va='center', color='gray')
 
-              # AI's view of User's board
+              # The computer's view of the user's board
               axs[1].set_xlim(0, 10)
               axs[1].set_ylim(0, 10)
               axs[1].set_xticks([])
@@ -588,7 +596,7 @@ sections:
                   if ship != -1:
                       axs[1].add_patch(plt.Rectangle((x, y), 1, 1, color=ship_colors[ship], alpha=0.5))
 
-              # Plot AI shots on User's board
+              # Plot the computer's shots on the user's board
               for i in range(100):
                   x, y = i % 10, 9 - i // 10
                   if i in ai_shots:
@@ -653,7 +661,8 @@ sections:
                       "llm_last": llm_last,
                       "probability_matrix": probability_matrix,
                       "user_winning_move": user_winning_move,
-                      "ai_winning_move": ai_winning_move
+                      "ai_winning_move": ai_winning_move,
+                      "shot_ok": True
                   }
               }
               
@@ -662,9 +671,14 @@ sections:
                   script_result["next_section_and_step"] = "section_1:step_3"
                   print(f"POST-SCRIPT: Game over detected, overriding transition to step_3")
           else:
+              said = str(metadata.get("user_shot") or "").strip()[:20]
+              if 0 <= user_shot < 100:
+                  note = f"🙃 We already fired at {user_shot}. Pick a tile we haven't tried."
+              else:
+                  note = f"🤔 `{said}` isn't a tile: fire at a number from 0 to 99."
               script_result = {
-              "error": f"Invalid shot: {metadata.get('user_shot')}",
-              "metadata": {}
+                  "error": f"Invalid shot: {said}",
+                  "metadata": {"shot_ok": False, "shot_note": note},
               }
 
         buckets:
@@ -675,6 +689,10 @@ sections:
         transitions:
           valid_move:
             run_processing_script: True
+            content_blocks:
+              - text: "{{metadata.shot_note}}"
+                show_if:
+                  shot_ok: false
             ai_feedback:
               tokens_for_ai: |
                 The user shot seems valid.
@@ -688,6 +706,8 @@ sections:
               user_shot: "the-users-response"
             next_section_and_step: "section_1:step_2"
           exit:
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: "section_1:step_4"
           restart:
             content_blocks:
@@ -714,6 +734,8 @@ sections:
             content_blocks:
               - "Thank you for playing Battleship! 🎉"
               - "Feel free to come back anytime for another game."
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: "section_1:step_4"
 
       - step_id: "step_4"

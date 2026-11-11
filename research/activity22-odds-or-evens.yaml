@@ -1,4 +1,11 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Odds or Evens"
+description: "Throw 0 to 5 fingers & call odd or even against a historical figure, with a running score."
+kind: "game"
 default_max_attempts_per_step: 30
+# Answers are moves ("3 odd"): our built-in clarifying bucket would misread them.
+allow_clarifying_questions: false
+
 sections:
   - section_id: "section_1"
     title: "Odds and Evens with History"
@@ -8,88 +15,85 @@ sections:
         title: "Challenge a Historical Figure"
         content_blocks:
           - "Welcome to the Odds and Evens challenge! 🎮"
-          - "You will be playing against a random historical figure."
+          - "You will be playing against a random historical figure. Each of you throws 0 to 5 fingers & calls **odd** or **even**: whoever called the sum right wins the round (both right or both wrong is a tie)."
+          - "Say **exit** when you've had enough."
 
       - step_id: "step_1"
         title: "Throw Your Fingers"
+        question: "How many fingers do you throw, & odd or even? (for example `3 odd`) 🤔"
         tokens_for_ai: |
-          Careful to check if user is trying to 'set_language' and do that first. Otherwise, figure out if they are picking a number between 0 and 5.
-        feedback_tokens_for_ai: |
-          Important, you do not have to calculate the winner, we have
-          under processing_script_result for you that determines the winner.
-
-          Important, you do not pick a random move, it was selected for you:
-
-           * 'ai_choice_finger': it's your number of fingers up that you will announce to the user.
-           * 'ai_choice': it's your guess of odd or even that you will announce to the user.
-
-          Speaking in first person as a historical figure, first always announce the move
-          selected for you and then move to a new line.
-
-          The rules are simple, the processing_script_result to determines winner or tie.
-
-          * Sum the numbers.
-          * If the sum of the fingers is even, the player who chose "even" wins.
-          * If the sum is odd, the player who chose "odd" wins.
-          * If both players are wrong or right about "odd" or "even" it's a tie.
-          * A user cannot win unless they have a match with the game name "odd" or "even"
-
-          Careful it's easy to add wrong or say a number is odd when it's even and vice versa.
-
-          Finally, continue to provide a witty fact as the figure. Don't ever mention AI.
-          The figure should also comment on the 'attempts' number and how many times played!
-          If you feel like it, jeer at the player about an early 'exit' & suggest they quit.
-
+          - throw_fingers: anything that could be a throw (a number and/or odd or even); our script checks it.
+          - set_language: they ask to play in another language.
+          - exit: they want to stop, quit or leave.
+        # Our script reads the throw, plays the figure's & keeps score: any
+        # text at all is handled (a throw it can't read asks again kindly).
         processing_script: |
-          user_input = metadata["user_choice"].split()
-          user_fingers = None
-          user_choice = None
-          for item in user_input:
-              if item.isdigit():
-                  user_fingers = int(item)
-              elif item in ["odd", "even"]:
-                  user_choice = item
-          ai_fingers = int(metadata["ai_choice_finger"])  # Ensure ai_fingers is an integer
-          ai_choice = metadata["ai_choice"]
-          total_fingers = user_fingers + ai_fingers
-          result = "even" if total_fingers % 2 == 0 else "odd"
-          user_wins = (result == user_choice)
-          ai_wins = (result == ai_choice)
-          if user_wins and not ai_wins:
-              winner = "User wins!"
-          elif ai_wins and not user_wins:
-              winner = "AI wins!"
-          else:
-              winner = "It's a tie!"
-          script_result = {"sum": total_fingers, "result": result, "winner": winner}
+          import random
+          import re
 
-        question: "How many fingers do you throw? (Choose a number between 0 and 5 & either even or odd.) 🤔"
+          text = str(metadata.get("user_response") or "").lower()
+          numbers = re.findall(r"\d+", text)
+          words = {"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
+          numbers += [str(n) for w, n in words.items() if re.search(r"\b" + w + r"\b", text)]
+          calls = [c for c in ("odd", "even") if re.search(r"\b" + c + r"s?\b", text)]
+          fingers = int(numbers[0]) if len(numbers) == 1 else None
+
+          if fingers is None or not 0 <= fingers <= 5 or len(calls) != 1:
+              metadata["round_note"] = "🤔 I need one number of fingers from 0 to 5 **and** odd or even, for example `3 odd`. No round played."
+              script_result = {"valid": False}
+          else:
+              call = calls[0]
+              theirs = random.randint(0, 5)
+              their_call = random.choice(["odd", "even"])
+              total = fingers + theirs
+              result = "even" if total % 2 == 0 else "odd"
+              you_right = call == result
+              they_right = their_call == result
+              for key in ("rounds", "wins", "losses", "ties"):
+                  metadata[key] = int(metadata.get(key) or 0)
+              metadata["rounds"] += 1
+              if you_right and not they_right:
+                  metadata["wins"] += 1
+                  verdict = "You win this round! 🎉"
+              elif they_right and not you_right:
+                  metadata["losses"] += 1
+                  verdict = "Your opponent wins this round. 😤"
+              else:
+                  metadata["ties"] += 1
+                  verdict = "A tie! 🤝"
+              metadata["round_note"] = (
+                  f"You: **{fingers}** & **{call}** · Opponent: **{theirs}** & **{their_call}** → "
+                  f"{fingers} + {theirs} = **{total}**, **{result}**. {verdict}\n\n"
+                  f"Score: **{metadata['wins']}** won · **{metadata['losses']}** lost · **{metadata['ties']}** tied"
+              )
+              script_result = {"valid": True, "sum": total, "result": result, "verdict": verdict}
+        feedback_tokens_for_ai: |
+          Speak in first person as one historical figure (keep the same figure all game). Never mention machine learning.
+          The round is decided & shown already (round_note): never recount it or change any number.
+          If processing_script_result.valid is false, just ask kindly for a number from 0 to 5 and odd or even.
+          Otherwise add one witty fact in character, & a word on the score.
         buckets:
           - throw_fingers
           - set_language
           - exit
         transitions:
           throw_fingers:
-            run_processing_script: True
+            run_processing_script: true
+            content_blocks:
+              - "{{metadata.round_note}}"
             ai_feedback:
-              tokens_for_ai: "Declare your move and then determine who wins the game and provide a witty fact from the historical figure's perspective."
-            metadata_add:
-              attempts: "n+1"
-            metadata_tmp_add:
-              user_choice: "the-users-response"
-              ai_choice_finger: "n+random(0,5)"
-            metadata_tmp_random:
-              ai_choice: [odd, even]
+              tokens_for_ai: "React to the round in character."
             next_section_and_step: "section_1:step_1"
           set_language:
             content_blocks:
               - "Language preference updated. Please continue in your preferred language."
-            ai_feedback:
-              tokens_for_ai: "Acknowledge the language change and confirm the update."
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
+            next_section_and_step: "section_1:step_1"
           exit:
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: "section_2:step_1"
 
   - section_id: "section_2"
@@ -98,4 +102,7 @@ sections:
       - step_id: "step_1"
         title: "Exit"
         content_blocks:
+          - text: "Final score after {{metadata.rounds}} rounds: **{{metadata.wins}}** won · **{{metadata.losses}}** lost · **{{metadata.ties}}** tied."
+            show_if:
+              rounds_gte: 1
           - "Thank you for playing! We hope you enjoyed the game. Have a great day! 🌟"

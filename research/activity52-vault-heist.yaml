@@ -27,6 +27,9 @@ title: "Vault Heist"
 description: "Crack a vault's code together: anyone in our room may call out a guess, & every guess spends one of our shared tries."
 kind: "game"
 default_max_attempts_per_step: 3
+# Answers are codes & moves ("1 2 3 4", "hint"): our built-in clarifying
+# bucket would misread them, & chatter already gets a kind reminder.
+allow_clarifying_questions: false
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
 
@@ -328,6 +331,8 @@ sections:
           exit:
             content_blocks:
               - "🏃 We slip out a back door before anyone is wiser. For our records, this code was `{{metadata.vault_code}}`."
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: "wrap:goodbye"
           off_topic:
             metadata_tmp_add:

@@ -1,6 +1,11 @@
 # What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Tic Tac Toe"
 description: "Play X against our computer on a 3x3 board: three in a row wins."
+kind: "game"
 default_max_attempts_per_step: 9
+# Answers are moves ("4"): our built-in clarifying bucket would misread them.
+allow_clarifying_questions: false
+
 sections:
   - section_id: "section_1"
     title: "Tic Tac Toe"
@@ -10,7 +15,7 @@ sections:
         content_blocks:
           - |
             Welcome to Tic Tac Toe! 🎮
-            You will be playing against the AI. You are 'X' and the AI is 'O'.
+            You will be playing against the computer. You are 'X' and the computer is 'O'.
             The board positions are numbered 0 to 8 as follows:
 
             <img src="/static/images/tic-tac-toe.png">
@@ -19,24 +24,15 @@ sections:
         title: "Your Move"
         question: "Enter a position number (0-8) to place your 'X'. Say restart or exit to quit."
         tokens_for_ai: |
-          Using the metadata, determine if the game is over and 'restart'.
-          If the user wants to restart or play again, categorize as 'restart'
-          If ai_wins or user_wins or is_draw is true, categorize as 'restart'.
-          If the user wants to exit, categorize as 'exit'.
-          If the game_over is True categorize as 'restart'.
-          Finally check:
-          If the move is valid, categorize as 'valid_move'.
-          If the move is invalid, categorize as 'invalid_move'.
+          - valid_move: a position, a number 0 to 8 (our script checks the square is free).
+          - invalid_move: anything else meant as a move (a number out of range, a word).
+          - restart: they want a new game.
+          - exit: they want to stop, quit or leave.
         feedback_tokens_for_ai: |
-          Always speak in first person. DO NOT START WITH "ai_move:".
-          Player is always X, You the AI are always O.
-          If there is an error in the metadata the move was likely invalid.
-          On a new line, provide feedback on the user's move.
-          Only announce a winner or tie if game_over is True.
-          The player makes the first and last move.
-          If the move is invalid, prompt the user to try again.
-          If the move is invalid, give a list of valid moves.
-          If the move is valid & no errors say your move on the last line (ai_move) for example: I move to 8 and draw a O".
+          Speak in first person as the computer playing O. One or two playful sentences.
+          The move & result are decided & shown already (move_note): never change or repeat them, never draw or describe the board.
+        # Our script referees every move: a square that isn't free, or a
+        # word, is explained & asked again; a finished game goes to Game Over.
         processing_script: |
           import random
 
@@ -46,17 +42,25 @@ sections:
               [0, 4, 8], [2, 4, 6]              # diagonals
           ]
 
-          def check_win(board, player, win_conditions):
-              # Check for win and return the winning condition if there is one
+          def check_win(board, player):
+              # The winning line, if `player` has one
               for condition in win_conditions:
-                  win = True
-                  for i in condition:
-                      if board[i] != player:
-                          win = False
-                          break
-                  if win:
+                  if all(board[i] == player for i in condition):
                       return condition
               return None
+
+          def computer_move(board):
+              # Win if we can, else block X, else the centre, else any free square
+              free = [i for i in range(9) if board[i] == " "]
+              for mark in ("O", "X"):
+                  for i in free:
+                      trial = list(board)
+                      trial[i] = mark
+                      if check_win(trial, mark):
+                          return i
+              if 4 in free:
+                  return 4
+              return random.choice(free) if free else None
 
           def plot_board(board, win_line=None):
               import io
@@ -81,15 +85,10 @@ sections:
                       # Plot the cell number if the cell is empty
                       ax.text(x + 0.5, y + 0.5, str(i), fontsize=12, ha='center', va='center', color='gray')
 
-
               # Draw the winning line if there is one
               if win_line:
-                  for i in range(len(win_line) - 1):
-                      start = win_line[i]
-                      end = win_line[i + 1]
-                      x_start, y_start = start % 3 + 0.5, 2 - start // 3 + 0.5
-                      x_end, y_end = end % 3 + 0.5, 2 - end // 3 + 0.5
-                      ax.plot([x_start, x_end], [y_start, y_end], 'r-', linewidth=2)
+                  start, end = win_line[0], win_line[-1]
+                  ax.plot([start % 3 + 0.5, end % 3 + 0.5], [2 - start // 3 + 0.5, 2 - end // 3 + 0.5], 'r-', linewidth=2)
 
               buf = io.BytesIO()
               plt.savefig(buf, format='png')
@@ -97,77 +96,76 @@ sections:
               buf.seek(0)
               return base64.b64encode(buf.getvalue()).decode('utf-8')
 
-          # Reconstruct the board from moves
-          user_moves = metadata.get("user_moves", [])
-          ai_moves = metadata.get("ai_moves", [])
-          ai_move = None
+          # Rebuild the board from the moves so far
+          user_moves = list(metadata.get("user_moves") or [])
+          ai_moves = list(metadata.get("ai_moves") or [])
           board = [" "] * 9
           for move in user_moves:
               board[int(move)] = "X"
           for move in ai_moves:
               board[int(move)] = "O"
+          for key in ("games", "wins", "losses", "draws"):
+              metadata[key] = int(metadata.get(key) or 0)
 
-          # Get the user's latest move
-          try:
-              user_move = int(metadata.get("user_move"))
-          except (IndexError, ValueError) as e:
-              # Remove the invalid move from user_moves
-              user_move = -1
+          text = str(metadata.get("user_response") or "").strip()
+          user_move = int(text) if text.isdigit() else -1
+          ai_move = None
 
-          # Check if the move is valid
-          if 0 <= user_move < 9 and board[user_move] == " ":
+          if metadata.get("game_over"):
+              metadata["move_note"] = "This game is over."
+              script_result = {"next_section_and_step": "section_1:game_over"}
+          elif not 0 <= user_move < 9:
+              free = ", ".join(str(i) for i in range(9) if board[i] == " ")
+              metadata["move_note"] = f"🤔 `{text[:20]}` isn't a square. Pick a free one: {free}."
+              script_result = {"valid": False}
+          elif board[user_move] != " ":
+              free = ", ".join(str(i) for i in range(9) if board[i] == " ")
+              metadata["move_note"] = f"🙃 Square {user_move} is taken. Free squares: {free}."
+              script_result = {"valid": False}
+          else:
               board[user_move] = "X"
               user_moves.append(user_move)
-          
-              user_win_line = check_win(board, "X", win_conditions)
-          
+              user_win_line = check_win(board, "X")
               if not user_win_line:
-                  # ai makes a move.
-                  available_positions = []
-                  for i in range(len(board)):
-                      if board[i] == " ":
-                          available_positions.append(i)
-                  if available_positions:
-                      ai_move = random.choice(available_positions)
+                  ai_move = computer_move(board)
+                  if ai_move is not None:
                       board[ai_move] = "O"
                       ai_moves.append(ai_move)
-          
-              ai_win_line = check_win(board, "O", win_conditions)
-              is_draw = True
-              for x in board:
-                  if x == " ":
-                      is_draw = False
-                      break
-              game_over = any([user_win_line, ai_win_line, is_draw])
-          
-              win_line = user_win_line if user_win_line else ai_win_line
+              ai_win_line = check_win(board, "O")
+              is_draw = " " not in board and not user_win_line and not ai_win_line
+              game_over = bool(user_win_line or ai_win_line or is_draw)
 
+              note = f"You take **{user_move}**."
+              if ai_move is not None:
+                  note += f" I take **{ai_move}**."
+              if user_win_line:
+                  metadata["wins"] += 1
+                  note += " Three in a row: **you win!** 🎉"
+              elif ai_win_line:
+                  metadata["losses"] += 1
+                  note += " Three in a row for O: **I win!** 🤖"
+              elif is_draw:
+                  metadata["draws"] += 1
+                  note += " The board is full: **a draw.** 🤝"
+              if game_over:
+                  metadata["games"] += 1
+              metadata["move_note"] = note
+              metadata.update({
+                  "user_moves": user_moves,
+                  "ai_moves": ai_moves,
+                  "game_over": game_over,
+                  "ai_wins": ai_win_line is not None,
+                  "user_wins": user_win_line is not None,
+                  "is_draw": is_draw,
+              })
               script_result = {
-                  "plot_image": plot_board(board, win_line),
+                  "plot_image": plot_board(board, user_win_line or ai_win_line),
                   "set_background": not game_over,
                   "ai_move": ai_move,
                   "user_move": user_move,
-                  "metadata": { 
-                      "user_moves": user_moves,
-                      "ai_moves": ai_moves,
-                      "board": board,
-                      "game_over": game_over,
-                      "ai_wins": ai_win_line is not None,
-                      "user_wins": user_win_line is not None,
-                      "is_draw": is_draw
-                  }
               }
-          else:
-              script_result = {
-                  "error": f"Invalid move: {metadata.get('user_move')}",
-                  "metadata": {
-                      "user_moves": user_moves,
-                  },
-              }
-
-          # Debugging: Print the current board state
-          print("Current board state:", board)
-
+              if game_over:
+                  script_result["next_section_and_step"] = "section_1:game_over"
         buckets:
           - valid_move
           - invalid_move
@@ -175,32 +173,53 @@ sections:
           - exit
         transitions:
           valid_move:
-            run_processing_script: True
+            run_processing_script: true
+            content_blocks:
+              - "{{metadata.move_note}}"
             ai_feedback:
-              tokens_for_ai: |
-                at first glance it seems like a valid user_move.
-                DO NOT:
-                 * DRAW THE GAME BOARD
-                 * DESCRIBE THE GAME BOARD
-            metadata_tmp_add:
-              user_move: "the-users-response"
+              tokens_for_ai: "React to the move."
             next_section_and_step: "section_1:step_1"
           invalid_move:
-            ai_feedback:
-              tokens_for_ai: "That move is invalid. Please choose an empty position between 0 and 8."
-            metadata_tmp_add:
-              user_move: "the-users-response"
+            run_processing_script: true
+            content_blocks:
+              - "{{metadata.move_note}}"
+            counts_as_attempt: false
             next_section_and_step: "section_1:step_1"
           exit:
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: "section_1:step_2"
           restart:
-            ai_feedback:
-              tokens_for_ai: "Restarting the game. Let's start fresh!"
-            metadata_clear: True
+            content_blocks:
+              - "Restarting the game. Let's start fresh!"
+            metadata_remove: [user_moves, ai_moves, game_over, ai_wins, user_wins, is_draw, move_note]
             next_section_and_step: "section_1:step_0"
+
+      - step_id: "game_over"
+        title: "Game Over"
+        content_blocks:
+          - "Games: **{{metadata.games}}** · you won **{{metadata.wins}}** · I won **{{metadata.losses}}** · draws **{{metadata.draws}}**"
+        question: "Play **again**, or **exit**?"
+        tokens_for_ai: |
+          - restart: they want another game (yes, again, sure, a square number).
+          - exit: they want to stop, quit or leave (no, done).
+        buckets:
+          - restart
+          - exit
+        transitions:
+          restart:
+            metadata_remove: [user_moves, ai_moves, game_over, ai_wins, user_wins, is_draw, move_note]
+            next_section_and_step: "section_1:step_0"
+          exit:
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "section_1:step_2"
 
       - step_id: "step_2"
         title: "Goodbye"
         content_blocks:
+          - text: "Final tally: **{{metadata.games}}** games · you won **{{metadata.wins}}** · I won **{{metadata.losses}}** · draws **{{metadata.draws}}**"
+            show_if:
+              games_gte: 1
           - "Thank you for playing Tic Tac Toe! 🎉"
           - "Feel free to come back anytime for another game."

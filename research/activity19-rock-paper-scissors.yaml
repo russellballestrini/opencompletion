@@ -1,4 +1,11 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Rock Paper Scissors"
+description: "Play rock, paper, scissors against a historical figure, round after round, with a running score."
+kind: "game"
 default_max_attempts_per_step: 30
+# Answers are moves ("rock"): our built-in clarifying bucket would misread them.
+allow_clarifying_questions: false
+
 sections:
   - section_id: "section_1"
     title: "Rock-Paper-Scissors with History"
@@ -8,27 +15,45 @@ sections:
         title: "Challenge a Historical Figure"
         content_blocks:
           - "Welcome to the Rock-Paper-Scissors challenge! 🎮"
-          - "You will be playing against a random historical figure."
+          - "You will be playing against a random historical figure. Rock beats scissors, scissors beat paper, paper beats rock. Say **exit** when you've had enough."
 
       - step_id: "step_1"
         title: "Shoot against a Historical Figure"
-        tokens_for_ai: |
-          Careful to check if user is trying to 'set_language' and do that first. otherwise figure out if they are picking the bucket rock, paper, or scissors.
-        feedback_tokens_for_ai: |
-          Speaking in first person as a historical figure, firstly announce your move based on the metadata and then on a new line,
-          Determine who wins the game, use 'user_choice' against the given `ai_` value.
-
-          The rules are simple:
-
-          * rock always beats scissors
-          * paper always beats rock
-          * scissors always beats paper
-
-          Finally continue to provide a witty fact as the figure. Don't ever mention AI.
-          The figure should also comment on the 'attempts' number and how many times played!
-          if you feel like it, jeer at the player about an early 'exit' & suggest they quit.
-
         question: "What's your choice? Rock, paper, or scissors? 🤔"
+        tokens_for_ai: |
+          - rock / paper / scissors: the move they throw (a synonym or emoji counts: ✊ ✋ ✌️, "stone", "shears").
+          - set_language: they ask to play in another language.
+          - exit: they want to stop, quit or leave.
+        # Our script plays the figure's move & keeps score, so no model ever
+        # decides who won.
+        processing_script: |
+          import random
+
+          beats = {"rock": "scissors", "paper": "rock", "scissors": "paper"}
+          yours = metadata.get("user_choice")
+          theirs = random.choice(list(beats))
+          for key in ("rounds", "wins", "losses", "ties"):
+              metadata[key] = int(metadata.get(key) or 0)
+          metadata["rounds"] += 1
+          if yours == theirs:
+              outcome = "tie"
+              metadata["ties"] += 1
+              line = "A tie! 🤝"
+          elif beats.get(yours) == theirs:
+              outcome = "win"
+              metadata["wins"] += 1
+              line = "You win this round! 🎉"
+          else:
+              outcome = "loss"
+              metadata["losses"] += 1
+              line = "Your opponent wins this round. 😤"
+          metadata["their_move"] = theirs
+          metadata["round_result"] = line
+          script_result = {"outcome": outcome, "their_move": theirs}
+        feedback_tokens_for_ai: |
+          Speak in first person as one historical figure (keep the same figure all game).
+          Their move (their_move) & the result (round_result) are decided & shown already: never change them.
+          Add one witty fact in character, & a word on the score (wins, losses, ties).
         buckets:
           - rock
           - paper
@@ -37,50 +62,45 @@ sections:
           - exit
         transitions:
           rock:
-            ai_feedback:
-              tokens_for_ai: "Declare your move and then determine who wins the game and provide a witty fact from the historical figure's perspective."
-            metadata_add:
-              attempts: "n+1"
             metadata_tmp_add:
               user_choice: "rock"
-            metadata_tmp_random:
-              ai_rock: true
-              ai_paper: true
-              ai_scissors: true
+            run_processing_script: true
+            content_blocks:
+              - "✊ You: **rock** · Opponent: **{{metadata.their_move}}**. {{metadata.round_result}}"
+              - "Score: **{{metadata.wins}}** won · **{{metadata.losses}}** lost · **{{metadata.ties}}** tied"
+            ai_feedback:
+              tokens_for_ai: "React to the round in character."
             next_section_and_step: "section_1:step_1"
           paper:
-            ai_feedback:
-              tokens_for_ai: "Declare your move and then determine who wins the game and provide a witty fact from the historical figure's perspective."
-            metadata_add:
-              attempts: "n+1"
             metadata_tmp_add:
               user_choice: "paper"
-            metadata_tmp_random:
-              ai_rock: true
-              ai_paper: true
-              ai_scissors: true
+            run_processing_script: true
+            content_blocks:
+              - "✋ You: **paper** · Opponent: **{{metadata.their_move}}**. {{metadata.round_result}}"
+              - "Score: **{{metadata.wins}}** won · **{{metadata.losses}}** lost · **{{metadata.ties}}** tied"
+            ai_feedback:
+              tokens_for_ai: "React to the round in character."
             next_section_and_step: "section_1:step_1"
           scissors:
-            ai_feedback:
-              tokens_for_ai: "Declare your move and determine who wins the game and provide a witty fact from the historical figure's perspective."
-            metadata_add:
-              attempts: "n+1"
             metadata_tmp_add:
               user_choice: "scissors"
-            metadata_tmp_random:
-              ai_rock: true
-              ai_paper: true
-              ai_scissors: true
+            run_processing_script: true
+            content_blocks:
+              - "✌️ You: **scissors** · Opponent: **{{metadata.their_move}}**. {{metadata.round_result}}"
+              - "Score: **{{metadata.wins}}** won · **{{metadata.losses}}** lost · **{{metadata.ties}}** tied"
+            ai_feedback:
+              tokens_for_ai: "React to the round in character."
             next_section_and_step: "section_1:step_1"
           set_language:
             content_blocks:
               - "Language preference updated. Please continue in your preferred language."
-            ai_feedback:
-              tokens_for_ai: "Acknowledge the language change and confirm the update."
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
+            next_section_and_step: "section_1:step_1"
           exit:
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: "section_2:step_1"
 
   - section_id: "section_2"
@@ -89,4 +109,7 @@ sections:
       - step_id: "step_1"
         title: "Exit"
         content_blocks:
+          - text: "Final score after {{metadata.rounds}} rounds: **{{metadata.wins}}** won · **{{metadata.losses}}** lost · **{{metadata.ties}}** tied."
+            show_if:
+              rounds_gte: 1
           - "Thank you for playing! We hope you enjoyed the game. Have a great day! 🌟"

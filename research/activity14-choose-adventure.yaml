@@ -1,11 +1,16 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
 title: "Escape Room: Key, Book & Safe"
 description: "Wake in a locked room & find a way out: a key under a rug, a password in a book, a safe on a wall."
-# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
 kind: "game"
 default_max_attempts_per_step: 30
 
+# Metadata: key, password (true once taken), looked_around (past the
+# first look); pick (this turn's choice).
+# Story steps keep our built-in clarifying bucket: a question about the
+# room gets a hint & the question again.
+
 tokens_for_ai_rubric: |
-    You are a master storyteller. Your task is to create a coherent and engaging story based on the following chat history. The story should seamlessly integrate the user's responses and the AI's feedback, ensuring that the narrative flows naturally. Pay special attention to the user's choices and how they shape the story. Use descriptive language to bring the scenes to life and make the story immersive. The story should have a clear beginning, middle, and end, reflecting the user's journey and the outcomes of their decisions. Here is the chat history.
+  You are a master storyteller. Retell this chat as one coherent, vivid escape story with a beginning, middle & end, shaped by the choices the player made & the narrator's replies.
 
 sections:
   - section_id: "section_1"
@@ -14,49 +19,49 @@ sections:
       - step_id: "step_1"
         title: "Waking Up"
         content_blocks:
-          - "You wake up in a dimly lit room with no memory of how you got there. The room is small and has a single door that is locked."
+          - text: "You wake up in a dimly lit room with no memory of how you got there. Its single door is locked."
+            show_if:
+              looked_around_not_exists: true
           - "You see a rug on the floor, a bookshelf with a book, and a safe on the wall."
-        tokens_for_ai: "Guide the user to make a choice between looking under the rug, examining the book, or trying to open the safe. Provide feedback based on their choice."
-        question: "What do you choose? Look under the rug, Examine the book, or Try to open the safe? 🤔"
-        buckets:
-          - look_under_rug
-          - examine_book
-          - try_open_safe
-          - off_topic
-          - asking_clarifying_questions
-        transitions:
-          look_under_rug:
-            content_blocks:
-              - "You chose to look under the rug. 🧺"
-            next_section_and_step: "section_2:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
-            metadata_add:
+          - text: "🔑 You carry a small brass key."
+            show_if:
               key: true
-          examine_book:
-            content_blocks:
-              - "You chose to examine the book. 📖"
-            next_section_and_step: "section_3:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
-            metadata_add:
+          - text: "🔐 You remember a password: ESCAPE123."
+            show_if:
               password: true
-          try_open_safe:
+        # A pick among three things in the room: buttons, no model asked.
+        question_type: multiple_choice
+        question: "What do you do? 🤔"
+        choices:
+          - {id: rug, text: "Look under the rug"}
+          - {id: book, text: "Examine the book"}
+          - {id: safe, text: "Try to open the safe"}
+        answer: [rug, book, safe]
+        answer_mode: any
+        buckets: [choose, unclear]
+        mc_correct: choose
+        mc_incorrect: unclear
+        transitions:
+          choose:
+            metadata_add:
+              looked_around: true
+            metadata_tmp_add:
+              pick: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step:
+              - if:
+                  pick_matches: "(?i)rug"
+                goto: "section_2:step_1"
+              - elif:
+                  pick_matches: "(?i)book"
+                goto: "section_3:step_1"
+              - else: true
+                goto: "section_4:step_1"
+          unclear:
             content_blocks:
-              - "You chose to try to open the safe. 🔒"
-            next_section_and_step: "section_4:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the story. 🔄"
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the story in a supportive manner. Use emojis like 🔄 and 🧭."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them. ❓"
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner. Use emojis like ❓ and 💬."
+              - "Pick one thing to try: the **rug**, the **book** or the **safe**."
+            counts_as_attempt: false
+            next_section_and_step: "section_1:step_1"
 
   - section_id: "section_2"
     title: "The Key"
@@ -64,49 +69,33 @@ sections:
       - step_id: "step_1"
         title: "Found the Key"
         content_blocks:
-          - "You have found a key hidden under the rug. 🔑"
-        tokens_for_ai: "Guide the user to make a choice between taking the key or continuing to explore the room. Provide feedback based on their choice."
-        question: "What do you choose? Take the key or Continue exploring? 🤔"
+          - text: "You lift the rug: a small brass key glints in the dust. 🔑"
+            show_if:
+              key_not_exists: true
+          - text: "Nothing else under the rug: you already have its key."
+            show_if:
+              key: true
+        question: "Take the key, or keep exploring? 🤔"
+        tokens_for_ai: |
+          - take_key: they take, pocket or pick up the key.
+          - continue_exploring: they leave it, look elsewhere or go back.
+          - off_topic: anything else.
         buckets:
           - take_key
           - continue_exploring
-          - go_back
           - off_topic
-          - asking_clarifying_questions
         transitions:
           take_key:
             content_blocks:
-              - "You chose to take the key. 🔑"
-              - "You now have the key."
-            next_section_and_step: "section_1:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
+              - "You pocket the key. 🔑"
             metadata_add:
               key: true
+            next_section_and_step: "section_1:step_1"
           continue_exploring:
-            content_blocks:
-              - "You chose to continue exploring the room. 🕵️"
-              - "You see a rug on the floor, a bookshelf with a book, and a safe on the wall."
             next_section_and_step: "section_1:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
-          go_back:
-            content_blocks:
-              - "You chose to go back to the previous step. 🔄"
-              - "You are now back at the previous step."
-            next_section_and_step: "section_1:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the story. 🔄"
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the story in a supportive manner. Use emojis like 🔄 and 🧭."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them. ❓"
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner. Use emojis like ❓ and 💬."
+              - "Back to our room: take the key, or keep exploring? 🧭"
 
   - section_id: "section_3"
     title: "The Book"
@@ -114,49 +103,28 @@ sections:
       - step_id: "step_1"
         title: "Found the Password"
         content_blocks:
-          - "The book contains a note with a password: 'ESCAPE123'. 🔐"
-        tokens_for_ai: "Guide the user to make a choice between taking note of the password or continuing to explore the room. Provide feedback based on their choice."
-        question: "What do you choose? Take note of the password or Continue exploring? 🤔"
+          - "Inside the book's cover, a note reads: 'ESCAPE123'. 🔐"
+        question: "Memorise the password, or keep exploring? 🤔"
+        tokens_for_ai: |
+          - take_password: they note, memorise, read or take the password.
+          - continue_exploring: they put the book back, look elsewhere or go back.
+          - off_topic: anything else.
         buckets:
           - take_password
           - continue_exploring
-          - go_back
           - off_topic
-          - asking_clarifying_questions
         transitions:
           take_password:
             content_blocks:
-              - "You chose to take note of the password. 🔑"
-              - "You now have the password."
-            next_section_and_step: "section_1:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
+              - "You commit ESCAPE123 to memory. 🧠"
             metadata_add:
               password: true
+            next_section_and_step: "section_1:step_1"
           continue_exploring:
-            content_blocks:
-              - "You chose to continue exploring the room. 🕵️"
-              - "You see a rug on the floor, a bookshelf with a book, and a safe on the wall."
             next_section_and_step: "section_1:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
-          go_back:
-            content_blocks:
-              - "You chose to go back to the previous step. 🔄"
-              - "You are now back at the previous step."
-            next_section_and_step: "section_1:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the story. 🔄"
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the story in a supportive manner. Use emojis like 🔄 and 🧭."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them. ❓"
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner. Use emojis like ❓ and 💬."
+              - "Back to our room: memorise the password, or keep exploring? 🧭"
 
   - section_id: "section_4"
     title: "The Safe"
@@ -164,51 +132,47 @@ sections:
       - step_id: "step_1"
         title: "Opening the Safe"
         content_blocks:
-          - "The safe is locked and requires both a key and a password to open. 🔒"
-        tokens_for_ai: "Guide the user to make a choice between using the key and entering the password to open the safe or continuing to explore the room. Provide feedback based on their choice."
-        question: "What do you choose? Use the key and enter the password or Continue exploring? 🤔"
+          - "The safe has a keyhole & a keypad: it needs both a key and a password. 🔒"
+        question: "Try to open it, or keep exploring? 🤔"
+        tokens_for_ai: |
+          - use_key_and_password: they try to open the safe (with a key, a password, or both).
+          - continue_exploring: they leave it, look elsewhere or go back.
+          - off_topic: anything else.
+        # Marks the escape complete only when both are in hand.
+        processing_script: |
+          if metadata.get("key") is True and metadata.get("password") is True:
+              metadata["activity_completed"] = "true"
+          script_result = {}
         buckets:
           - use_key_and_password
           - continue_exploring
-          - go_back
           - off_topic
-          - asking_clarifying_questions
         transitions:
           use_key_and_password:
-            metadata_conditions:
-              key: true
-              password: true
+            run_processing_script: true
             content_blocks:
-              - "You chose to use the key and enter the password to open the safe. 🔑"
-              - "The safe opens, revealing a hidden treasure."
-              - "Congratulations! You have found the hidden treasure. 🎉"
-            next_section_and_step: "section_5:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to the final encounter. Use emojis like 👍 and 🌟."
+              - text: "You turn the key & type ESCAPE123... *click*! The safe swings open on the door's key & a hidden treasure. 🎉"
+                show_if:
+                  key: true
+                  password: true
+              - text: "The keyhole is empty: you need a key. Maybe something in this room hides one?"
+                show_if:
+                  key_not_exists: true
+              - text: "The keypad blinks red: you need a password. Books sometimes keep secrets..."
+                show_if:
+                  password_not_exists: true
+            next_section_and_step:
+              - if:
+                  key: true
+                  password: true
+                goto: "section_5:step_1"
+              - else: true
+                goto: "section_1:step_1"
           continue_exploring:
-            content_blocks:
-              - "You chose to continue exploring the room. 🕵️"
-              - "You see a rug on the floor, a bookshelf with a book, and a safe on the wall."
             next_section_and_step: "section_1:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
-          go_back:
-            content_blocks:
-              - "You chose to go back to the previous step. 🔄"
-              - "You are now back at the previous step."
-            next_section_and_step: "section_3:step_1"
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and guide the user to make the next choice. Use emojis like 👍 and 🌟."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the story. 🔄"
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the story in a supportive manner. Use emojis like 🔄 and 🧭."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them. ❓"
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner. Use emojis like ❓ and 💬."
+              - "Back to our room: try the safe, or keep exploring? 🧭"
 
   - section_id: "section_5"
     title: "Congratulations!"
@@ -216,7 +180,5 @@ sections:
       - step_id: "step_1"
         title: "Well Done!"
         content_blocks:
-          - "Congratulations on finding the hidden treasure! 🎉"
-          - "You have successfully completed the escape room."
-          - "We hope you enjoyed the adventure. 🌟"
-
+          - "You unlock the door & step out into the light. 🎉"
+          - "You have successfully completed the escape room. Start the activity again to escape faster! 🌟"

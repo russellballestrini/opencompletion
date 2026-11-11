@@ -119,8 +119,13 @@ def _between(metadata, key, bounds):
 
 
 def _contains(metadata, key, expected):
-    value_str = str(metadata.get(key, ""))
-    items = [item.strip() for item in value_str.split(",") if item.strip()]
+    """A list (metadata_append's) holds expected, or a comma-separated
+    string (n+,value's) names it."""
+    value = metadata.get(key, "")
+    if isinstance(value, (list, tuple, set)):
+        items = [str(item).strip() for item in value]
+    else:
+        items = [item.strip() for item in str(value).split(",") if item.strip()]
     return str(expected) in items
 
 

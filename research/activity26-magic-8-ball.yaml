@@ -3,6 +3,9 @@ title: "Magic 8 Ball"
 description: "Ask a yes or no question & see what our Magic 8 Ball answers."
 kind: "game"
 default_max_attempts_per_step: 1
+# Every answer here is a question for the ball: our built-in clarifying
+# bucket would take "Will it rain?" for a question about the game.
+allow_clarifying_questions: false
 sections:
   - section_id: "section_1"
     title: "Magic 8 Ball"
@@ -11,30 +14,27 @@ sections:
         title: "Introduction"
         content_blocks:
           - "Welcome to the Magic 8 Ball! 🎱"
-          - "Think of a yes or no question and ask the Magic 8 Ball."
+          - "Think of a yes or no question and ask the Magic 8 Ball. Ask as many as you like; say **exit** when you're done."
 
       - step_id: "step_1"
         title: "Ask the Magic 8 Ball"
         question: "What is your question for the Magic 8 Ball?"
         tokens_for_ai: |
-          Provide a random response from the Magic 8 Ball's set of answers.
-          If the user wants to change the language, categorize as 'set_language'.
-          If the user wants to exit, categorize as 'exit'.
-        feedback_tokens_for_ai: |
-          Use the user's question to provide a random Magic 8 Ball response.
-          Consider the tone and style of traditional Magic 8 Ball answers.
+          - ask_question: any question, wish or worry for the ball (even one word).
+          - set_language: they ask to play in another language.
+          - exit: they want to stop, quit, leave or say goodbye.
         buckets:
           - ask_question
           - set_language
           - exit
         transitions:
           ask_question:
+            content_blocks:
+              - "🎱 *{{metadata.magic_8_ball_response}}*"
             ai_feedback:
-              tokens_for_ai: |
-                Your answer for the user is in the metadata.
-                Use the user's question to provide a random Magic 8 Ball response.
-                Use emoji at the end of the response to relate.
-                On a new line write two sentences making a joke or relating to the question and the result.
+              tokens_for_ai: "The ball already answered (magic_8_ball_response, shown above): never change it. Two playful sentences tying their question to that answer, ending with one emoji."
+            metadata_add:
+              questions_asked: "n+1"
             metadata_tmp_random:
               magic_8_ball_response:
                 # Positive answers
@@ -69,10 +69,15 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "section_1:step_1"
           exit:
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: "section_1:step_2"
 
       - step_id: "step_2"
         title: "Goodbye"
         content_blocks:
           - "Thank you for playing with the Magic 8 Ball! 🎉"
+          - text: "The ball answered {{metadata.questions_asked}} of your questions."
+            show_if:
+              questions_asked_gte: 1
           - "Feel free to come back anytime to ask more questions."

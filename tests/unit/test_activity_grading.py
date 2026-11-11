@@ -411,3 +411,12 @@ def test_graders_read_the_question_with_its_templates_filled():
     assert seen["q"] == "What is 3 x 4?"
     assert seen["t"]["ai_feedback"]["tokens_for_ai"] == "Remind them a is 3"
     assert first
+
+
+def test_contains_reads_appended_lists_and_comma_text():
+    from activity_utils import check_conditions
+
+    assert check_conditions({"bag": ["rope", "lamp"]}, {"bag_contains": "lamp"})
+    assert check_conditions({"bag": "rope,lamp"}, {"bag_contains": "lamp"})
+    assert check_conditions({"bag": ["rope"]}, {"bag_not_contains": "lamp"})
+    assert not check_conditions({"bag": ["rope"]}, {"bag_contains": "lamp"})

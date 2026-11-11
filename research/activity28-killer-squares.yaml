@@ -1,6 +1,11 @@
 # What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Killer Squares"
 description: "We & our computer each hide on a 3x3 board, then take turns striking squares: hit their hiding place first to win."
+kind: "game"
 default_max_attempts_per_step: 9
+# Answers are moves ("4"): our built-in clarifying bucket would misread them.
+allow_clarifying_questions: false
+
 sections:
   - section_id: "section_1"
     title: "Killer Squares"
@@ -10,9 +15,9 @@ sections:
         content_blocks:
           - |
             Welcome to Killer Squares! 🎮
-            In this game, both you and the AI will secretly choose a square.
-            Then, you will attempt to "kill" a square. If you hit the AI's secret spot, you win!
-            If the AI hits your secret spot, you lose. If nobody hits, the game continues.
+            In this game, both you and the computer secretly choose a square.
+            Then you take turns striking a square. Strike the computer's secret spot & you win!
+            If the computer strikes yours first, you lose.
 
             The board positions are numbered 0 to 8 as follows:
 
@@ -22,49 +27,32 @@ sections:
             3 | 4 | 5
             ---------
             6 | 7 | 8
-            ``` 
+            ```
 
       - step_id: "step_1"
         title: "Choose Your Secret Spot"
         question: "Choose a secret spot (0-8) for this round."
         tokens_for_ai: |
-          If the user wants to exit, categorize as 'exit'.
-          If the move is valid, categorize as 'valid_move'.
-          If the move is invalid, categorize as 'invalid_move'.
-        feedback_tokens_for_ai: |
-          DO NOT TELL THE AI SECRET.
-          If there is an error in the metadata the move was likely invalid.
-          Always speak in first person. DO NOT START WITH "ai_move:".
-          On a new line, provide feedback on the user's move.
-          If the move is valid, proceed to the next step.
-          If the move is invalid, prompt the user to try again.
+          - valid_move: a square, a number 0 to 8 (our script checks it).
+          - invalid_move: anything else meant as a square.
+          - restart: they want to start over.
+          - exit: they want to stop, quit or leave.
+        # Our script hides the computer too; a square it can't read asks again.
         processing_script: |
           import random
 
-          # Initialize or retrieve the game state
-          user_secret = metadata.get("user_secret", None)
-          ai_secret = random.randint(0, 8)
-
-          # Get the user's secret spot
-          try:
-              user_secret = int(metadata.get("user_secret"))
-          except (IndexError, ValueError) as e:
-              user_secret = -1
-
-          # Check if the move is valid
-          if 0 <= user_secret < 9:
-              script_result = {
-                  "metadata": {
-                      "user_secret": user_secret,
-                      "ai_secret": ai_secret,
-                  }
-              }
+          text = str(metadata.get("user_response") or "").strip()
+          if text.isdigit() and 0 <= int(text) < 9:
+              metadata["user_secret"] = int(text)
+              metadata["ai_secret"] = random.randint(0, 8)
+              metadata["user_shots"] = []
+              metadata["ai_shots"] = []
+              metadata["game_over"] = False
+              metadata["move_note"] = f"🤫 You hide on square **{text}**. The computer has hidden too."
+              script_result = {"next_section_and_step": "section_1:step_2"}
           else:
-              script_result = {
-                  "error": f"Invalid secret spot: {metadata.get('user_secret')}",
-                  "metadata": {}
-              }
-
+              metadata["move_note"] = f"🤔 `{text[:20]}` isn't a square: pick a number from 0 to 8."
+              script_result = {"next_section_and_step": "section_1:step_1"}
         buckets:
           - valid_move
           - invalid_move
@@ -72,50 +60,38 @@ sections:
           - exit
         transitions:
           valid_move:
-            run_processing_script: True
-            ai_feedback:
-              tokens_for_ai: "You've chosen your secret spot. Now, let's move to the killing round."
-            metadata_add:
-              user_secret: "the-users-response"
+            run_processing_script: true
+            content_blocks:
+              - "{{metadata.move_note}}"
             next_section_and_step: "section_1:step_2"
           invalid_move:
-            ai_feedback:
-              tokens_for_ai: "That move is invalid. Please choose a position between 0 and 8."
-            metadata_add:
-              user_secret: "the-users-response"
+            run_processing_script: true
+            content_blocks:
+              - "{{metadata.move_note}}"
+            counts_as_attempt: false
             next_section_and_step: "section_1:step_1"
           exit:
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: "section_1:step_3"
           restart:
-            ai_feedback:
-              tokens_for_ai: "Restarting the game. Let's start fresh!"
-            metadata_clear: True
+            content_blocks:
+              - "Restarting the game. Let's start fresh!"
             next_section_and_step: "section_1:step_0"
 
       - step_id: "step_2"
         title: "Kill a Square"
-        question: "Choose a square to kill (0-8)."
+        question: "Choose a square to strike (0-8)."
         tokens_for_ai: |
-          If the user wants to restart or play again, categorize as 'restart'.
-          If the user wants to exit, categorize as 'exit'.
-          If the move is valid, categorize as 'valid_move'.
-          If the move is invalid, categorize as 'invalid_move'.
+          - valid_move: a square, a number 0 to 8 (our script checks it).
+          - invalid_move: anything else meant as a square.
+          - restart: they want to start over.
+          - exit: they want to stop, quit or leave.
         feedback_tokens_for_ai: |
-          DO NOT reveal the AI's secret spot until game_over = True.
-          ALWAYS speak in first person. DO NOT START WITH "ai_move:".
-          If there is an error in the metadata, the move was likely invalid.
-          On a new line, provide feedback on the user's move:
-          - If the move is valid, check if the user's shot hit my (AI's) secret spot (ai_secret).
-          - If the user's shot hits my secret spot, say: "You hit my secret spot!"
-          - If the user's shot misses, say: "You missed my secret spot."
-          If the move is invalid, prompt the user to try again.
-          My move is the last item in the ai_shots list. For example, if ai_shots = [5, 3], my move is 3.
-          Announce my move: "I shoot at position [my move]."
-          If game_over = True, determine the winner:
-          - If user_wins = True, say: "Congratulations! You hit my secret spot and won the round!"
-          - If ai_wins = True, say: "I hit your secret spot and won the round!"
-          If game_over = True, describe the carnage of the final strike.
-          If game_over = True, suggest: "Would you like to restart and play again, or would you prefer to exit?"
+          Speak in first person as the computer. One or two sentences of playful trash talk.
+          The strike & result are decided & shown already (move_note): never change them.
+          Never reveal ai_secret unless game_over is true.
+        # Our script referees each strike, strikes back & ends the game.
         processing_script: |
           import random
           import matplotlib
@@ -124,127 +100,85 @@ sections:
           import io
           import base64
 
-          # Retrieve the game state
           user_secret = metadata.get("user_secret")
           ai_secret = metadata.get("ai_secret")
-          user_shots = metadata.get("user_shots", [])
-          ai_shots = metadata.get("ai_shots", [])
-          game_over = metadata.get("game_over", False)
+          user_shots = list(metadata.get("user_shots") or [])
+          ai_shots = list(metadata.get("ai_shots") or [])
+          for key in ("games", "wins", "losses", "draws"):
+              metadata[key] = int(metadata.get(key) or 0)
+          text = str(metadata.get("user_response") or "").strip()
+          user_kill = int(text) if text.isdigit() else -1
 
-
-          # Get the user's kill move
-          try:
-              user_kill = int(metadata.get("user_kill"))
-          except (IndexError, ValueError) as e:
-              user_kill = -1
-
-          if game_over:
-              script_result = {}
-          elif 0 <= user_kill < 9:
-              # the move is valid.
+          if user_secret is None or ai_secret is None or metadata.get("game_over"):
+              metadata["move_note"] = "Let's hide first."
+              script_result = {"next_section_and_step": "section_1:step_1"}
+          elif not 0 <= user_kill < 9:
+              metadata["move_note"] = f"🤔 `{text[:20]}` isn't a square: strike a number from 0 to 8."
+              script_result = {"valid": False}
+          elif user_kill in user_shots:
+              metadata["move_note"] = f"🙃 You already struck square {user_kill}. Try another."
+              script_result = {"valid": False}
+          else:
               user_shots.append(user_kill)
+              ai_kill = None
+              result = None
               if user_kill == ai_secret:
-                  game_over = True
-                  user_wins = True
-                  ai_wins = False
-                  draw = False
-                  user_title = "You Win!"
-                  ai_title = "AI's Moves"
+                  result = "win"
+                  note = f"💥 You strike **{user_kill}**: that's where the computer hid. **You win!** 🎉"
               else:
-                  # AI makes a move, avoiding its own secret spot
-                  available_positions = []
-                  for i in range(9):
-                      if i not in ai_shots and i != ai_secret:
-                          available_positions.append(i)
-                  ai_kill = random.choice(available_positions) if available_positions else None
-                  if ai_kill is not None:
-                      ai_shots.append(ai_kill)
-                      if ai_kill == user_secret:
-                          game_over = True
-                          user_wins = False
-                          ai_wins = True
-                          draw = False
-                          user_title = "Your Moves"
-                          ai_title = "AI Wins!"
-                      else:
-                          game_over = False
-                          user_wins = False
-                          ai_wins = False
-                          draw = False
-                          user_title = "Your Moves"
-                          ai_title = "AI's Moves"
+                  # The computer strikes back, never its own spot or a square twice
+                  free = [i for i in range(9) if i not in ai_shots and i != ai_secret]
+                  ai_kill = random.choice(free) if free else None
+                  note = f"You strike **{user_kill}**: a miss."
+                  if ai_kill is None:
+                      result = "draw"
+                      note += " Nobody is left to strike: **a draw.** 🤝"
                   else:
-                      game_over = True
-                      user_wins = False
-                      ai_wins = False
-                      draw = True
-                      user_title = "Your Moves"
-                      ai_title = "It's a Draw!"
+                      ai_shots.append(ai_kill)
+                      note += f" The computer strikes **{ai_kill}**"
+                      if ai_kill == user_secret:
+                          result = "loss"
+                          note += f": your hiding place! **The computer wins.** It was hiding on **{ai_secret}**."
+                      else:
+                          note += ": a miss."
+              game_over = result is not None
+              if game_over:
+                  metadata["games"] += 1
+                  metadata[{"win": "wins", "loss": "losses", "draw": "draws"}[result]] += 1
 
-              # Plot the boards
+              # Plot both boards
               fig, axs = plt.subplots(1, 2, figsize=(6, 3))
               fig.suptitle("Killer Squares", fontsize=16)
-              fig.tight_layout(h_pad=4)
-
-              # User's board
-              axs[0].set_xlim(0, 3)
-              axs[0].set_ylim(0, 3)
-              axs[0].set_xticks([])
-              axs[0].set_yticks([])
-              axs[0].grid(True)
-              axs[0].set_title(user_title, fontsize=12)
-
-              for i in range(9):
-                  x = i % 3
-                  y = 2 - i // 3
-                  axs[0].text(x + 0.5, y + 0.5, str(i), fontsize=12, ha='center', va='center', color='gray')
-
-              for user_kill in user_shots:
-                  ux, uy = user_kill % 3, 2 - user_kill // 3
-                  axs[0].text(ux + 0.5, uy + 0.5, 'X', fontsize=24, ha='center', va='center', color='red')
-
-              # AI's board
-              axs[1].set_xlim(0, 3)
-              axs[1].set_ylim(0, 3)
-              axs[1].set_xticks([])
-              axs[1].set_yticks([])
-              axs[1].grid(True)
-              axs[1].set_title(ai_title, fontsize=12)
-
-              for i in range(9):
-                  x = i % 3
-                  y = 2 - i // 3
-                  axs[1].text(x + 0.5, y + 0.5, str(i), fontsize=12, ha='center', va='center', color='gray')
-
-              for ai_kill in ai_shots:
-                  axx, axy = ai_kill % 3, 2 - ai_kill // 3
-                  axs[1].text(axx + 0.5, axy + 0.5, 'X', fontsize=24, ha='center', va='center', color='blue')
-
+              titles = ("Your strikes", "The computer's strikes")
+              for ax, shots, colour, title in zip(axs, (user_shots, ai_shots), ("red", "blue"), titles):
+                  ax.set_xlim(0, 3)
+                  ax.set_ylim(0, 3)
+                  ax.set_xticks([])
+                  ax.set_yticks([])
+                  ax.grid(True)
+                  ax.set_title(title, fontsize=12)
+                  for i in range(9):
+                      ax.text(i % 3 + 0.5, 2 - i // 3 + 0.5, str(i), fontsize=12, ha='center', va='center', color='gray')
+                  for shot in shots:
+                      ax.text(shot % 3 + 0.5, 2 - shot // 3 + 0.5, 'X', fontsize=24, ha='center', va='center', color=colour)
+              fig.tight_layout()
               buf = io.BytesIO()
               plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.1)
               plt.close(fig)
               buf.seek(0)
-              plot_image = base64.b64encode(buf.getvalue()).decode('utf-8')
 
-              script_result = {
-                  "plot_image": plot_image,
-                  "metadata": {
-                      "user_secret": user_secret,
-                      "ai_secret": ai_secret,
-                      "user_shots": user_shots,
-                      "ai_shots": ai_shots,
-                      "game_over": game_over,
-                      "user_wins": user_wins,
-                      "ai_wins": ai_wins,
-                      "draw": draw,
-                  }
-              }
-          else:
-              script_result = {
-                  "error": f"Invalid kill move: {metadata.get('user_kill')}",
-                  "metadata": {}
-              }
-
+              metadata["move_note"] = note
+              metadata.update({
+                  "user_shots": user_shots,
+                  "ai_shots": ai_shots,
+                  "game_over": game_over,
+                  "user_wins": result == "win",
+                  "ai_wins": result == "loss",
+                  "draw": result == "draw",
+              })
+              script_result = {"plot_image": base64.b64encode(buf.getvalue()).decode('utf-8')}
+              if game_over:
+                  script_result["next_section_and_step"] = "section_1:game_over"
         buckets:
           - valid_move
           - invalid_move
@@ -252,30 +186,51 @@ sections:
           - restart
         transitions:
           valid_move:
-            run_processing_script: True
+            run_processing_script: true
+            content_blocks:
+              - "{{metadata.move_note}}"
             ai_feedback:
-              tokens_for_ai: |
-                If somebody wins explain the move that triggered the kill shot.
-                Only if game_over is True reveal the ai secret spot number otherwise never tell the player the secret!
-            metadata_tmp_add:
-              user_kill: "the-users-response"
+              tokens_for_ai: "React to the strike."
             next_section_and_step: "section_1:step_2"
           invalid_move:
-            ai_feedback:
-              tokens_for_ai: "That move is invalid. Please choose a position between 0 and 8."
-            metadata_tmp_add:
-              user_kill: "the-users-response"
+            run_processing_script: true
+            content_blocks:
+              - "{{metadata.move_note}}"
+            counts_as_attempt: false
             next_section_and_step: "section_1:step_2"
           exit:
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: "section_1:step_3"
           restart:
-            ai_feedback:
-              tokens_for_ai: "Restarting the game. Let's start fresh!"
-            metadata_clear: True
+            content_blocks:
+              - "Restarting the game. Let's start fresh!"
             next_section_and_step: "section_1:step_0"
+
+      - step_id: "game_over"
+        title: "Game Over"
+        content_blocks:
+          - "Games: **{{metadata.games}}** · you won **{{metadata.wins}}** · the computer won **{{metadata.losses}}** · draws **{{metadata.draws}}**"
+        question: "Play **again**, or **exit**?"
+        tokens_for_ai: |
+          - restart: they want another game (yes, again, sure, a square number).
+          - exit: they want to stop, quit or leave (no, done).
+        buckets:
+          - restart
+          - exit
+        transitions:
+          restart:
+            next_section_and_step: "section_1:step_0"
+          exit:
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "section_1:step_3"
 
       - step_id: "step_3"
         title: "Goodbye"
         content_blocks:
+          - text: "Final tally: **{{metadata.games}}** games · you won **{{metadata.wins}}** · the computer won **{{metadata.losses}}** · draws **{{metadata.draws}}**"
+            show_if:
+              games_gte: 1
           - "Thank you for playing Killer Squares! 🎉"
           - "Feel free to come back anytime for another game."

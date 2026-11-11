@@ -1,9 +1,16 @@
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
 title: "Prize Room & Temple Pit"
 description: "Win a random prize, offer it to a temple god & face a shadow beast or a fire drake."
+kind: "game"
 default_max_attempts_per_step: 30
 
+# Metadata: inventory (item ids, comma separated), inventory_text (their
+# names), note (what our script says happened), action (this turn's ask).
+# One script referees every step (an anchor on the first, reused below):
+# draws, offerings & battles, so no model ever decides what we carry.
+
 tokens_for_ai_rubric: |
-    You are a master storyteller. Your task is to create a coherent and engaging story based on the following chat history. The story should seamlessly integrate the user's responses and the AI's feedback, ensuring that the narrative flows naturally. Pay special attention to the user's choices and how they shape the story. Use descriptive language to bring the scenes to life and make the story immersive. The story should have a clear beginning, middle, and end, reflecting the user's journey and the outcomes of their decisions. Here is the chat history.
+  You are a master storyteller. Retell this chat as one coherent, vivid story with a beginning, middle & end, shaped by the choices the player made & the narrator's replies.
 
 sections:
   - section_id: "section_1"
@@ -12,45 +19,120 @@ sections:
       - step_id: "step_1"
         title: "Receive Your Prize"
         content_blocks:
-          - "You have entered the prize room! 🎁"
-          - "A prize is randomly selected for you from the room."
-          - "You can also go to the temple pit from here."
-        tokens_for_ai: "DO NOT select go_back unless the users says 'go back' in their message."
-        question: "You have received a prize! Guess what it could be? 🤔"
+          - "You are in the prize room! 🎁 Guess at a prize & one is drawn for you. A stair leads down to the temple pit, where a god trades items, & charms summon monsters."
+          - text: "🎒 You carry: {{metadata.inventory_text}}"
+            show_if:
+              inventory_text_exists: true
+        question: "Guess what your next prize could be, say **temple** to go down to the temple pit, or **exit**. 🤔"
+        # Any guess is a guess: never read as a question about the game.
+        allow_clarifying_questions: false
+        tokens_for_ai: |
+          - random_prize_guess: any guess at a prize (or "draw", "another").
+          - go_to_temple_pit: they go to the temple, the pit, the god, or downstairs.
+          - exit: they want to stop, quit or leave.
+        processing_script: &temple_script |
+          import random
+          import re
+
+          ITEMS = {
+              "golden_keychain": "a golden keychain 🗝️",
+              "mysterious_amulet": "a mysterious amulet 🧿",
+              "rare_gemstone": "a rare gemstone 💎",
+              "ancient_scroll": "an ancient scroll 📜",
+              "magical_wand": "a magical wand 🪄",
+              "treasure_map": "a treasure map 🗺️",
+              "silver_coin": "a silver coin 🪙",
+              "mystical_ring": "a mystical ring 💍",
+              "rare_book": "a rare book 📚",
+              "magical_potion": "a magical potion 🧪",
+              "shadow_charm": "a shadow charm 🖤",
+              "flame_charm": "a flame charm 🔥",
+          }
+          # The word a person names each item by
+          WORDS = {k: k.split("_")[-1] if not k.endswith("charm") else k.split("_")[0] for k in ITEMS}
+          # What the god grants for each offering; a charm summons a monster
+          TRADES = {
+              "golden_keychain": "mysterious_amulet",
+              "mysterious_amulet": "rare_gemstone",
+              "rare_gemstone": "ancient_scroll",
+              "ancient_scroll": "magical_wand",
+              "magical_wand": "treasure_map",
+              "treasure_map": "silver_coin",
+              "silver_coin": "mystical_ring",
+              "mystical_ring": "rare_book",
+              "rare_book": "magical_potion",
+              "magical_potion": "golden_keychain",
+          }
+          BATTLES = {"shadow_charm": "section_3:step_1", "flame_charm": "section_4:step_1"}
+          WINS = {
+              "shadow": [("magical_wand", "You wield the magical wand & unleash a blinding spell!"),
+                         ("mystical_ring", "You raise the mystical ring & its inner light burns the darkness away!")],
+              "drake": [("treasure_map", "The treasure map shows the drake's weak spot: you strike true!"),
+                        ("ancient_scroll", "You read the ancient scroll aloud & a shield of frost swallows the flames!")],
+          }
+
+          inventory = [i for i in str(metadata.get("inventory") or "").split(",") if i in ITEMS]
+          action = metadata.get("action")
+          said = str(metadata.get("user_response") or "").lower()
+          note = ""
+          result = {}
+
+          if action == "draw":
+              prize = random.choice(list(ITEMS))
+              inventory.append(prize)
+              note = f"🎲 Your prize: **{ITEMS[prize]}**!"
+          elif action == "offer":
+              named = [k for k, w in WORDS.items() if re.search(r"\b" + w + r"s?\b", said)]
+              held = [k for k in named if k in inventory]
+              if not named:
+                  note = "🙏 The god waits. Name an item you carry to offer it."
+              elif not held:
+                  note = f"🤨 You don't carry {ITEMS[named[0]]}."
+              else:
+                  item = held[0]
+                  inventory.remove(item)
+                  if item in BATTLES:
+                      note = f"You offer {ITEMS[item]}. The god's eyes flare... & summons a monster! Prepare for battle! ⚔️"
+                      result["next_section_and_step"] = BATTLES[item]
+                  else:
+                      inventory.append(TRADES[item])
+                      note = f"You offer {ITEMS[item]}. The god grants you **{ITEMS[TRADES[item]]}**."
+          elif action in WINS:
+              for item, line in WINS[action]:
+                  if item in inventory:
+                      note = line + " The monster is defeated! 🏆"
+                      result["next_section_and_step"] = "section_5:step_1"
+                      break
+              else:
+                  note = "You fight with bare hands, but nothing you carry can harm it... 💀"
+                  result["next_section_and_step"] = "death_ending:step_1" if action == "shadow" else "death_ending_fire:step_1"
+
+          metadata["inventory"] = ",".join(inventory)
+          metadata["inventory_text"] = ", ".join(ITEMS[i] for i in inventory) or "nothing yet"
+          metadata["note"] = note
+          script_result = result
         buckets:
           - random_prize_guess
           - go_to_temple_pit
-          - go_back
+          - exit
         transitions:
           random_prize_guess:
-            ai_feedback:
-              tokens_for_ai: "cheer for the player, they got a new item. list them all from metadata. now make a joke about their guess!"
-
+            metadata_tmp_add:
+              action: "draw"
+            run_processing_script: true
             content_blocks:
-              - "You received a random prize! 🎲"
+              - "{{metadata.note}}"
+            ai_feedback:
+              tokens_for_ai: "One playful sentence comparing their guess with the prize they drew (note)."
             next_section_and_step: "section_1:step_1"
-            metadata_random:
-              golden_keychain: true
-              mysterious_amulet: true
-              rare_gemstone: true
-              ancient_scroll: true
-              magical_wand: true
-              treasure_map: true
-              silver_coin: true
-              mystical_ring: true
-              rare_book: true
-              magical_potion: true
-              shadow_charm: true
-              flame_charm: true
-
           go_to_temple_pit:
             content_blocks:
-              - "You chose to go to the temple pit room. 🏛"
+              - "You go down the stair to the temple pit. 🏛"
             next_section_and_step: "section_2:step_1"
-          go_back:
-            content_blocks:
-              - "You chose to go back to the temple pit room. 🏛"
-            next_section_and_step: "section_2:step_1"
+          exit:
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "finale:goodbye"
 
   - section_id: "section_2"
     title: "The Temple Pit"
@@ -58,161 +140,44 @@ sections:
       - step_id: "step_1"
         title: "Offer to the God"
         content_blocks:
-          - "You have entered the temple pit. 🏛"
-          - "You can offer an item to the god to receive a new item."
-        tokens_for_ai: "Guide the user to make a choice between offering different items."
-        question: "Which item do you offer to the god? 🤔"
+          - "You stand in the temple pit. 🏛 A stone god waits: offer it an item & it grants another. Charms are said to anger it."
+          - text: "🎒 You carry: {{metadata.inventory_text}}"
+            show_if:
+              inventory_text_exists: true
+          - text: "🎒 You carry nothing yet: win a prize upstairs first."
+            show_if:
+              inventory_text_not_exists: true
+        question: "Which item do you offer to the god? (A shadow or flame charm summons a monster.) Or **go back** to the prize room, or **exit**. 🤔"
+        tokens_for_ai: |
+          - offer_item: they name an item to offer (our script checks they carry it).
+          - go_back: they go back upstairs to the prize room.
+          - exit: they want to stop, quit or leave.
+          - off_topic: anything else.
+        processing_script: *temple_script
         buckets:
-          - offer_golden_keychain
-          - offer_mysterious_amulet
-          - offer_rare_gemstone
-          - offer_ancient_scroll
-          - offer_magical_wand
-          - offer_treasure_map
-          - offer_silver_coin
-          - offer_mystical_ring
-          - offer_rare_book
-          - offer_magical_potion
-          - offer_shadow_charm
-          - offer_flame_charm
+          - offer_item
           - go_back
+          - exit
           - off_topic
         transitions:
-          offer_golden_keychain:
-            metadata_conditions:
-              golden_keychain: true
+          offer_item:
+            metadata_tmp_add:
+              action: "offer"
+            run_processing_script: true
             content_blocks:
-              - "You offered the golden keychain to the god. 🗝"
-              - "The god grants you a mystical amulet. 🧿"
+              - "{{metadata.note}}"
             next_section_and_step: "section_2:step_1"
-            metadata_add:
-              mystical_amulet: true
-            metadata_remove:
-              - golden_keychain
-          offer_mysterious_amulet:
-            metadata_conditions:
-              mysterious_amulet: true
-            content_blocks:
-              - "You offered the mysterious amulet to the god. 🧿"
-              - "The god grants you a rare gemstone. 💎"
-            next_section_and_step: "section_2:step_1"
-            metadata_add:
-              rare_gemstone: true
-            metadata_remove:
-              - mysterious_amulet
-          offer_rare_gemstone:
-            metadata_conditions:
-              rare_gemstone: true
-            content_blocks:
-              - "You offered the rare gemstone to the god. 💎"
-              - "The god grants you an ancient scroll. 📜"
-            next_section_and_step: "section_2:step_1"
-            metadata_add:
-              ancient_scroll: true
-            metadata_remove:
-              - rare_gemstone
-          offer_ancient_scroll:
-            metadata_conditions:
-              ancient_scroll: true
-            content_blocks:
-              - "You offered the ancient scroll to the god. 📜"
-              - "The god grants you a magical wand. 🪄"
-            next_section_and_step: "section_2:step_1"
-            metadata_add:
-              magical_wand: true
-            metadata_remove:
-              - ancient_scroll
-          offer_magical_wand:
-            metadata_conditions:
-              magical_wand: true
-            content_blocks:
-              - "You offered the magical wand to the god. 🪄"
-              - "The god grants you a treasure map. 🗺"
-            next_section_and_step: "section_2:step_1"
-            metadata_add:
-              treasure_map: true
-            metadata_remove:
-              - magical_wand
-          offer_treasure_map:
-            metadata_conditions:
-              treasure_map: true
-            content_blocks:
-              - "You offered the treasure map to the god. 🗺"
-              - "The god grants you a silver coin. 🪙"
-            next_section_and_step: "section_2:step_1"
-            metadata_add:
-              silver_coin: true
-            metadata_remove:
-              - treasure_map
-          offer_silver_coin:
-            metadata_conditions:
-              silver_coin: true
-            content_blocks:
-              - "You offered the silver coin to the god. 🪙"
-              - "The god grants you a mystical ring. 💍"
-            next_section_and_step: "section_2:step_1"
-            metadata_add:
-              mystical_ring: true
-            metadata_remove:
-              - silver_coin
-          offer_mystical_ring:
-            metadata_conditions:
-              mystical_ring: true
-            content_blocks:
-              - "You offered the mystical ring to the god. 💍"
-              - "The god grants you a rare book. 📚"
-            next_section_and_step: "section_2:step_1"
-            metadata_add:
-              rare_book: true
-            metadata_remove:
-              - mystical_ring
-          offer_rare_book:
-            metadata_conditions:
-              rare_book: true
-            content_blocks:
-              - "You offered the rare book to the god. 📚"
-              - "The god grants you a magical potion. 🧪"
-            next_section_and_step: "section_2:step_1"
-            metadata_add:
-              magical_potion: true
-            metadata_remove:
-              - rare_book
-          offer_magical_potion:
-            metadata_conditions:
-              magical_potion: true
-            content_blocks:
-              - "You offered the magical potion to the god. 🧪"
-              - "The god grants you a golden keychain. 🗝"
-            next_section_and_step: "section_2:step_1"
-            metadata_add:
-              golden_keychain: true
-            metadata_remove:
-              - magical_potion
-          offer_shadow_charm:
-            metadata_conditions:
-              shadow_charm: true
-            metadata_remove:
-              - shadow_charm
-            content_blocks:
-              - "You offered the Shadow Charm to the god. 🖤"
-              - "The god summons the Shadow Beast! Prepare for battle!"
-            next_section_and_step: "section_3:step_1"
-          offer_flame_charm:
-            metadata_conditions:
-              flame_charm: true
-            metadata_remove:
-              - flame_charm
-            content_blocks:
-              - "You offered the Flame Charm to the god. 🔥"
-              - "The god summons the Fire Drake! Prepare for battle!"
-            next_section_and_step: "section_4:step_1"
           go_back:
             content_blocks:
-              - "You chose to go back to the prize room. 🎁"
+              - "You climb back up to the prize room. 🎁"
             next_section_and_step: "section_1:step_1"
+          exit:
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "finale:goodbye"
           off_topic:
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the story in a supportive manner. DO NOT ask any questions. Use emojis like 🔄 and 🧭."
+            content_blocks:
+              - "The god waits: name an item you carry, or **go back**. 🧭"
             next_section_and_step: "section_2:step_1"
 
   - section_id: "section_3"
@@ -221,36 +186,28 @@ sections:
       - step_id: "step_1"
         title: "Battle the Shadow Beast"
         content_blocks:
-          - "You have entered the Dark Cavern. The air is thick with darkness, and a menacing growl echoes around you."
-          - "A Shadow Beast emerges from the shadows, ready to attack!"
-        tokens_for_ai: "Guide the user to choose their action based on their items."
-        question: "Do you fight the Shadow Beast? (You need the Magical Wand or Mystical Ring to win!)"
+          - "You fall into the Dark Cavern. The air is thick with darkness, and a menacing growl echoes around you."
+          - "A Shadow Beast emerges from the shadows, ready to attack! (Legend says only a magical wand or a mystical ring can harm it.)"
+          - "🎒 You carry: {{metadata.inventory_text}}"
+        question: "Do you **fight** the Shadow Beast, or **flee**?"
+        tokens_for_ai: |
+          - fight: they fight, attack, or use an item.
+          - flee: they run, hide or give up.
+        processing_script: *temple_script
         buckets:
-          - fight_with_wand
-          - fight_with_ring
+          - fight
           - flee
         transitions:
-          fight_with_wand:
-            metadata_conditions:
-              magical_wand: true
+          fight:
+            metadata_tmp_add:
+              action: "shadow"
+            run_processing_script: true
             content_blocks:
-              - "You wield the Magical Wand and unleash a powerful spell!"
-              - "The Shadow Beast is defeated! You find a Shadow Crystal. 💎"
-            next_section_and_step: "section_5:step_1"
-            metadata_add:
-              shadow_crystal: true
-          fight_with_ring:
-            metadata_conditions:
-              mystical_ring: true
-            content_blocks:
-              - "You use the Mystical Ring to channel your inner light!"
-              - "The Shadow Beast is defeated! You find a Shadow Crystal. 💎"
-            next_section_and_step: "section_5:step_1"
-            metadata_add:
-              shadow_crystal: true
+              - "{{metadata.note}}"
+            next_section_and_step: "death_ending:step_1"
           flee:
             content_blocks:
-              - "You attempt to flee, but the Shadow Beast catches you. You have met your end. 💀"
+              - "You attempt to flee, but the Shadow Beast catches you. 💀"
             next_section_and_step: "death_ending:step_1"
 
   - section_id: "section_4"
@@ -259,36 +216,28 @@ sections:
       - step_id: "step_1"
         title: "Battle the Fire Drake"
         content_blocks:
-          - "You have entered the Fiery Lair. The heat is intense, and flames flicker around you."
-          - "A Fire Drake roars, ready to defend its territory!"
-        tokens_for_ai: "Guide the user to choose their action based on their items."
-        question: "Do you fight the Fire Drake? (You need the Treasure Map or Ancient Scroll to win!)"
+          - "You fall into the Fiery Lair. The heat is intense, and flames flicker around you."
+          - "A Fire Drake roars, ready to defend its territory! (Legend says only a treasure map or an ancient scroll can beat it.)"
+          - "🎒 You carry: {{metadata.inventory_text}}"
+        question: "Do you **fight** the Fire Drake, or **flee**?"
+        tokens_for_ai: |
+          - fight: they fight, attack, or use an item.
+          - flee: they run, hide or give up.
+        processing_script: *temple_script
         buckets:
-          - fight_with_map
-          - fight_with_scroll
+          - fight
           - flee
         transitions:
-          fight_with_map:
-            metadata_conditions:
-              treasure_map: true
+          fight:
+            metadata_tmp_add:
+              action: "drake"
+            run_processing_script: true
             content_blocks:
-              - "You use the Treasure Map to find the Drake's weak spot!"
-              - "The Fire Drake is defeated! You find a Flame Pendant. 🔥"
-            next_section_and_step: "section_5:step_1"
-            metadata_add:
-              flame_pendant: true
-          fight_with_scroll:
-            metadata_conditions:
-              ancient_scroll: true
-            content_blocks:
-              - "You read the Ancient Scroll and summon a powerful fire shield!"
-              - "The Fire Drake is defeated! You find a Flame Pendant. 🔥"
-            next_section_and_step: "section_5:step_1"
-            metadata_add:
-              flame_pendant: true
+              - "{{metadata.note}}"
+            next_section_and_step: "death_ending_fire:step_1"
           flee:
             content_blocks:
-              - "You attempt to flee, but the Fire Drake incinerates you. You have met your end. 💀"
+              - "You attempt to flee, but the Fire Drake incinerates you. 💀"
             next_section_and_step: "death_ending_fire:step_1"
 
   - section_id: "section_5"
@@ -297,16 +246,17 @@ sections:
       - step_id: "step_1"
         title: "The Final Path"
         content_blocks:
-          - "You have defeated the monster and continue on your journey."
-          - "You see a path leading to the final destination."
-        tokens_for_ai: "Guide the user to the final victory."
+          - "You have defeated the monster. Beyond its lair, a path glows toward the final destination."
         question: "Do you continue on the path to victory? 🤔"
+        tokens_for_ai: "- continue_to_victory: anything at all."
         buckets:
           - continue_to_victory
         transitions:
           continue_to_victory:
             content_blocks:
               - "You walk down the path and reach the final destination. You are victorious! 🏆"
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: "victory:step_1"
 
   - section_id: "death_ending"
@@ -315,7 +265,8 @@ sections:
       - step_id: "step_1"
         title: "Death Ending"
         content_blocks:
-          - "Game Over."
+          - "💀 **Game Over.** The Abyss of Shadows claims you."
+        next_section_and_step: "finale:again"
 
   - section_id: "death_ending_fire"
     title: "The Ashen Wastes"
@@ -323,7 +274,8 @@ sections:
       - step_id: "step_1"
         title: "Death Ending"
         content_blocks:
-          - "Game Over."
+          - "🔥 **Game Over.** Only ashes drift over the Ashen Wastes."
+        next_section_and_step: "finale:again"
 
   - section_id: "victory"
     title: "Victory"
@@ -331,4 +283,31 @@ sections:
       - step_id: "step_1"
         title: "Victory"
         content_blocks:
-          - "Thank you for playing!"
+          - "🏆 **Victory!** The temple's treasure is yours."
+        next_section_and_step: "finale:again"
+
+  - section_id: "finale"
+    title: "Again?"
+    steps:
+      - step_id: "again"
+        title: "Play Again?"
+        question: "Play **again** from the prize room, or **exit**?"
+        tokens_for_ai: |
+          - again: they want another go (yes, again, restart).
+          - exit: they want to stop (no, done, quit).
+        buckets:
+          - again
+          - exit
+        transitions:
+          again:
+            metadata_remove: [inventory, inventory_text, note]
+            next_section_and_step: "section_1:step_1"
+          exit:
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "finale:goodbye"
+
+      - step_id: "goodbye"
+        title: "Goodbye"
+        content_blocks:
+          - "Thank you for playing! 👋"
