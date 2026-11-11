@@ -1956,7 +1956,9 @@ def chat_claude(
     )
 
     socketio.emit("delete_processing_message", msg_id, room=room_name)
-    title_untitled_room(room_name)
+    # Beside us, never inside: titling asks a model, & while we wait on it
+    # this reply still counts as streaming (Stop stayed 1-2 s too long).
+    gevent.spawn(title_untitled_room, room_name)
 
 
 def _env_float(name, default):
@@ -2982,6 +2984,14 @@ class ReplyStream:
                 f"[WARN] {model_name} looped in its {where} in {self.room_name}: "
                 f"{phrase!r}"
             )
+        if (
+            not self.notice
+            and self.room_name in stop_requests
+            and not self.buffer.strip()
+        ):
+            # Stop pressed while it was still thinking: without this, its
+            # reply was a name over nothing, as if it had answered blank.
+            self.notice = "\n\n_Stopped before it answered._"
         if self.notice or self.footnote:
             tail = self.footnote + self.notice
             self.buffer += tail
@@ -3156,7 +3166,10 @@ def chat_gpt(
         if live_replies.get(reply.msg_id) is reply:
             del live_replies[reply.msg_id]
     if finished:
-        title_untitled_room(room_name)
+        # Beside us, never inside: titling asks a model, & while we wait on
+        # it this reply still counts as streaming (Stop stayed 1-2 s too long
+        # on a room's first reply).
+        gevent.spawn(title_untitled_room, room_name)
 
 
 def stream_reply(reply, resume):
