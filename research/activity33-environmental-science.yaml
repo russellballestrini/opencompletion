@@ -1,3 +1,6 @@
+title: "Sustainable River City"
+description: "Advise a city on transport, energy, land, waste & food, and watch its Environmental Health Score move."
+kind: "lesson"
 default_max_attempts_per_step: 3
 tokens_for_ai_rubric: 'Evaluate the student''s understanding of environmental science and sustainability.
 
@@ -66,19 +69,20 @@ sections:
         content_blocks:
         - Excellent! Let's start with your first environmental challenge.
         metadata_add:
-          environmental_score: '50'
-          decisions_made: '0'
+          environmental_score: 50
+          decisions_made: 0
+          quiz_correct: 0
         next_section_and_step: section_1:step_1
       set_language:
         content_blocks:
         - I'll communicate in your preferred language.
+        metadata_add:
+          language: the-users-response
         counts_as_attempt: false
-        next_section_and_step: introduction:welcome
       off_topic:
         content_blocks:
         - Let's get started helping River City become more sustainable! Are you ready?
         counts_as_attempt: false
-        next_section_and_step: introduction:welcome
 - section_id: section_1
   title: Transportation Challenge
   steps:
@@ -86,6 +90,7 @@ sections:
     title: Transportation Infrastructure
     content_blocks:
     - '## Challenge 1: Transportation Infrastructure 🚗🚌'
+    - 'Environmental Health Score: **{{metadata.environmental_score}}** · decisions made: {{metadata.decisions_made}}'
     - '**The Situation:**'
     - 'River City has severe traffic congestion. Most residents drive personal cars, creating:'
     - '- High carbon emissions'
@@ -118,8 +123,6 @@ sections:
 
       - limited_effort: Very brief or no reasoning
 
-      - asking_clarifying_questions: Needs more information
-
       - off_topic: Unrelated
 
       '
@@ -138,7 +141,6 @@ sections:
     - unsustainable
     - thoughtful_tradeoff
     - limited_effort
-    - asking_clarifying_questions
     - off_topic
     transitions:
       sustainable_choice:
@@ -148,7 +150,7 @@ sections:
           environmental_score: n+10
           carbon_reduced: high
           decisions_made: n+1
-        next_section_and_step: section_2:step_1
+        next_section_and_step: section_1:check_induced_demand
       mixed_thinking:
         ai_feedback:
           tokens_for_ai: A balanced approach can work! Discuss the tradeoffs and how to maximize environmental benefit within the mixed approach.
@@ -156,7 +158,7 @@ sections:
           environmental_score: n+5
           carbon_reduced: medium
           decisions_made: n+1
-        next_section_and_step: section_2:step_1
+        next_section_and_step: section_1:check_induced_demand
       unsustainable:
         ai_feedback:
           tokens_for_ai: Explain 'induced demand' - more highways lead to more driving and sprawl. Suggest how public transit or bike infrastructure could address congestion more sustainably.
@@ -164,7 +166,7 @@ sections:
           environmental_score: n-5
           carbon_reduced: none
           decisions_made: n+1
-        next_section_and_step: section_2:step_1
+        next_section_and_step: section_1:check_induced_demand
       thoughtful_tradeoff:
         ai_feedback:
           tokens_for_ai: You're thinking systemically about the tradeoffs! Validate their sophisticated reasoning and provide additional context.
@@ -172,20 +174,36 @@ sections:
           environmental_score: n+7
           carbon_reduced: medium
           decisions_made: n+1
-        next_section_and_step: section_2:step_1
+        next_section_and_step: section_1:check_induced_demand
       limited_effort:
         content_blocks:
         - Please think more deeply about the environmental and practical implications of each option. What are the long-term effects?
-        next_section_and_step: section_1:step_1
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question helpfully, providing information about emissions, costs, or practicality as requested.
-        counts_as_attempt: false
-        next_section_and_step: section_1:step_1
       off_topic:
         content_blocks:
         - Let's focus on the transportation challenge. Which option do you recommend and why?
-        next_section_and_step: section_1:step_1
+  - step_id: check_induced_demand
+    title: 'Quick Check: Induced Demand'
+    question_type: multiple_choice
+    question: A city widens a congested highway. What usually happens to traffic within a few years?
+    choices:
+    - {id: a, text: "It stays light for good"}
+    - {id: b, text: "It returns, as the extra room invites more driving"}
+    - {id: c, text: "It moves onto public transit"}
+    answer: b
+    hints:
+    - attempt: 1
+      text: "💡 If driving gets easier, do people drive more or less?"
+      counts_as_attempt: true
+    transitions:
+      correct:
+        content_blocks:
+        - 'Right: that''s **induced demand**. New lanes invite new trips, so congestion and emissions climb back.'
+        metadata_add:
+          quiz_correct: n+1
+        next_section_and_step: section_2:step_1
+      incorrect:
+        content_blocks:
+        - 'Not quite: think about what people do when a road suddenly feels faster.'
 - section_id: section_2
   title: Energy Challenge
   steps:
@@ -193,6 +211,7 @@ sections:
     title: Energy Infrastructure
     content_blocks:
     - '## Challenge 2: Energy Infrastructure ⚡🌞'
+    - 'Environmental Health Score: **{{metadata.environmental_score}}** · decisions made: {{metadata.decisions_made}}'
     - '**The Situation:**'
     - 'River City''s power currently comes from:'
     - '- 70% coal (cheap but high carbon emissions and air pollution)'
@@ -225,8 +244,6 @@ sections:
 
       - limited_effort: Very brief
 
-      - asking_clarifying_questions: Needs more info
-
       - off_topic: Unrelated
 
       '
@@ -245,7 +262,6 @@ sections:
     - transitional_thinking
     - systems_thinking
     - limited_effort
-    - asking_clarifying_questions
     - off_topic
     transitions:
       renewable_choice:
@@ -284,16 +300,9 @@ sections:
       limited_effort:
         content_blocks:
         - Please provide more reasoning about environmental impact and long-term sustainability. What are the climate implications?
-        next_section_and_step: section_2:step_1
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question about renewable energy, costs, or technical details.
-        counts_as_attempt: false
-        next_section_and_step: section_2:step_1
       off_topic:
         content_blocks:
         - Let's focus on the energy challenge. Which energy strategy would you recommend?
-        next_section_and_step: section_2:step_1
 - section_id: section_3
   title: Land Use Challenge
   steps:
@@ -301,6 +310,7 @@ sections:
     title: Green Space vs Development
     content_blocks:
     - '## Challenge 3: Green Space vs Development 🌳🏢'
+    - 'Environmental Health Score: **{{metadata.environmental_score}}** · decisions made: {{metadata.decisions_made}}'
     - '**The Situation:**'
     - River City has a 50-acre plot of undeveloped land with mature forest and a wetland.
     - ''
@@ -338,8 +348,6 @@ sections:
 
       - limited_effort: Very brief
 
-      - asking_clarifying_questions: Needs more info
-
       - off_topic: Unrelated
 
       '
@@ -357,7 +365,6 @@ sections:
     - development_focus
     - sophisticated_tradeoff
     - limited_effort
-    - asking_clarifying_questions
     - off_topic
     transitions:
       conservation_priority:
@@ -403,16 +410,9 @@ sections:
       limited_effort:
         content_blocks:
         - Think about what would be permanently lost if the natural area is developed. What ecosystem services does it provide?
-        next_section_and_step: section_3:step_1
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question about ecosystem services, biodiversity, or development alternatives.
-        counts_as_attempt: false
-        next_section_and_step: section_3:step_1
       off_topic:
         content_blocks:
         - Let's focus on the land use decision. What would you recommend for the 50-acre natural area?
-        next_section_and_step: section_3:step_1
 - section_id: section_4
   title: Waste & Circular Economy
   steps:
@@ -420,6 +420,7 @@ sections:
     title: Waste Management
     content_blocks:
     - '## Challenge 4: Waste Management ♻️'
+    - 'Environmental Health Score: **{{metadata.environmental_score}}** · decisions made: {{metadata.decisions_made}}'
     - '**The Situation:**'
     - 'River City sends 80% of waste to landfills, where it:'
     - '- Takes up space (landfills filling up)'
@@ -455,8 +456,6 @@ sections:
 
       - limited_effort: Very brief
 
-      - asking_clarifying_questions: Needs more info
-
       - off_topic: Unrelated
 
       '
@@ -475,7 +474,6 @@ sections:
     - technical_solution
     - systems_thinking
     - limited_effort
-    - asking_clarifying_questions
     - off_topic
     transitions:
       circular_economy:
@@ -485,7 +483,7 @@ sections:
           environmental_score: n+8
           waste_reduction: high
           decisions_made: n+1
-        next_section_and_step: section_5:step_1
+        next_section_and_step: section_4:check_waste_hierarchy
       pollution_prevention:
         ai_feedback:
           tokens_for_ai: Great prevention thinking! Eliminating single-use plastics prevents pollution at the source. Discuss how this addresses ocean plastic crisis.
@@ -494,7 +492,7 @@ sections:
           waste_reduction: high
           plastic_reduction: 'true'
           decisions_made: n+1
-        next_section_and_step: section_5:step_1
+        next_section_and_step: section_4:check_waste_hierarchy
       technical_solution:
         ai_feedback:
           tokens_for_ai: Incineration is better than landfilling, but it's still treating symptoms rather than causes. Discuss the waste hierarchy and how prevention is better than end-of-pipe solutions.
@@ -502,7 +500,7 @@ sections:
           environmental_score: n+4
           waste_reduction: medium
           decisions_made: n+1
-        next_section_and_step: section_5:step_1
+        next_section_and_step: section_4:check_waste_hierarchy
       systems_thinking:
         ai_feedback:
           tokens_for_ai: Excellent systems thinking! You're looking at root causes rather than just managing waste. Validate their sophisticated approach.
@@ -510,20 +508,37 @@ sections:
           environmental_score: n+10
           waste_reduction: high
           decisions_made: n+1
-        next_section_and_step: section_5:step_1
+        next_section_and_step: section_4:check_waste_hierarchy
       limited_effort:
         content_blocks:
         - 'Think about the waste hierarchy: Is it better to prevent waste or manage it after it''s created?'
-        next_section_and_step: section_4:step_1
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question about waste management, recycling, or circular economy concepts.
-        counts_as_attempt: false
-        next_section_and_step: section_4:step_1
       off_topic:
         content_blocks:
         - Let's focus on waste management. Which strategy would you recommend?
-        next_section_and_step: section_4:step_1
+  - step_id: check_waste_hierarchy
+    title: 'Quick Check: Waste Hierarchy'
+    question_type: multiple_choice
+    question: Which sits at the TOP of the waste hierarchy (the most sustainable choice)?
+    choices:
+    - {id: a, text: "Recycle"}
+    - {id: b, text: "Burn for energy"}
+    - {id: c, text: "Reduce"}
+    - {id: d, text: "Landfill"}
+    answer: c
+    hints:
+    - attempt: 1
+      text: "💡 The best waste is the waste that is never made."
+      counts_as_attempt: true
+    transitions:
+      correct:
+        content_blocks:
+        - 'Yes: reduce > reuse > recycle > recover energy > landfill.'
+        metadata_add:
+          quiz_correct: n+1
+        next_section_and_step: section_5:step_1
+      incorrect:
+        content_blocks:
+        - 'Not quite: recycling still uses energy and materials. What comes before it?'
 - section_id: section_5
   title: Food & Agriculture
   steps:
@@ -531,6 +546,7 @@ sections:
     title: Sustainable Food Systems
     content_blocks:
     - '## Challenge 5: Sustainable Food Systems 🌾'
+    - 'Environmental Health Score: **{{metadata.environmental_score}}** · decisions made: {{metadata.decisions_made}}'
     - '**The Situation:**'
     - 'River City imports 90% of its food from distant farms, which:'
     - '- Requires energy for transportation (high carbon footprint)'
@@ -568,8 +584,6 @@ sections:
 
       - limited_effort: Very brief
 
-      - asking_clarifying_questions: Needs more info
-
       - off_topic: Unrelated
 
       '
@@ -586,7 +600,6 @@ sections:
     - local_food
     - holistic_thinking
     - limited_effort
-    - asking_clarifying_questions
     - off_topic
     transitions:
       climate_focused:
@@ -623,16 +636,9 @@ sections:
       limited_effort:
         content_blocks:
         - 'Think about the full lifecycle of food: production, transportation, consumption, and waste. Where are the biggest environmental impacts?'
-        next_section_and_step: section_5:step_1
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question about food system environmental impacts, emissions, or sustainability strategies.
-        counts_as_attempt: false
-        next_section_and_step: section_5:step_1
       off_topic:
         content_blocks:
         - Let's focus on food sustainability. Which strategy would you recommend?
-        next_section_and_step: section_5:step_1
 - section_id: conclusion
   title: Sustainability Report
   steps:
@@ -641,6 +647,8 @@ sections:
     content_blocks:
     - '## Congratulations, Environmental Consultant! 🌍'
     - You've completed your sustainability consulting project for River City!
+    - ''
+    - '**Final Environmental Health Score: {{metadata.environmental_score}}** (started at 50) · quick checks right: {{metadata.quiz_correct}} of 2'
     - ''
     - '**Key environmental concepts you explored:**'
     - ✓ Carbon footprint and climate impact

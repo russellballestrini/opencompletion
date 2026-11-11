@@ -1,3 +1,6 @@
+title: "Build Connect Four"
+description: "Code a playable Connect Four in your language: a 2D board, gravity, move checks, wins in every direction and a game loop."
+kind: "lesson"
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
@@ -85,29 +88,13 @@ sections:
       - step_id: "implement_board"
         title: "Create the Board"
         question: "Write code to create an empty Connect Four board (6 rows, 7 columns). Use a 2D array/list and fill it with empty spaces or a placeholder like '.' or ' '."
-        tokens_for_ai: |
-          Get the programming language from metadata.programming_language.
-
-          The student should create a 2D array/list representing a 6x7 board.
-
-          Categorize as 'excellent' if they:
-          - Create a 6x7 2D structure (rows x columns)
-          - Initialize all positions with empty markers
-          - Use appropriate syntax for their language
-
-          Categorize as 'correct' if they:
-          - Create the right dimensions
-          - Minor syntax issues but concept is clear
-
-          Categorize as 'wrong_dimensions' if they:
-          - Mix up rows/columns (7x6 instead of 6x7)
-          - But otherwise have the right idea
-
-          Categorize as 'needs_guidance' if they:
-          - Don't understand 2D arrays
-          - Need help with the concept
-
-          Categorize as 'set_language' if they want to switch languages.
+        tokens_for_ai: "Grade their empty board, in metadata.programming_language."
+        bucket_criteria:
+          excellent: "A 6-row by 7-column 2D structure, every cell an empty marker, idiomatic."
+          correct: "Right dimensions, minor syntax issues."
+          wrong_dimensions: "The right idea with 7 rows by 6 columns."
+          needs_guidance: "Doesn't yet build a 2D structure."
+          set_language: "Asks to change the conversation language."
         feedback_tokens_for_ai: |
           Provide feedback based on their code in metadata.programming_language.
 
@@ -131,14 +118,14 @@ sections:
               tokens_for_ai: "See feedback_tokens_for_ai above"
             metadata_add:
               board_created: "true"
-              progress_score: "1"
+              progress_score: "n+1"
             next_section_and_step: "display_board:explain_display"
           correct:
             ai_feedback:
               tokens_for_ai: "See feedback_tokens_for_ai above"
             metadata_add:
               board_created: "true"
-              progress_score: "1"
+              progress_score: "n+1"
             next_section_and_step: "display_board:explain_display"
           wrong_dimensions:
             ai_feedback:
@@ -152,7 +139,7 @@ sections:
             content_blocks:
               - "Language preference updated!"
             metadata_add:
-              programming_language: "the-users-response"
+              language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "board_representation:implement_board"
 
@@ -178,29 +165,13 @@ sections:
       - step_id: "implement_display"
         title: "Write Display Function"
         question: "Write a function called display_board (or similar) that takes your board as a parameter and prints it in a readable format. Show each row and make it clear which positions are empty."
-        tokens_for_ai: |
-          Get the programming language from metadata.programming_language.
-
-          The student should write a function that displays the board.
-
-          Categorize as 'excellent' if they:
-          - Use nested loops correctly
-          - Print all rows and columns
-          - Make it readable (spacing, separators, column labels)
-          - Proper function syntax
-
-          Categorize as 'correct' if they:
-          - Core logic is right (nested loops)
-          - Displays the board even if formatting is basic
-          - Function structure is correct
-
-          Categorize as 'partial' if they:
-          - Have the concept but loops are wrong
-          - Or miss the function wrapper but logic exists
-
-          Categorize as 'needs_help' if they're stuck on nested loops.
-
-          Categorize as 'set_language' if switching languages.
+        tokens_for_ai: "Grade their display function, in metadata.programming_language."
+        bucket_criteria:
+          excellent: "A function looping rows then columns, printing every cell readably (spacing, separators or column labels)."
+          correct: "Working nested loops inside a function, plain formatting."
+          partial: "The idea, but the loops are wrong or there is no function."
+          needs_help: "Stuck on nested loops."
+          set_language: "Asks to change the conversation language."
         feedback_tokens_for_ai: |
           Provide feedback in metadata.programming_language.
 
@@ -248,9 +219,9 @@ sections:
             next_section_and_step: "display_board:implement_display"
           set_language:
             content_blocks:
-              - "Language updated!"
+              - "Language preference updated."
             metadata_add:
-              programming_language: "the-users-response"
+              language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "display_board:implement_display"
 
@@ -279,30 +250,18 @@ sections:
       - step_id: "implement_drop"
         title: "Write Drop Function"
         question: "Write a function drop_piece(board, column, player) that drops a player's piece (e.g., 'X' or 'O') into the specified column. It should find the lowest empty row in that column and place the piece there. Return True if successful, False if the column is full."
-        tokens_for_ai: |
-          Get the programming language from metadata.programming_language.
-
-          The student should implement the drop logic with gravity.
-
-          Categorize as 'excellent' if they:
-          - Iterate through rows correctly (bottom-up or top-down)
-          - Find the lowest empty space
-          - Place the piece
-          - Return True/False or similar success indicator
-          - Handle full column edge case
-
-          Categorize as 'correct' if they:
-          - Core gravity logic works
-          - Minor issues with iteration direction
-          - Concept is clearly understood
-
-          Categorize as 'wrong_direction' if they:
-          - Place pieces at the top instead of letting them fall
-          - But understand they need to find an empty space
-
-          Categorize as 'needs_guidance' if they're struggling with the algorithm.
-
-          Categorize as 'set_language' for language changes.
+        tokens_for_ai: "Grade drop_piece, in metadata.programming_language. Scanning bottom-up, or top-down for the last empty row, are both valid."
+        bucket_criteria:
+          excellent: "Every required element, cleanly."
+          correct: "Every required element, minor issues."
+          partial_understanding: "Gravity works but an element is missing (often the full column)."
+          wrong_direction: "Places the piece at the top instead of letting it fall."
+          needs_guidance: "Struggling with the algorithm."
+          set_language: "Asks to change the conversation language."
+        required_elements:
+          - "finds the lowest empty row in the chosen column"
+          - "places the player's piece in that row"
+          - "reports failure (False or similar) when the column is full"
         feedback_tokens_for_ai: |
           Provide feedback in metadata.programming_language.
 
@@ -321,7 +280,7 @@ sections:
           - Walk through an example: "Column 2 is empty. Where does the first piece go? Row 5 (bottom)."
           - "Second piece? Row 4. Third piece? Row 3."
           - Give pseudocode for the loop structure
-        buckets: [excellent, correct, wrong_direction, needs_guidance, set_language]
+        buckets: [excellent, correct, partial_understanding, wrong_direction, needs_guidance, set_language]
         transitions:
           excellent:
             ai_feedback:
@@ -337,6 +296,10 @@ sections:
               drop_implemented: "true"
               progress_score: "n+1"
             next_section_and_step: "validate_moves:explain_validation"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name the missing element without writing it for them."
+            next_section_and_step: "drop_piece:implement_drop"
           wrong_direction:
             ai_feedback:
               tokens_for_ai: "See feedback_tokens_for_ai above"
@@ -347,9 +310,9 @@ sections:
             next_section_and_step: "drop_piece:implement_drop"
           set_language:
             content_blocks:
-              - "Language updated!"
+              - "Language preference updated."
             metadata_add:
-              programming_language: "the-users-response"
+              language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "drop_piece:implement_drop"
 
@@ -374,27 +337,17 @@ sections:
       - step_id: "implement_validation"
         title: "Write Validation Function"
         question: "Write a function is_valid_move(board, column) that returns True if the move is valid (column is in range 0-6 and not full), False otherwise. Bonus: Write a function get_player_move() that keeps asking until the player enters a valid column."
-        tokens_for_ai: |
-          Get the programming language from metadata.programming_language.
-
-          Categorize as 'excellent' if they:
-          - Check column range (0-6)
-          - Check if column has any empty space
-          - Return boolean correctly
-          - Bonus: Implement get_player_move with retry loop
-
-          Categorize as 'correct' if they:
-          - Have validation logic for both conditions
-          - Function structure is correct
-          - Minor syntax issues okay
-
-          Categorize as 'partial' if they:
-          - Only check one condition (range OR fullness)
-          - Concept understood but incomplete
-
-          Categorize as 'needs_help' if struggling with the logic.
-
-          Categorize as 'set_language' for language changes.
+        tokens_for_ai: "Grade is_valid_move, in metadata.programming_language. The get_player_move retry loop is a bonus, never required."
+        bucket_criteria:
+          excellent: "Every required element, plus the bonus retry loop."
+          correct: "Every required element."
+          partial_understanding: "Only one of the two checks."
+          needs_help: "Struggling with the logic."
+          set_language: "Asks to change the conversation language."
+        required_elements:
+          - "rejects a column outside 0-6"
+          - "rejects a full column (its top cell is taken)"
+          - "returns true for a legal move, false otherwise"
         feedback_tokens_for_ai: |
           Provide feedback in metadata.programming_language.
 
@@ -407,7 +360,7 @@ sections:
           - Praise: "Great! Your validation works!"
           - If they didn't do the bonus, mention it would be a nice addition
 
-          If partial:
+          If partial_understanding:
           - Identify what they got right
           - Explain what's missing (range check or fullness check)
           - Encourage them to add the missing piece
@@ -417,7 +370,7 @@ sections:
           - "1. Is 0 <= column <= 6?"
           - "2. Is the top row (row 0) of that column empty?"
           - Provide pseudocode structure
-        buckets: [excellent, correct, partial, needs_help, set_language]
+        buckets: [excellent, correct, partial_understanding, needs_help, set_language]
         transitions:
           excellent:
             ai_feedback:
@@ -433,7 +386,7 @@ sections:
               validation_implemented: "true"
               progress_score: "n+1"
             next_section_and_step: "horizontal_win:explain_horizontal"
-          partial:
+          partial_understanding:
             ai_feedback:
               tokens_for_ai: "See feedback_tokens_for_ai above"
             next_section_and_step: "validate_moves:implement_validation"
@@ -443,9 +396,9 @@ sections:
             next_section_and_step: "validate_moves:implement_validation"
           set_language:
             content_blocks:
-              - "Language updated!"
+              - "Language preference updated."
             metadata_add:
-              programming_language: "the-users-response"
+              language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "validate_moves:implement_validation"
 
@@ -471,28 +424,18 @@ sections:
       - step_id: "implement_horizontal"
         title: "Write Horizontal Check"
         question: "Write a function check_horizontal_win(board, player) that returns True if the specified player has 4 in a row horizontally, False otherwise. Iterate through all rows and check consecutive columns."
-        tokens_for_ai: |
-          Get the programming language from metadata.programming_language.
-
-          Categorize as 'excellent' if they:
-          - Iterate rows (0-5) correctly
-          - Iterate columns (0-3) as starting positions
-          - Check 4 consecutive positions
-          - Compare against player symbol
-          - Return True when found, False at end
-
-          Categorize as 'correct' if they:
-          - Logic is sound
-          - Might iterate all columns but still works
-          - Core concept demonstrated
-
-          Categorize as 'wrong_bounds' if they:
-          - Iterate columns 0-6 (causing index errors)
-          - But understand the consecutive checking concept
-
-          Categorize as 'needs_guidance' if struggling with the nested loops or logic.
-
-          Categorize as 'set_language' for language changes.
+        tokens_for_ai: "Grade check_horizontal_win, in metadata.programming_language. A sliding window of four or a running count of consecutive pieces are both valid."
+        bucket_criteria:
+          excellent: "Every required element, cleanly."
+          correct: "Every required element; may scan extra starts safely."
+          partial_understanding: "The idea, missing an element."
+          wrong_bounds: "Reads past the right edge (start columns 4-6)."
+          needs_guidance: "Struggling with the loops or logic."
+          set_language: "Asks to change the conversation language."
+        required_elements:
+          - "finds four of the player's pieces side by side in one row (consecutive columns)"
+          - "covers every start that fits four (every row, start columns 0-3) without reading past the board's edge"
+          - "returns true on a match, false otherwise"
         feedback_tokens_for_ai: |
           Provide feedback in metadata.programming_language.
 
@@ -515,7 +458,7 @@ sections:
           - Walk through a concrete example
           - "Row 2, starting at column 1: check [2][1], [2][2], [2][3], [2][4]"
           - Provide pseudocode structure
-        buckets: [excellent, correct, wrong_bounds, needs_guidance, set_language]
+        buckets: [excellent, correct, partial_understanding, wrong_bounds, needs_guidance, set_language]
         transitions:
           excellent:
             ai_feedback:
@@ -531,6 +474,10 @@ sections:
               horizontal_implemented: "true"
               progress_score: "n+1"
             next_section_and_step: "vertical_win:explain_vertical"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name the missing element without writing it for them."
+            next_section_and_step: "horizontal_win:implement_horizontal"
           wrong_bounds:
             ai_feedback:
               tokens_for_ai: "See feedback_tokens_for_ai above"
@@ -541,9 +488,9 @@ sections:
             next_section_and_step: "horizontal_win:implement_horizontal"
           set_language:
             content_blocks:
-              - "Language updated!"
+              - "Language preference updated."
             metadata_add:
-              programming_language: "the-users-response"
+              language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "horizontal_win:implement_horizontal"
 
@@ -569,28 +516,18 @@ sections:
       - step_id: "implement_vertical"
         title: "Write Vertical Check"
         question: "Write a function check_vertical_win(board, player) that returns True if the specified player has 4 in a row vertically. Use the same logic as horizontal, but swap rows and columns."
-        tokens_for_ai: |
-          Get the programming language from metadata.programming_language.
-
-          Categorize as 'excellent' if they:
-          - Iterate columns (0-6) correctly
-          - Iterate rows (0-2) as starting positions
-          - Check 4 consecutive rows in same column
-          - Compare against player symbol
-          - Return boolean correctly
-
-          Categorize as 'correct' if they:
-          - Logic works
-          - Might iterate all rows but function still works
-          - Understand the pattern
-
-          Categorize as 'wrong_bounds' if they:
-          - Iterate rows 0-5 (causing index errors on row+3)
-          - But the checking logic is right
-
-          Categorize as 'needs_guidance' if struggling.
-
-          Categorize as 'set_language' for language changes.
+        tokens_for_ai: "Grade check_vertical_win, in metadata.programming_language. A sliding window of four or a running count of consecutive pieces are both valid."
+        bucket_criteria:
+          excellent: "Every required element, cleanly."
+          correct: "Every required element; may scan extra starts safely."
+          partial_understanding: "The idea, missing an element."
+          wrong_bounds: "Reads past the bottom edge (start rows 3-5)."
+          needs_guidance: "Struggling with the loops or logic."
+          set_language: "Asks to change the conversation language."
+        required_elements:
+          - "finds four of the player's pieces stacked in one column (consecutive rows)"
+          - "covers every start that fits four (every column, start rows 0-2) without reading past the board's edge"
+          - "returns true on a match, false otherwise"
         feedback_tokens_for_ai: |
           Provide feedback in metadata.programming_language.
 
@@ -612,7 +549,7 @@ sections:
           - Remind them of horizontal logic
           - "It's the same pattern, just checking board[row+i][col] instead of board[row][col+i]"
           - Provide structure
-        buckets: [excellent, correct, wrong_bounds, needs_guidance, set_language]
+        buckets: [excellent, correct, partial_understanding, wrong_bounds, needs_guidance, set_language]
         transitions:
           excellent:
             ai_feedback:
@@ -628,6 +565,10 @@ sections:
               vertical_implemented: "true"
               progress_score: "n+1"
             next_section_and_step: "diagonal_win:explain_diagonal"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name the missing element without writing it for them."
+            next_section_and_step: "vertical_win:implement_vertical"
           wrong_bounds:
             ai_feedback:
               tokens_for_ai: "See feedback_tokens_for_ai above"
@@ -638,9 +579,9 @@ sections:
             next_section_and_step: "vertical_win:implement_vertical"
           set_language:
             content_blocks:
-              - "Language updated!"
+              - "Language preference updated."
             metadata_add:
-              programming_language: "the-users-response"
+              language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "vertical_win:implement_vertical"
 
@@ -671,29 +612,17 @@ sections:
       - step_id: "implement_diagonal"
         title: "Write Diagonal Check"
         question: "Write a function check_diagonal_win(board, player) that returns True if the player has 4 in a row diagonally (either direction). You need to check both down-right (↘️) and up-right (↗️) diagonals."
-        tokens_for_ai: |
-          Get the programming language from metadata.programming_language.
-
-          This is the hardest check! Be generous with partial credit.
-
-          Categorize as 'excellent' if they:
-          - Check BOTH diagonal directions
-          - Correct row/column bounds for each direction
-          - Proper indexing (row±i, col+i)
-          - Return True when found
-
-          Categorize as 'correct' if they:
-          - Have both directions
-          - Logic is mostly right
-          - Minor boundary or indexing issues but concept clear
-
-          Categorize as 'one_direction' if they:
-          - Only implement one diagonal direction
-          - But that direction is implemented correctly
-
-          Categorize as 'needs_guidance' if they're struggling with the concept.
-
-          Categorize as 'set_language' for language changes.
+        tokens_for_ai: "Grade check_diagonal_win, in metadata.programming_language. The hardest check: be generous. Any valid scan counts (two loops, direction vectors, a running count)."
+        bucket_criteria:
+          excellent: "Every required element, cleanly."
+          correct: "Every required element, minor indexing slips."
+          partial_understanding: "Only one diagonal direction, or another element missing."
+          needs_guidance: "Struggling with the concept."
+          set_language: "Asks to change the conversation language."
+        required_elements:
+          - "checks the down-right diagonal (row+i, col+i)"
+          - "checks the up-right diagonal (row-i, col+i), or the equivalent down-left"
+          - "stays inside the board for every start it checks"
         feedback_tokens_for_ai: |
           Provide feedback in metadata.programming_language.
 
@@ -707,7 +636,7 @@ sections:
           - If minor issues, point them out gently
           - Still acknowledge this is hard and they did well
 
-          If one_direction:
+          If partial_understanding (often one direction only):
           - Praise what they did: "Excellent work on [direction] diagonals!"
           - Explain: "Connect Four needs both directions: ↘️ and ↗️"
           - Guide them on the second direction's bounds and indexing
@@ -717,7 +646,7 @@ sections:
           - "Down-right example: start at [0][0], check [0][0], [1][1], [2][2], [3][3]"
           - "Start at [1][2], check [1][2], [2][3], [3][4], [4][5]"
           - Provide pseudocode structure
-        buckets: [excellent, correct, one_direction, needs_guidance, set_language]
+        buckets: [excellent, correct, partial_understanding, needs_guidance, set_language]
         transitions:
           excellent:
             ai_feedback:
@@ -733,9 +662,18 @@ sections:
               diagonal_implemented: "true"
               progress_score: "n+1"
             next_section_and_step: "game_loop:explain_loop"
-          one_direction:
+          partial_understanding:
             ai_feedback:
               tokens_for_ai: "See feedback_tokens_for_ai above"
+            metadata_add:
+              diagonal_misses: "n+1"
+            content_blocks:
+              - text: "💡 Hint: there are two diagonal directions, ↘️ and ↗️. Does your code check both?"
+                show_if:
+                  diagonal_misses_lte: 1
+              - text: "💡 Stronger hint: ↘️ starts at rows 0-2, columns 0-3; ↗️ starts at rows 3-5, columns 0-3 and steps row-1 each time."
+                show_if:
+                  diagonal_misses_gte: 2
             next_section_and_step: "diagonal_win:implement_diagonal"
           needs_guidance:
             ai_feedback:
@@ -743,9 +681,9 @@ sections:
             next_section_and_step: "diagonal_win:implement_diagonal"
           set_language:
             content_blocks:
-              - "Language updated!"
+              - "Language preference updated."
             metadata_add:
-              programming_language: "the-users-response"
+              language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "diagonal_win:implement_diagonal"
 
@@ -758,6 +696,9 @@ sections:
           - "# 🔄 Step 8: The Game Loop"
           - ""
           - "You have ALL the pieces! Now let's assemble them into a playable game."
+          - text: "**Parts built so far: {{metadata.progress_score}} of 8**"
+            show_if:
+              progress_score_exists: true
           - ""
           - "**Game Loop Structure:**"
           - "1. Initialize the board"
@@ -779,33 +720,18 @@ sections:
       - step_id: "implement_loop"
         title: "Write Game Loop"
         question: "Write the main game loop that brings everything together. Initialize the board, alternate between two players, validate moves, drop pieces, check for wins, and announce the winner. You can write this as a play_game() function or as main program logic."
-        tokens_for_ai: |
-          Get the programming language from metadata.programming_language.
-
-          They're writing the FULL game now! Be encouraging.
-
-          Categorize as 'excellent' if they:
-          - Initialize board
-          - Have a game loop (while/for loop until game ends)
-          - Alternate between players
-          - Call display, input, validation, drop, and win check functions
-          - Handle both win and tie conditions
-          - Announce results
-
-          Categorize as 'correct' if they:
-          - Have the main structure
-          - Loop with turn alternation
-          - Call their functions appropriately
-          - Minor logic issues okay if concept is clear
-
-          Categorize as 'partial' if they:
-          - Have some of the structure
-          - Missing key parts (like win checking or player switching)
-          - On the right track but incomplete
-
-          Categorize as 'needs_guidance' if they're struggling to put it together.
-
-          Categorize as 'set_language' for language changes.
+        tokens_for_ai: "Grade their game loop, in metadata.programming_language. Be encouraging: this is the whole game."
+        bucket_criteria:
+          excellent: "Every required element, cleanly, calling their own functions."
+          correct: "Every required element, minor logic issues."
+          partial: "Some of the structure, missing an element."
+          needs_guidance: "Struggling to put it together."
+          set_language: "Asks to change the conversation language."
+        required_elements:
+          - "loops turn after turn, alternating the two players"
+          - "takes a validated move and drops the piece"
+          - "checks for a win after each move and for a full board (a draw)"
+          - "ends the game and announces the winner or the draw"
         feedback_tokens_for_ai: |
           Provide feedback in metadata.programming_language.
 
@@ -818,7 +744,7 @@ sections:
             * Input validation
             * Win detection in 3 directions
             * Full game loop with turn management
-          - Suggest enhancements: AI opponent, GUI, undo moves, score tracking
+          - Suggest enhancements: a computer opponent (minimax), GUI, undo moves, score tracking
           - Congratulate them on completing a non-trivial project!
 
           If correct:
@@ -863,9 +789,9 @@ sections:
             next_section_and_step: "game_loop:implement_loop"
           set_language:
             content_blocks:
-              - "Language updated!"
+              - "Language preference updated."
             metadata_add:
-              programming_language: "the-users-response"
+              language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "game_loop:implement_loop"
 
@@ -875,24 +801,12 @@ sections:
       - step_id: "reflection"
         title: "What You've Learned"
         question: "Reflect on what you learned. What was the most challenging part? What concepts (2D arrays, loops, algorithms, etc.) do you feel more confident about now? What would you add to your game next?"
-        tokens_for_ai: |
-          This is a reflection question. Accept any thoughtful response.
-
-          Categorize as 'thoughtful' if they:
-          - Reflect on specific challenges (likely diagonals!)
-          - Mention concepts they learned
-          - Show understanding of what they built
-          - Maybe mention enhancements
-
-          Categorize as 'brief' if they:
-          - Give a short but genuine response
-          - Show they completed the project
-
-          Categorize as 'off_topic' if they:
-          - Don't engage with the reflection
-          - Are completely off-topic
-
-          Categorize as 'set_language' for language changes (though activity is ending).
+        tokens_for_ai: "A reflection: accept any genuine response."
+        bucket_criteria:
+          thoughtful: "Names specific challenges, concepts learned, or next features."
+          brief: "Short but genuine."
+          off_topic: "Doesn't engage with the reflection."
+          set_language: "Asks to change the conversation language."
         feedback_tokens_for_ai: |
           Provide encouraging, celebratory feedback.
 
@@ -931,9 +845,9 @@ sections:
             next_section_and_step: "conclusion:reflection"
           set_language:
             content_blocks:
-              - "Language updated! Though we're at the end of the activity."
+              - "Language preference updated."
             metadata_add:
-              programming_language: "the-users-response"
+              language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "conclusion:reflection"
 
@@ -943,6 +857,9 @@ sections:
           - "# 🎉 Congratulations! You Built Connect Four! 🎮"
           - ""
           - "You've successfully created a fully functional Connect Four game from scratch!"
+          - text: "**Parts built: {{metadata.progress_score}} of 8** 🧩"
+            show_if:
+              progress_score_exists: true
           - ""
           - "**What You Accomplished:**"
           - "✅ Mastered 2D arrays and nested data structures"
@@ -953,7 +870,7 @@ sections:
           - "✅ Created something you can actually play!"
           - ""
           - "**Next Steps:**"
-          - "- Add an AI opponent (minimax algorithm?)"
+          - "- Add a computer opponent (minimax, or one trained with machine learning)"
           - "- Create a graphical interface (GUI)"
           - "- Add animations for falling pieces"
           - "- Implement undo/redo"

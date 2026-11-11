@@ -1,6 +1,8 @@
-title: "American Revolutionary War: What Do We Know?"
-description: "Seventeen steps through causes, battles & outcomes, opening with what we already know."
+title: "Revolutionary War: What Happened"
+description: "The facts of the American Revolution, 1763-1783: causes, battles, people and the peace, with quick quizzes."
+kind: "lesson"
 default_max_attempts_per_step: 3
+tokens_for_ai_rubric: "Learners are about 13. Grade generously: accept any accurate detail beyond the ones listed, and any defensible reading where historians disagree. Never mark an answer down for naming Loyalist, enslaved or Native American perspectives."
 sections:
   - section_id: "section_1"
     title: "Introduction to the Revolutionary War"
@@ -8,70 +10,60 @@ sections:
       - step_id: "step_1"
         title: "What is the Revolutionary War?"
         content_blocks:
-          - "Welcome to the American Revolutionary War course!"
-          - "The American Revolutionary War, also known as the American War of Independence, was a conflict between Great Britain and its thirteen colonies in North America."
-        tokens_for_ai: "Explain what the American Revolutionary War is in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What do you know about the American Revolutionary War?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "# The Revolutionary War: What Happened 🇺🇸"
+          - "Welcome! In this lesson we'll get the facts straight: causes, battles, people and the peace."
+          - "The American Revolutionary War (1775-1783), also called the American War of Independence, was fought between Great Britain and thirteen of its North American colonies, which became the United States."
+        question: "What do you already know about the American Revolutionary War?"
+        tokens_for_ai: "Grade whether the learner shares anything accurate about the war. Any accurate fact counts."
+        bucket_criteria:
+          correct: "Shares at least one accurate fact."
+          partial_understanding: "Shares something mostly inaccurate, or only says \"not much\"."
+          off_topic: "Does not talk about the war."
+        buckets: [correct, partial_understanding, off_topic]
         transitions:
           correct:
-            content_blocks:
-              - "Great! You have a good understanding of the American Revolutionary War."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of the Revolutionary War. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Revolutionary War."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the Revolutionary War in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "Importance of the Revolutionary War"
         content_blocks:
-          - "The Revolutionary War was important because it led to the independence of the United States from British rule."
-          - "It also established the principles of liberty, democracy, and self-governance."
-        tokens_for_ai: "Explain the importance of the American Revolutionary War in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
+          - "The war ended British rule over the thirteen colonies and created the United States, a republic governed by elected representatives."
+          - "Not everyone agreed: Patriots wanted independence, Loyalists (perhaps one colonist in five) stayed loyal to the king, and many enslaved people and Native nations sided with Britain, which some saw as the better hope for their freedom or land."
         question: "Why is the American Revolutionary War important?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+        tokens_for_ai: "Grade the learner's facts about why the war mattered."
+        bucket_criteria:
+          correct: "Says it led to independence or the founding of the United States (any further reason is a bonus)."
+          partial_understanding: "Calls it important without saying what it changed."
+          off_topic: "Does not address why the war mattered."
+        required_elements:
+          - "it led to American independence or the creation of the United States"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: What did the colonies become at the end of the war?"
+          - attempt: 2
+            text: "💡 Bigger hint: Who ruled the colonies before the war, and who after?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand the importance of the American Revolutionary War."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of the importance. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the importance of the Revolutionary War."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the importance of the Revolutionary War in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
   - section_id: "section_2"
     title: "Causes of the Revolutionary War"
@@ -79,70 +71,68 @@ sections:
       - step_id: "step_1"
         title: "Taxation Without Representation"
         content_blocks:
-          - "One of the main causes of the Revolutionary War was the issue of 'taxation without representation.'"
-          - "The British government imposed taxes on the American colonies without giving them representation in Parliament."
-        tokens_for_ai: "Explain the concept of 'taxation without representation' and its role in causing the Revolutionary War in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What is 'taxation without representation' and how did it contribute to the Revolutionary War?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "After the costly Seven Years' War (1756-1763), Parliament taxed the colonies directly: the Stamp Act (1765), the Townshend Acts (1767), the Tea Act (1773)."
+          - "Colonists elected no members of Parliament, so many protested \"no taxation without representation\". British leaders answered that Parliament represented every subject of the empire (\"virtual representation\")."
+        question: "What did \"taxation without representation\" mean, and how did it lead toward war?"
+        tokens_for_ai: "Grade the learner's facts about taxation without representation."
+        bucket_criteria:
+          correct: "Explains that Parliament taxed colonists who elected no one to it, and that their protests over it fed the conflict."
+          partial_understanding: "Explains the phrase or its effect, but not both."
+          off_topic: "Does not address taxation without representation."
+        required_elements:
+          - "the colonists were taxed by a Parliament they elected no one to"
+          - "this caused protest and anger that grew toward conflict"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Who passed the taxes, and did colonists vote for anyone there?"
+          - attempt: 2
+            text: "💡 Bigger hint: Think of how the colonists responded to the Stamp Act and the Tea Act."
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand the concept of 'taxation without representation' and its role in the Revolutionary War."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of 'taxation without representation.' Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on 'taxation without representation.'"
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of 'taxation without representation' in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "The Intolerable Acts"
         content_blocks:
-          - "The Intolerable Acts were a series of punitive laws passed by the British Parliament in response to the Boston Tea Party."
-          - "These acts further angered the American colonists and contributed to the outbreak of the Revolutionary War."
-        tokens_for_ai: "Explain what the Intolerable Acts were and their role in causing the Revolutionary War in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What were the Intolerable Acts and how did they contribute to the Revolutionary War?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Parliament answered in 1774 with the Coercive Acts, which colonists called the **Intolerable Acts**: Boston's port was closed until the tea was paid for, and Massachusetts lost much of its self-government."
+          - "Twelve colonies sent delegates to the First Continental Congress (September 1774) to coordinate their resistance."
+        question: "What were the Intolerable Acts, and how did they push the colonies toward war?"
+        tokens_for_ai: "Grade the learner's facts about the Intolerable Acts."
+        bucket_criteria:
+          correct: "Says they were punishing laws after the Boston Tea Party (e.g. closing Boston's port) and that they united the colonies in resistance."
+          partial_understanding: "Gets what they were or their effect, but not both."
+          off_topic: "Does not address the Intolerable Acts."
+        required_elements:
+          - "they were laws punishing Massachusetts or Boston after the Tea Party"
+          - "they pushed the colonies to unite or resist (e.g. the First Continental Congress)"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: What had Boston just done that Parliament wanted to punish?"
+          - attempt: 2
+            text: "💡 Bigger hint: What did the colonies organize in September 1774?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand what the Intolerable Acts were and their role in the Revolutionary War."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of the Intolerable Acts. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Intolerable Acts."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the Intolerable Acts in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
   - section_id: "section_3"
     title: "Key Events of the Revolutionary War"
@@ -150,70 +140,67 @@ sections:
       - step_id: "step_1"
         title: "The Boston Tea Party"
         content_blocks:
-          - "The Boston Tea Party was a political protest by the Sons of Liberty in Boston, Massachusetts, on December 16, 1773."
-          - "American colonists, frustrated with British taxation, dumped 342 chests of British tea into the harbor."
-        tokens_for_ai: "Explain the Boston Tea Party and its significance in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What was the Boston Tea Party and why was it significant?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "On December 16, 1773, the Sons of Liberty dumped 342 chests of East India Company tea into Boston Harbor in protest against the Tea Act."
+          - "It was a protest against the tax and against the East India Company's tea monopoly, not against drinking tea."
+        question: "What was the Boston Tea Party, and why was it significant?"
+        tokens_for_ai: "Grade the learner's facts about the Boston Tea Party."
+        bucket_criteria:
+          correct: "Says colonists dumped British tea into Boston Harbor in protest, and that it led to Britain's harsh response (the Intolerable Acts)."
+          partial_understanding: "Describes the event or its consequence, but not both."
+          off_topic: "Does not address the Boston Tea Party."
+        required_elements:
+          - "colonists destroyed British tea in Boston Harbor as a protest"
+          - "Britain responded harshly, raising tensions (the Intolerable Acts)"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: What did the colonists do with the tea, and why?"
+          - attempt: 2
+            text: "💡 Bigger hint: How did Parliament react the next year?"
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand what the Boston Tea Party was and its significance."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of the Boston Tea Party. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Boston Tea Party."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the Boston Tea Party in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "The Battles of Lexington and Concord"
         content_blocks:
-          - "The Battles of Lexington and Concord were the first military engagements of the American Revolutionary War."
-          - "They were fought on April 19, 1775, in Middlesex County, Province of Massachusetts Bay."
-        tokens_for_ai: "Explain the Battles of Lexington and Concord and their significance in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What were the Battles of Lexington and Concord and why were they significant?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "On April 19, 1775, British troops marched to seize colonial weapons at Concord, Massachusetts. Shots at Lexington and fighting at Concord's North Bridge began the war."
+        question: "What happened at Lexington and Concord, and why do they matter?"
+        tokens_for_ai: "Grade the learner's facts about Lexington and Concord."
+        bucket_criteria:
+          correct: "Says British troops and colonial militia fought there in April 1775 and that these were the first battles of the war."
+          partial_understanding: "Describes the fighting or its meaning, but not both."
+          off_topic: "Does not address Lexington and Concord."
+        required_elements:
+          - "British troops and colonial militia fought there"
+          - "they were the first battles of the war"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Why were the British troops marching to Concord?"
+          - attempt: 2
+            text: "💡 Bigger hint: What began on that day in April 1775?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand what the Battles of Lexington and Concord were and their significance."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of the Battles of Lexington and Concord. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Battles of Lexington and Concord."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the Battles of Lexington and Concord in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
   - section_id: "section_4"
     title: "Key Figures of the Revolutionary War"
@@ -221,70 +208,66 @@ sections:
       - step_id: "step_1"
         title: "George Washington"
         content_blocks:
-          - "George Washington was the commander-in-chief of the Continental Army during the American Revolutionary War."
-          - "He later became the first President of the United States."
-        tokens_for_ai: "Explain who George Washington was and his role in the Revolutionary War in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Who was George Washington and what was his role in the Revolutionary War?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "George Washington, a Virginia planter and veteran of the Seven Years' War, was chosen by the Continental Congress in 1775 to lead its army. He later became the first President of the United States (1789-1797)."
+        question_type: multiple_choice
+        question: "What was George Washington's role during the Revolutionary War?"
+        choices:
+          - {id: a, text: "President of the United States"}
+          - {id: b, text: "Commander-in-chief of the Continental Army"}
+          - {id: c, text: "Author of the Declaration of Independence"}
+          - {id: d, text: "American ambassador to France"}
+        answer: b
+        hints:
+          - attempt: 1
+            text: "💡 Hint: He became President only after the war."
+          - attempt: 2
+            text: "💡 Bigger hint: Think about who led the soldiers."
         transitions:
           correct:
             content_blocks:
-              - "Great! You understand who George Washington was and his role in the Revolutionary War."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "✅ He led the Continental Army from 1775 to 1783, and only later (1789) became the first President."
+            metadata_add:
+              score: "n+1"
+          incorrect:
+            metadata_add:
+              misses_section_4_step_1: "n+1"
             content_blocks:
-              - "You have a partial understanding of George Washington. Let's clarify a few points."
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on George Washington."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of George Washington in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - text: "Not quite."
+                show_if: {misses_section_4_step_1_lt: 3}
+              - text: "Not this time. The answer: Commander-in-chief of the Continental Army (he became President in 1789)."
+                show_if: {misses_section_4_step_1_gte: 3}
 
       - step_id: "step_2"
         title: "Thomas Jefferson"
         content_blocks:
-          - "Thomas Jefferson was the principal author of the Declaration of Independence."
-          - "He later became the third President of the United States."
-        tokens_for_ai: "Explain who Thomas Jefferson was and his role in the Revolutionary War in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Who was Thomas Jefferson and what was his role in the Revolutionary War?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Thomas Jefferson, a Virginia lawyer and planter, was 33 when the Continental Congress asked him to draft a document. He later became the third President of the United States (1801-1809)."
+        question_type: multiple_choice
+        question: "Which document is Thomas Jefferson best known for drafting?"
+        choices:
+          - {id: a, text: "The Declaration of Independence"}
+          - {id: b, text: "The Treaty of Paris"}
+          - {id: c, text: "The Bill of Rights"}
+          - {id: d, text: "The Stamp Act"}
+        answer: a
+        hints:
+          - attempt: 1
+            text: "💡 Hint: It was written in 1776."
+          - attempt: 2
+            text: "💡 Bigger hint: It announced that the colonies were independent."
         transitions:
           correct:
             content_blocks:
-              - "Excellent! You understand who Thomas Jefferson was and his role in the Revolutionary War."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "✅ He wrote the first draft of the Declaration of Independence in 1776."
+            metadata_add:
+              score: "n+1"
+          incorrect:
+            metadata_add:
+              misses_section_4_step_2: "n+1"
             content_blocks:
-              - "You have a partial understanding of Thomas Jefferson. Let's clarify a few points."
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on Thomas Jefferson."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of Thomas Jefferson in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - text: "Not quite."
+                show_if: {misses_section_4_step_2_lt: 3}
+              - text: "Not this time. The answer: The Declaration of Independence."
+                show_if: {misses_section_4_step_2_gte: 3}
 
   - section_id: "section_5"
     title: "Major Battles of the Revolutionary War"
@@ -292,70 +275,66 @@ sections:
       - step_id: "step_1"
         title: "The Battle of Bunker Hill"
         content_blocks:
-          - "The Battle of Bunker Hill was fought on June 17, 1775, during the early stages of the American Revolutionary War."
-          - "Despite being a British victory, the battle demonstrated that the American forces could stand up to the British army."
-        tokens_for_ai: "Explain the Battle of Bunker Hill and its significance in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What was the Battle of Bunker Hill and why was it significant?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "At the Battle of Bunker Hill (June 17, 1775; mostly fought on nearby Breed's Hill) the British took the hill but lost over 1,000 men killed or wounded, far more than the colonial militia."
+        question: "What happened at Bunker Hill, and why did it matter even though the British won?"
+        tokens_for_ai: "Grade the learner's facts about the Battle of Bunker Hill."
+        bucket_criteria:
+          correct: "Says the British won but with heavy losses, showing colonial militia could stand up to British regulars."
+          partial_understanding: "Says who won or why it mattered, but not both."
+          off_topic: "Does not address the Battle of Bunker Hill."
+        required_elements:
+          - "the British won the ground but lost many men"
+          - "it showed the colonial forces could fight the British army"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Who held the hill at the end of the day, and at what cost?"
+          - attempt: 2
+            text: "💡 Bigger hint: What did the battle prove about the colonial militia?"
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand what the Battle of Bunker Hill was and its significance."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of the Battle of Bunker Hill. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Battle of Bunker Hill."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the Battle of Bunker Hill in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "The Battle of Saratoga"
         content_blocks:
-          - "The Battle of Saratoga was a turning point in the American Revolutionary War."
-          - "Fought in 1777, it resulted in a decisive victory for the American forces and convinced France to join the war on the side of the Americans."
-        tokens_for_ai: "Explain the Battle of Saratoga and its significance in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What was the Battle of Saratoga and why was it significant?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "At Saratoga, New York (September-October 1777), American forces defeated a British army, and General Burgoyne surrendered his whole army. In 1778 France signed an alliance with the United States, bringing troops, money and a navy."
+        question: "Why is Saratoga called the turning point of the war?"
+        tokens_for_ai: "Grade the learner's facts about the Battles of Saratoga."
+        bucket_criteria:
+          correct: "Says an American victory there (a whole British army surrendered) brought France into the war as an ally."
+          partial_understanding: "Mentions the victory or the French alliance, but not both."
+          off_topic: "Does not address the Battles of Saratoga."
+        required_elements:
+          - "an American victory in which a British army surrendered"
+          - "it brought France into the war on the American side"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: What happened to Burgoyne's army?"
+          - attempt: 2
+            text: "💡 Bigger hint: Which country joined the Americans in 1778, and why did Saratoga persuade it?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand what the Battle of Saratoga was and its significance."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of the Battle of Saratoga. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Battle of Saratoga."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the Battle of Saratoga in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
   - section_id: "section_6"
     title: "The Declaration of Independence"
@@ -363,70 +342,67 @@ sections:
       - step_id: "step_1"
         title: "Drafting the Declaration"
         content_blocks:
-          - "The Declaration of Independence was drafted by Thomas Jefferson and adopted by the Continental Congress on July 4, 1776."
-          - "It declared the thirteen American colonies as independent states, free from British rule."
-        tokens_for_ai: "Explain the drafting of the Declaration of Independence and its significance in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What was the Declaration of Independence and why was it significant?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "The Continental Congress adopted the Declaration of Independence on July 4, 1776. Thomas Jefferson wrote the first draft; a committee and Congress revised it."
+          - "It announced that the thirteen colonies were now independent states, no longer under British rule, and listed their grievances against King George III."
+        question: "What was the Declaration of Independence, and why was it significant?"
+        tokens_for_ai: "Grade the learner's facts about the Declaration of Independence."
+        bucket_criteria:
+          correct: "Says it announced the colonies' independence from Britain (1776) and gives a reason it mattered."
+          partial_understanding: "Says what it was without why it mattered, or the reverse."
+          off_topic: "Does not address the Declaration of Independence."
+        required_elements:
+          - "it declared the colonies independent of Britain"
+          - "a reason it mattered (it made the war a fight for independence, or stated the nation's ideals)"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: What did the colonies announce on July 4, 1776?"
+          - attempt: 2
+            text: "💡 Bigger hint: After it, what were the colonists fighting for?"
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand what the Declaration of Independence was and its significance."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of the Declaration of Independence. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Declaration of Independence."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the Declaration of Independence in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "Key Principles of the Declaration"
         content_blocks:
-          - "The Declaration of Independence outlined key principles such as equality, unalienable rights, and the right to alter or abolish government."
-          - "It emphasized that all men are created equal and have the right to life, liberty, and the pursuit of happiness."
-        tokens_for_ai: "Explain the key principles of the Declaration of Independence in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
+          - "It claims that all men are created equal, with unalienable rights to life, liberty and the pursuit of happiness; that governments get their power from the consent of the governed; and that people may alter or abolish a government that destroys those rights."
+          - "Those words did not yet apply to everyone: slavery remained legal, and women and Native Americans were left out. Later movements used the same words to demand their rights."
         question: "What are the key principles of the Declaration of Independence?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+        tokens_for_ai: "Grade the learner's facts about the Declaration's principles."
+        bucket_criteria:
+          correct: "Names at least two principles: equality, unalienable rights (life, liberty, the pursuit of happiness), consent of the governed, the right to alter or abolish government."
+          partial_understanding: "Names only one principle."
+          off_topic: "Does not address the Declaration's principles."
+        required_elements:
+          - "at least two of: equality, unalienable rights, consent of the governed, the right to change a government"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Start with \"all men are created ...\"."
+          - attempt: 2
+            text: "💡 Bigger hint: Where does the Declaration say governments get their power?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand the key principles of the Declaration of Independence."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of the key principles. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the key principles of the Declaration of Independence."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the key principles of the Declaration of Independence in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
   - section_id: "section_7"
     title: "The End of the Revolutionary War"
@@ -434,70 +410,96 @@ sections:
       - step_id: "step_1"
         title: "The Siege of Yorktown"
         content_blocks:
-          - "The Siege of Yorktown was the last major battle of the American Revolutionary War."
-          - "Fought in 1781, it resulted in the surrender of British General Cornwallis and effectively ended the war."
-        tokens_for_ai: "Explain the Siege of Yorktown and its significance in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What was the Siege of Yorktown and why was it significant?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "In October 1781 American and French forces, with the French fleet blocking escape by sea, trapped General Cornwallis at Yorktown, Virginia. His surrender convinced Britain to seek peace."
+        question_type: multiple_choice
+        question: "Which British general surrendered his army at Yorktown in 1781?"
+        choices:
+          - {id: a, text: "John Burgoyne"}
+          - {id: b, text: "Charles Cornwallis"}
+          - {id: c, text: "William Howe"}
+          - {id: d, text: "Thomas Gage"}
+        answer: b
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Burgoyne surrendered at Saratoga, not Yorktown."
+          - attempt: 2
+            text: "💡 Bigger hint: His name begins with C."
         transitions:
           correct:
             content_blocks:
-              - "Great! You understand what the Siege of Yorktown was and its significance."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "✅ Cornwallis surrendered, and Britain soon began peace talks."
+            metadata_add:
+              score: "n+1"
+          incorrect:
+            metadata_add:
+              misses_section_7_step_1: "n+1"
             content_blocks:
-              - "You have a partial understanding of the Siege of Yorktown. Let's clarify a few points."
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Siege of Yorktown."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the Siege of Yorktown in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - text: "Not quite."
+                show_if: {misses_section_7_step_1_lt: 3}
+              - text: "Not this time. The answer: Charles Cornwallis."
+                show_if: {misses_section_7_step_1_gte: 3}
 
       - step_id: "step_2"
         title: "The Treaty of Paris"
         content_blocks:
-          - "The Treaty of Paris was signed on September 3, 1783, and officially ended the American Revolutionary War."
-          - "The treaty recognized the independence of the United States and established its borders."
-        tokens_for_ai: "Explain the Treaty of Paris and its significance in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What was the Treaty of Paris and why was it significant?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "The Treaty of Paris, signed September 3, 1783, ended the war: Britain recognized the independence of the United States and its borders, west to the Mississippi River."
+        question: "What was the Treaty of Paris, and why was it significant?"
+        tokens_for_ai: "Grade the learner's facts about the Treaty of Paris (1783)."
+        bucket_criteria:
+          correct: "Says it ended the war and that Britain recognized American independence."
+          partial_understanding: "Says it ended the war without the recognition of independence, or the reverse."
+          off_topic: "Does not address the Treaty of Paris (1783)."
+        required_elements:
+          - "it formally ended the war"
+          - "Britain recognized the United States as independent"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: What did Britain finally accept in this treaty?"
+          - attempt: 2
+            text: "💡 Bigger hint: Think about both the war and the new nation's status."
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
+          off_topic:
+            content_blocks:
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
+
+      - step_id: "quiz_year"
+        title: "Quick Check: When?"
+        question_type: multiple_choice
+        question: "In what year did the Treaty of Paris end the Revolutionary War?"
+        choices:
+          - {id: a, text: "1776"}
+          - {id: b, text: "1781"}
+          - {id: c, text: "1783"}
+          - {id: d, text: "1789"}
+        answer: c
+        hints:
+          - attempt: 1
+            text: "💡 Hint: 1776 was the Declaration; 1781 was Yorktown."
+          - attempt: 2
+            text: "💡 Bigger hint: Peace took about two years after Yorktown."
         transitions:
           correct:
             content_blocks:
-              - "Excellent! You understand what the Treaty of Paris was and its significance."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "✅ 1783: two years after Yorktown."
+            metadata_add:
+              score: "n+1"
+          incorrect:
+            metadata_add:
+              misses_section_7_quiz_year: "n+1"
             content_blocks:
-              - "You have a partial understanding of the Treaty of Paris. Let's clarify a few points."
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Treaty of Paris."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the Treaty of Paris in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - text: "Not quite."
+                show_if: {misses_section_7_quiz_year_lt: 3}
+              - text: "Not this time. The answer: 1783."
+                show_if: {misses_section_7_quiz_year_gte: 3}
 
   - section_id: "section_8"
     title: "Legacy of the Revolutionary War"
@@ -505,70 +507,66 @@ sections:
       - step_id: "step_1"
         title: "Impact on the United States"
         content_blocks:
-          - "The American Revolutionary War had a profound impact on the United States."
-          - "It led to the establishment of a new nation based on principles of liberty, democracy, and self-governance."
-        tokens_for_ai: "Explain the impact of the Revolutionary War on the United States in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
+          - "The new nation built governments on written constitutions and elected representatives, and in 1791 added the Bill of Rights."
+          - "Those words did not yet apply to everyone: slavery remained legal, and women and Native Americans were left out. Later movements used the same words to demand their rights."
         question: "What was the impact of the Revolutionary War on the United States?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+        tokens_for_ai: "Grade the learner's facts about the war's impact on the United States."
+        bucket_criteria:
+          correct: "Names at least one real effect (independence, a republic with elected government, the Constitution or Bill of Rights, ideals later movements used)."
+          partial_understanding: "Calls the impact big without naming any effect."
+          off_topic: "Does not address the war's impact on the United States."
+        required_elements:
+          - "one concrete effect on the new nation"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Think about how the country was governed after 1783."
+          - attempt: 2
+            text: "💡 Bigger hint: What documents and ideals came out of the Revolution?"
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand the impact of the Revolutionary War on the United States."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of the impact. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the impact of the Revolutionary War."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the impact of the Revolutionary War in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "Influence on Other Nations"
         content_blocks:
-          - "The American Revolutionary War inspired other nations to fight for their independence and adopt democratic principles."
-          - "It had a significant influence on the French Revolution and other independence movements around the world."
-        tokens_for_ai: "Explain the influence of the Revolutionary War on other nations in a friendly and engaging manner suitable for a 13-year-old. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "How did the Revolutionary War influence other nations?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "The Revolution inspired others: the French Revolution (1789), the Haitian Revolution (1791-1804) and independence movements across Latin America. Historians debate how much each borrowed from it."
+        question: "How did the American Revolution influence other nations?"
+        tokens_for_ai: "Grade the learner's facts about the Revolution's influence abroad."
+        bucket_criteria:
+          correct: "Names at least one influence on another country or movement (France, Haiti, Latin America, ideas of rights and independence)."
+          partial_understanding: "Says it inspired others without naming any."
+          off_topic: "Does not address the Revolution's influence abroad."
+        required_elements:
+          - "one country or movement it influenced, or one idea it spread"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Which European country had its own revolution in 1789?"
+          - attempt: 2
+            text: "💡 Bigger hint: Look at the Caribbean and Latin America too."
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand the influence of the Revolutionary War on other nations."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
+              tokens_for_ai: "Affirm the specific thing they got right in one or two sentences, then add one detail they did not mention."
+            metadata_add:
+              score: "n+1"
+              activity_completed: "true"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding of the influence. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the influence of the Revolutionary War."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of the influence of the Revolutionary War in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the Revolutionary War: have a go at the question above. 🙂"
 
   - section_id: "section_9"
     title: "Congratulations!"
@@ -576,7 +574,10 @@ sections:
       - step_id: "step_1"
         title: "Well Done!"
         content_blocks:
-          - "Congratulations on completing the American Revolutionary War course!"
-          - "You have learned about the causes, key events, major battles, important figures, and the legacy of the Revolutionary War."
-          - "This knowledge will help you understand the foundations of the United States and the principles of liberty and democracy."
-          - "We are proud of your dedication and hard work. Well done!"
+          - "# Congratulations! 🎉"
+          - "You've covered the causes, events, people, battles and legacy of the Revolutionary War."
+          - "Want to see the same events from the inside? Try our companion lesson, **Revolutionary War: In the Colonists' Shoes**."
+          - text: "**Your score: {{metadata.score}} of 17** 🏆"
+            show_if: {score_exists: true}
+          - text: "**Your score: 0 of 17**: every answer is a start. Try it again any time!"
+            show_if: {score_not_exists: true}

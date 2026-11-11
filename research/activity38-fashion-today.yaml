@@ -1,3 +1,6 @@
+title: "Fashion Today: Find Your Style"
+description: "A lesson in personal style now: colour, fit, dress codes & statement pieces, ending in your own fashion philosophy."
+kind: "lesson"
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
@@ -33,8 +36,10 @@ sections:
         question: Are you ready to explore the exciting world of fashion?
         tokens_for_ai: |
           Accept any positive response as 'ready'.
-          If setting language preference, categorize as 'set_language'.
-          Otherwise 'off_topic'.
+        bucket_criteria:
+          ready: "Any yes, or any sign they want to start."
+          set_language: "Asks for another language."
+          off_topic: "Neither."
         buckets:
           - ready
           - set_language
@@ -43,6 +48,8 @@ sections:
           ready:
             content_blocks:
               - "Fantastic! Let's discover your unique style! 🌟"
+            metadata_add:
+              score: 0
             next_section_and_step: style_discovery:step_1
           set_language:
             content_blocks:
@@ -50,12 +57,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: introduction:welcome
           off_topic:
             content_blocks:
               - "Let's focus on fashion! Are you excited to begin?"
-            counts_as_attempt: false
-            next_section_and_step: introduction:welcome
 
   - section_id: style_discovery
     title: Discover Your Style
@@ -81,16 +85,13 @@ sections:
           - "You can love multiple styles or create your own unique blend!"
         question: Which style (or styles) resonates with you? Describe what you love about fashion or what you'd like to wear!
         tokens_for_ai: |
-          The student is describing their fashion preferences.
-
-          Store their response in metadata.style_preference.
-
-          Categorize based on engagement level:
-          - detailed_response: They describe specific styles, colors, or preferences
-          - general_interest: They mention a style category or general interest
-          - exploring: They're unsure but curious
-          - set_language: Setting language preference
-          - off_topic: Unrelated to fashion
+          An opinion question: grade engagement, never taste.
+        bucket_criteria:
+          detailed_response: "Names styles, colours or pieces and says what they love about them."
+          general_interest: "Names a style or a general liking, little detail."
+          exploring: "Unsure, but curious or open."
+          set_language: "Asks for another language."
+          off_topic: "Not about clothes or style."
         feedback_tokens_for_ai: |
           Acknowledge their style preferences enthusiastically!
 
@@ -142,11 +143,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: style_discovery:step_1
           off_topic:
             content_blocks:
               - "Let's talk fashion! What kind of clothes do you enjoy wearing?"
-            next_section_and_step: style_discovery:step_1
 
       - step_id: step_2
         title: Color and You
@@ -169,14 +168,13 @@ sections:
           - "**Pro Tip:** Wear colors near your face that complement your skin tone!"
         question: What colors do you love to wear? What colors make you feel most confident or happy?
         tokens_for_ai: |
-          Student is sharing color preferences.
-
-          Categorize as:
-          - specific_colors: Names specific colors and why they like them
-          - color_mentioned: Mentions colors without detail
-          - neutral_preference: Prefers neutrals or all colors
-          - set_language: Language preference
-          - off_topic: Unrelated
+          An opinion question: grade engagement, never taste.
+        bucket_criteria:
+          specific_colors: "Names colours and why they like them or how they feel in them."
+          color_mentioned: "Names colours without a why."
+          neutral_preference: "Prefers neutrals, or likes every colour."
+          set_language: "Asks for another language."
+          off_topic: "Not about colours or clothes."
         feedback_tokens_for_ai: |
           Validate their color choices!
 
@@ -225,11 +223,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: style_discovery:step_2
           off_topic:
             content_blocks:
               - "Think about your wardrobe! What colors do you reach for most often?"
-            next_section_and_step: style_discovery:step_2
 
   - section_id: outfit_building
     title: Build Your Wardrobe
@@ -261,21 +257,14 @@ sections:
           - "**Let's practice outfit building!**"
         question: "Imagine you're going to a casual coffee date with friends. What would you wear? Describe your outfit!"
         tokens_for_ai: |
-          Student is describing a casual outfit.
-
-          Look for:
-          - Specific clothing items
-          - Color coordination
-          - Style consistency
-          - Occasion appropriateness
-
-          Categorize as:
-          - detailed_outfit: Describes multiple pieces with thought to coordination
-          - basic_outfit: Mentions clothing items appropriately casual
-          - creative_outfit: Unique or interesting combinations
-          - needs_guidance: Very brief or doesn't match occasion
-          - set_language: Language preference
-          - off_topic: Unrelated
+          A design question: many outfits fit a casual coffee date.
+        bucket_criteria:
+          detailed_outfit: "Several pieces chosen to go together, suited to a casual coffee date."
+          basic_outfit: "A few casual pieces, little thought to how they go together."
+          creative_outfit: "An unusual or playful combination that still suits a casual outing."
+          limited_effort: "One word, or an outfit for a very different occasion (a ball gown, a suit & tie)."
+          set_language: "Asks for another language."
+          off_topic: "Not an outfit."
         feedback_tokens_for_ai: |
           Evaluate their outfit for the casual coffee date scenario.
 
@@ -296,7 +285,7 @@ sections:
           - detailed_outfit
           - basic_outfit
           - creative_outfit
-          - needs_guidance
+          - limited_effort
           - set_language
           - off_topic
         transitions:
@@ -310,7 +299,7 @@ sections:
             metadata_add:
               score: "n+1"
               outfits_created: "n+1"
-            next_section_and_step: outfit_building:step_2
+            next_section_and_step: outfit_building:dress_code_check
           basic_outfit:
             ai_feedback:
               tokens_for_ai: |
@@ -319,7 +308,7 @@ sections:
                 Suggest how to add personal flair (accessories, colors, etc.).
             metadata_add:
               outfits_created: "n+1"
-            next_section_and_step: outfit_building:step_2
+            next_section_and_step: outfit_building:dress_code_check
           creative_outfit:
             ai_feedback:
               tokens_for_ai: |
@@ -329,24 +318,49 @@ sections:
             metadata_add:
               score: "n+1"
               outfits_created: "n+1"
-            next_section_and_step: outfit_building:step_2
-          needs_guidance:
+            next_section_and_step: outfit_building:dress_code_check
+          limited_effort:
             content_blocks:
               - "Let's think casual and comfortable!"
               - "**Suggestions:** Jeans or casual pants, a nice top or sweater, comfortable shoes (sneakers, boots, flats)"
-              - "Add your personal touch with accessories or colors you love!"
-            next_section_and_step: outfit_building:step_1
+              - "Add your personal touch with accessories or colors you love! What would you wear?"
           set_language:
             content_blocks:
               - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: outfit_building:step_1
           off_topic:
             content_blocks:
               - "Imagine your perfect casual outfit! What would you choose to wear for coffee with friends?"
-            next_section_and_step: outfit_building:step_1
+
+      - step_id: dress_code_check
+        title: Name That Dress Code
+        question_type: multiple_choice
+        question: "Slacks, a blouse & loafers: which dress code is that?"
+        choices:
+          - {id: a, text: "Casual"}
+          - {id: b, text: "Business casual"}
+          - {id: c, text: "Formal"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "Right: business casual is polished but approachable. ✅"
+            metadata_add:
+              score: "n+1"
+              dress_code_misses: 0
+            next_section_and_step: outfit_building:step_2
+          incorrect:
+            metadata_add:
+              dress_code_misses: "n+1"
+            content_blocks:
+              - text: "💡 Polished, but no suit or gown. Try again."
+                show_if:
+                  dress_code_misses_lt: 2
+              - text: "💡 Slacks & loafers are a step up from jeans & sneakers, a step below a suit."
+                show_if:
+                  dress_code_misses_gte: 2
 
       - step_id: step_2
         title: Statement Pieces
@@ -369,15 +383,14 @@ sections:
           - "- One or two statement pieces max"
         question: What's your favorite statement piece you own (or would love to own)? Describe it and how you'd style it!
         tokens_for_ai: |
-          Student describing a statement piece.
-
-          Categorize as:
-          - detailed_vision: Describes the piece AND how they'd wear it
-          - piece_described: Describes a statement item
-          - aspirational: Talks about wanting certain pieces
-          - minimalist_approach: Prefers subtle/no statement pieces
-          - set_language: Language preference
-          - off_topic: Unrelated
+          An opinion question: grade engagement, never taste.
+        bucket_criteria:
+          detailed_vision: "Describes a piece AND how they would style it."
+          piece_described: "Describes a statement piece, not how to wear it."
+          aspirational: "A piece they want but don't own yet."
+          minimalist_approach: "Prefers subtle pieces or none."
+          set_language: "Asks for another language."
+          off_topic: "Not about clothes."
         feedback_tokens_for_ai: |
           Respond to their statement piece choice!
 
@@ -407,14 +420,14 @@ sections:
                 Encourage them to wear it with confidence!
             metadata_add:
               score: "n+1"
-            next_section_and_step: fashion_wisdom:step_1
+            next_section_and_step: outfit_building:statement_check
           piece_described:
             ai_feedback:
               tokens_for_ai: |
                 Great statement piece choice!
                 Suggest how to style it.
                 Mention what type of outfit it would elevate.
-            next_section_and_step: fashion_wisdom:step_1
+            next_section_and_step: outfit_building:statement_check
           aspirational:
             ai_feedback:
               tokens_for_ai: |
@@ -422,25 +435,44 @@ sections:
                 Encourage saving/hunting for that perfect piece.
                 Mention alternatives or similar items to explore.
                 Fashion dreams are fun!
-            next_section_and_step: fashion_wisdom:step_1
+            next_section_and_step: outfit_building:statement_check
           minimalist_approach:
             ai_feedback:
               tokens_for_ai: |
                 Minimalism is a powerful statement!
                 Quality over quantity is wise.
                 Mention how simple pieces can be impactful.
-            next_section_and_step: fashion_wisdom:step_1
+            next_section_and_step: outfit_building:statement_check
           set_language:
             content_blocks:
               - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: outfit_building:step_2
           off_topic:
             content_blocks:
               - "Think about your wardrobe! Do you have a favorite bold piece that makes an outfit special?"
-            next_section_and_step: outfit_building:step_2
+
+      - step_id: statement_check
+        title: Let It Shine
+        question_type: multiple_choice
+        question: "Your outfit is built around a sequined jacket. What should the rest of it do?"
+        choices:
+          - {id: a, text: "Match the sparkle with sequined trousers & shoes"}
+          - {id: b, text: "Stay simpler, so the jacket stands out"}
+          - {id: c, text: "Add two more statement pieces"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "Yes: keep the rest simple & let your statement piece shine. ✨"
+              - "Score so far: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: fashion_wisdom:step_1
+          incorrect:
+            content_blocks:
+              - "💡 Think of our rule: one or two statement pieces at most."
 
   - section_id: fashion_wisdom
     title: Fashion Tips & Confidence
@@ -475,16 +507,15 @@ sections:
           - "   - Have fun with it!"
         question: What does fashion mean to you? How do you want to express yourself through clothing?
         tokens_for_ai: |
-          This is a reflection question about their fashion philosophy.
-
-          Categorize as:
-          - thoughtful_reflection: Shares personal connection to fashion
-          - self_expression: Talks about expressing personality/identity
-          - practical_view: Focuses on function, comfort, practicality
-          - creative_view: Sees fashion as art/creativity
-          - brief_response: Short but genuine
-          - set_language: Language preference
-          - off_topic: Unrelated
+          A reflection: grade engagement, never the view itself.
+        bucket_criteria:
+          thoughtful_reflection: "A personal connection to clothes, with a reason or story."
+          self_expression: "Clothes as showing personality or identity."
+          practical_view: "Function, comfort or practicality first."
+          creative_view: "Clothes as art or creativity."
+          brief_response: "Short but genuine."
+          set_language: "Asks for another language."
+          off_topic: "Not about clothes or fashion."
         feedback_tokens_for_ai: |
           Provide personalized, encouraging feedback!
 
@@ -554,11 +585,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: fashion_wisdom:step_1
           off_topic:
             content_blocks:
               - "Let's reflect on fashion! What role do clothes play in your life and how you present yourself?"
-            next_section_and_step: fashion_wisdom:step_1
 
   - section_id: conclusion
     title: Your Fashion Journey Continues
@@ -588,4 +617,7 @@ sections:
           - "- Take photos of outfits you love"
           - "- Follow fashion inspiration that resonates with YOU"
           - ""
+          - text: "**Your score:** {{metadata.score}}"
+            show_if:
+              score_exists: true
           - "**Your style is uniquely YOURS. Wear it proudly! 💖**"

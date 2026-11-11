@@ -1,15 +1,16 @@
+title: "Game Theory in Python"
+description: "Code the Prisoner's Dilemma in Python: a payoff dictionary, a lookup, a one-round simulator & Tit-for-Tat."
+kind: "lesson"
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
 tokens_for_ai_rubric: |
-  Evaluate the student's ability to implement game theory concepts in Python.
+  Grade Python code implementing game theory. Any working approach counts;
+  judge the ideas, not one exact syntax.
 
-  Consider:
-  - Correct Python syntax
-  - Understanding of game theory concepts
-  - Code logic and structure
-  - Use of appropriate data structures
-  - Ability to translate concepts to code
+# Wrong answers stay on their step (partial_understanding & incorrect carry no
+# next_section_and_step), so attempts count & hints escalate: a per-step
+# *_tries counter picks which hint shows.
 
 sections:
   - section_id: introduction
@@ -25,9 +26,8 @@ sections:
           - "You'll learn to:"
           - "✓ Represent games as data structures"
           - "✓ Implement payoff matrices"
-          - "✓ Code Prisoner's Dilemma simulations"
-          - "✓ Find Nash Equilibria programmatically"
-          - "✓ Simulate repeated games with strategies"
+          - "✓ Code a Prisoner's Dilemma simulation"
+          - "✓ Write a strategy for repeated games"
           - ""
           - "**Prerequisites:**"
           - "- Basic Python knowledge (variables, functions, loops)"
@@ -35,22 +35,24 @@ sections:
           - ""
           - "**Why this matters:**"
           - "- Learn to model strategic situations"
-          - "- Practice data structures (dictionaries, lists)"
+          - "- Practice data structures (dictionaries, tuples)"
           - "- Build simulations and experiments"
           - "- Apply theory to real code"
         question: Ready to implement game theory in Python?
-        tokens_for_ai: Accept positive as 'ready', language preference as 'set_language', else 'off_topic'
+        tokens_for_ai: "Any yes or willingness is 'ready'."
+        allow_clarifying_questions: false
         buckets: [ready, set_language, off_topic]
         transitions:
           ready:
+            metadata_add: {score: 0, concepts_mastered: 0}
             next_section_and_step: payoff_matrix:step_1
           set_language:
+            content_blocks: ["Language preference updated."]
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
-            next_section_and_step: introduction:welcome
           off_topic:
+            content_blocks: ["Say \"ready\" when you'd like to start."]
             counts_as_attempt: false
-            next_section_and_step: introduction:welcome
 
   - section_id: payoff_matrix
     title: Representing Games as Data
@@ -59,6 +61,8 @@ sections:
         title: Payoff Matrix Structure
         content_blocks:
           - "## Representing Payoff Matrices in Python 📊"
+          - text: "_Progress: {{metadata.concepts_mastered}} of 4 concepts · {{metadata.score}} points_"
+            show_if: {score_exists: true}
           - ""
           - "**The challenge:**"
           - "How do we represent a 2-player game in code?"
@@ -78,107 +82,82 @@ sections:
           - "- Keys: tuples of strategy pairs"
           - "- Values: tuples of payoffs"
           - ""
-          - "**Example concept (Prisoner's Dilemma):**"
-          - "```"
-          - "Strategies: 'cooperate' or 'defect'"
-          - "Payoffs: (player1_years, player2_years)"
-          - "If both cooperate: (-1, -1)"
-          - "If both defect: (-2, -2)"
-          - "If one defects while other cooperates: (0, -3) or (-3, 0)"
-          - "```"
+          - "**The Prisoner's Dilemma's payoffs (years in prison, as negatives):**"
+          - "- Both cooperate: (-1, -1)"
+          - "- Both defect: (-2, -2)"
+          - "- Player 1 cooperates, player 2 defects: (-3, 0)"
+          - "- Player 1 defects, player 2 cooperates: (0, -3)"
         question: "Write Python code to create a dictionary representing the Prisoner's Dilemma payoff matrix. Use strategy pairs as keys (tuples like ('cooperate', 'defect')) and payoff tuples as values."
         tokens_for_ai: |
-          Looking for Python dictionary with:
-          - Keys: tuples of (player1_strategy, player2_strategy)
-          - Values: tuples of (player1_payoff, player2_payoff)
-          - Four outcomes: (C,C), (C,D), (D,C), (D,D)
-
-          Correct payoffs (years in prison):
-          - ('cooperate', 'cooperate'): (-1, -1)
-          - ('cooperate', 'defect'): (-3, 0)
-          - ('defect', 'cooperate'): (0, -3)
-          - ('defect', 'defect'): (-2, -2)
-
-          Categorize as:
-          - correct: Proper dictionary with all 4 outcomes and correct payoffs
-          - correct_structure: Right structure, minor payoff errors
-          - uses_dictionary: Uses dict but wrong format
-          - wrong_approach: Different data structure
-          - needs_help: Very basic or confused
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          If correct:
-          - Excellent! Dictionary maps strategy pairs to payoffs perfectly.
-          - This structure makes lookups easy.
-          - Show how to access: payoff_matrix[('cooperate', 'defect')] → (-3, 0)
-
-          If structure right but payoffs wrong:
-          - Great structure! But check payoffs:
-          - Both cooperate: (-1, -1) - best mutual outcome
-          - Both defect: (-2, -2) - mutual punishment
-          - One defects: (0, -3) or (-3, 0) - betrayal
-
-          If wrong approach:
-          - Show correct dictionary structure with example.
-          - Explain why dict with tuple keys is elegant for this.
-        buckets: [correct, correct_structure, uses_dictionary, wrong_approach, needs_help, set_language, off_topic]
+          Their Prisoner's Dilemma payoff dictionary. Expected entries:
+          ('cooperate', 'cooperate'): (-1, -1), ('cooperate', 'defect'): (-3, 0),
+          ('defect', 'cooperate'): (0, -3), ('defect', 'defect'): (-2, -2).
+          Any variable name & strategy spelling counts.
+        bucket_criteria:
+          correct: "A dictionary with all four strategy pairs mapped to the right payoff pairs."
+          partial_understanding: "The right shape with a slip: a payoff wrong or swapped, an outcome missing, or non-tuple keys."
+          incorrect: "Not a mapping from strategy pairs to payoffs."
+          off_topic: "Not about the task."
+        required_elements:
+          - "a dictionary keyed by (player 1 strategy, player 2 strategy) pairs"
+          - "all four strategy combinations"
+          - "each value holds both payoffs, player 1's first, as given"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Perfect implementation!
-                Your dictionary elegantly maps strategy pairs to payoffs.
-                Access is simple: matrix[('cooperate', 'defect')] gives (-3, 0).
-                This structure scales to more complex games!
+              tokens_for_ai: "Praise their dictionary; show one lookup, e.g. matrix[('cooperate', 'defect')] gives (-3, 0)."
             metadata_add: {score: "n+2", concepts_mastered: "n+1"}
-            next_section_and_step: payoff_matrix:step_2
-          correct_structure:
-            ai_feedback:
-              tokens_for_ai: |
-                Great structure! Minor payoff correction needed:
-                - Both cooperate: (-1, -1)
-                - Both defect: (-2, -2)
-                - One defects: betrayer gets 0, cooperator gets -3
-                Show the corrected version.
-            metadata_add: {score: "n+1"}
-            next_section_and_step: payoff_matrix:step_2
-          uses_dictionary:
-            ai_feedback:
-              tokens_for_ai: |
-                Good use of dictionary!
-                For game matrices, use tuple keys:
-                payoff_matrix = {
-                  ('cooperate', 'cooperate'): (-1, -1),
-                  ('cooperate', 'defect'): (-3, 0),
-                  ...
-                }
-            next_section_and_step: payoff_matrix:step_1
-          wrong_approach:
-            ai_feedback:
-              tokens_for_ai: |
-                Python dictionaries with tuple keys work best!
-                Example format:
-                game = {('action1', 'action2'): (payoff1, payoff2)}
-                This allows easy lookup of any strategy combination.
-            next_section_and_step: payoff_matrix:step_1
-          needs_help:
+            next_section_and_step: payoff_matrix:lookup_check
+          partial_understanding:
+            metadata_add: {matrix_tries: "n+1"}
             content_blocks:
-              - "Start with: game = {}"
-              - "Add entries like: ('cooperate', 'cooperate'): (-1, -1)"
-              - "You need 4 entries total for all strategy combinations"
-            next_section_and_step: payoff_matrix:step_1
+              - text: "💡 Hint: check all four pairs are there, and that player 1's payoff comes first in each value."
+                show_if: {matrix_tries_lt: 2}
+              - text: "💡 Hint: one entry looks like `('cooperate', 'cooperate'): (-1, -1)`. Write the other three the same way."
+                show_if: {matrix_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Name the one missing or wrong entry. Show the full dictionary only if metadata.matrix_tries is 3 or more."
+          incorrect:
+            metadata_add: {matrix_tries: "n+1"}
+            content_blocks:
+              - text: "💡 Hint: start with `game = {}`; each key is a tuple of two strategies, each value a tuple of two payoffs."
+                show_if: {matrix_tries_lt: 2}
+              - text: "💡 Hint: one entry looks like `('cooperate', 'cooperate'): (-1, -1)`. Write the other three the same way."
+                show_if: {matrix_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Explain why a dict with tuple keys fits a payoff matrix. Show the full dictionary only if metadata.matrix_tries is 3 or more."
           set_language:
+            content_blocks: ["Language preference updated."]
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
-            next_section_and_step: payoff_matrix:step_1
           off_topic:
-            next_section_and_step: payoff_matrix:step_1
+            content_blocks: ["Let's build that payoff dictionary: four strategy pairs, four payoff pairs."]
+
+      - step_id: lookup_check
+        title: "Quick Check: Reading the Matrix"
+        question_type: multiple_choice
+        question: "With that dictionary in `game`, what is `game[('defect', 'cooperate')]`?"
+        choices:
+          - {id: a, text: "(-3, 0)"}
+          - {id: b, text: "(0, -3)"}
+          - {id: c, text: "(-1, -1)"}
+          - {id: d, text: "(-2, -2)"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks: ["Right: player 1 defects & walks free (0); player 2 cooperates & gets 3 years (-3)."]
+            metadata_add: {score: "n+1"}
+            next_section_and_step: payoff_matrix:step_2
+          incorrect:
+            content_blocks: ["Not quite: the key's first strategy is player 1's, & so is the value's first payoff."]
 
       - step_id: step_2
         title: Querying the Matrix
         content_blocks:
           - "## Using the Payoff Matrix 🔍"
+          - text: "_Progress: {{metadata.concepts_mastered}} of 4 concepts · {{metadata.score}} points_"
+            show_if: {score_exists: true}
           - ""
           - "**Now that you have a payoff matrix, let's use it!**"
           - ""
@@ -189,85 +168,53 @@ sections:
           - "- Parameters: `payoff_matrix`, `player1_action`, `player2_action`"
           - "- Returns: tuple of (player1_payoff, player2_payoff)"
           - ""
-          - "**What the function does:**"
-          - "Looks up the payoffs for the given strategy combination"
-          - ""
           - "**Think about:**"
           - "- How do you access dictionary values?"
-          - "- How do you create the lookup key from the two actions?"
+          - "- How do you build the lookup key from the two actions?"
         question: "Write a Python function called `get_payoffs` that takes a payoff matrix dictionary and two player actions, then returns the payoff tuple for that strategy combination."
         tokens_for_ai: |
-          Looking for function that:
-          - Takes 3 parameters: payoff_matrix (dict), player1_action, player2_action
-          - Creates tuple key: (player1_action, player2_action)
-          - Returns: payoff_matrix[(player1_action, player2_action)]
-
-          Acceptable variations:
-          - def get_payoffs(matrix, p1, p2): return matrix[(p1, p2)]
-          - def get_payoffs(payoff_matrix, action1, action2): ...
-
-          Categorize as:
-          - correct: Proper function with correct lookup
-          - correct_logic: Right idea, minor syntax issues
-          - missing_tuple: Tries to lookup without creating tuple key
-          - confused: Wrong approach
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          If correct:
-          - Perfect! Your function correctly creates a tuple key and looks it up.
-          - Example: get_payoffs(game, 'cooperate', 'defect') → (-3, 0)
-          - Clean, simple, and reusable!
-
-          If correct logic but syntax issues:
-          - Right approach! Small syntax fix needed.
-          - Show corrected version.
-          - Explain the fix.
-
-          If missing tuple:
-          - Remember: dictionary keys are tuples!
-          - Need to create (player1_action, player2_action) first.
-          - Then look it up in the matrix.
-        buckets: [correct, correct_logic, missing_tuple, confused, set_language, off_topic]
+          Their get_payoffs function. Expected: return payoff_matrix[(player1_action, player2_action)].
+          Parameter names may differ; matrix.get((a, b)) or matrix[a, b] count too.
+        bucket_criteria:
+          correct: "Takes the matrix & both actions and returns the payoffs for that pair."
+          partial_understanding: "Right idea with one slip: the key isn't the pair, the actions are swapped, or it prints instead of returning."
+          incorrect: "No function, or no dictionary lookup."
+          off_topic: "Not about the task."
+        required_elements:
+          - "a function get_payoffs taking the matrix & both actions"
+          - "looks up the pair (player 1 action, player 2 action)"
+          - "returns that payoff tuple"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Excellent function!
-                Your code cleanly creates the tuple key and returns the payoffs.
-                This abstraction makes game simulation much easier.
-                You can now query any strategy combination!
+              tokens_for_ai: "Praise their function; e.g. get_payoffs(game, 'cooperate', 'defect') returns (-3, 0)."
             metadata_add: {score: "n+2", concepts_mastered: "n+1"}
             next_section_and_step: simulation:step_1
-          correct_logic:
-            ai_feedback:
-              tokens_for_ai: |
-                Great logic! Minor syntax adjustment:
-                Show corrected function.
-                Explain what was fixed and why it matters.
-            metadata_add: {score: "n+1"}
-            next_section_and_step: simulation:step_1
-          missing_tuple:
-            ai_feedback:
-              tokens_for_ai: |
-                Close! Don't forget to create the tuple key:
-
-                def get_payoffs(payoff_matrix, p1_action, p2_action):
-                    key = (p1_action, p2_action)
-                    return payoff_matrix[key]
-            next_section_and_step: payoff_matrix:step_2
-          confused:
+          partial_understanding:
+            metadata_add: {lookup_tries: "n+1"}
             content_blocks:
-              - "A function that takes the matrix and both actions"
-              - "Creates a tuple from the two actions: (action1, action2)"
-              - "Uses that tuple to look up the payoffs in the dictionary"
-            next_section_and_step: payoff_matrix:step_2
+              - text: "💡 Hint: your dictionary's keys are tuples. What tuple do the two actions make?"
+                show_if: {lookup_tries_lt: 2}
+              - text: "💡 Hint: build the key `(player1_action, player2_action)`, look it up, & return what you find."
+                show_if: {lookup_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Name the one missing or wrong piece. Show a working function only if metadata.lookup_tries is 3 or more."
+          incorrect:
+            metadata_add: {lookup_tries: "n+1"}
+            content_blocks:
+              - text: "💡 Hint: `def get_payoffs(payoff_matrix, player1_action, player2_action):` then one line that looks up & returns."
+                show_if: {lookup_tries_lt: 2}
+              - text: "💡 Hint: build the key `(player1_action, player2_action)`, look it up, & return what you find."
+                show_if: {lookup_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Explain how a dictionary lookup by tuple key works. Show a working function only if metadata.lookup_tries is 3 or more."
           set_language:
+            content_blocks: ["Language preference updated."]
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
-            next_section_and_step: payoff_matrix:step_2
           off_topic:
-            next_section_and_step: payoff_matrix:step_2
+            content_blocks: ["Let's write `get_payoffs`: the matrix and two actions in, a payoff tuple out."]
 
   - section_id: simulation
     title: Simulating Strategic Interactions
@@ -276,6 +223,8 @@ sections:
         title: One-Shot Game Simulator
         content_blocks:
           - "## Simulating Game Outcomes 🎲"
+          - text: "_Progress: {{metadata.concepts_mastered}} of 4 concepts · {{metadata.score}} points_"
+            show_if: {score_exists: true}
           - ""
           - "**Building a simple game simulator**"
           - ""
@@ -299,95 +248,47 @@ sections:
           - "3. Display the resulting payoffs"
           - "4. Return the payoffs for further use"
         question: "Write a `play_game` function that simulates one round of a game, prints the outcome, and returns the payoffs. Use your `get_payoffs` function from earlier."
-        tokens_for_ai: |
-          Looking for function that:
-          - Calls get_payoffs(payoff_matrix, strategy1, strategy2)
-          - Prints player choices and payoffs
-          - Returns the payoff tuple
-
-          Should show understanding of:
-          - Function composition (using get_payoffs)
-          - Print statements for output
-          - Returning values
-
-          Categorize as:
-          - correct: Complete function with print and return
-          - missing_print: Has logic but doesn't print
-          - missing_return: Prints but doesn't return
-          - correct_concept: Right idea, minor issues
-          - confused: Wrong approach
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          If correct:
-          - Excellent! Your simulator uses function composition nicely.
-          - The print statements make outcomes clear.
-          - Returning payoffs allows chaining simulations.
-          - This is how game theory research is done programmatically!
-
-          If missing print:
-          - Good logic! Add print statements to show:
-          - What each player chose
-          - The resulting payoffs
-          - Makes debugging and understanding easier!
-
-          If missing return:
-          - Good output! But also return the payoffs.
-          - This lets you use the function in larger simulations.
-          - return payoffs at the end.
-
-          Show complete example if needed.
-        buckets: [correct, missing_print, missing_return, correct_concept, confused, set_language, off_topic]
+        tokens_for_ai: "Their play_game function: payoffs from get_payoffs, both choices & payoffs printed, payoffs returned. Output wording may differ."
+        bucket_criteria:
+          correct: "Calls get_payoffs, prints both choices & both payoffs, returns the payoffs."
+          partial_understanding: "Most of it: missing the print, the return, or doing the lookup again instead of calling get_payoffs."
+          incorrect: "No function, or one that doesn't simulate a round."
+          off_topic: "Not about the task."
+        required_elements:
+          - "gets the payoffs by calling get_payoffs"
+          - "prints both players' choices & payoffs"
+          - "returns the payoffs"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Perfect simulator!
-                You've built function composition (play_game uses get_payoffs).
-                Print statements provide visibility.
-                Return value enables further analysis.
-                You're ready for repeated game simulation!
+              tokens_for_ai: "Praise the function composition: play_game reuses get_payoffs, prints for people & returns for code."
             metadata_add: {score: "n+2", concepts_mastered: "n+1"}
             next_section_and_step: repeated_games:step_1
-          missing_print:
-            ai_feedback:
-              tokens_for_ai: |
-                Good structure! Add print statements:
-                print(f"Player 1 chose: {strategy1}")
-                print(f"Player 2 chose: {strategy2}")
-                print(f"Payoffs: Player 1 = {payoffs[0]}, Player 2 = {payoffs[1]}")
-                Makes the simulation observable!
-            metadata_add: {score: "n+1"}
-            next_section_and_step: repeated_games:step_1
-          missing_return:
-            ai_feedback:
-              tokens_for_ai: |
-                Great output! Just add:
-                return payoffs
-                This lets you accumulate results over many rounds!
-            metadata_add: {score: "n+1"}
-            next_section_and_step: repeated_games:step_1
-          correct_concept:
-            ai_feedback:
-              tokens_for_ai: |
-                Right approach! Small improvements:
-                Show polished version.
-                Explain the refinements.
-            next_section_and_step: repeated_games:step_1
-          confused:
+          partial_understanding:
+            metadata_add: {simulate_tries: "n+1"}
             content_blocks:
-              - "Your function should:"
-              - "1. Call get_payoffs to get the payoffs"
-              - "2. Print what each player chose"
-              - "3. Print the payoffs"
-              - "4. Return the payoffs tuple"
-            next_section_and_step: simulation:step_1
+              - text: "💡 Hint: check the four steps of the conceptual flow: which one is missing?"
+                show_if: {simulate_tries_lt: 2}
+              - text: "💡 Hint: printing shows the result to people; `return` hands it to code. A simulator needs both."
+                show_if: {simulate_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Name the one missing piece. Show a complete function only if metadata.simulate_tries is 3 or more."
+          incorrect:
+            metadata_add: {simulate_tries: "n+1"}
+            content_blocks:
+              - text: "💡 Hint: start with `payoffs = get_payoffs(payoff_matrix, strategy1, strategy2)`; the rest is printing & returning."
+                show_if: {simulate_tries_lt: 2}
+              - text: "💡 Hint: printing shows the result to people; `return` hands it to code. A simulator needs both."
+                show_if: {simulate_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Explain the four-step flow against their code. Show a complete function only if metadata.simulate_tries is 3 or more."
           set_language:
+            content_blocks: ["Language preference updated."]
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
-            next_section_and_step: simulation:step_1
           off_topic:
-            next_section_and_step: simulation:step_1
+            content_blocks: ["Let's write `play_game`: look up, print, return."]
 
   - section_id: repeated_games
     title: Repeated Game Strategies
@@ -396,114 +297,74 @@ sections:
         title: Tit-for-Tat Strategy
         content_blocks:
           - "## Implementing Strategic Behavior 🔄"
+          - text: "_Progress: {{metadata.concepts_mastered}} of 4 concepts · {{metadata.score}} points_"
+            show_if: {score_exists: true}
           - ""
           - "**The Tit-for-Tat Strategy:**"
           - "1. Start with cooperation"
           - "2. Then copy opponent's previous move"
           - ""
-          - "**Implementation challenge:**"
-          - "Create a function that implements Tit-for-Tat logic"
-          - ""
           - "**Function requirements:**"
           - "- Name: `tit_for_tat`"
-          - "- Parameter: `opponent_last_move` (or None for first move)"
+          - "- Parameter: `opponent_last_move` (None on the first move)"
           - "- Returns: 'cooperate' or 'defect'"
-          - ""
-          - "**Logic:**"
-          - "- If it's the first move (opponent_last_move is None): return 'cooperate'"
-          - "- Otherwise: return whatever the opponent played last"
           - ""
           - "**Why this is powerful:**"
           - "- Nice (starts with cooperation)"
           - "- Retaliatory (punishes defection)"
           - "- Forgiving (returns to cooperation)"
-          - "- Simple to understand and implement"
+          - "- Simple, and it won Axelrod's tournament"
         question: "Write a `tit_for_tat` function that takes an opponent's last move (or None for first round) and returns the appropriate strategy according to Tit-for-Tat logic."
         tokens_for_ai: |
-          Correct logic:
-          - If opponent_last_move is None: return 'cooperate'
-          - Else: return opponent_last_move
-
-          Acceptable implementations:
-          - Simple if/else
-          - Ternary operator
-          - Return with 'or' default
-
-          Categorize as:
-          - correct: Proper Tit-for-Tat logic
-          - correct_logic: Right idea, minor syntax
-          - wrong_first_move: Doesn't handle None case
-          - always_cooperates: Ignores opponent's move
-          - confused: Wrong logic
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          If correct:
-          - Perfect Tit-for-Tat implementation!
-          - First move: cooperate (nice)
-          - After: copy opponent (retaliatory & forgiving)
-          - This won Axelrod's tournament!
-          - Show usage example.
-
-          If correct logic:
-          - Great logic! Small syntax refinement:
-          - Show corrected version.
-
-          If wrong first move:
-          - Remember: Tit-for-Tat starts with cooperation!
-          - Check if opponent_last_move is None (first round).
-          - If None, return 'cooperate'.
-
-          If always cooperates:
-          - You need to copy the opponent's move!
-          - After first round, return opponent_last_move.
-          - That's what makes it "tit for tat"!
-        buckets: [correct, correct_logic, wrong_first_move, always_cooperates, confused, set_language, off_topic]
+          Their tit_for_tat function: 'cooperate' when opponent_last_move is None,
+          else the opponent's last move. if/else, a conditional expression or
+          `opponent_last_move or 'cooperate'` all count.
+        bucket_criteria:
+          correct: "Cooperates on the first move & copies the opponent's last move after."
+          partial_understanding: "One half right: never handles None, or always cooperates, or always defects after the first move."
+          incorrect: "Not a strategy function, or logic unrelated to the opponent's move."
+          off_topic: "Not about the task."
+        required_elements:
+          - "cooperates on the first move (opponent_last_move is None)"
+          - "otherwise returns the opponent's last move"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Excellent Tit-for-Tat implementation!
-                Your code captures the strategy perfectly:
-                - Nice: starts with cooperation
-                - Retaliatory: copies opponent's defection
-                - Forgiving: copies opponent's return to cooperation
-                This simple strategy is remarkably effective!
+              tokens_for_ai: "Celebrate: nice, retaliatory & forgiving in a few lines. Show a short usage example over three rounds."
             metadata_add: {score: "n+2", concepts_mastered: "n+1", activity_completed: "true"}
-          correct_logic:
-            ai_feedback:
-              tokens_for_ai: |
-                Great logic! Minor polish:
-                Show refined version.
-                Your understanding of the strategy is solid!
-            metadata_add: {score: "n+1", activity_completed: "true"}
-          wrong_first_move:
-            ai_feedback:
-              tokens_for_ai: |
-                Almost there! Handle the first move:
-
-                def tit_for_tat(opponent_last_move):
-                    if opponent_last_move is None:
-                        return 'cooperate'  # Be nice first
-                    return opponent_last_move  # Then copy
-            next_section_and_step: repeated_games:step_1
-          always_cooperates:
-            ai_feedback:
-              tokens_for_ai: |
-                That's "always cooperate," not Tit-for-Tat!
-                Tit-for-Tat must COPY the opponent's last move.
-                Only the FIRST move is automatically cooperate.
-            next_section_and_step: repeated_games:step_1
-          confused:
+            next_section_and_step: repeated_games:wrap_up
+          partial_understanding:
+            metadata_add: {tft_tries: "n+1"}
             content_blocks:
-              - "Tit-for-Tat logic:"
-              - "1. First move (when opponent_last_move is None): cooperate"
-              - "2. All other moves: copy opponent's last move"
-              - "Use an if statement to check for None"
-            next_section_and_step: repeated_games:step_1
+              - text: "💡 Hint: two cases. What should happen when there is no last move yet, and what after?"
+                show_if: {tft_tries_lt: 2}
+              - text: "💡 Hint: `if opponent_last_move is None:` cooperate; otherwise hand back what they played."
+                show_if: {tft_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Name the half that's missing. Show a complete function only if metadata.tft_tries is 3 or more."
+          incorrect:
+            metadata_add: {tft_tries: "n+1"}
+            content_blocks:
+              - text: "💡 Hint: the function's only input is the opponent's last move; its answer depends only on that."
+                show_if: {tft_tries_lt: 2}
+              - text: "💡 Hint: `if opponent_last_move is None:` cooperate; otherwise hand back what they played."
+                show_if: {tft_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Explain Tit-for-Tat's two rules against their code. Show a complete function only if metadata.tft_tries is 3 or more."
           set_language:
+            content_blocks: ["Language preference updated."]
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
-            next_section_and_step: repeated_games:step_1
           off_topic:
-            metadata_add: {activity_completed: "true"}
+            content_blocks: ["Let's write `tit_for_tat`: cooperate first, then copy."]
+
+      - step_id: wrap_up
+        title: Game Over
+        content_blocks:
+          - "# Well Played! 🏆"
+          - text: "You coded **{{metadata.concepts_mastered}} of 4** concepts & scored **{{metadata.score}}** points."
+            show_if: {score_exists: true}
+          - ""
+          - "You represented a game as data, queried it, simulated a round & wrote a strategy."
+          - "**Next:** loop `play_game` over 100 rounds with `tit_for_tat` against an always-defect strategy & total the payoffs."

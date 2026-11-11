@@ -1,3 +1,6 @@
+title: "Statistics 101"
+description: "Mean, median, spread, probability & the bell curve: make sense of data and spot misleading numbers."
+kind: "lesson"
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
@@ -57,6 +60,8 @@ sections:
           ready:
             content_blocks:
               - "Excellent! Let's start with the basics of describing data! 📈"
+            metadata_add:
+              score: 0
             next_section_and_step: central_tendency:step_1
           set_language:
             content_blocks:
@@ -107,69 +112,42 @@ sections:
           - "- Mode: Categorical data or finding most common value"
         question: "You have exam scores: 60, 70, 75, 80, 85, 90, 95. What is the median score?"
         tokens_for_ai: |
-          The median is the middle value when sorted.
-          Scores: 60, 70, 75, 80, 85, 90, 95 (7 values)
-          Middle value (4th position) = 80
-
-          Categorize as:
-          - correct: Says 80 or "eighty"
-          - calculated_mean: Says 79.3 or ~79 (they calculated the mean instead)
-          - close: Says 75 or 85 (one position off)
-          - confused: Incorrect answer showing confusion
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          If correct:
-          - Praise them! Explain why 80 is the middle value.
-          - Note that with odd numbers, median is straightforward.
-
-          If they calculated mean:
-          - Good effort but that's the mean!
-          - Explain median is the MIDDLE value when sorted, not the average.
-
-          If close or confused:
-          - Show the sorted list: 60, 70, 75, [80], 85, 90, 95
-          - The middle position (4th out of 7) is 80.
+          Sorted, 7 values; the 4th is the median: 80. (The mean, about
+          79.3, is a common mix-up and is not the median.)
+        bucket_criteria:
+          correct: "Gives 80 as the median."
+          partial_understanding: "Describes finding the middle of the sorted list but gives no value or slips by one place."
+          incorrect: "Another value, such as the mean (about 79.3) or 75/85."
+          off_topic: "Does not attempt it."
+        required_elements:
+          - "states the median is 80"
+        hints:
+          - attempt: 1
+            text: "💡 Hint: the median is the middle value of the sorted list, not the average."
+            counts_as_attempt: true
+          - attempt: 2
+            text: "💡 Hint: with 7 values, the middle one is in position 4."
+            counts_as_attempt: true
         buckets:
           - correct
-          - calculated_mean
-          - close
-          - confused
+          - partial_understanding
+          - incorrect
           - set_language
           - off_topic
         transitions:
           correct:
-            ai_feedback:
-              tokens_for_ai: |
-                Perfect! 80 is the median - the middle value.
-                With 7 values, the 4th position is the center.
-                Median is great because outliers don't affect it!
+            content_blocks:
+              - "✅ 80: the 4th of 7 sorted values. **Score: {{metadata.score}}**"
             metadata_add:
               score: "n+2"
               concepts_mastered: "n+1"
             next_section_and_step: central_tendency:step_2
-          calculated_mean:
+          partial_understanding:
             ai_feedback:
-              tokens_for_ai: |
-                That's the mean (average), not the median!
-                Median = middle value when sorted.
-                For 60,70,75,[80],85,90,95 → median is 80.
-                The mean would be all values summed divided by 7.
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: central_tendency:step_2
-          close:
+              tokens_for_ai: "Credit their method and ask for the middle value itself. Don't give it."
+          incorrect:
             ai_feedback:
-              tokens_for_ai: |
-                Close! You're near the middle.
-                Sort the values: 60, 70, 75, [80], 85, 90, 95
-                The exact middle (4th position out of 7) is 80.
-            next_section_and_step: central_tendency:step_1
-          confused:
-            content_blocks:
-              - "The median is the MIDDLE value when you sort the numbers from smallest to largest."
-              - "With 7 values, the 4th number is in the middle."
-            next_section_and_step: central_tendency:step_1
+              tokens_for_ai: "If they averaged, say that's the mean. Remind them the median is the middle of the sorted list. Don't give the value."
           set_language:
             content_blocks:
               - "Language updated!"
@@ -180,7 +158,6 @@ sections:
           off_topic:
             content_blocks:
               - "Let's find the median! Sort the scores and identify the middle value."
-            next_section_and_step: central_tendency:step_1
 
       - step_id: step_2
         title: Mean vs Median with Outliers
@@ -210,73 +187,32 @@ sections:
           - "**When one extreme value can mislead, use median!**"
         question: "A neighborhood has 6 home prices: $200k, $210k, $220k, $230k, $240k, and $2,000k. If someone says 'the average home price is $516k,' why might that be misleading? What would better represent typical home prices?"
         tokens_for_ai: |
-          They should recognize that:
-          - The $2 million home is an outlier
-          - Mean is misleading ($516k)
-          - Median would be better (between $220k and $230k = $225k)
-
-          Categorize as:
-          - excellent_understanding: Mentions outlier skewing mean, median better
-          - understands_outlier: Recognizes the expensive house is the problem
-          - suggests_median: Says median without explaining why
-          - partial_understanding: On the right track but incomplete
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          Validate their understanding of outliers affecting mean!
-
-          Key points:
-          - The $2M home is an outlier (way higher than others)
-          - Mean gets pulled up to $516k (not representative)
-          - Median would be $225k (between 220 and 230) - much more typical
-          - This is why real estate uses median prices!
-
-          Praise their critical thinking about statistics.
+          The $2,000k home is an outlier dragging the mean to about $516k,
+          above every other home. The median, $225k (between $220k and
+          $230k), describes a typical home.
+        bucket_criteria:
+          correct: "Names the $2M home as an outlier pulling the mean up AND says the median (about $225k) is more typical."
+          partial_understanding: "Gives only one of the two: the outlier problem, or the median as the better measure."
+          off_topic: "Does not engage the question."
+        required_elements:
+          - "the $2,000k home is an outlier that pulls the mean far above most prices"
+          - "the median (about $225k) better represents a typical home"
         buckets:
-          - excellent_understanding
-          - understands_outlier
-          - suggests_median
+          - correct
           - partial_understanding
           - set_language
           - off_topic
         transitions:
-          excellent_understanding:
+          correct:
             ai_feedback:
-              tokens_for_ai: |
-                Brilliant analysis!
-                Yes - the $2M outlier drags the mean to $516k, misleading!
-                The median ($225k) better represents typical homes.
-                This is exactly why statistics literacy matters!
+              tokens_for_ai: "Confirm their reasoning briefly; note this is why house prices and incomes are reported as medians."
             metadata_add:
               score: "n+2"
               concepts_mastered: "n+1"
             next_section_and_step: spread:step_1
-          understands_outlier:
-            ai_feedback:
-              tokens_for_ai: |
-                Exactly! The $2M home is an outlier.
-                It pulls the mean to $516k, but most homes are $200-240k.
-                The median ($225k) would be more representative.
-                Great critical thinking!
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: spread:step_1
-          suggests_median:
-            ai_feedback:
-              tokens_for_ai: |
-                Good instinct - median is better here!
-                Why? The $2M outlier skews the mean to $516k.
-                But the median ($225k) represents the typical home price.
-                Outliers don't affect median - that's its power!
-            next_section_and_step: spread:step_1
           partial_understanding:
             ai_feedback:
-              tokens_for_ai: |
-                You're on the right track!
-                The key: one $2M home among $200-240k homes.
-                This outlier pulls mean to $516k (misleading).
-                Median ($225k) better shows typical prices.
-            next_section_and_step: spread:step_1
+              tokens_for_ai: "Credit what they said and ask for the missing half (why the mean misleads, or what to use instead). Don't give it."
           set_language:
             content_blocks:
               - "Language updated!"
@@ -286,8 +222,7 @@ sections:
             next_section_and_step: central_tendency:step_2
           off_topic:
             content_blocks:
-              - "Think about: Does $516k accurately represent what most homes in this neighborhood cost?"
-            next_section_and_step: central_tendency:step_2
+              - "Think about: does $516k describe what most homes in this neighborhood cost?"
 
   - section_id: spread
     title: Measuring Spread - Variability
@@ -331,78 +266,38 @@ sections:
           - "- Research (reliability of measurements)"
         question: "Two basketball players both average 20 points per game. Player A's scores: 18, 19, 20, 21, 22. Player B's scores: 5, 10, 20, 30, 35. Which player is more consistent, and why does that matter?"
         tokens_for_ai: |
-          Player A is more consistent (low spread/variance).
-          Player B is inconsistent/volatile (high spread).
-
-          Look for understanding that:
-          - Player A has consistent performance (small variation)
-          - Player B is unpredictable (large variation)
-          - Consistency matters for reliability/strategy
-
-          Categorize as:
-          - excellent_answer: Identifies Player A as consistent AND explains why it matters
-          - identifies_player_a: Correctly says Player A is more consistent
-          - identifies_inconsistency: Recognizes the difference in variability
-          - basic_answer: Mentions one player without explaining
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          Affirm their understanding of consistency/spread!
-
-          Key points:
-          - Player A: very consistent (range 18-22, low variation)
-          - Player B: unpredictable (range 5-35, high variation)
-          - Consistency matters: reliable performance, easier to plan around
-          - Player B might have higher ceiling but less reliable
-
-          Connect to real sports analysis and standard deviation concept.
+          Player A is more consistent: range 4 (18-22) against 30 (5-35);
+          any measure of spread counts. Consistency matters because a coach
+          can rely on and plan around a predictable player.
+        bucket_criteria:
+          correct: "Player A, backed by the spread of the scores, plus a reason consistency matters."
+          partial_understanding: "Player A without evidence from the scores, or without why it matters."
+          incorrect: "Says Player B is more consistent."
+          off_topic: "Does not engage the question."
+        required_elements:
+          - "Player A is more consistent"
+          - "evidence from the spread (e.g. range 4 vs 30, or scores cluster near 20)"
+          - "why consistency matters (reliability, predictability, planning)"
         buckets:
-          - excellent_answer
-          - identifies_player_a
-          - identifies_inconsistency
-          - basic_answer
+          - correct
+          - partial_understanding
+          - incorrect
           - set_language
           - off_topic
         transitions:
-          excellent_answer:
+          correct:
             ai_feedback:
-              tokens_for_ai: |
-                Perfect analysis!
-                Player A: 18-22 (consistent, low spread).
-                Player B: 5-35 (volatile, high spread).
-                Consistency means reliability - you know what to expect!
-                This is what standard deviation measures!
+              tokens_for_ai: "Confirm their answer briefly and connect it to standard deviation: same mean, very different spread."
             metadata_add:
               score: "n+2"
               concepts_mastered: "n+1"
             next_section_and_step: probability:step_1
-          identifies_player_a:
+          partial_understanding:
             ai_feedback:
-              tokens_for_ai: |
-                Correct! Player A is much more consistent.
-                Range: A is 18-22 (4 points), B is 5-35 (30 points!).
-                Low spread = predictable performance.
-                High spread = unpredictable, risky.
-                That's what measuring spread tells us!
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: probability:step_1
-          identifies_inconsistency:
+              tokens_for_ai: "Credit what they said and ask for the missing piece (evidence from the scores, or why consistency matters). Don't supply it."
+          incorrect:
             ai_feedback:
-              tokens_for_ai: |
-                Good observation about the difference!
-                Player A varies 18-22 (tight, consistent).
-                Player B varies 5-35 (wild, unpredictable).
-                Consistency = reliability. This is why we measure spread!
-            next_section_and_step: probability:step_1
-          basic_answer:
-            ai_feedback:
-              tokens_for_ai: |
-                Let's look at the ranges:
-                Player A: 18, 19, 20, 21, 22 (very tight - consistent!)
-                Player B: 5, 10, 20, 30, 35 (all over - inconsistent!)
-                Consistency means you can rely on them. Spread measures this!
-            next_section_and_step: probability:step_1
+              tokens_for_ai: "Ask them to compare how far each player's scores stray from 20. Don't give the answer."
           set_language:
             content_blocks:
               - "Language updated!"
@@ -413,7 +308,6 @@ sections:
           off_topic:
             content_blocks:
               - "Compare the ranges: Player A (18-22) vs Player B (5-35). Who's more predictable?"
-            next_section_and_step: spread:step_1
 
   - section_id: probability
     title: Probability Basics
@@ -455,88 +349,44 @@ sections:
           - "- Hot hand fallacy: Past streaks predict future (they don't in random events)"
         question: "You flip a fair coin 5 times and get heads every time. What's the probability the 6th flip is heads? Why?"
         tokens_for_ai: |
-          Correct answer: 50% or 0.5 or 1/2
-
-          Key understanding: Each flip is INDEPENDENT.
-          Past flips don't affect future flips.
-
-          Common wrong answer: "It's more likely to be tails" (gambler's fallacy)
-
-          Categorize as:
-          - correct_with_reasoning: Says 50% AND explains independence
-          - correct_answer: Says 50% without full explanation
-          - gamblers_fallacy: Says tails is more likely because "it's due"
-          - pattern_thinking: Thinks the pattern will continue
-          - confused: Other incorrect reasoning
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          If correct:
-          - Excellent! Each flip is independent.
-          - Past results don't affect future flips.
-          - The coin has no "memory" - always 50/50.
-
-          If gambler's fallacy:
-          - Common misconception! This is the "gambler's fallacy."
-          - Each flip is independent - past doesn't affect future.
-          - It's still 50/50, even after 100 heads in a row!
-          - The coin doesn't "owe" you tails.
-
-          Explain independence clearly.
+          50% (0.5, 1/2): each flip is independent and the coin has no
+          memory. "Tails is due" is the gambler's fallacy; "heads is on a
+          streak" is the hot hand fallacy.
+        bucket_criteria:
+          correct: "50% with independence (no memory) as the reason."
+          partial_understanding: "50% with no reason, or independence explained with no probability given."
+          incorrect: "Any other probability, the gambler's fallacy or the streak continuing."
+          off_topic: "Does not engage the question."
+        required_elements:
+          - "the probability is 50% (0.5, 1/2)"
+          - "each flip is independent: past flips don't change the next"
+        hints:
+          - attempt: 1
+            text: "💡 Hint: does the coin know what it did on the last five flips?"
+            counts_as_attempt: true
+          - attempt: 2
+            text: "💡 Hint: a fair coin has two equally likely faces on every single flip."
+            counts_as_attempt: true
         buckets:
-          - correct_with_reasoning
-          - correct_answer
-          - gamblers_fallacy
-          - pattern_thinking
-          - confused
+          - correct
+          - partial_understanding
+          - incorrect
           - set_language
           - off_topic
         transitions:
-          correct_with_reasoning:
+          correct:
             ai_feedback:
-              tokens_for_ai: |
-                Perfect understanding!
-                Each coin flip is independent - past doesn't affect future.
-                The coin has no memory. Always 50/50!
-                You've avoided the gambler's fallacy - great!
+              tokens_for_ai: "Confirm briefly: independence means the coin has no memory, so they avoided the gambler's fallacy."
             metadata_add:
               score: "n+2"
               concepts_mastered: "n+1"
             next_section_and_step: distributions:step_1
-          correct_answer:
+          partial_understanding:
             ai_feedback:
-              tokens_for_ai: |
-                Correct - still 50%!
-                Why? Each flip is INDEPENDENT.
-                Past flips don't affect future flips.
-                The coin doesn't "remember" or "balance out."
-                Great job avoiding the gambler's fallacy!
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: distributions:step_1
-          gamblers_fallacy:
+              tokens_for_ai: "Credit what they said and ask for the missing piece (the probability, or why). Don't supply it."
+          incorrect:
             ai_feedback:
-              tokens_for_ai: |
-                Common misconception! This is the "gambler's fallacy."
-                Each flip is INDEPENDENT - the coin has no memory.
-                Past flips don't affect future flips.
-                It's still 50/50, even after 1000 heads!
-                The coin doesn't "owe" you tails.
-            next_section_and_step: probability:step_1
-          pattern_thinking:
-            ai_feedback:
-              tokens_for_ai: |
-                The streak feels meaningful, but it's not!
-                Each flip is independent - 50/50 every time.
-                Past results don't predict future with fair coins.
-                Random sequences often have "patterns" but they're meaningless.
-            next_section_and_step: probability:step_1
-          confused:
-            content_blocks:
-              - "Key concept: INDEPENDENCE"
-              - "Each coin flip is independent - past flips don't affect future flips."
-              - "A fair coin always has 50% chance of heads, regardless of history."
-            next_section_and_step: probability:step_1
+              tokens_for_ai: "If they think tails is due or heads will continue, name that fallacy gently and ask whether the coin remembers. Don't give the number."
           set_language:
             content_blocks:
               - "Language updated!"
@@ -546,8 +396,7 @@ sections:
             next_section_and_step: probability:step_1
           off_topic:
             content_blocks:
-              - "Think: Does the coin 'remember' previous flips? Are they independent events?"
-            next_section_and_step: probability:step_1
+              - "Think: does the coin 'remember' previous flips? Are they independent events?"
 
   - section_id: distributions
     title: Understanding Distributions
@@ -587,74 +436,43 @@ sections:
           - "- Test scores, heights, blood pressure, measurement errors"
         question: "SAT scores are normally distributed with mean 1000 and standard deviation 200. Using the 68-95-99.7 rule, approximately what percentage of students score between 800 and 1200?"
         tokens_for_ai: |
-          800 to 1200 is mean (1000) ± 1 standard deviation (200).
-          68% of data falls within 1 SD of the mean.
-
-          Correct answer: 68% (or approximately 68%, or about 2/3)
-
-          Categorize as:
-          - correct: Says 68% or approximately 68%
-          - close: Says 66% or 70% (reasonably close)
-          - says_95: Says 95% (confused 1 SD with 2 SD)
-          - unclear_reasoning: Wrong answer showing confusion
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          If correct:
-          - Excellent! 800-1200 is 1000 ± 200 (1 SD).
-          - 68% of data within 1 SD of mean.
-          - You've mastered the empirical rule!
-
-          If says 95%:
-          - Close reasoning! But 95% is for 2 SDs.
-          - 800-1200 is only 1 SD (200 points) from mean.
-          - 1 SD = 68%, 2 SDs = 95%, 3 SDs = 99.7%
-
-          Explain the calculation clearly.
+          800 to 1200 is 1000 ± 200, one standard deviation either side,
+          so about 68% (about two thirds).
+        bucket_criteria:
+          correct: "About 68%, with or without naming one standard deviation."
+          partial_understanding: "Sees that 800-1200 is one standard deviation from the mean but gives no percentage."
+          incorrect: "Another percentage, e.g. 95% (two standard deviations) or 34% (one side only)."
+          off_topic: "Does not attempt it."
+        required_elements:
+          - "states about 68%"
+        hints:
+          - attempt: 1
+            text: "💡 Hint: how many standard deviations is 1200 from 1000? And 800?"
+            counts_as_attempt: true
+          - attempt: 2
+            text: "💡 Hint: the rule's first number is for 1 standard deviation either side of the mean."
+            counts_as_attempt: true
         buckets:
           - correct
-          - close
-          - says_95
-          - unclear_reasoning
+          - partial_understanding
+          - incorrect
           - set_language
           - off_topic
         transitions:
           correct:
-            ai_feedback:
-              tokens_for_ai: |
-                Perfect! 800-1200 is mean ± 1 SD.
-                1 SD = 68% of data.
-                You understand the empirical rule!
-                This is fundamental for interpreting normal distributions!
+            content_blocks:
+              - "✅ About 68%: 800-1200 is the mean ± 1 standard deviation. (± 2 SD, 600-1400, would be 95%.)"
             metadata_add:
               score: "n+2"
               concepts_mastered: "n+1"
+              activity_completed: "true"
             next_section_and_step: conclusion:step_1
-          close:
+          partial_understanding:
             ai_feedback:
-              tokens_for_ai: |
-                Very close! The exact answer is 68%.
-                800-1200 = 1000 ± 200 (1 standard deviation).
-                The 68-95-99.7 rule: 68% within 1 SD.
-                Great understanding of the concept!
-            metadata_add:
-              score: "n+1"
-            next_section_and_step: conclusion:step_1
-          says_95:
+              tokens_for_ai: "Credit their set-up and ask which percentage of the rule goes with 1 standard deviation. Don't give it."
+          incorrect:
             ai_feedback:
-              tokens_for_ai: |
-                You're thinking of the right rule, but different range!
-                95% is for 2 standard deviations (600-1400).
-                800-1200 is only 1 SD (200 points) from mean.
-                1 SD = 68%, 2 SDs = 95%, 3 SDs = 99.7%
-            next_section_and_step: distributions:step_1
-          unclear_reasoning:
-            content_blocks:
-              - "Use the 68-95-99.7 rule:"
-              - "800-1200 is the mean (1000) ± 200"
-              - "200 is 1 standard deviation"
-              - "68% of data falls within 1 SD of the mean"
-            next_section_and_step: distributions:step_1
+              tokens_for_ai: "Ask how many standard deviations 800 and 1200 are from 1000. Don't give the percentage."
           set_language:
             content_blocks:
               - "Language updated!"
@@ -664,8 +482,7 @@ sections:
             next_section_and_step: distributions:step_1
           off_topic:
             content_blocks:
-              - "Calculate: How many standard deviations is 800-1200 from the mean (1000)?"
-            next_section_and_step: distributions:step_1
+              - "Calculate: how many standard deviations is 800-1200 from the mean (1000)?"
 
   - section_id: conclusion
     title: Statistics Mastery
@@ -676,6 +493,7 @@ sections:
           - "## Congratulations, Statistician! 🎓📊"
           - ""
           - "**You've mastered the fundamentals!**"
+          - "**Final score: {{metadata.score}} / 10**"
           - ""
           - "**What you've learned:**"
           - "✓ Central Tendency (mean, median, mode)"

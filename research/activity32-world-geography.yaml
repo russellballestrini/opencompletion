@@ -1,3 +1,6 @@
+title: World Geography Tour
+description: 'Visit Kenya, Egypt, Japan, Italy, Brazil, Australia and more: a fact and a quick quiz at every stop.'
+kind: lesson
 default_max_attempts_per_step: 3
 tokens_for_ai_rubric: 'Evaluate the student''s engagement with world geography and cultural learning.
 
@@ -73,35 +76,85 @@ sections:
         metadata_add:
           continents_visited: n+1
           current_continent: Africa
+          countries_visited: n+1
         next_section_and_step: africa:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       asia:
         content_blocks:
         - 🌏 Wonderful! Asia awaits - the world's largest and most populous continent!
         metadata_add:
           continents_visited: n+1
           current_continent: Asia
+          countries_visited: n+1
         next_section_and_step: asia:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       europe:
         content_blocks:
         - 🌍 Great! Let's discover the rich history and culture of Europe!
         metadata_add:
           continents_visited: n+1
           current_continent: Europe
+          countries_visited: n+1
         next_section_and_step: europe:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       south_america:
         content_blocks:
         - 🌎 Fantastic! South America's biodiversity and culture await!
         metadata_add:
           continents_visited: n+1
           current_continent: South America
+          countries_visited: n+1
         next_section_and_step: south_america:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       oceania:
         content_blocks:
         - 🌏 Awesome! Let's explore the islands and nations of Oceania!
         metadata_add:
           continents_visited: n+1
           current_continent: Oceania
+          countries_visited: n+1
         next_section_and_step: oceania:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       set_language:
         content_blocks:
         - I'll communicate in your preferred language.
@@ -119,12 +172,11 @@ sections:
     title: Welcome to Africa - Kenya
     content_blocks:
     - '## Welcome to Africa! 🦁'
-    - Africa is the world's second-largest continent, home to 54 countries and over 1.3 billion people.
+    - Africa is the world's second-largest continent, home to 54 countries and over 1.4 billion people.
     - ''
     - '**Let''s visit Kenya!**'
     - ''
     - '**Geography:** Kenya is located in East Africa, bordered by the Indian Ocean.'
-    - '**Capital:** Nairobi'
     - '**Famous for:** Wildlife safaris, the Great Rift Valley, and being home to the Maasai people'
     - ''
     - '**Cultural Fact:**'
@@ -133,63 +185,40 @@ sections:
     - '**Language Note:**'
     - While English and Swahili are official languages, Kenya has over 60 indigenous languages!
     - In Swahili, 'Jambo' means 'Hello' and 'Karibu' means 'Welcome'.
+    question_type: multiple_choice
     question: What is the capital city of Kenya?
-    tokens_for_ai: 'The capital of Kenya is Nairobi (just mentioned in the content).
-
-
-      Categorize as:
-
-      - correct: Says Nairobi
-
-      - close: Says a major Kenyan city but not the capital (like Mombasa)
-
-      - confused_region: Names a capital from a different African country
-
-      - limited_effort: Very brief or no real answer
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'If correct, praise them! If they guessed another city, gently correct and perhaps share
-
-      a fun fact about Nairobi.
-
-      '
-    buckets:
-    - correct
-    - close
-    - confused_region
-    - limited_effort
-    - off_topic
+    choices:
+    - id: a
+      text: Mombasa
+    - id: b
+      text: Nairobi
+    - id: c
+      text: Addis Ababa
+    - id: d
+      text: Kampala
+    answer: b
+    hints:
+    - attempt: 1
+      text: '💡 Hint: Addis Ababa and Kampala are capitals of Kenya''s neighbours (Ethiopia & Uganda).'
+    - attempt: 2
+      text: '💡 Bigger hint: Mombasa is Kenya''s big port on the coast; the capital is inland.'
     transitions:
       correct:
-        ai_feedback:
-          tokens_for_ai: Correct! Nairobi is indeed the capital. Share an interesting fact about Nairobi being one of Africa's major cities.
+        content_blocks:
+        - ✅ Nairobi, one of East Africa's biggest cities, with a national park inside the city limits!
         metadata_add:
           quiz_score: n+1
-          countries_visited: n+1
           cultural_facts_learned: n+1
-        next_section_and_step: africa:step_2
-      close:
-        ai_feedback:
-          tokens_for_ai: That's a major city in Kenya, but the capital is Nairobi! Share a fact about both cities.
+      incorrect:
         metadata_add:
-          countries_visited: n+1
-        next_section_and_step: africa:step_2
-      confused_region:
+          misses_africa: n+1
         content_blocks:
-        - That's a capital of another African country! Kenya's capital is Nairobi.
-        metadata_add:
-          countries_visited: n+1
-        next_section_and_step: africa:step_2
-      limited_effort:
-        content_blocks:
-        - Look back at the information about Kenya. Which city is listed as the capital?
-        next_section_and_step: africa:step_1
-      off_topic:
-        content_blocks:
-        - Let's focus on learning about Kenya. What is its capital city?
-        next_section_and_step: africa:step_1
+        - text: 'Not quite: try again!'
+          show_if:
+            misses_africa_lt: 3
+        - text: 'Good tries! The answer: Nairobi.'
+          show_if:
+            misses_africa_gte: 3
   - step_id: step_2
     title: Choose Your Next Destination
     content_blocks:
@@ -231,18 +260,45 @@ sections:
         metadata_add:
           countries_visited: n+1
         next_section_and_step: africa_egypt:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       nigeria:
         content_blocks:
         - 🎵 Traveling west to Nigeria - birthplace of Afrobeat!
         metadata_add:
           countries_visited: n+1
         next_section_and_step: africa_nigeria:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       south_africa:
         content_blocks:
         - 🦏 Heading south to South Africa - the Rainbow Nation!
         metadata_add:
           countries_visited: n+1
         next_section_and_step: africa_south:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       new_continent:
         content_blocks:
         - Ready to explore a new continent! Great choice.
@@ -261,60 +317,52 @@ sections:
     - '## Egypt - Land of Ancient Wonders 🐪'
     - '**Geography:** Located in Northeast Africa, Egypt connects Africa to Asia via the Sinai Peninsula.'
     - '**Capital:** Cairo'
-    - '**Famous for:** The Pyramids of Giza, the Sphinx, the Nile River (world''s longest river)'
+    - '**Famous for:** The Pyramids of Giza, the Sphinx, and a river usually ranked the world''s longest (some measurements give the title to the Amazon)'
     - ''
     - '**Historical Fact:**'
     - Ancient Egyptian civilization lasted over 3,000 years! They developed hieroglyphic writing, built massive monuments, and made advances in mathematics, medicine, and astronomy.
     - ''
     - '**Cultural Fact:**'
     - The Nile River has been central to Egyptian life for millennia. The ancient saying 'Egypt is the gift of the Nile' reflects how the river's annual flooding made agriculture possible in the desert.
-    question: What is the world's longest river, which flows through Egypt?
-    tokens_for_ai: 'The answer is the Nile River (mentioned multiple times above).
-
-
-      Categorize as:
-
-      - correct: Says Nile or Nile River
-
-      - confused: Names another famous long river (Amazon, Yangtze, Mississippi)
-
-      - limited_effort: Very brief or no answer
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'If correct, praise them! If they say Amazon (second longest), acknowledge it''s close but
-
-      the Nile is slightly longer.
-
-      '
-    buckets:
-    - correct
-    - confused
-    - limited_effort
-    - off_topic
+    question_type: multiple_choice
+    question: Which great river flows through Egypt?
+    choices:
+    - id: a
+      text: The Amazon
+    - id: b
+      text: The Danube
+    - id: c
+      text: The Nile
+    - id: d
+      text: The Ganges
+    answer: c
+    hints:
+    - attempt: 1
+      text: '💡 Hint: The Amazon is in South America and the Ganges in India.'
+    - attempt: 2
+      text: '💡 Bigger hint: Its name has four letters.'
     transitions:
       correct:
-        ai_feedback:
-          tokens_for_ai: Excellent! The Nile is indeed the world's longest river. Share a fascinating fact about its importance.
+        content_blocks:
+        - ✅ The Nile! It is usually ranked the world's longest river (some measurements give the title to the Amazon).
         metadata_add:
           quiz_score: n+1
           cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      confused:
-        ai_feedback:
-          tokens_for_ai: That's another long river! But the Nile is the world's longest. Explain the comparison between them.
+      incorrect:
         metadata_add:
-          cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      limited_effort:
+          misses_africa_egypt: n+1
         content_blocks:
-        - Look at the information about Egypt. Which river is mentioned as the world's longest?
-        next_section_and_step: africa_egypt:step_1
-      off_topic:
-        content_blocks:
-        - Let's focus on geography. What is the world's longest river?
-        next_section_and_step: africa_egypt:step_1
+        - text: 'Not quite: try again!'
+          show_if:
+            misses_africa_egypt_lt: 3
+        - text: 'Good tries! The answer: The Nile.'
+          show_if:
+            misses_africa_egypt_gte: 3
+  - step_id: step_2
+    title: Back to the Map
+    content_blocks:
+    - 🗺️ Back to our world map...
+    next_section_and_step: choose_continent:step_1
 - section_id: africa_nigeria
   title: Nigeria
   steps:
@@ -324,60 +372,52 @@ sections:
     - '## Nigeria - Heart of West Africa 🎵'
     - '**Geography:** Located in West Africa on the Gulf of Guinea'
     - '**Capital:** Abuja'
-    - '**Famous for:** Being Africa''s most populous country (over 200 million people), Nollywood (film industry), Afrobeat music'
+    - '**Famous for:** Being Africa''s most populous country (over 200 million people), a giant film industry, and Afrobeat music'
     - ''
     - '**Cultural Fact:**'
     - Nigeria is incredibly diverse with over 250 ethnic groups and 500+ languages! The largest groups are Hausa, Yoruba, and Igbo.
     - ''
     - '**Music Heritage:**'
     - Nigeria is the birthplace of Afrobeat, pioneered by Fela Kuti. Today, Nigerian artists are internationally renowned in genres from Afrobeats to hip-hop.
+    question_type: multiple_choice
     question: Nigeria is famous for its film industry. What is it called?
-    tokens_for_ai: 'The answer is Nollywood (mentioned above).
-
-
-      Categorize as:
-
-      - correct: Says Nollywood
-
-      - confused: Says Bollywood or Hollywood
-
-      - limited_effort: Very brief or no answer
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'If correct, share fun facts about Nollywood being one of the world''s largest film
-
-      industries by volume!
-
-      '
-    buckets:
-    - correct
-    - confused
-    - limited_effort
-    - off_topic
+    choices:
+    - id: a
+      text: Hollywood
+    - id: b
+      text: Bollywood
+    - id: c
+      text: Nollywood
+    - id: d
+      text: Kollywood
+    answer: c
+    hints:
+    - attempt: 1
+      text: '💡 Hint: Hollywood is in the United States and Bollywood in India.'
+    - attempt: 2
+      text: '💡 Bigger hint: Its name starts with the first letter of Nigeria.'
     transitions:
       correct:
-        ai_feedback:
-          tokens_for_ai: Correct! Nollywood is one of the world's largest film industries. Share impressive statistics about it.
+        content_blocks:
+        - '✅ Nollywood: by number of films made, one of the largest film industries in the world.'
         metadata_add:
           quiz_score: n+1
           cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      confused:
-        ai_feedback:
-          tokens_for_ai: That's a film industry, but Nigeria has its own! It's called Nollywood.
+      incorrect:
         metadata_add:
-          cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      limited_effort:
+          misses_africa_nigeria: n+1
         content_blocks:
-        - 'Check the information about Nigeria. What is their film industry called? (Hint: it rhymes with Hollywood!)'
-        next_section_and_step: africa_nigeria:step_1
-      off_topic:
-        content_blocks:
-        - Let's learn about Nigerian culture. What is their film industry called?
-        next_section_and_step: africa_nigeria:step_1
+        - text: 'Not quite: try again!'
+          show_if:
+            misses_africa_nigeria_lt: 3
+        - text: 'Good tries! The answer: Nollywood.'
+          show_if:
+            misses_africa_nigeria_gte: 3
+  - step_id: step_2
+    title: Back to the Map
+    content_blocks:
+    - 🗺️ Back to our world map...
+    next_section_and_step: choose_continent:step_1
 - section_id: africa_south
   title: South Africa
   steps:
@@ -393,64 +433,46 @@ sections:
     - Nelson Mandela led the struggle against apartheid and became South Africa's first Black president in 1994, helping to create a democratic, multicultural nation.
     - ''
     - '**Language Diversity:**'
-    - South Africa has 11 official languages, including English, Afrikaans, Zulu, and Xhosa!
+    - South Africa has many official languages, including English, Afrikaans, Zulu, Xhosa, and even a sign language!
+    question_type: multiple_choice
     question: How many official languages does South Africa have?
-    tokens_for_ai: 'The answer is 11 (mentioned above).
-
-
-      Categorize as:
-
-      - correct: Says 11 or eleven
-
-      - close: Says a number between 8-15
-
-      - confused: Says 1, 2, or 3
-
-      - limited_effort: Very brief or no answer
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'If correct or close, praise their attention! Share how this linguistic diversity reflects
-
-      the country''s multicultural heritage.
-
-      '
-    buckets:
-    - correct
-    - close
-    - confused
-    - limited_effort
-    - off_topic
+    choices:
+    - id: a
+      text: '2'
+    - id: b
+      text: '5'
+    - id: c
+      text: '9'
+    - id: d
+      text: '12'
+    answer: d
+    hints:
+    - attempt: 1
+      text: '💡 Hint: It''s more than ten.'
+    - attempt: 2
+      text: '💡 Bigger hint: In 2023 a sign language joined the list.'
     transitions:
       correct:
-        ai_feedback:
-          tokens_for_ai: Exactly right - 11 official languages! Explain what this reveals about South African diversity.
+        content_blocks:
+        - ✅ 12! Eleven spoken languages, plus South African Sign Language, which became official in 2023.
         metadata_add:
           quiz_score: n+1
           cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      close:
-        ai_feedback:
-          tokens_for_ai: Very close! South Africa has exactly 11 official languages. Explain why this is significant.
+      incorrect:
         metadata_add:
-          quiz_score: n+1
-          cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      confused:
+          misses_africa_south: n+1
         content_blocks:
-        - Actually, South Africa is remarkably diverse! It has 11 official languages.
-        metadata_add:
-          cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      limited_effort:
-        content_blocks:
-        - Look at the language diversity section. How many official languages are mentioned?
-        next_section_and_step: africa_south:step_1
-      off_topic:
-        content_blocks:
-        - Let's focus on South African culture. How many official languages does the country have?
-        next_section_and_step: africa_south:step_1
+        - text: 'Not quite: try again!'
+          show_if:
+            misses_africa_south_lt: 3
+        - text: 'Good tries! The answer: 12 (South African Sign Language became the 12th in 2023).'
+          show_if:
+            misses_africa_south_gte: 3
+  - step_id: step_2
+    title: Back to the Map
+    content_blocks:
+    - 🗺️ Back to our world map...
+    next_section_and_step: choose_continent:step_1
 - section_id: asia
   title: Exploring Asia
   steps:
@@ -463,7 +485,6 @@ sections:
     - '**Let''s visit Japan!**'
     - ''
     - '**Geography:** An island nation in East Asia, consisting of 4 main islands and thousands of smaller ones'
-    - '**Capital:** Tokyo'
     - '**Famous for:** Technology, anime/manga, cherry blossoms, ancient temples, and a unique blend of tradition and modernity'
     - ''
     - '**Cultural Fact:**'
@@ -471,63 +492,46 @@ sections:
     - Bowing is a traditional greeting showing respect!
     - ''
     - '**Interesting Note:**'
-    - 'Japan has more than 6,800 islands, though most people live on the four largest: Honshu, Hokkaido, Kyushu, and Shikoku.'
+    - 'Japan has more than 14,000 islands (a 2023 government recount; the old figure was 6,852), though most people live on the four largest: Honshu, Hokkaido, Kyushu, and Shikoku.'
+    question_type: multiple_choice
     question: What is the capital of Japan?
-    tokens_for_ai: 'The answer is Tokyo (mentioned above).
-
-
-      Categorize as:
-
-      - correct: Says Tokyo
-
-      - close: Names another major Japanese city (Osaka, Kyoto)
-
-      - confused_region: Names a capital from another Asian country
-
-      - limited_effort: Very brief or no answer
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'If correct, share a fact about Tokyo being one of the world''s largest metropolitan areas!
-
-      '
-    buckets:
-    - correct
-    - close
-    - confused_region
-    - limited_effort
-    - off_topic
+    choices:
+    - id: a
+      text: Kyoto
+    - id: b
+      text: Osaka
+    - id: c
+      text: Tokyo
+    - id: d
+      text: Seoul
+    answer: c
+    hints:
+    - attempt: 1
+      text: '💡 Hint: Seoul is the capital of South Korea, and Kyoto was Japan''s capital long ago.'
+    - attempt: 2
+      text: '💡 Bigger hint: It''s the biggest city on the island of Honshu.'
     transitions:
       correct:
-        ai_feedback:
-          tokens_for_ai: Correct! Tokyo is the capital and one of the world's largest cities. Share a fascinating fact about it.
+        content_blocks:
+        - '✅ Tokyo: its metropolitan area is home to about 37 million people, the largest in the world.'
         metadata_add:
           quiz_score: n+1
-          countries_visited: n+1
           cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      close:
-        ai_feedback:
-          tokens_for_ai: That's an important Japanese city! But the capital is Tokyo. Explain the historical significance of Kyoto if they mentioned it.
+      incorrect:
         metadata_add:
-          countries_visited: n+1
-          cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      confused_region:
+          misses_asia: n+1
         content_blocks:
-        - That's a capital of another Asian country! Japan's capital is Tokyo.
-        metadata_add:
-          countries_visited: n+1
-        next_section_and_step: choose_continent:step_1
-      limited_effort:
-        content_blocks:
-        - Look at the information about Japan. Which city is the capital?
-        next_section_and_step: asia:step_1
-      off_topic:
-        content_blocks:
-        - Let's learn about Japan. What is its capital city?
-        next_section_and_step: asia:step_1
+        - text: 'Not quite: try again!'
+          show_if:
+            misses_asia_lt: 3
+        - text: 'Good tries! The answer: Tokyo.'
+          show_if:
+            misses_asia_gte: 3
+  - step_id: step_2
+    title: Back to the Map
+    content_blocks:
+    - 🗺️ Back to our world map...
+    next_section_and_step: choose_continent:step_1
 - section_id: europe
   title: Exploring Europe
   steps:
@@ -540,70 +544,52 @@ sections:
     - '**Let''s visit Italy!**'
     - ''
     - '**Geography:** A boot-shaped peninsula in Southern Europe, extending into the Mediterranean Sea'
-    - '**Capital:** Rome'
     - '**Famous for:** Ancient Roman history, Renaissance art, delicious cuisine (pizza, pasta!), and beautiful architecture'
     - ''
     - '**Historical Fact:**'
     - Rome was the heart of the Roman Empire, which at its height controlled most of Europe, North Africa, and the Middle East. The saying 'All roads lead to Rome' comes from the extensive Roman road network!
     - ''
     - '**Cultural Fact:**'
-    - Italy is home to more UNESCO World Heritage Sites than any other country - 58 sites including the Colosseum, Venice, and Pompeii!
+    - Italy has more UNESCO World Heritage Sites than almost any other country (about 60), including the Colosseum, Venice, and Pompeii!
+    question_type: multiple_choice
     question: What is the capital of Italy, which was also the center of the ancient Roman Empire?
-    tokens_for_ai: 'The answer is Rome (mentioned multiple times above).
-
-
-      Categorize as:
-
-      - correct: Says Rome
-
-      - close: Names another major Italian city (Venice, Milan, Florence)
-
-      - confused_region: Names a capital from another European country
-
-      - limited_effort: Very brief or no answer
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'If correct, share excitement about Rome''s incredible history spanning over 2,500 years!
-
-      '
-    buckets:
-    - correct
-    - close
-    - confused_region
-    - limited_effort
-    - off_topic
+    choices:
+    - id: a
+      text: Milan
+    - id: b
+      text: Rome
+    - id: c
+      text: Venice
+    - id: d
+      text: Florence
+    answer: b
+    hints:
+    - attempt: 1
+      text: '💡 Hint: Florence was the heart of the Renaissance, and Venice is built on water.'
+    - attempt: 2
+      text: '💡 Bigger hint: The empire was named after its capital.'
     transitions:
       correct:
-        ai_feedback:
-          tokens_for_ai: Correct! Rome - the Eternal City - has over 2,500 years of history. Share a fascinating fact about it.
+        content_blocks:
+        - ✅ Rome! The 'Eternal City' has been lived in for nearly 3,000 years.
         metadata_add:
           quiz_score: n+1
-          countries_visited: n+1
           cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      close:
-        ai_feedback:
-          tokens_for_ai: That's a beautiful Italian city! But the capital is Rome. Share a fact about the city they mentioned if historically significant.
+      incorrect:
         metadata_add:
-          countries_visited: n+1
-          cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      confused_region:
+          misses_europe: n+1
         content_blocks:
-        - That's a European capital, but Italy's capital is Rome!
-        metadata_add:
-          countries_visited: n+1
-        next_section_and_step: choose_continent:step_1
-      limited_effort:
-        content_blocks:
-        - Look at the information about Italy. Which city is mentioned as both the capital AND the center of the ancient Roman Empire?
-        next_section_and_step: europe:step_1
-      off_topic:
-        content_blocks:
-        - Let's learn about Italy. What is its capital city?
-        next_section_and_step: europe:step_1
+        - text: 'Not quite: try again!'
+          show_if:
+            misses_europe_lt: 3
+        - text: 'Good tries! The answer: Rome.'
+          show_if:
+            misses_europe_gte: 3
+  - step_id: step_2
+    title: Back to the Map
+    content_blocks:
+    - 🗺️ Back to our world map...
+    next_section_and_step: choose_continent:step_1
 - section_id: south_america
   title: Exploring South America
   steps:
@@ -616,63 +602,53 @@ sections:
     - '**Let''s visit Brazil!**'
     - ''
     - '**Geography:** The largest country in South America, covering nearly half the continent'
-    - '**Capital:** Brasília (planned and built in the 1960s)'
+    - '**Capital:** Brasília (a planned city, capital since 1960)'
     - '**Famous for:** Amazon rainforest, carnival celebrations, football (soccer), and diverse ecosystems from rainforests to beaches'
     - ''
     - '**Environmental Fact:**'
-    - The Amazon rainforest, which covers much of Brazil, is sometimes called the 'lungs of the Earth' because it produces about 20% of the world's oxygen!
+    - The Amazon rainforest, which covers much of Brazil, holds about one in ten of the world's known species. (It's often said to make 20% of our oxygen, but the forest uses up almost all the oxygen it makes.)
     - ''
     - '**Cultural Fact:**'
-    - Brazil is the only Portuguese-speaking country in South America (most others speak Spanish). Brazilian Portuguese has its own unique accent and expressions!
+    - Brazil was colonized by Portugal, while most of its neighbours were colonized by Spain. Brazil's language has its own unique accent and expressions!
+    question_type: multiple_choice
     question: What language is primarily spoken in Brazil?
-    tokens_for_ai: 'The answer is Portuguese (mentioned above).
-
-
-      Categorize as:
-
-      - correct: Says Portuguese
-
-      - confused: Says Spanish (common misconception)
-
-      - limited_effort: Very brief or no answer
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'If they say Spanish, gently correct and explain this is a common misconception - Brazil
-
-      was colonized by Portugal, not Spain! If correct, praise them for knowing this fact.
-
-      '
-    buckets:
-    - correct
-    - confused
-    - limited_effort
-    - off_topic
+    choices:
+    - id: a
+      text: Spanish
+    - id: b
+      text: Portuguese
+    - id: c
+      text: French
+    - id: d
+      text: English
+    answer: b
+    hints:
+    - attempt: 1
+      text: '💡 Hint: Most of Brazil''s neighbours speak Spanish, but Brazil was colonized by a different country.'
+    - attempt: 2
+      text: '💡 Bigger hint: Brazil was colonized by Spain''s neighbour on the Iberian Peninsula.'
     transitions:
       correct:
-        ai_feedback:
-          tokens_for_ai: Excellent! Many people think Spanish, but Brazil speaks Portuguese due to Portuguese colonization. Share why this is unique in South America.
+        content_blocks:
+        - ✅ Portuguese! Brazil is the only Portuguese-speaking country in South America.
         metadata_add:
           quiz_score: n+1
-          countries_visited: n+1
           cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      confused:
-        ai_feedback:
-          tokens_for_ai: Common misconception! Unlike most of South America, Brazil speaks Portuguese, not Spanish. Explain the historical reason.
+      incorrect:
         metadata_add:
-          countries_visited: n+1
-          cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      limited_effort:
+          misses_south_america: n+1
         content_blocks:
-        - Look at the cultural fact section. Which language does Brazil speak?
-        next_section_and_step: south_america:step_1
-      off_topic:
-        content_blocks:
-        - Let's learn about Brazil. What language is primarily spoken there?
-        next_section_and_step: south_america:step_1
+        - text: 'Not quite: try again!'
+          show_if:
+            misses_south_america_lt: 3
+        - text: 'Good tries! The answer: Portuguese.'
+          show_if:
+            misses_south_america_gte: 3
+  - step_id: step_2
+    title: Back to the Map
+    content_blocks:
+    - 🗺️ Back to our world map...
+    next_section_and_step: choose_continent:step_1
 - section_id: oceania
   title: Exploring Oceania
   steps:
@@ -686,69 +662,52 @@ sections:
     - ''
     - '**Geography:** The world''s smallest continent but largest island, located between the Indian and Pacific Oceans'
     - '**Capital:** Canberra'
-    - '**Famous for:** Unique wildlife (kangaroos, koalas, platypuses), the Great Barrier Reef, the Outback, and indigenous Aboriginal culture spanning 65,000+ years'
+    - '**Famous for:** Unique wildlife (kangaroos, koalas, platypuses), a giant coral reef, the Outback, and Aboriginal and Torres Strait Islander cultures tens of thousands of years old'
     - ''
     - '**Indigenous Heritage:**'
-    - Aboriginal Australians have the longest continuous culture on Earth - over 65,000 years! They have deep knowledge of the land, sophisticated art traditions, and hundreds of distinct languages.
+    - 'Aboriginal Australians have one of the longest continuous cultures on Earth: at least 50,000 years, and perhaps 65,000! They have deep knowledge of the land, sophisticated art traditions, and hundreds of distinct languages.'
     - ''
     - '**Wildlife Fact:**'
     - Australia has more unique species than anywhere else! About 80% of its plants, mammals, and reptiles are found nowhere else on Earth.
+    question_type: multiple_choice
     question: What is the world's largest coral reef system, located off the coast of Australia?
-    tokens_for_ai: 'The answer is the Great Barrier Reef (mentioned above).
-
-
-      Categorize as:
-
-      - correct: Says Great Barrier Reef or just Barrier Reef
-
-      - close: Mentions coral reef but not the specific name
-
-      - confused: Names another natural wonder in Australia
-
-      - limited_effort: Very brief or no answer
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'If correct, share facts about it being visible from space and home to thousands of species!
-
-      '
-    buckets:
-    - correct
-    - close
-    - confused
-    - limited_effort
-    - off_topic
+    choices:
+    - id: a
+      text: The Great Barrier Reef
+    - id: b
+      text: The Coral Triangle
+    - id: c
+      text: Ningaloo Reef
+    - id: d
+      text: The Mesoamerican Reef
+    answer: a
+    hints:
+    - attempt: 1
+      text: '💡 Hint: Ningaloo is a smaller reef in Western Australia.'
+    - attempt: 2
+      text: '💡 Bigger hint: Its name says it is great, and that it is a barrier.'
     transitions:
       correct:
-        ai_feedback:
-          tokens_for_ai: Correct! The Great Barrier Reef is the world's largest coral reef system and can even be seen from space! Share conservation importance.
+        content_blocks:
+        - '✅ The Great Barrier Reef: over 2,300 km long, made of nearly 3,000 separate reefs!'
         metadata_add:
           quiz_score: n+1
-          countries_visited: n+1
           cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      close:
-        ai_feedback:
-          tokens_for_ai: You're thinking of the right feature! It's called the Great Barrier Reef. Share impressive facts about it.
+      incorrect:
         metadata_add:
-          countries_visited: n+1
-          cultural_facts_learned: n+1
-        next_section_and_step: choose_continent:step_1
-      confused:
+          misses_oceania: n+1
         content_blocks:
-        - That's an Australian feature, but we're looking for the coral reef! It's the Great Barrier Reef.
-        metadata_add:
-          countries_visited: n+1
-        next_section_and_step: choose_continent:step_1
-      limited_effort:
-        content_blocks:
-        - Look at the information about Australia. What coral reef system is mentioned?
-        next_section_and_step: oceania:step_1
-      off_topic:
-        content_blocks:
-        - Let's learn about Australia. What is the famous coral reef system off its coast?
-        next_section_and_step: oceania:step_1
+        - text: 'Not quite: try again!'
+          show_if:
+            misses_oceania_lt: 3
+        - text: 'Good tries! The answer: The Great Barrier Reef.'
+          show_if:
+            misses_oceania_gte: 3
+  - step_id: step_2
+    title: Back to the Map
+    content_blocks:
+    - 🗺️ Back to our world map...
+    next_section_and_step: choose_continent:step_1
 - section_id: choose_continent
   title: Continue Your Journey
   steps:
@@ -796,31 +755,81 @@ sections:
         - 🌍 Heading to Africa!
         metadata_add:
           continents_visited: n+1
+          countries_visited: n+1
         next_section_and_step: africa:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       asia:
         content_blocks:
         - 🌏 Off to Asia!
         metadata_add:
           continents_visited: n+1
+          countries_visited: n+1
         next_section_and_step: asia:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       europe:
         content_blocks:
         - 🌍 Traveling to Europe!
         metadata_add:
           continents_visited: n+1
+          countries_visited: n+1
         next_section_and_step: europe:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       south_america:
         content_blocks:
         - 🌎 Journey to South America!
         metadata_add:
           continents_visited: n+1
+          countries_visited: n+1
         next_section_and_step: south_america:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       oceania:
         content_blocks:
         - 🌏 Exploring Oceania!
         metadata_add:
           continents_visited: n+1
+          countries_visited: n+1
         next_section_and_step: oceania:step_1
+        metadata_remove:
+        - misses_africa
+        - misses_africa_egypt
+        - misses_africa_nigeria
+        - misses_africa_south
+        - misses_asia
+        - misses_europe
+        - misses_south_america
+        - misses_oceania
       finish:
         content_blocks:
         - 🌍 Wonderful! Let's reflect on your global journey.
@@ -838,6 +847,14 @@ sections:
     content_blocks:
     - '## Congratulations, World Explorer! 🌍🌎🌏'
     - You've completed your global geography journey!
+    - ''
+    - text: '🌍 Countries visited: {{metadata.countries_visited}} · Continents: {{metadata.continents_visited}}'
+      show_if:
+        countries_visited_exists: true
+        continents_visited_exists: true
+    - text: '🏆 Quiz score: {{metadata.quiz_score}}'
+      show_if:
+        quiz_score_exists: true
     - ''
     - '**Why geography and cultural awareness matter:**'
     - '- Helps us understand global events and connections'

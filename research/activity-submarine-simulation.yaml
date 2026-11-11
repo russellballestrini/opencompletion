@@ -2,8 +2,22 @@
 # Educational simulation for naval operations and submarine life
 # Realistic operations, emergencies, and daily tasks
 # Uses MODEL_1 (Hermes) for excellent role-playing and character consistency
+#
+# Flow: welcome -> navigation_hub (13 compartments joined bow to stern, each a
+# question step) -> each compartment's activity steps, which come back to it.
+# Random emergencies & daily tasks return to the compartment you were in
+# (emergencies:return_to_post reads metadata.current_section). Saying
+# "debrief" in any compartment ends the tour: qualification board, a last
+# word with the Captain, farewell.
+
+title: "Submarine Simulation"
+description: "Walk a nuclear attack submarine bow to stern, meet its crew, ride out drills & emergencies, then sit your qualification board."
+kind: "game"
 
 default_max_attempts_per_step: 5
+# Answers here are moves & orders ("aft", "periscope"); each room already
+# has buckets for questions to the crew, so no built-in clarifying bucket.
+allow_clarifying_questions: false
 classifier_model: "MODEL_1"  # Hermes - excellent for categorization and role-playing
 feedback_model: "MODEL_1"    # Hermes - excels at maintaining character consistency
 
@@ -14,12 +28,8 @@ tokens_for_ai_rubric: |
   Respond to user actions realistically - some actions take time, require training, or need authorization.
   Be encouraging but maintain military protocol and realism.
 
-  Random events:
-  - 5% chance: Emergency (fire, flooding, reactor scram, collision alert, depth excursion)
-  - 15% chance: Daily task (maintenance, inspection, drill, watch relief, meal time)
-
+  The game rolls random emergencies (5%) and daily tasks (15%) each turn in a compartment.
   If the user tries to teleport or skip traversal, remind them they must move through hatches.
-  Track the user's current location in metadata.current_section.
 
 sections:
   # ============================================================================
@@ -62,6 +72,8 @@ sections:
           - "**Captain Morrison:** 'We run a tight ship here. You'll need to learn your way around, understand the systems, and be ready for anything. Emergencies don't wait for training to be complete.'"
           - ""
           - "**Captain Morrison:** 'You're currently in the **Forward Escape Trunk** area. From here, you can access the Torpedo Room forward or the Officers' Quarters aft.'"
+          - ""
+          - "**Captain Morrison:** 'Walk the boat bow to stern. When you're done, say **debrief** wherever you are and report to me.'"
 
       - step_id: "assignment"
         title: "Initial Assignment"
@@ -105,6 +117,8 @@ sections:
               submarine_speed: "5"
               submarine_heading: "090"
               visited_sections: "forward_escape_trunk"
+              emergency_experience: "0"
+              tasks_completed: "0"
             next_section_and_step: "navigation_hub:forward_escape_trunk"
 
           questions:
@@ -125,26 +139,32 @@ sections:
             ai_feedback:
               tokens_for_ai: |
                 As Captain Morrison, tell them they'll rotate through different departments.
-                Suggest starting with a tour to learn the layout first.
-                Then they can shadow different watch stations.
-            metadata_add:
-              current_section: "forward_escape_trunk"
-              submarine_depth: "150"
-              submarine_speed: "5"
-              submarine_heading: "090"
-            next_section_and_step: "welcome:assignment"
-
-          ready:
-            content_blocks:
-              - "**Captain Morrison:** 'Good. Let's get you oriented. You're standing in the Forward Escape Trunk. This is one of two emergency escape routes on the boat.'"
-              - ""
-              - "**Captain Morrison:** 'Time to start exploring. Head forward to the Torpedo Room or aft to the Officers' Quarters. Your choice, sailor.'"
+                Tell them the tour starts now: learn the layout, then shadow watch stations.
             metadata_add:
               current_section: "forward_escape_trunk"
               submarine_depth: "150"
               submarine_speed: "5"
               submarine_heading: "090"
               visited_sections: "forward_escape_trunk"
+              emergency_experience: "0"
+              tasks_completed: "0"
+            next_section_and_step: "navigation_hub:forward_escape_trunk"
+
+          ready:
+            content_blocks:
+              - "**Captain Morrison:** 'Good. Let's get you oriented. You're standing in the Forward Escape Trunk. This is one of two emergency escape routes on the boat.'"
+              - ""
+              - "**Captain Morrison:** 'Time to start exploring. Head forward to the Torpedo Room or aft to the Officers' Quarters. Your choice, sailor.'"
+              - ""
+              - "**Captain Morrison:** 'When you've seen enough, say **debrief** in any compartment and report to me for your qualification board.'"
+            metadata_add:
+              current_section: "forward_escape_trunk"
+              submarine_depth: "150"
+              submarine_speed: "5"
+              submarine_heading: "090"
+              visited_sections: "forward_escape_trunk"
+              emergency_experience: "0"
+              tasks_completed: "0"
               crew_morale: "100"
             next_section_and_step: "navigation_hub:forward_escape_trunk"
 
@@ -176,7 +196,6 @@ sections:
           - 'look' or 'examine' → Examine the current area
           - 'status' → Check submarine status
           - 'crew' or 'talk' → Talk to nearby crew members
-          - Random event check (20% total chance)
 
           Categorize as:
           - 'torpedo_room' if going forward
@@ -184,16 +203,11 @@ sections:
           - 'examine' if looking around
           - 'status' if checking submarine status
           - 'crew' if interacting with crew
-          - 'emergency' if you randomly determine emergency (5% chance)
-          - 'daily_task' if you randomly determine daily task (15% chance)
           - 'set_language' if changing language
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
-          Roll for random events:
-          - 5% chance: Generate an emergency (fire, flooding, alarm)
-          - 15% chance: Generate a daily task (maintenance, inspection, drill)
-          - 80% chance: Normal operation
-
           Describe the Forward Escape Trunk: Emergency escape module, ladder leading up to hatch,
           emergency breathing apparatus (EBA) stations, escape suits in lockers,
           emergency lighting, depth gauge showing current depth.
@@ -202,7 +216,7 @@ sections:
           If they ask for status, report depth, speed, heading from metadata.
           If they talk to crew, introduce nearby sailors working on escape system checks.
 
-        buckets: [torpedo_room, officers_quarters, examine, status, crew, emergency, daily_task, set_language]
+        buckets: [torpedo_room, officers_quarters, examine, status, crew, debrief, emergency, daily_task, set_language]
 
         # Random event probabilities - can overlap (both emergency AND task can trigger)
         random_buckets:
@@ -245,14 +259,12 @@ sections:
             next_section_and_step: "navigation_hub:forward_escape_trunk"
 
           status:
+            content_blocks:
+              - "**Boat status:** depth {{metadata.submarine_depth}} ft · speed {{metadata.submarine_speed}} knots · heading {{metadata.submarine_heading}}°"
+              - "Emergencies handled: {{metadata.emergency_experience}} · Tasks pitched in on: {{metadata.tasks_completed}}"
             ai_feedback:
               tokens_for_ai: |
-                Report submarine status from metadata:
-                - Depth: metadata.submarine_depth feet
-                - Speed: metadata.submarine_speed knots
-                - Heading: metadata.submarine_heading degrees
-                - Condition: Normal operations (or emergency condition if active)
-                - Current location: Forward Escape Trunk
+                As the Chief of the Watch, add one line on the boat's condition (normal operations).
             counts_as_attempt: false
             next_section_and_step: "navigation_hub:forward_escape_trunk"
 
@@ -266,26 +278,25 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "navigation_hub:forward_escape_trunk"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["fire_alarm", "flooding_alarm", "collision_alarm", "reactor_scram", "depth_excursion"]
+            metadata_random:
+              emergency_type: ["fire alarm", "flooding alarm", "collision alarm", "reactor scram", "depth excursion"]
             content_blocks:
               - "🚨 EMERGENCY ALARM SOUNDS! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["maintenance_request", "inspection_due", "drill_announced", "watch_relief", "meal_time"]
+            metadata_random:
+              task_type: ["maintenance request", "inspection due", "drill announced", "watch relief", "meal time"]
             ai_feedback:
-              tokens_for_ai: |
-                Generate a realistic daily task randomly:
-                - Maintenance: Something needs routine maintenance
-                - Inspection: Department needs inspection
-                - Drill: Practice drill announced (fire, flooding, abandon ship)
-                - Watch relief: Time to relieve someone on watch
-                - Meal time: Crew's mess is serving chow
-
-                Announce it naturally through 1MC (ship's announcing system) or from a crew member.
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -311,7 +322,6 @@ sections:
           - 'look' or 'examine' → Examine the area
           - 'crew' or 'talk' → Talk to weapons department crew
           - 'operate' → Operate torpedo systems (requires training)
-          - Random events (20% chance)
 
           Categorize as:
           - 'navigation' if moving to another section
@@ -321,9 +331,9 @@ sections:
           - 'examine' if general looking around
           - 'crew' if talking to crew
           - 'operate' if trying to operate systems
-          - 'emergency' (5% random)
-          - 'daily_task' (15% random)
           - 'set_language'
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe Torpedo Room: Four 21-inch torpedo tubes, Mk 48 ADCAP torpedoes,
@@ -334,9 +344,8 @@ sections:
           Crew members: Torpedoman's Mates working on maintenance, Chief Petty Officer supervising.
 
           If they try to operate torpedoes without training/authorization, gently deny but explain.
-          Roll for random events as specified.
 
-        buckets: [navigation, examine_torpedoes, bunks, loading, examine, crew, operate, emergency, daily_task, set_language]
+        buckets: [navigation, examine_torpedoes, bunks, loading, examine, crew, operate, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -350,6 +359,8 @@ sections:
               tokens_for_ai: |
                 Ask where they want to go. From Torpedo Room, they can only go aft to Forward Escape Trunk.
                 Remind them hatches only connect to adjacent compartments.
+            metadata_add:
+              current_section: "forward_escape_trunk"
             counts_as_attempt: false
             next_section_and_step: "navigation_hub:forward_escape_trunk"
 
@@ -421,25 +432,25 @@ sections:
                 Offer to teach them the basics or give a demonstration.
             next_section_and_step: "torpedo_room_activities:weapons_training"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["fire_torpedo_room", "flooding_forward", "torpedo_hot_run", "weapons_malfunction"]
+            metadata_random:
+              emergency_type: ["fire torpedo room", "flooding forward", "torpedo hot run in the tube", "weapons malfunction"]
             content_blocks:
               - "🚨 EMERGENCY IN TORPEDO ROOM! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["torpedo_inspection", "tube_maintenance", "weapons_inventory", "berthing_cleanup"]
+            metadata_random:
+              task_type: ["torpedo inspection", "tube maintenance", "weapons inventory", "berthing cleanup"]
             ai_feedback:
-              tokens_for_ai: |
-                Generate a task in the Torpedo Room:
-                - Daily torpedo inspection
-                - Tube breech maintenance
-                - Weapons inventory count
-                - Berthing area cleanup and inspection
-
-                Announce from Chief Williams or over 1MC.
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -471,7 +482,8 @@ sections:
           - 'look' → Examine area
           - 'crew' → Interact with officers
 
-          Categorize appropriately including random events.
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe Officers' Country: More spacious than enlisted areas, wood-grain laminate walls,
@@ -479,9 +491,8 @@ sections:
           coffee maker always on, bulletin boards with notices, smell of coffee.
 
           Officers are busy but may chat briefly. Maintain military courtesy.
-          Random events as applicable.
 
-        buckets: [forward, aft, wardroom, captain, examine, crew, emergency, daily_task, set_language]
+        buckets: [forward, aft, wardroom, captain, examine, crew, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -542,18 +553,25 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "officers_activities:officer_interaction"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["fire_alarm", "flooding_alarm", "general_quarters"]
+            metadata_random:
+              emergency_type: ["fire alarm", "flooding alarm", "general quarters"]
             content_blocks:
               - "🚨 ALARM! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["officers_meeting", "briefing", "inspection"]
+            metadata_random:
+              task_type: ["officers meeting", "briefing", "inspection"]
             ai_feedback:
-              tokens_for_ai: "Generate an officers-related task or event."
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -592,6 +610,8 @@ sections:
           - 'operate' → Request to operate a station
 
           Categorize appropriately.
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe the Control Room: The busiest, most critical space on the boat.
@@ -609,7 +629,7 @@ sections:
 
           This is a working space - user can observe but needs permission/training to operate.
 
-        buckets: [forward, aft, conn, helm, periscope, navigation, examine, crew, operate, emergency, daily_task, set_language]
+        buckets: [forward, aft, conn, helm, periscope, navigation, examine, crew, operate, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -697,18 +717,25 @@ sections:
                 Offer observation and learning opportunity.
             next_section_and_step: "control_room_activities:operations_training"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["fire_control_room", "flooding_detected", "loss_of_depth_control", "collision_alarm", "periscope_jam"]
+            metadata_random:
+              emergency_type: ["fire control room", "flooding detected", "loss of depth control", "collision alarm", "periscope jam"]
             content_blocks:
               - "🚨 CONTROL ROOM EMERGENCY! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["watch_relief", "navigation_fix", "drill_announced", "periscope_depth_ordered"]
+            metadata_random:
+              task_type: ["watch relief", "navigation fix", "drill announced", "periscope depth ordered"]
             ai_feedback:
-              tokens_for_ai: "Generate Control Room task or evolution."
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -744,6 +771,8 @@ sections:
           - 'crew' → Talk to sonar techs (quietly)
 
           Categorize appropriately. Note: This is a quiet space, loud users may be shushed.
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe Sonar Room: Dark, quiet space. Sonar Techs (STs) wear headphones,
@@ -759,7 +788,7 @@ sections:
           If user is loud, they'll be politely asked to whisper.
           Sonar is tracking several contacts: merchant ships, biologics (whales), possibly another submarine.
 
-        buckets: [forward, aft, listen, displays, contacts, examine, crew, emergency, daily_task, set_language]
+        buckets: [forward, aft, listen, displays, contacts, examine, crew, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -837,18 +866,25 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "sonar_activities:crew_interaction"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["torpedo_in_water", "close_contact", "collision_alarm", "sonar_equipment_failure"]
+            metadata_random:
+              emergency_type: ["torpedo in water", "close contact", "collision alarm", "sonar equipment failure"]
             content_blocks:
               - "🚨 SONAR EMERGENCY! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["sonar_calibration", "contact_report", "training_drill", "equipment_maintenance"]
+            metadata_random:
+              task_type: ["sonar calibration", "contact report", "training drill", "equipment maintenance"]
             ai_feedback:
-              tokens_for_ai: "Generate sonar-related task."
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -887,6 +923,8 @@ sections:
           - 'games' → Recreational activities
 
           Categorize appropriately.
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe Crew's Mess: Warm, social atmosphere. Smell of cooking food.
@@ -900,7 +938,7 @@ sections:
 
           Current time affects meal being served (breakfast/lunch/dinner/midrats).
 
-        buckets: [forward, aft, eat, coffee, ice_cream, talk, galley, examine, games, emergency, daily_task, set_language]
+        buckets: [forward, aft, eat, coffee, ice_cream, talk, galley, examine, games, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -1015,18 +1053,25 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "mess_activities:recreation"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["fire_galley", "flooding_mess", "general_quarters"]
+            metadata_random:
+              emergency_type: ["fire galley", "flooding mess", "general quarters"]
             content_blocks:
               - "🚨 EMERGENCY! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["meal_time", "mess_cleanup", "movie_night", "birthday_cake"]
+            metadata_random:
+              task_type: ["meal time", "mess cleanup", "movie night", "birthday cake in the mess"]
             ai_feedback:
-              tokens_for_ai: "Generate mess-related activity or event."
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -1061,6 +1106,8 @@ sections:
           - 'crew' → Talk to off-watch crew (quietly)
 
           Categorize appropriately. Respect quiet time if people are sleeping.
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe Crew Berthing: Cramped space with bunks stacked three high along both bulkheads.
@@ -1073,7 +1120,7 @@ sections:
 
           If people are sleeping, user should be quiet and respectful.
 
-        buckets: [forward, aft, bunks, locker, examine, crew, emergency, daily_task, set_language]
+        buckets: [forward, aft, bunks, locker, examine, crew, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -1161,18 +1208,25 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "berthing_activities:crew_interaction"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["fire_berthing", "flooding", "general_quarters"]
+            metadata_random:
+              emergency_type: ["fire berthing", "flooding", "general quarters"]
             content_blocks:
               - "🚨 EMERGENCY! Sleeping crew rapidly scrambles out of racks! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["berthing_cleanup", "rack_inspection", "laundry_day", "watch_relief_soon"]
+            metadata_random:
+              task_type: ["berthing cleanup", "rack inspection", "laundry day", "watch relief soon"]
             ai_feedback:
-              tokens_for_ai: "Generate berthing-related task."
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -1208,6 +1262,8 @@ sections:
           - 'operate' → Request to learn launch procedures (highly restricted)
 
           Categorize appropriately. This is the most sensitive area.
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe Missile Compartment: Cathedral-like space. 12 massive vertical tubes
@@ -1228,7 +1284,7 @@ sections:
           - **MT2 Washington** - Missile maintenance
           - **Marine Security Guard** - Armed, ensuring security
 
-        buckets: [forward, aft, missiles, launch_control, examine, crew, operate, emergency, daily_task, set_language]
+        buckets: [forward, aft, missiles, launch_control, examine, crew, operate, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -1320,18 +1376,25 @@ sections:
                 Offer to explain the safeguards and philosophy instead.
             next_section_and_step: "missile_activities:launch_procedures_education"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["emergency_action_message_drill", "missile_tube_alarm", "security_drill"]
+            metadata_random:
+              emergency_type: ["emergency action message drill", "missile tube alarm", "security drill"]
             content_blocks:
               - "🚨 MISSILE COMPARTMENT EMERGENCY! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["missile_inspection", "authentication_drill", "security_patrol", "maintenance_check"]
+            metadata_random:
+              task_type: ["missile inspection", "authentication drill", "security patrol", "maintenance check"]
             ai_feedback:
-              tokens_for_ai: "Generate missile compartment task."
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -1368,6 +1431,8 @@ sections:
           - 'crew' → Talk to reactor operators
 
           Categorize appropriately.
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe Reactor Compartment: Hot, humid from steam systems. Large cylindrical
@@ -1384,7 +1449,7 @@ sections:
 
           Safety is paramount. Multiple redundant safety systems.
 
-        buckets: [forward, aft, reactor, steam, examine, crew, emergency, daily_task, set_language]
+        buckets: [forward, aft, reactor, steam, examine, crew, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -1449,18 +1514,25 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "reactor_activities:crew_interaction"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["reactor_scram", "coolant_leak", "radiation_alarm", "loss_of_cooling"]
+            metadata_random:
+              emergency_type: ["reactor scram", "coolant leak", "radiation alarm", "loss of cooling"]
             content_blocks:
               - "🚨 REACTOR COMPARTMENT EMERGENCY! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["reactor_surveillance", "radiation_survey", "maintenance_evolution", "drill"]
+            metadata_random:
+              task_type: ["reactor surveillance", "radiation survey", "maintenance evolution", "drill"]
             ai_feedback:
-              tokens_for_ai: "Generate reactor-related task."
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -1495,6 +1567,8 @@ sections:
           - 'crew' → Talk to machinists (loudly, or in quiet area)
 
           Categorize appropriately.
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe Engine Room: LOUD! Hearing protection mandatory. Main steam turbines
@@ -1507,7 +1581,7 @@ sections:
 
           Crew uses hand signals due to noise. Quiet booth for communication.
 
-        buckets: [forward, aft, turbines, shaft, examine, crew, emergency, daily_task, set_language]
+        buckets: [forward, aft, turbines, shaft, examine, crew, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -1573,18 +1647,25 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "engine_room_activities:crew_interaction"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["steam_leak", "turbine_vibration", "shaft_seal_leak", "loss_of_propulsion"]
+            metadata_random:
+              emergency_type: ["steam leak", "turbine vibration", "shaft seal leak", "loss of propulsion"]
             content_blocks:
               - "🚨 ENGINE ROOM EMERGENCY! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["turbine_inspection", "bearing_check", "oil_sample", "maintenance"]
+            metadata_random:
+              task_type: ["turbine inspection", "bearing check", "oil sample", "maintenance"]
             ai_feedback:
-              tokens_for_ai: "Generate engine room task."
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -1620,6 +1701,8 @@ sections:
           - 'crew' → Talk to watchstanders
 
           Categorize appropriately.
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe Maneuvering: Small, intense space. Three control panels:
@@ -1636,7 +1719,7 @@ sections:
           - **EO (Electrical Operator)** - Managing electrical systems
           - **Throttleman** - Controlling ship speed via steam throttle
 
-        buckets: [forward, aft, reactor_panel, electrical, throttle, examine, crew, emergency, daily_task, set_language]
+        buckets: [forward, aft, reactor_panel, electrical, throttle, examine, crew, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -1707,18 +1790,25 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "maneuvering_activities:crew_interaction"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["reactor_scram", "electrical_casualty", "loss_of_propulsion", "steam_plant_casualty"]
+            metadata_random:
+              emergency_type: ["reactor scram", "electrical casualty", "loss of propulsion", "steam plant casualty"]
             content_blocks:
               - "🚨 MANEUVERING EMERGENCY! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["watch_relief", "reactor_surveillance", "electrical_lineup", "drill"]
+            metadata_random:
+              task_type: ["watch relief", "reactor surveillance", "electrical lineup", "drill"]
             ai_feedback:
-              tokens_for_ai: "Generate maneuvering task."
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -1756,6 +1846,8 @@ sections:
           - 'crew' → Talk to auxiliaries crew
 
           Categorize appropriately.
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe Auxiliary Machinery: Smaller compartment packed with life support equipment.
@@ -1769,7 +1861,7 @@ sections:
           - **Auxiliaryman (A-Ganger)** - Maintaining life support systems
           - **EM (Electrician's Mate)** - Working on electrical systems
 
-        buckets: [forward, aft, oxygen, co2, water, examine, crew, emergency, daily_task, set_language]
+        buckets: [forward, aft, oxygen, co2, water, examine, crew, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -1837,18 +1929,25 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "auxiliary_activities:crew_interaction"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["oxygen_system_failure", "co2_high", "water_contamination", "hydraulic_leak"]
+            metadata_random:
+              emergency_type: ["oxygen system failure", "CO2 running high", "water contamination", "hydraulic leak"]
             content_blocks:
               - "🚨 AUXILIARY SYSTEM EMERGENCY! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["atmospheric_check", "o2_generator_maintenance", "scrubber_change", "water_test"]
+            metadata_random:
+              task_type: ["atmospheric check", "O2 generator maintenance", "scrubber change", "water test"]
             ai_feedback:
-              tokens_for_ai: "Generate auxiliary systems task."
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -1884,6 +1983,8 @@ sections:
           - 'crew' → Talk to stern crew
 
           Categorize appropriately.
+          - 'debrief' if they want to finish the tour or report to the Captain
+          Never pick emergency or daily_task: the game rolls those.
 
         feedback_tokens_for_ai: |
           Describe Stern Compartment: Aft-most compartment. Propeller shaft running through,
@@ -1896,7 +1997,7 @@ sections:
           Crew:
           - **Auxiliaryman on watch** - Monitoring aft systems
 
-        buckets: [forward, escape, rudder, shaft, examine, crew, emergency, daily_task, set_language]
+        buckets: [forward, escape, rudder, shaft, examine, crew, debrief, emergency, daily_task, set_language]
 
         random_buckets:
           emergency:
@@ -1955,18 +2056,25 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "stern_activities:crew_interaction"
 
+          debrief:
+            content_blocks:
+              - "You make your way to the Captain's stateroom and report for your debrief..."
+            metadata_add:
+              qual_score: "0"
+            next_section_and_step: "debrief:captain_debrief"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["flooding_stern", "rudder_jam", "shaft_seal_leak", "escape_trunk_issue"]
+            metadata_random:
+              emergency_type: ["flooding stern", "rudder jam", "shaft seal leak", "escape trunk issue"]
             content_blocks:
               - "🚨 STERN COMPARTMENT EMERGENCY! 🚨"
             next_section_and_step: "emergencies:handle_emergency"
 
           daily_task:
-            metadata_tmp_random:
-              task_type: ["stern_inspection", "escape_equipment_check", "hydraulics_check", "trim_adjustment"]
+            metadata_random:
+              task_type: ["stern inspection", "escape equipment check", "hydraulics check", "trim adjustment"]
             ai_feedback:
-              tokens_for_ai: "Generate stern compartment task."
+              tokens_for_ai: "Announce the task in metadata.task_type in one or two lines, over the 1MC or from a crew member nearby."
             next_section_and_step: "daily_tasks:handle_task"
 
           set_language:
@@ -2037,7 +2145,8 @@ sections:
         title: "Torpedo Loading"
         content_blocks:
           - "The Chief demonstrates the complex choreography of loading a 3,500-pound Mk 48 torpedo into a tube..."
-          - "(This would be a detailed interactive sequence)"
+          - "The torpedo slides off its rack onto the loading tray, the hydraulic ram eases it into the open breech, the inner door swings shut & locks, & the tube is flooded & equalized with sea pressure before the outer door can open."
+          - "Every step has an interlock: the outer door can't open while the inner one is open, so the sea never gets in."
         next_section_and_step: "navigation_hub:torpedo_room"
 
       - step_id: "berthing_area"
@@ -2231,16 +2340,18 @@ sections:
         question: "The Reactor Compartment is restricted. Request permission to enter? (yes/no)"
         tokens_for_ai: "Categorize 'yes' or 'no' or 'set_language'"
         feedback_tokens_for_ai: "If yes, grant access with safety briefing. If no, respect decision."
-        buckets: [yes, no, set_language]
+        buckets: ["yes", "no", set_language]
         transitions:
-          yes:
+          "yes":
             content_blocks:
               - "LCDR Park (the Engineer) gives you a safety briefing and grants temporary access..."
               - "You proceed through the shielded hatch into the Reactor Compartment."
             metadata_add:
               reactor_access: "granted"
+              current_section: "reactor_compartment"
+              visited_sections: "n+,reactor_compartment"
             next_section_and_step: "navigation_hub:reactor_compartment"
-          no:
+          "no":
             content_blocks:
               - "You decide not to enter the Reactor Compartment at this time."
             next_section_and_step: "navigation_hub:missile_compartment"
@@ -2385,19 +2496,9 @@ sections:
     steps:
       - step_id: "handle_emergency"
         title: "Emergency!"
-        question: "EMERGENCY! Check metadata for emergency_type. How do you respond?"
+        question: "🚨 **{{metadata.emergency_type}}!** The alarm is still sounding & the crew is moving. What do you do?"
         tokens_for_ai: |
-          An emergency has occurred. Type is in metadata.emergency_type.
-
-          Possible emergencies:
-          - fire_alarm / fire_* : Fire in a compartment
-          - flooding_alarm / flooding_* : Water entering the boat
-          - collision_alarm : Possible collision with contact
-          - reactor_scram : Reactor emergency shutdown
-          - depth_excursion : Losing depth control
-          - torpedo_in_water : Torpedo detected
-          - General_quarters : Battle stations
-          - Various equipment failures
+          An emergency is underway; judge how the learner responds.
 
           Evaluate user's response:
           - 'good_response' if they take appropriate action (muster, follow procedures, assist)
@@ -2407,7 +2508,7 @@ sections:
           - 'set_language'
 
         feedback_tokens_for_ai: |
-          Describe the emergency dramatically based on metadata.emergency_type.
+          Describe the emergency in metadata.emergency_type dramatically.
 
           If fire: Smoke, alarm, crew rushing with firefighting equipment, announcements.
           If flooding: Water spraying, crew shutting valves, damage control.
@@ -2430,7 +2531,7 @@ sections:
                 Emergency is resolved.
             metadata_add:
               emergency_experience: "n+1"
-            next_section_and_step: "navigation_hub:forward_escape_trunk"
+            next_section_and_step: "emergencies:return_to_post"
 
           learning:
             ai_feedback:
@@ -2440,7 +2541,7 @@ sections:
                 Educational moment.
             metadata_add:
               emergency_experience: "n+1"
-            next_section_and_step: "navigation_hub:forward_escape_trunk"
+            next_section_and_step: "emergencies:return_to_post"
 
           confused:
             ai_feedback:
@@ -2450,7 +2551,7 @@ sections:
                 Learning opportunity.
             metadata_add:
               emergency_experience: "n+1"
-            next_section_and_step: "navigation_hub:forward_escape_trunk"
+            next_section_and_step: "emergencies:return_to_post"
 
           panic:
             ai_feedback:
@@ -2460,7 +2561,7 @@ sections:
                 User learns that training and teamwork overcome emergencies.
             metadata_add:
               emergency_experience: "n+1"
-            next_section_and_step: "navigation_hub:forward_escape_trunk"
+            next_section_and_step: "emergencies:return_to_post"
 
           set_language:
             content_blocks:
@@ -2470,6 +2571,54 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "emergencies:handle_emergency"
 
+
+      # Emergencies & daily tasks come here, then back to the compartment the
+      # learner was in (current_section, set by every hatch transition).
+      - step_id: "return_to_post"
+        title: "Back to Your Post"
+        content_blocks:
+          - "You head back to your post."
+          - "Emergencies handled: {{metadata.emergency_experience}} · Tasks pitched in on: {{metadata.tasks_completed}}"
+        next_section_and_step:
+          - if:
+              current_section: "torpedo_room"
+            goto: "navigation_hub:torpedo_room"
+          - elif:
+              current_section: "officers_quarters"
+            goto: "navigation_hub:officers_quarters"
+          - elif:
+              current_section: "control_room"
+            goto: "navigation_hub:control_room"
+          - elif:
+              current_section: "sonar_room"
+            goto: "navigation_hub:sonar_room"
+          - elif:
+              current_section: "crews_mess"
+            goto: "navigation_hub:crews_mess"
+          - elif:
+              current_section: "crew_berthing"
+            goto: "navigation_hub:crew_berthing"
+          - elif:
+              current_section: "missile_compartment"
+            goto: "navigation_hub:missile_compartment"
+          - elif:
+              current_section: "reactor_compartment"
+            goto: "navigation_hub:reactor_compartment"
+          - elif:
+              current_section: "engine_room"
+            goto: "navigation_hub:engine_room"
+          - elif:
+              current_section: "maneuvering_room"
+            goto: "navigation_hub:maneuvering_room"
+          - elif:
+              current_section: "auxiliary_machinery"
+            goto: "navigation_hub:auxiliary_machinery"
+          - elif:
+              current_section: "stern_compartment"
+            goto: "navigation_hub:stern_compartment"
+          - else: true
+            goto: "navigation_hub:forward_escape_trunk"
+
   # ============================================================================
   # DAILY TASKS SECTION - Random daily tasks
   # ============================================================================
@@ -2478,17 +2627,9 @@ sections:
     steps:
       - step_id: "handle_task"
         title: "Task Assignment"
-        question: "A daily task has come up. Check metadata for task_type. How do you respond?"
+        question: "📋 **{{metadata.task_type}}**: a task has come up for whoever is nearby. What do you do?"
         tokens_for_ai: |
-          A routine task has been assigned. Type is in metadata.task_type.
-
-          Possible tasks:
-          - maintenance_request : Something needs routine maintenance
-          - inspection_due : Area needs inspection
-          - drill_announced : Practice drill (fire, flooding, etc.)
-          - watch_relief : Time to relieve someone on watch
-          - meal_time : Chow is being served
-          - Various compartment-specific tasks
+          A routine task has come up; judge how the learner responds.
 
           Categorize user response:
           - 'volunteer' if they volunteer to help
@@ -2498,7 +2639,7 @@ sections:
           - 'set_language'
 
         feedback_tokens_for_ai: |
-          Describe the daily task based on metadata.task_type.
+          Describe the daily task in metadata.task_type.
 
           Submarine life is routine tasks, watches, drills, maintenance.
           Tasks are announced over 1MC (announcing system) or by supervisors.
@@ -2520,7 +2661,7 @@ sections:
                 Task completed successfully.
             metadata_add:
               tasks_completed: "n+1"
-            next_section_and_step: "navigation_hub:forward_escape_trunk"
+            next_section_and_step: "emergencies:return_to_post"
 
           observe:
             ai_feedback:
@@ -2530,7 +2671,7 @@ sections:
                 Crew explains what they're doing.
             metadata_add:
               tasks_observed: "n+1"
-            next_section_and_step: "navigation_hub:forward_escape_trunk"
+            next_section_and_step: "emergencies:return_to_post"
 
           participate:
             ai_feedback:
@@ -2540,14 +2681,14 @@ sections:
                 User gains practical experience.
             metadata_add:
               tasks_completed: "n+1"
-            next_section_and_step: "navigation_hub:forward_escape_trunk"
+            next_section_and_step: "emergencies:return_to_post"
 
           decline:
             ai_feedback:
               tokens_for_ai: |
                 User politely declines. Crew understands - they continue with the task.
                 User is free to continue exploring.
-            next_section_and_step: "navigation_hub:forward_escape_trunk"
+            next_section_and_step: "emergencies:return_to_post"
 
           set_language:
             content_blocks:
@@ -2556,3 +2697,131 @@ sections:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "daily_tasks:handle_task"
+
+  # ============================================================================
+  # DEBRIEF - the way to finish: reached by "debrief" in any compartment
+  # ============================================================================
+  - section_id: "debrief"
+    title: "Debrief & Qualification"
+    steps:
+      - step_id: "captain_debrief"
+        title: "Report to the Captain"
+        content_blocks:
+          - "# Debrief with Captain Morrison ⚓"
+          - "**Captain Morrison:** 'Sit down, sailor. Let's see what you learned.'"
+          - ""
+          - "- Emergencies handled: {{metadata.emergency_experience}}"
+          - "- Tasks pitched in on: {{metadata.tasks_completed}}"
+          - text: "- You made it past the reactor, all the way to the stern. That's walking the boat."
+            show_if:
+              visited_sections_contains: "stern_compartment"
+          - text: "- You never made it aft of the reactor. A qualified sailor knows every compartment."
+            show_if:
+              visited_sections_not_contains: "stern_compartment"
+          - ""
+          - "**Captain Morrison:** 'Before you earn your dolphins, three questions from the qualification board.'"
+
+      - step_id: "qual_power"
+        title: "Qualification: Propulsion"
+        question_type: multiple_choice
+        question: "What turns the propeller on a nuclear submarine?"
+        choices:
+          - {id: a, text: "The reactor spins the shaft directly"}
+          - {id: b, text: "Reactor heat makes steam, & steam turbines turn the shaft"}
+          - {id: c, text: "Diesel engines, with the reactor as a backup"}
+          - {id: d, text: "Batteries charged in port"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "**Captain:** 'Right. Fission heats the primary coolant, the steam generators boil secondary water, & steam turns the main turbines.'"
+            metadata_add:
+              qual_score: "n+1"
+            next_section_and_step: "debrief:qual_air"
+          incorrect:
+            content_blocks:
+              - "**Captain:** 'Think back to the steam generators aft of the reactor. What do they feed?'"
+
+      - step_id: "qual_air"
+        title: "Qualification: Atmosphere"
+        question_type: multiple_choice
+        question: "Submerged for months, where does the crew's oxygen come from?"
+        choices:
+          - {id: a, text: "Splitting seawater by electrolysis"}
+          - {id: b, text: "Air tanks filled before the patrol"}
+          - {id: c, text: "Snorkeling at the surface every night"}
+        answer: a
+        transitions:
+          correct:
+            content_blocks:
+              - "**Captain:** 'Correct. The oxygen generators split water into oxygen & hydrogen, & the CO2 scrubbers take out what we breathe out.'"
+            metadata_add:
+              qual_score: "n+1"
+            next_section_and_step: "debrief:qual_escape"
+          incorrect:
+            content_blocks:
+              - "**Captain:** 'Not quite. Remember the auxiliary machinery room: what is all around us that holds oxygen?'"
+
+      - step_id: "qual_escape"
+        title: "Qualification: Watertight Doors"
+        question_type: multiple_choice
+        question: "Why can't a torpedo tube's outer door open while its inner door is open?"
+        choices:
+          - {id: a, text: "To save hydraulic pressure"}
+          - {id: b, text: "An interlock stops the sea from flooding into the boat"}
+          - {id: c, text: "So the torpedo can't be fired by accident"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "**Captain:** 'Exactly. One door to the sea at a time, every time.'"
+            metadata_add:
+              qual_score: "n+1"
+            next_section_and_step: "debrief:last_word"
+          incorrect:
+            content_blocks:
+              - "**Captain:** 'Picture both doors open at depth. What comes in?'"
+
+      - step_id: "last_word"
+        title: "A Last Word"
+        content_blocks:
+          - "**Qualification board: {{metadata.qual_score}} of 3.**"
+          - text: "**Captain Morrison:** 'Clean sweep. Well done, sailor.'"
+            show_if:
+              qual_score_gte: 3
+          - text: "**Captain Morrison:** 'Study the boat some more. Every sailor aboard can save it.'"
+            show_if:
+              qual_score_lt: 3
+        question: "**Captain Morrison:** 'One last thing: what would you tell a recruit about life aboard? Or say you want to keep exploring.'"
+        tokens_for_ai: |
+          - 'reflection' if they share any thought about life or work aboard
+          - 'keep_exploring' if they want to go back aboard and explore more
+          - 'set_language' if changing language
+        buckets: [reflection, keep_exploring, set_language]
+        transitions:
+          reflection:
+            ai_feedback:
+              tokens_for_ai: "As Captain Morrison, answer their advice in two sentences, then dismiss them warmly."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "debrief:farewell"
+          keep_exploring:
+            content_blocks:
+              - "**Captain Morrison:** 'Carry on, sailor. Report back when you're ready.'"
+            counts_as_attempt: false
+            next_section_and_step: "emergencies:return_to_post"
+          set_language:
+            content_blocks:
+              - "Language preference updated."
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "debrief:last_word"
+
+      - step_id: "farewell"
+        title: "Farewell"
+        content_blocks:
+          - "# Tour Complete 🌊⚓"
+          - "You climb the ladder out of the forward escape trunk into daylight."
+          - "Qualification board: {{metadata.qual_score}} of 3 · Emergencies handled: {{metadata.emergency_experience}} · Tasks pitched in on: {{metadata.tasks_completed}}"
+          - "Thanks for sailing with USS Virginia. Fair winds & following seas!"

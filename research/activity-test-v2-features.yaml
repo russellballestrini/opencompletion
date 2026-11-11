@@ -36,6 +36,10 @@ sections:
           off_topic:
             content_blocks:
               - "Please tell me your name."
+            # after 3 tries we move on nameless: give the templates a value
+            metadata_add:
+              player_name: "friend"
+              score: "n+0"
             next_section_and_step: "intro:welcome"
 
   # Section: Template Variables
@@ -53,13 +57,13 @@ sections:
           - "Attempts remaining: {{attempts_remaining}}"
         question: "Ready to test conditional content? (yes/no)"
         tokens_for_ai: "Categorize as 'yes' or 'no' based on their response."
-        buckets: [yes, no]
+        buckets: ["yes", "no"]  # quoted: bare yes/no parse as booleans
         transitions:
-          yes:
+          "yes":
             content_blocks:
               - "Excellent!"
             next_section_and_step: "conditionals:test_conditional_blocks"
-          no:
+          "no":
             content_blocks:
               - "Take your time!"
             next_section_and_step: "templates:test_templates"
@@ -142,7 +146,59 @@ sections:
                 If legendary_item: "LEGENDARY ITEM FOUND! 🏆"
             metadata_add:
               score: "n+1"
+            next_section_and_step: "grading:pick_one"
+
+  # Section: Grading primitives (spec 3.0): multiple choice, then
+  # bucket_criteria + required_elements
+  - section_id: grading
+    title: Grading Primitives Test
+    steps:
+      - step_id: pick_one
+        title: Multiple Choice
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Which planet is known as the Red Planet?"
+        choices:
+          - {id: a, text: "Venus"}
+          - {id: b, text: "Mars"}
+          - {id: c, text: "Jupiter"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "Correct! Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+2"
+            next_section_and_step: "grading:explain"
+          incorrect:
+            content_blocks:
+              - "Not quite: think of rust-red dust."
+
+      - step_id: explain
+        title: Criteria & Required Elements
+        question: "What is 3 x 4, and why?"
+        tokens_for_ai: "Grade the product and the reason."
+        bucket_criteria:
+          correct: "States 12 and why (3 groups of 4, or 4 groups of 3)."
+          partial_understanding: "States 12 without why, or why without 12."
+          off_topic: "Does not engage the question."
+        required_elements:
+          - "states 12"
+          - "explains it as equal groups or repeated addition"
+        buckets: [correct, partial_understanding, off_topic]
+        transitions:
+          correct:
+            content_blocks:
+              - "Correct! Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+2"
             next_section_and_step: "conditional_nav:test_nav"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name the element they left out, without the answer."
+          off_topic:
+            content_blocks:
+              - "Try the multiplication: what is 3 x 4?"
 
   # Section: Conditional Navigation
   - section_id: conditional_nav
@@ -163,11 +219,12 @@ sections:
           continue:
             # Conditional navigation based on score
             next_section_and_step:
+              # 7 points always (name, 5 + 3, roll); +2 for each grading step
               - if:
-                  score_gte: 10
+                  score_gte: 11
                 goto: "endings:high_score"
               - elif:
-                  score_gte: 5
+                  score_gte: 9
                 goto: "endings:medium_score"
               - else:
                 goto: "endings:low_score"
@@ -184,6 +241,7 @@ sections:
           - "{{metadata.player_name}}, you scored {{metadata.score}} points!"
           - ""
           - "You're a V2.0 features master!"
+        next_section_and_step: "endings:done"  # a content step's own navigation
 
       - step_id: medium_score
         title: Medium Score Ending
@@ -193,6 +251,7 @@ sections:
           - "{{metadata.player_name}}, you scored {{metadata.score}} points!"
           - ""
           - "Great understanding of V2.0 features!"
+        next_section_and_step: "endings:done"
 
       - step_id: low_score
         title: Low Score Ending
@@ -202,3 +261,8 @@ sections:
           - "{{metadata.player_name}}, you scored {{metadata.score}} points!"
           - ""
           - "You've learned the basics of V2.0 features!"
+
+      - step_id: done
+        title: Done
+        content_blocks:
+          - "End of the v2 features test."

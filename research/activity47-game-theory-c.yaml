@@ -1,15 +1,18 @@
+title: "Game Theory in C"
+description: "Code the Prisoner's Dilemma in C: a payoff struct, a 2D array of outcomes, a lookup function & a strategy enum."
+kind: "lesson"
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
 tokens_for_ai_rubric: |
-  Evaluate the student's ability to implement game theory concepts in C.
+  Grade C code implementing game theory. Any valid C counts (struct or
+  typedef, any field names); judge the ideas, not one exact syntax.
 
-  Consider:
-  - Correct C syntax
-  - Proper use of structs and pointers
-  - Memory management awareness
-  - Understanding of game theory concepts
-  - Code structure and organization
+# Wrong answers stay on their step (partial_understanding & incorrect carry no
+# next_section_and_step), so attempts count & hints escalate: a per-step
+# *_tries counter picks which hint shows. Learner-facing text never shows C's
+# nested initializer braces: our templates would read two opening braces as
+# a template.
 
 sections:
   - section_id: introduction
@@ -25,9 +28,8 @@ sections:
           - "You'll learn to:"
           - "✓ Define game structures with structs"
           - "✓ Use 2D arrays for payoff matrices"
-          - "✓ Work with pointers and memory"
-          - "✓ Implement strategy functions"
-          - "✓ Build game simulators in C"
+          - "✓ Pass arrays to functions"
+          - "✓ Name strategies with enums"
           - ""
           - "**Prerequisites:**"
           - "- Basic C knowledge (variables, functions, arrays)"
@@ -37,20 +39,21 @@ sections:
           - "- Performance for large simulations"
           - "- Memory efficiency"
           - "- Understanding low-level implementation"
-          - "- Foundation for understanding algorithms"
         question: Ready to implement game theory in C?
-        tokens_for_ai: Accept positive as 'ready', language preference as 'set_language', else 'off_topic'
+        tokens_for_ai: "Any yes or willingness is 'ready'."
+        allow_clarifying_questions: false
         buckets: [ready, set_language, off_topic]
         transitions:
           ready:
+            metadata_add: {score: 0, concepts_mastered: 0}
             next_section_and_step: structures:step_1
           set_language:
+            content_blocks: ["Language preference updated."]
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
-            next_section_and_step: introduction:welcome
           off_topic:
+            content_blocks: ["Say \"ready\" when you'd like to start."]
             counts_as_attempt: false
-            next_section_and_step: introduction:welcome
 
   - section_id: structures
     title: Defining Game Structures
@@ -59,6 +62,8 @@ sections:
         title: Payoff Structure
         content_blocks:
           - "## Representing Payoffs in C 📐"
+          - text: "_Progress: {{metadata.concepts_mastered}} of 4 concepts · {{metadata.score}} points_"
+            show_if: {score_exists: true}
           - ""
           - "**The challenge:**"
           - "How do we represent a payoff (two player outcomes) in C?"
@@ -71,127 +76,85 @@ sections:
           - "**C solution: struct**"
           - "A struct groups related data together"
           - ""
-          - "**What your struct needs:**"
-          - "- A name (like 'Payoff' or 'Outcome')"
-          - "- Two integer fields for the two payoffs"
-          - ""
           - "**Struct syntax reminder:**"
-          - "```"
+          - "```c"
           - "struct StructName {"
           - "    type field1;"
           - "    type field2;"
           - "};"
           - "```"
         question: "Define a C struct called 'Payoff' that contains two integer fields: 'player1' and 'player2' for storing each player's payoff."
-        tokens_for_ai: |
-          Looking for struct definition with:
-          - Name: Payoff (or similar like Outcome, GameResult)
-          - Two int fields for the two player payoffs
-
-          Correct examples:
-          struct Payoff {
-              int player1;
-              int player2;
-          };
-
-          or
-
-          typedef struct {
-              int p1;
-              int p2;
-          } Payoff;
-
-          Categorize as:
-          - correct: Valid struct with two int fields
-          - correct_concept: Right idea, minor syntax
-          - missing_fields: Struct but wrong/missing fields
-          - no_struct: Doesn't use struct
-          - confused: Wrong approach
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          If correct:
-          - Perfect struct definition!
-          - Your struct groups the two payoffs together.
-          - Now you can create: struct Payoff outcome;
-          - Access: outcome.player1 = -1; outcome.player2 = -1;
-
-          If correct concept:
-          - Right idea! Small syntax adjustment:
-          - Show corrected version.
-          - Explain the fix.
-
-          If missing fields:
-          - Remember: need TWO integer fields
-          - One for player1's payoff
-          - One for player2's payoff
-
-          If no struct:
-          - C structs group related data!
-          - Show example struct format.
-        buckets: [correct, correct_concept, missing_fields, no_struct, confused, set_language, off_topic]
+        tokens_for_ai: "Their Payoff struct. `struct Payoff { int player1; int player2; };` or a typedef'd struct count; other field names are fine."
+        bucket_criteria:
+          correct: "A valid struct type Payoff with two int fields."
+          partial_understanding: "A struct with one slip: a missing field, a non-int field, or the closing semicolon left out."
+          incorrect: "Not a struct."
+          off_topic: "Not about the task."
+        required_elements:
+          - "a struct type named Payoff (struct Payoff or a typedef)"
+          - "two int fields, one per player's payoff"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Excellent struct definition!
-                Your Payoff struct elegantly groups both players' outcomes.
-                Usage: struct Payoff p = {-1, -2}; or p.player1 = 0;
-                This is the foundation for representing game outcomes!
+              tokens_for_ai: "Praise their struct; show using it: struct Payoff p; p.player1 = -1; p.player2 = -1;"
             metadata_add: {score: "n+2", concepts_mastered: "n+1"}
-            next_section_and_step: structures:step_2
-          correct_concept:
-            ai_feedback:
-              tokens_for_ai: |
-                Great concept! Minor syntax refinement:
-                Show corrected struct.
-                Explain the adjustment made.
-            metadata_add: {score: "n+1"}
-            next_section_and_step: structures:step_2
-          missing_fields:
-            ai_feedback:
-              tokens_for_ai: |
-                Need two int fields!
-
-                struct Payoff {
-                    int player1;
-                    int player2;
-                };
-
-                This stores both players' payoffs together.
-            next_section_and_step: structures:step_1
-          no_struct:
+            next_section_and_step: structures:index_check
+          partial_understanding:
+            metadata_add: {struct_tries: "n+1"}
             content_blocks:
-              - "Use a struct to group the two payoffs:"
-              - "struct Payoff { ... };"
-              - "Include two int fields inside the braces"
-            next_section_and_step: structures:step_1
-          confused:
+              - text: "💡 Hint: two `int` fields inside the braces, & a semicolon after the closing brace."
+                show_if: {struct_tries_lt: 2}
+              - text: "💡 Hint: each field is a type then a name, like `int player1;`."
+                show_if: {struct_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Name the one missing or wrong piece. Show the full struct only if metadata.struct_tries is 3 or more."
+          incorrect:
+            metadata_add: {struct_tries: "n+1"}
             content_blocks:
-              - "Define a struct with:"
-              - "- Name: Payoff"
-              - "- Two int fields (one for each player's payoff)"
-              - "Don't forget the semicolon at the end!"
-            next_section_and_step: structures:step_1
+              - text: "💡 Hint: follow the syntax reminder: `struct Payoff`, then the fields inside braces."
+                show_if: {struct_tries_lt: 2}
+              - text: "💡 Hint: each field is a type then a name, like `int player1;`."
+                show_if: {struct_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Explain how a struct groups the two payoffs. Show the full struct only if metadata.struct_tries is 3 or more."
           set_language:
+            content_blocks: ["Language preference updated."]
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
-            next_section_and_step: structures:step_1
           off_topic:
-            next_section_and_step: structures:step_1
+            content_blocks: ["Let's define the Payoff struct: two int fields."]
+
+      - step_id: index_check
+        title: "Quick Check: Indexing"
+        content_blocks:
+          - "Next, a 2D array will hold all four outcomes. Strategy 0 = cooperate, 1 = defect; the first index is player 1's strategy, the second player 2's."
+        question_type: multiple_choice
+        question: "Which cell holds \"player 1 defects, player 2 cooperates\"?"
+        choices:
+          - {id: a, text: "matrix[0][1]"}
+          - {id: b, text: "matrix[1][0]"}
+          - {id: c, text: "matrix[1][1]"}
+          - {id: d, text: "matrix[0][0]"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks: ["Right: player 1 defects (1), player 2 cooperates (0)."]
+            metadata_add: {score: "n+1"}
+            next_section_and_step: structures:step_2
+          incorrect:
+            content_blocks: ["Not quite: the first index is player 1's strategy."]
 
       - step_id: step_2
         title: Payoff Matrix with 2D Array
         content_blocks:
           - "## 2D Array for Game Matrix 🎯"
-          - ""
-          - "**Representing a 2x2 game:**"
+          - text: "_Progress: {{metadata.concepts_mastered}} of 4 concepts · {{metadata.score}} points_"
+            show_if: {score_exists: true}
           - ""
           - "**Prisoner's Dilemma has:**"
           - "- 2 strategies per player: cooperate (0) or defect (1)"
           - "- 4 possible outcomes: (0,0), (0,1), (1,0), (1,1)"
-          - ""
-          - "**Perfect for a 2D array!**"
           - ""
           - "**Array structure:**"
           - "- First index: player 1's strategy (0 or 1)"
@@ -206,103 +169,52 @@ sections:
           - "matrix[1][1] = both defect"
           - "```"
           - ""
-          - "**Array declaration concept:**"
-          - "You declare a 2D array of your Payoff struct"
-          - "Then initialize it with the four outcomes"
+          - "You declare a 2D array of your Payoff struct, then initialize it with the four outcomes: an initializer per row, holding one initializer per Payoff."
         question: "Declare and initialize a 2D array called 'prisoners_dilemma' of Payoff structs representing the Prisoner's Dilemma game. Use indices 0=cooperate, 1=defect. Payoffs: both cooperate (-1,-1), both defect (-2,-2), one defects (0,-3) or (-3,0)."
         tokens_for_ai: |
-          Looking for 2D array declaration and initialization:
-
-          struct Payoff prisoners_dilemma[2][2] = {
-              {{-1, -1}, {-3, 0}},   // p1 cooperates
-              {{0, -3}, {-2, -2}}    // p1 defects
-          };
-
-          Or similar valid initialization.
-
-          Categorize as:
-          - correct: Valid 2D array with proper payoffs
-          - correct_structure: Right format, payoff errors
-          - wrong_dimensions: Not 2x2
-          - syntax_errors: C syntax issues
-          - confused: Wrong approach
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          If correct:
-          - Perfect 2D array implementation!
-          - prisoners_dilemma[0][0] = both cooperate = {-1,-1}
-          - prisoners_dilemma[1][1] = both defect = {-2,-2}
-          - prisoners_dilemma[0][1] = p1 cooperate, p2 defect = {-3,0}
-          - prisoners_dilemma[1][0] = p1 defect, p2 cooperate = {0,-3}
-          - Efficient memory layout for game representation!
-
-          If structure right:
-          - Great array structure! Payoff corrections:
-          - Show corrected initialization.
-          - Explain the Prisoner's Dilemma payoffs.
-
-          If wrong dimensions:
-          - Need 2x2 array (2 strategies per player)
-          - struct Payoff name[2][2] = {...};
-
-          If syntax errors:
-          - Show correct C array initialization syntax.
-          - Explain the nested braces structure.
-        buckets: [correct, correct_structure, wrong_dimensions, syntax_errors, confused, set_language, off_topic]
+          Their 2D Payoff array. Expected:
+          struct Payoff prisoners_dilemma[2][2] = { { {-1, -1}, {-3, 0} }, { {0, -3}, {-2, -2} } };
+          Row = player 1's strategy. Designated initializers or assigning each cell count too.
+        bucket_criteria:
+          correct: "A 2x2 Payoff array with all four payoffs in their right cells."
+          partial_understanding: "A 2x2 Payoff array with a slip: a payoff swapped or in the wrong cell, or an initializer syntax error."
+          incorrect: "Not a 2x2 array of Payoff."
+          off_topic: "Not about the task."
+        required_elements:
+          - "a 2x2 array of Payoff named prisoners_dilemma"
+          - "rows are player 1's strategy, columns player 2's (0 = cooperate)"
+          - "the four payoffs in their right cells"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Excellent array implementation!
-                Your 2D array efficiently represents the payoff matrix.
-                Access is simple: prisoners_dilemma[i][j]
-                Memory layout is contiguous and cache-friendly.
-                This is how game theory simulations optimize performance!
+              tokens_for_ai: "Praise their array; note prisoners_dilemma[0][1] is (-3, 0) & the layout is contiguous in memory."
             metadata_add: {score: "n+2", concepts_mastered: "n+1"}
             next_section_and_step: functions:step_1
-          correct_structure:
-            ai_feedback:
-              tokens_for_ai: |
-                Great structure! Payoff corrections for Prisoner's Dilemma:
-                Show corrected initialization with explanations.
-                Explain why these specific payoffs create the dilemma.
-            metadata_add: {score: "n+1"}
-            next_section_and_step: functions:step_1
-          wrong_dimensions:
-            ai_feedback:
-              tokens_for_ai: |
-                Need 2x2 for two-strategy game:
-
-                struct Payoff game[2][2] = {
-                    {{-1,-1}, {-3,0}},
-                    {{0,-3}, {-2,-2}}
-                };
-            next_section_and_step: structures:step_2
-          syntax_errors:
-            ai_feedback:
-              tokens_for_ai: |
-                C array initialization uses nested braces:
-
-                struct Payoff arr[2][2] = {
-                    {row0_col0, row0_col1},
-                    {row1_col0, row1_col1}
-                };
-
-                Each Payoff is {p1_payoff, p2_payoff}
-            next_section_and_step: structures:step_2
-          confused:
+          partial_understanding:
+            metadata_add: {array_tries: "n+1"}
             content_blocks:
-              - "Declare: struct Payoff prisoners_dilemma[2][2]"
-              - "Initialize with nested braces: {{...}, {...}}"
-              - "Four outcomes total (2x2 = 4 combinations)"
-            next_section_and_step: structures:step_2
+              - text: "💡 Hint: check cell [0][1]: player 1 cooperated & player 2 defected, so player 1 gets -3."
+                show_if: {array_tries_lt: 2}
+              - text: "💡 Hint: row 0 holds (-1,-1) then (-3,0); row 1 holds (0,-3) then (-2,-2). Each Payoff gets its own braces."
+                show_if: {array_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Name the one cell or brace that's wrong. Show the full initialization only if metadata.array_tries is 3 or more."
+          incorrect:
+            metadata_add: {array_tries: "n+1"}
+            content_blocks:
+              - text: "💡 Hint: declare it as `struct Payoff prisoners_dilemma[2][2]`, then give one initializer per row."
+                show_if: {array_tries_lt: 2}
+              - text: "💡 Hint: row 0 holds (-1,-1) then (-3,0); row 1 holds (0,-3) then (-2,-2). Each Payoff gets its own braces."
+                show_if: {array_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Explain declaring & initializing a 2D array of structs. Show the full initialization only if metadata.array_tries is 3 or more."
           set_language:
+            content_blocks: ["Language preference updated."]
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
-            next_section_and_step: structures:step_2
           off_topic:
-            next_section_and_step: structures:step_2
+            content_blocks: ["Let's build the payoff array: 2x2, four Payoffs."]
 
   - section_id: functions
     title: Strategy Functions
@@ -311,8 +223,8 @@ sections:
         title: Lookup Function
         content_blocks:
           - "## Querying the Payoff Matrix 🔍"
-          - ""
-          - "**Create a function to get payoffs**"
+          - text: "_Progress: {{metadata.concepts_mastered}} of 4 concepts · {{metadata.score}} points_"
+            show_if: {score_exists: true}
           - ""
           - "**Function requirements:**"
           - "- Name: `get_payoff`"
@@ -320,101 +232,53 @@ sections:
           - "- Returns: Payoff struct"
           - ""
           - "**C function concepts:**"
-          - "- Pass 2D array as pointer"
+          - "- A 2D array parameter decays to a pointer to its rows"
           - "- Access with array indexing"
-          - "- Return struct by value"
-          - ""
-          - "**What it does:**"
-          - "Takes strategies (0 or 1 for each player)"
-          - "Returns the corresponding Payoff from the matrix"
+          - "- Return a struct by value"
         question: "Write a C function called 'get_payoff' that takes a 2D Payoff array (as pointer) and two integer strategy indices, then returns the Payoff struct for that strategy combination."
         tokens_for_ai: |
-          Acceptable function signatures:
-          - struct Payoff get_payoff(struct Payoff matrix[2][2], int s1, int s2)
-          - struct Payoff get_payoff(struct Payoff (*matrix)[2], int s1, int s2)
-
-          Function body should:
-          - Return matrix[s1][s2];
-
-          Categorize as:
-          - correct: Valid function with proper syntax
-          - correct_logic: Right idea, minor syntax
-          - wrong_return: Doesn't return Payoff struct
-          - pointer_confusion: Struggles with array parameter
-          - confused: Wrong approach
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          If correct:
-          - Perfect function!
-          - Your function cleanly accesses the 2D array.
-          - Returning struct by value is simple and safe here.
-          - Usage: struct Payoff p = get_payoff(game, 0, 1);
-
-          If correct logic:
-          - Great logic! Minor syntax refinement:
-          - Show corrected version.
-          - Explain the C-specific details.
-
-          If wrong return:
-          - Function should return struct Payoff
-          - return matrix[s1][s2]; gives you the Payoff struct.
-
-          If pointer confusion:
-          - For small 2D arrays, can pass as: struct Payoff matrix[2][2]
-          - Or use pointer: struct Payoff (*matrix)[2]
-          - Show working example.
-        buckets: [correct, correct_logic, wrong_return, pointer_confusion, confused, set_language, off_topic]
+          Their get_payoff function. Parameter forms that count: struct Payoff m[2][2],
+          struct Payoff m[][2], struct Payoff (*m)[2]. Body: return m[s1][s2];
+        bucket_criteria:
+          correct: "Returns struct Payoff, takes the array & two ints, returns the cell [s1][s2]."
+          partial_understanding: "One slip: wrong return type, indices swapped, or an array parameter C won't accept (struct Payoff **)."
+          incorrect: "No function, or no array lookup."
+          off_topic: "Not about the task."
+        required_elements:
+          - "returns a struct Payoff"
+          - "takes the 2x2 Payoff array & two int strategy indices"
+          - "returns the cell at [player 1's strategy][player 2's strategy]"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Excellent function implementation!
-                Your get_payoff function cleanly retrieves outcomes.
-                C's struct return makes this straightforward.
-                You've encapsulated the lookup logic perfectly!
+              tokens_for_ai: "Praise their function; show a call: struct Payoff p = get_payoff(prisoners_dilemma, 0, 1);"
             metadata_add: {score: "n+2", concepts_mastered: "n+1"}
             next_section_and_step: simulation:step_1
-          correct_logic:
-            ai_feedback:
-              tokens_for_ai: |
-                Great logic! Small C syntax refinement:
-                Show polished version.
-                Explain the specific C conventions used.
-            metadata_add: {score: "n+1"}
-            next_section_and_step: simulation:step_1
-          wrong_return:
-            ai_feedback:
-              tokens_for_ai: |
-                Return type should be struct Payoff:
-
-                struct Payoff get_payoff(struct Payoff matrix[2][2], int s1, int s2) {
-                    return matrix[s1][s2];
-                }
-            next_section_and_step: functions:step_1
-          pointer_confusion:
-            ai_feedback:
-              tokens_for_ai: |
-                For 2D array parameter, simple approach:
-
-                struct Payoff get_payoff(struct Payoff matrix[2][2], int s1, int s2) {
-                    return matrix[s1][s2];
-                }
-
-                C automatically handles the array as pointer.
-            next_section_and_step: functions:step_1
-          confused:
+          partial_understanding:
+            metadata_add: {lookup_tries: "n+1"}
             content_blocks:
-              - "Function signature: struct Payoff get_payoff(struct Payoff matrix[2][2], int s1, int s2)"
-              - "Function body: return matrix[s1][s2];"
-              - "This returns the Payoff at position [s1][s2]"
-            next_section_and_step: functions:step_1
+              - text: "💡 Hint: the return type comes first: what kind of value comes back from one cell?"
+                show_if: {lookup_tries_lt: 2}
+              - text: "💡 Hint: `struct Payoff **` is not a 2D array; `struct Payoff m[2][2]` or `struct Payoff (*m)[2]` is."
+                show_if: {lookup_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Name the one missing or wrong piece. Show a complete function only if metadata.lookup_tries is 3 or more."
+          incorrect:
+            metadata_add: {lookup_tries: "n+1"}
+            content_blocks:
+              - text: "💡 Hint: the body is a single `return` of one array cell."
+                show_if: {lookup_tries_lt: 2}
+              - text: "💡 Hint: `struct Payoff **` is not a 2D array; `struct Payoff m[2][2]` or `struct Payoff (*m)[2]` is."
+                show_if: {lookup_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Explain passing a 2D array & indexing it. Show a complete function only if metadata.lookup_tries is 3 or more."
           set_language:
+            content_blocks: ["Language preference updated."]
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
-            next_section_and_step: functions:step_1
           off_topic:
-            next_section_and_step: functions:step_1
+            content_blocks: ["Let's write `get_payoff`: the array & two strategies in, one Payoff out."]
 
   - section_id: simulation
     title: Game Simulation
@@ -423,6 +287,8 @@ sections:
         title: Strategy Enumeration
         content_blocks:
           - "## Defining Strategies with Enum 🎲"
+          - text: "_Progress: {{metadata.concepts_mastered}} of 4 concepts · {{metadata.score}} points_"
+            show_if: {score_exists: true}
           - ""
           - "**Making code readable:**"
           - "Instead of 0 and 1, use named constants!"
@@ -430,99 +296,59 @@ sections:
           - "**C enum for strategies:**"
           - "Enums give names to integer values"
           - ""
-          - "**What you need:**"
-          - "- Enum name: Strategy (or similar)"
-          - "- Two values: COOPERATE = 0, DEFECT = 1"
-          - ""
           - "**Why enums improve code:**"
           - "- get_payoff(game, COOPERATE, DEFECT) is clearer"
           - "- Better than get_payoff(game, 0, 1)"
           - "- Self-documenting code"
-          - "- Type safety (to some degree)"
         question: "Define a C enum called 'Strategy' with two values: COOPERATE (equals 0) and DEFECT (equals 1)."
-        tokens_for_ai: |
-          Looking for enum definition:
-
-          enum Strategy {
-              COOPERATE = 0,
-              DEFECT = 1
-          };
-
-          Or:
-          typedef enum {
-              COOPERATE = 0,
-              DEFECT = 1
-          } Strategy;
-
-          Categorize as:
-          - correct: Valid enum with both values
-          - correct_concept: Right idea, minor syntax
-          - missing_values: Enum but wrong values
-          - no_enum: Doesn't use enum
-          - confused: Wrong approach
-          - set_language: Language preference
-          - off_topic: Unrelated
-        feedback_tokens_for_ai: |
-          If correct:
-          - Perfect enum definition!
-          - Now you can write: enum Strategy s = COOPERATE;
-          - Much more readable than: int s = 0;
-          - Self-documenting code is maintainable code!
-
-          If correct concept:
-          - Great use of enum! Small refinement:
-          - Show corrected version.
-
-          If missing values:
-          - Need both COOPERATE = 0 and DEFECT = 1
-          - Show correct enum.
-
-          If no enum:
-          - C enums create named integer constants:
-          - Show enum syntax.
-        buckets: [correct, correct_concept, missing_values, no_enum, confused, set_language, off_topic]
+        tokens_for_ai: "Their Strategy enum: `enum Strategy { COOPERATE = 0, DEFECT = 1 };` or a typedef'd enum. Leaving the values implicit (0 & 1 by order) counts."
+        bucket_criteria:
+          correct: "A Strategy enum where COOPERATE is 0 & DEFECT is 1."
+          partial_understanding: "An enum with a slip: a value missing or wrong, or the semicolon left out."
+          incorrect: "Not an enum (#define constants or plain ints)."
+          off_topic: "Not about the task."
+        required_elements:
+          - "an enum named Strategy"
+          - "COOPERATE equal to 0"
+          - "DEFECT equal to 1"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Excellent enum!
-                Your code is now self-documenting.
-                COOPERATE and DEFECT are much clearer than 0 and 1.
-                This is professional C code style!
-                You've mastered game theory implementation in C!
+              tokens_for_ai: "Celebrate: their code now reads get_payoff(prisoners_dilemma, COOPERATE, DEFECT)."
             metadata_add: {score: "n+2", concepts_mastered: "n+1", activity_completed: "true"}
-          correct_concept:
-            ai_feedback:
-              tokens_for_ai: |
-                Great enum concept! Small polish:
-                Show refined version.
-                You understand C enums well!
-            metadata_add: {score: "n+1", activity_completed: "true"}
-          missing_values:
-            ai_feedback:
-              tokens_for_ai: |
-                Need both strategies:
-
-                enum Strategy {
-                    COOPERATE = 0,
-                    DEFECT = 1
-                };
-            next_section_and_step: simulation:step_1
-          no_enum:
+            next_section_and_step: simulation:wrap_up
+          partial_understanding:
+            metadata_add: {enum_tries: "n+1"}
             content_blocks:
-              - "Define enum with:"
-              - "enum Strategy { COOPERATE = 0, DEFECT = 1 };"
-              - "This creates named constants"
-            next_section_and_step: simulation:step_1
-          confused:
+              - text: "💡 Hint: list both names inside the braces, separated by a comma, & end with a semicolon."
+                show_if: {enum_tries_lt: 2}
+              - text: "💡 Hint: `NAME = value` sets a value; without one, an enum counts from 0."
+                show_if: {enum_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Name the one missing or wrong piece. Show the enum only if metadata.enum_tries is 3 or more."
+          incorrect:
+            metadata_add: {enum_tries: "n+1"}
             content_blocks:
-              - "Enum syntax: enum Name { VALUE1 = 0, VALUE2 = 1 };"
-              - "Creates named integer constants"
-              - "Don't forget the semicolon!"
-            next_section_and_step: simulation:step_1
+              - text: "💡 Hint: the shape is like a struct's, with the keyword `enum` & names in place of fields."
+                show_if: {enum_tries_lt: 2}
+              - text: "💡 Hint: `NAME = value` sets a value; without one, an enum counts from 0."
+                show_if: {enum_tries_gte: 2}
+            ai_feedback:
+              tokens_for_ai: "Explain how an enum differs from #define constants. Show the enum only if metadata.enum_tries is 3 or more."
           set_language:
+            content_blocks: ["Language preference updated."]
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
-            next_section_and_step: simulation:step_1
           off_topic:
-            metadata_add: {activity_completed: "true"}
+            content_blocks: ["Let's define the Strategy enum: COOPERATE and DEFECT."]
+
+      - step_id: wrap_up
+        title: Game Over
+        content_blocks:
+          - "# Well Played! 🏆"
+          - text: "You coded **{{metadata.concepts_mastered}} of 4** concepts & scored **{{metadata.score}}** points."
+            show_if: {score_exists: true}
+          - ""
+          - "You built a payoff struct, a 2D matrix, a lookup function & a strategy enum."
+          - "**Next:** write `enum Strategy tit_for_tat(enum Strategy opponent_last)` & play 100 rounds in a loop."

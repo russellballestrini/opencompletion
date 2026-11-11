@@ -1,3 +1,8 @@
+title: "Fashion Empire: The Backrooms"
+description: "A story game: run an underground fashion house, command robots & staff, weather emergencies & stage tonight's runway show."
+kind: "game"
+# Answers here are moves & directives, so no built-in clarifying bucket.
+allow_clarifying_questions: false
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
@@ -35,18 +40,17 @@ sections:
           - ""
           - "**You are the Vision. You are the Brand. You are in Control.**"
           - ""
-          - "A soft chime. Your AI assistant, **V.O.G.U.E.** (Virtual Operational Guide for Unlimited Expression), materializes:"
+          - "A soft chime. Your machine learning assistant, **V.O.G.U.E.** (Virtual Operational Guide for Unlimited Expression), materializes:"
           - ""
           - "*Good morning, Director. Shall we review today's operations?*"
         question: What's your name, Director? (This is YOUR empire—choose how you want to be known!)
         tokens_for_ai: |
           Store their name as the Director.
           Accept ANY name they choose.
-
-          Categorize as:
-          - name_provided: They give a name
-          - set_language: Language preference
-          - off_topic: Unclear or unrelated
+        bucket_criteria:
+          name_provided: "They give a name."
+          set_language: "Asks for another language."
+          off_topic: "Unclear or unrelated."
         feedback_tokens_for_ai: |
           Welcome them by their chosen Director name!
           Make it feel powerful and personalized.
@@ -66,6 +70,9 @@ sections:
               director_name: "the-users-response"
               empire_status: "operational"
               score: "n+1"
+              missions_completed: 0
+              emergencies_handled: 0
+              locations_visited: 0
             next_section_and_step: awakening:morning_briefing
           set_language:
             content_blocks:
@@ -73,11 +80,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: awakening:intro
           off_topic:
             content_blocks:
               - "V.O.G.U.E.: *Director, I need your name for security clearance. What shall I call you?*"
-            next_section_and_step: awakening:intro
 
       - step_id: morning_briefing
         title: Operations Status
@@ -128,12 +133,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: awakening:morning_briefing
           off_topic:
             content_blocks:
               - "V.O.G.U.E.: *Director, the empire requires your leadership. Shall we begin?*"
-            counts_as_attempt: false
-            next_section_and_step: awakening:morning_briefing
 
   - section_id: exploration
     title: Navigate Your Empire
@@ -181,8 +183,9 @@ sections:
           - salon, creative, styling, design -> salon
           - sub, submarine, underwater, bay, dye lab -> sub_bay
           - reactor, nuclear, atelier, synthesis, tech -> reactor
-          - set_language: Language preference
-          - unclear: Can't determine location
+        bucket_criteria:
+          set_language: "Asks for another language."
+          off_topic: "No location can be told from it."
         feedback_tokens_for_ai: |
           Acknowledge their choice with atmospheric description.
           "The elevator descends..." or "The doors open to reveal..."
@@ -193,7 +196,7 @@ sections:
           - sub_bay
           - reactor
           - set_language
-          - unclear
+          - off_topic
         transitions:
           warehouse:
             ai_feedback:
@@ -246,11 +249,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: exploration:location_choice
-          unclear:
+          off_topic:
             content_blocks:
               - "V.O.G.U.E.: *Director, please specify: Warehouse, Salon, Sub Bay, or Reactor?*"
-            next_section_and_step: exploration:location_choice
 
   - section_id: warehouse_zone
     title: Warehouse Level -3
@@ -278,13 +279,12 @@ sections:
         tokens_for_ai: |
           This is a MISSION TASK (15% category).
           Store their color choice for the collection.
-
-          Categorize as:
-          - specific_color: They name specific colors/palette
-          - creative_vision: They describe a unique aesthetic
-          - defer_to_expert: They trust Zara-7's judgment
-          - set_language: Language preference
-          - unclear: Vague or unrelated
+        bucket_criteria:
+          specific_color: "They name specific colors/palette."
+          creative_vision: "They describe a unique aesthetic."
+          defer_to_expert: "They trust Zara-7's judgment."
+          set_language: "Asks for another language."
+          off_topic: "Vague or unrelated."
         feedback_tokens_for_ai: |
           Acknowledge their creative direction as the Director!
           Zara-7 confirms the order and praises their vision.
@@ -294,7 +294,7 @@ sections:
           - creative_vision
           - defer_to_expert
           - set_language
-          - unclear
+          - off_topic
         transitions:
           specific_color:
             ai_feedback:
@@ -338,11 +338,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: warehouse_zone:arrival
-          unclear:
+          off_topic:
             content_blocks:
               - "Zara-7: *'Director, I need color direction for the neon silk. What's your vision?'*"
-            next_section_and_step: warehouse_zone:arrival
 
       - step_id: robot_command
         title: Command Your Robots
@@ -369,14 +367,13 @@ sections:
         tokens_for_ai: |
           This is a MANAGEMENT DECISION.
           They're controlling their robot workforce.
-
-          Categorize as:
-          - option_a: Safety-focused (backup outfits)
-          - option_b: Forward-thinking (next week)
-          - option_c: Efficiency-focused (organize)
-          - custom_directive: Their own creative command
-          - set_language: Language preference
-          - unclear: Vague or unrelated
+        bucket_criteria:
+          option_a: "Safety-focused (backup outfits)."
+          option_b: "Forward-thinking (next week)."
+          option_c: "Efficiency-focused (organize)."
+          custom_directive: "Their own creative command."
+          set_language: "Asks for another language."
+          off_topic: "Vague or unrelated."
         feedback_tokens_for_ai: |
           Confirm their command with authority!
           "Command received. Assembly Drones reprogramming..."
@@ -398,7 +395,7 @@ sections:
           - creative_opportunity
           - surprise_client
           - set_language
-          - unclear
+          - off_topic
         transitions:
           option_a:
             ai_feedback:
@@ -454,11 +451,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: warehouse_zone:robot_command
-          unclear:
+          off_topic:
             content_blocks:
               - "Zara-7: *'Director, the drones need clear orders. Option A, B, C, or your own command?'*"
-            next_section_and_step: warehouse_zone:robot_command
           fashion_emergency:
             ai_feedback:
               tokens_for_ai: |
@@ -539,14 +534,13 @@ sections:
         tokens_for_ai: |
           This is the 5% EMERGENCY EVENT!
           They must make a high-pressure decision.
-
-          Categorize as:
-          - salvage: Try to save the material
-          - sub_bay: Emergency underwater processing
-          - redesign: Creative solution with new materials
-          - custom_solution: Their own creative emergency response
-          - set_language: Language preference
-          - unclear: Vague or hesitant
+        bucket_criteria:
+          salvage: "Try to save the material."
+          sub_bay: "Emergency underwater processing."
+          redesign: "Creative solution with new materials."
+          custom_solution: "Their own creative emergency response."
+          set_language: "Asks for another language."
+          off_topic: "Vague or hesitant."
         feedback_tokens_for_ai: |
           This is HIGH PRESSURE. Make them feel the stakes!
           Then show their decision working out.
@@ -558,7 +552,7 @@ sections:
           - redesign
           - custom_solution
           - set_language
-          - unclear
+          - off_topic
         transitions:
           salvage:
             ai_feedback:
@@ -618,12 +612,10 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: warehouse_zone:emergency_event
-          unclear:
+          off_topic:
             content_blocks:
               - "⏱️ TIME IS RUNNING OUT, DIRECTOR!"
               - "Zara-7: *'Choose NOW: 1-Salvage, 2-Sub Bay, 3-Redesign, or tell me your plan!'*"
-            next_section_and_step: warehouse_zone:emergency_event
 
   - section_id: salon_zone
     title: The Salon - Creative Hub
@@ -661,14 +653,13 @@ sections:
         tokens_for_ai: |
           This is a CREATIVE VISION task (15% category).
           Their choice defines their brand aesthetic.
-
-          Categorize as:
-          - model_a: Geometric, modern, stark
-          - model_b: Flowing, ethereal, soft
-          - model_c: Edgy, streetwear, bold
-          - custom_vision: They describe their own opening look
-          - set_language: Language preference
-          - unclear: Vague or unrelated
+        bucket_criteria:
+          model_a: "Geometric, modern, stark."
+          model_b: "Flowing, ethereal, soft."
+          model_c: "Edgy, streetwear, bold."
+          custom_vision: "They describe their own opening look."
+          set_language: "Asks for another language."
+          off_topic: "Vague or unrelated."
         feedback_tokens_for_ai: |
           This is THEIR brand. Celebrate their aesthetic choice!
           Viktor affirms their vision.
@@ -680,7 +671,7 @@ sections:
           - model_c
           - custom_vision
           - set_language
-          - unclear
+          - off_topic
         transitions:
           model_a:
             ai_feedback:
@@ -737,11 +728,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: salon_zone:arrival
-          unclear:
+          off_topic:
             content_blocks:
               - "Viktor: *'Director, I need your decision. Model A, B, C, or describe your vision?'*"
-            next_section_and_step: salon_zone:arrival
 
       - step_id: npc_management
         title: Lead Your Team
@@ -771,14 +760,13 @@ sections:
         tokens_for_ai: |
           This is an NPC MANAGEMENT task.
           Shows their leadership style.
-
-          Categorize as:
-          - support_luna: Minimalist approach
-          - support_sol: Statement approach
-          - compromise: Blend both visions
-          - custom_direction: Their own accessory philosophy
-          - set_language: Language preference
-          - unclear: Vague or indecisive
+        bucket_criteria:
+          support_luna: "Minimalist approach."
+          support_sol: "Statement approach."
+          compromise: "Blend both visions."
+          custom_direction: "Their own accessory philosophy."
+          set_language: "Asks for another language."
+          off_topic: "Vague or indecisive."
         feedback_tokens_for_ai: |
           Show them being a strong leader!
           Whichever choice they make, Luna and Sol respect it.
@@ -800,7 +788,7 @@ sections:
           - creative_opportunity
           - surprise_client
           - set_language
-          - unclear
+          - off_topic
         transitions:
           support_luna:
             ai_feedback:
@@ -860,11 +848,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: salon_zone:npc_management
-          unclear:
+          off_topic:
             content_blocks:
               - "Luna & Sol: *'Director, we need your decision. Minimalist, statement, blend, or your own direction?'*"
-            next_section_and_step: salon_zone:npc_management
           fashion_emergency:
             ai_feedback:
               tokens_for_ai: |
@@ -940,14 +926,13 @@ sections:
         tokens_for_ai: |
           This is a RISK DECISION task.
           Shows their leadership philosophy: innovation vs. safety.
-
-          Categorize as:
-          - yes_debut: Take the risk, debut the innovation
-          - no_safe: Play it safe, save for later
-          - test_first: Want to test it more before deciding
-          - custom_approach: Their own strategy
-          - set_language: Language preference
-          - unclear: Vague or uncertain
+        bucket_criteria:
+          yes_debut: "Take the risk, debut the innovation."
+          no_safe: "Play it safe, save for later."
+          test_first: "Want to test it more before deciding."
+          custom_approach: "Their own strategy."
+          set_language: "Asks for another language."
+          off_topic: "Vague or uncertain."
         feedback_tokens_for_ai: |
           This defines their brand philosophy!
           Mx. Kai respects their decision either way.
@@ -959,7 +944,7 @@ sections:
           - test_first
           - custom_approach
           - set_language
-          - unclear
+          - off_topic
         transitions:
           yes_debut:
             ai_feedback:
@@ -1016,11 +1001,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: sub_bay_zone:arrival
-          unclear:
+          off_topic:
             content_blocks:
               - "Mx. Kai: *'Director, time is tight. Debut the experimental fabric tonight? Yes, no, or what's your strategy?'*"
-            next_section_and_step: sub_bay_zone:arrival
 
       - step_id: mission_task
         title: Textile Treatment Mission
@@ -1059,14 +1042,14 @@ sections:
           This is a MISSION TASK (15% category).
           Their choice affects next week's client show aesthetic.
 
-          Categorize as:
           - treatment_1: Bioluminescent (ethereal)
           - treatment_2: Pressure texturing (architectural)
           - treatment_3: Thermal reactive (interactive)
           - treatment_4: Traditional dye (classic)
-          - custom_treatment: Their own innovation
-          - set_language: Language preference
-          - unclear: Vague or unrelated
+        bucket_criteria:
+          custom_treatment: "Their own innovation."
+          set_language: "Asks for another language."
+          off_topic: "Vague or unrelated."
         feedback_tokens_for_ai: |
           Confirm their choice with technical detail!
           Submersibles begin the process.
@@ -1089,7 +1072,7 @@ sections:
           - creative_opportunity
           - surprise_client
           - set_language
-          - unclear
+          - off_topic
         transitions:
           treatment_1:
             ai_feedback:
@@ -1158,11 +1141,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: sub_bay_zone:mission_task
-          unclear:
+          off_topic:
             content_blocks:
               - "Mx. Kai: *'Director, which treatment process? 1, 2, 3, 4, or your own innovation?'*"
-            next_section_and_step: sub_bay_zone:mission_task
           fashion_emergency:
             ai_feedback:
               tokens_for_ai: |
@@ -1242,14 +1223,13 @@ sections:
         tokens_for_ai: |
           This is a HIGH-STAKES DECISION.
           Shows their strategic thinking: immediate impact vs. long-term branding.
-
-          Categorize as:
-          - use_tonight: Debut the miracle fabric now
-          - save_signature: Save for signature collection
-          - split_decision: Use some now, save some
-          - custom_strategy: Their own approach
-          - set_language: Language preference
-          - unclear: Uncertain or vague
+        bucket_criteria:
+          use_tonight: "Debut the miracle fabric now."
+          save_signature: "Save for signature collection."
+          split_decision: "Use some now, save some."
+          custom_strategy: "Their own approach."
+          set_language: "Asks for another language."
+          off_topic: "Uncertain or vague."
         feedback_tokens_for_ai: |
           This is about brand strategy!
           Dr. Zara-7 respects their decision.
@@ -1261,7 +1241,7 @@ sections:
           - split_decision
           - custom_strategy
           - set_language
-          - unclear
+          - off_topic
         transitions:
           use_tonight:
             ai_feedback:
@@ -1318,11 +1298,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: reactor_zone:arrival
-          unclear:
+          off_topic:
             content_blocks:
               - "Dr. Zara-7: *'Director, the atomic fabric: use tonight, save for signature collection, or another strategy?'*"
-            next_section_and_step: reactor_zone:arrival
 
       - step_id: power_management
         title: Manage Reactor Power
@@ -1358,15 +1336,14 @@ sections:
         tokens_for_ai: |
           This is a RESOURCE MANAGEMENT task (15% category).
           Shows their operational priorities.
-
-          Categorize as:
-          - boost_synthesis: Prioritize production
-          - boost_warehouse: Prioritize preservation
-          - boost_salon: Prioritize tonight's show
-          - boost_sub_bay: Prioritize innovation
-          - balanced: Keep things stable
-          - set_language: Language preference
-          - unclear: Vague or unrelated
+        bucket_criteria:
+          boost_synthesis: "Prioritize production."
+          boost_warehouse: "Prioritize preservation."
+          boost_salon: "Prioritize tonight's show."
+          boost_sub_bay: "Prioritize innovation."
+          balanced: "Keep things stable."
+          set_language: "Asks for another language."
+          off_topic: "Vague or unrelated."
         feedback_tokens_for_ai: |
           Confirm their power allocation!
           "POWER DISTRIBUTION UPDATED."
@@ -1389,7 +1366,7 @@ sections:
           - creative_opportunity
           - surprise_client
           - set_language
-          - unclear
+          - off_topic
         transitions:
           boost_synthesis:
             ai_feedback:
@@ -1456,11 +1433,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: reactor_zone:power_management
-          unclear:
+          off_topic:
             content_blocks:
               - "Dr. Zara-7: *'Director, power allocation decision: Boost 1, 2, 3, 4, or maintain balance (5)?'*"
-            next_section_and_step: reactor_zone:power_management
           fashion_emergency:
             ai_feedback:
               tokens_for_ai: |
@@ -1516,9 +1491,18 @@ sections:
           - "*Director, excellent work. Your empire runs because of your vision.*"
           - ""
           - "**📊 CURRENT STATUS:**"
-          - "- Missions Completed: Check metadata"
-          - "- Emergencies Handled: Check metadata"
-          - "- Leadership Score: Check metadata"
+          - text: "- Missions Completed: {{metadata.missions_completed}}"
+            show_if:
+              missions_completed_exists: true
+          - text: "- Emergencies Handled: {{metadata.emergencies_handled}}"
+            show_if:
+              emergencies_handled_exists: true
+          - text: "- Leadership Score: {{metadata.score}}"
+            show_if:
+              score_exists: true
+          - text: "- Locations Visited: {{metadata.locations_visited}}"
+            show_if:
+              locations_visited_exists: true
           - ""
           - "**NEXT ACTIONS:**"
           - ""
@@ -1530,21 +1514,20 @@ sections:
         question: "Choose: 1 (Visit location), 2 (Tonight's show), 3 (Reflect), or describe your action"
         tokens_for_ai: |
           This is a navigation choice.
-
-          Categorize as:
-          - visit_location: Want to explore more (ask which location)
-          - attend_show: Ready for the runway event
-          - reflect: Want to wrap up and reflect
-          - custom_action: Their own directive
-          - set_language: Language preference
-          - unclear: Vague
+        bucket_criteria:
+          visit_location: "Want to explore more (ask which location)."
+          attend_show: "Ready for the runway event."
+          reflect: "Want to wrap up and reflect."
+          custom_action: "Their own directive."
+          set_language: "Asks for another language."
+          off_topic: "Vague."
         buckets:
           - visit_location
           - attend_show
           - reflect
           - custom_action
           - set_language
-          - unclear
+          - off_topic
         transitions:
           visit_location:
             content_blocks:
@@ -1557,6 +1540,8 @@ sections:
           reflect:
             content_blocks:
               - "V.O.G.U.E.: *Understood. Entering reflection mode.*"
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: finale:reflection
           custom_action:
             ai_feedback:
@@ -1571,11 +1556,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: operations_hub:location_hub
-          unclear:
+          off_topic:
             content_blocks:
               - "V.O.G.U.E.: *Director, please choose: 1-Visit location, 2-Attend show, 3-Reflect?*"
-            next_section_and_step: operations_hub:location_hub
 
   - section_id: finale
     title: The Runway & Legacy
@@ -1624,15 +1607,14 @@ sections:
         tokens_for_ai: |
           This is an emotional reflection moment.
           Let them express their feelings about their empire and show.
-
-          Categorize as:
-          - proud: Expresses pride in their work
-          - creative_satisfaction: Feels creatively fulfilled
-          - ready_for_more: Energized for future shows
-          - emotional: Moved by the experience
-          - brief: Short but genuine response
-          - set_language: Language preference
-          - off_topic: Unrelated
+        bucket_criteria:
+          proud: "Expresses pride in their work."
+          creative_satisfaction: "Feels creatively fulfilled."
+          ready_for_more: "Energized for future shows."
+          emotional: "Moved by the experience."
+          brief: "Short but genuine response."
+          set_language: "Asks for another language."
+          off_topic: "Unrelated."
         feedback_tokens_for_ai: |
           This is THEIR MOMENT!
           Celebrate their leadership, creativity, and vision.
@@ -1707,11 +1689,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: finale:runway_show
           off_topic:
             content_blocks:
               - "Viktor: *'Director, the show was INCREDIBLE! How do you feel about what you created?'*"
-            next_section_and_step: finale:runway_show
 
       - step_id: reflection
         title: Legacy of a Director
@@ -1733,10 +1713,18 @@ sections:
           - "---"
           - ""
           - "**📊 EMPIRE STATISTICS:**"
-          - "- Leadership Score: Check metadata"
-          - "- Missions Completed: Check metadata"
-          - "- Emergencies Handled: Check metadata"
-          - "- Locations Visited: Check metadata"
+          - text: "- Missions Completed: {{metadata.missions_completed}}"
+            show_if:
+              missions_completed_exists: true
+          - text: "- Emergencies Handled: {{metadata.emergencies_handled}}"
+            show_if:
+              emergencies_handled_exists: true
+          - text: "- Leadership Score: {{metadata.score}}"
+            show_if:
+              score_exists: true
+          - text: "- Locations Visited: {{metadata.locations_visited}}"
+            show_if:
+              locations_visited_exists: true
           - "- Creative Decisions Made: Throughout your journey"
           - ""
           - "---"
@@ -1759,4 +1747,9 @@ sections:
           - ""
           - "All under YOUR control."
           - ""
-          - "**You are the Director. Welcome to your empire. 👑**"
+          - text: "**You are the Director, {{metadata.director_name}}. Welcome to your empire. 👑**"
+            show_if:
+              director_name_exists: true
+          - text: "**You are the Director. Welcome to your empire. 👑**"
+            show_if:
+              director_name_not_exists: true

@@ -1,3 +1,6 @@
+title: "Multi-Armed Bandits"
+description: "Explore or exploit? Code epsilon-greedy and watch it beat an even A/B split at three slot machines."
+kind: "lesson"
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_3"  # Use code model for programming feedback
@@ -92,21 +95,16 @@ sections:
       - step_id: "understand_problem"
         title: "Understanding Check"
         question: "In your own words, what is the main challenge of the multi-armed bandit problem?"
-        tokens_for_ai: |
-          The student should understand the exploration vs exploitation tradeoff.
-
-          Categorize as 'excellent' if they mention:
-          - Balancing exploration (trying different options) and exploitation (using the best known option)
-          - Not knowing which option is best initially
-          - Learning while optimizing
-
-          Categorize as 'good' if they mention:
-          - Finding the best option
-          - Learning from limited attempts
-
-          Categorize as 'set_language' if requesting language change.
-          Categorize as 'needs_help' otherwise.
-        buckets: [excellent, good, set_language, needs_help]
+        tokens_for_ai: "Grade their statement of the bandit problem's main challenge."
+        bucket_criteria:
+          excellent: "Every required element: the explore vs exploit tradeoff."
+          partial_understanding: "Finding the best machine or learning from few pulls, without the tradeoff."
+          set_language: "Asks to change the conversation language."
+          needs_help: "Misses the problem."
+        required_elements:
+          - "the machines' payout rates are unknown and must be learned by playing"
+          - "each pull spent trying machines (exploring) is a pull not spent on the best one found (exploiting), so the two must be balanced"
+        buckets: [excellent, partial_understanding, set_language, needs_help]
         transitions:
           excellent:
             ai_feedback:
@@ -116,7 +114,7 @@ sections:
                 Get them excited about solving this problem.
                 Use emojis! 🎰🎯
             next_section_and_step: "ab_testing:naive_approach"
-          good:
+          partial_understanding:
             ai_feedback:
               tokens_for_ai: |
                 Praise what they got right.
@@ -192,13 +190,14 @@ sections:
           - Calculation of win rates
           - Total reward tracking
 
-          Categorize as 'excellent' if code is complete and correct.
-          Categorize as 'good_attempt' if logic is mostly right but has minor issues.
-          Categorize as 'needs_guidance' if they're struggling with the structure.
-          Categorize as 'set_language' if requesting language change.
-          Categorize as 'wrong_language' if they used a different programming language than stored in metadata.
+        bucket_criteria:
+          excellent: "Complete, correct simulation."
+          good_attempt: "Logic mostly right with minor issues."
+          needs_guidance: "Struggling with the structure."
+          set_language: "Asks to change the conversation language."
+          wrong_language: "Code in a programming language other than metadata.programming_language."
         feedback_tokens_for_ai: |
-          Provide feedback in their chosen language: {metadata.programming_language}
+          Provide feedback in their chosen language: metadata.programming_language
 
           If excellent: Praise their implementation! Run through what happens:
           - Machine A gets pulled 33 times, wins ~10 times (30%)
@@ -212,7 +211,7 @@ sections:
           If needs_guidance: Provide a complete working example with detailed comments.
           Explain each part: random simulation, tracking, calculating rates.
 
-          If wrong_language: Gently remind them they chose {metadata.programming_language}.
+          If wrong_language: Gently remind them they chose metadata.programming_language.
           Provide the code in the correct language.
         buckets: [excellent, good_attempt, needs_guidance, set_language, wrong_language]
         transitions:
@@ -278,17 +277,16 @@ sections:
       - step_id: "understand_regret"
         title: "Understanding Regret"
         question: "Why does traditional A/B testing accumulate more regret than an adaptive algorithm?"
-        tokens_for_ai: |
-          Check if student understands that A/B testing:
-          - Continues pulling all arms equally even after learning which is best
-          - Doesn't adapt based on observations
-          - Wastes resources on known-bad options
-
-          Categorize as 'excellent' if they clearly explain the adaptive vs non-adaptive difference.
-          Categorize as 'good' if they understand but less clearly.
-          Categorize as 'set_language' if requesting language change.
-          Categorize as 'needs_clarity' otherwise.
-        buckets: [excellent, good, set_language, needs_clarity]
+        tokens_for_ai: "Grade why A/B testing builds up more regret than an adaptive algorithm."
+        bucket_criteria:
+          excellent: "Every required element."
+          partial_understanding: "Says A/B testing wastes pulls, without saying it never adapts."
+          set_language: "Asks to change the conversation language."
+          needs_clarity: "Misses why."
+        required_elements:
+          - "A/B testing keeps its even split no matter what the results show (it never adapts)"
+          - "so pulls keep going to machines already seen to be worse, and each such pull adds regret"
+        buckets: [excellent, partial_understanding, set_language, needs_clarity]
         transitions:
           excellent:
             ai_feedback:
@@ -297,7 +295,7 @@ sections:
                 Emphasize: Adaptive algorithms LEARN and SHIFT resources to winners.
                 Get them excited to implement epsilon-greedy!
             next_section_and_step: "epsilon_greedy:introduce_algorithm"
-          good:
+          partial_understanding:
             ai_feedback:
               tokens_for_ai: |
                 Praise their understanding.
@@ -355,6 +353,24 @@ sections:
           - "- If win: increment win count"
           - "- Update win rate = wins / pulls"
 
+      - step_id: "epsilon_check"
+        title: "Explore or Exploit?"
+        question_type: multiple_choice
+        question: "ε = 0.1 and this pull's random draw is 0.07. What does epsilon-greedy do?"
+        choices:
+          - {id: a, text: "Pull the machine with the best estimate so far"}
+          - {id: b, text: "Pull a machine at random"}
+          - {id: c, text: "Stop playing"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "Right! 0.07 < 0.1, so this pull EXPLORES. 🎲 Any draw of 0.1 or more exploits."
+            next_section_and_step: "epsilon_greedy:implement_epsilon_greedy"
+          incorrect:
+            content_blocks:
+              - "Not quite: compare the draw with ε. A draw below ε means explore (a random machine)."
+
       - step_id: "implement_epsilon_greedy"
         title: "Implement Epsilon-Greedy"
         question: |
@@ -384,13 +400,14 @@ sections:
           - Update logic: increment counts, recalculate rates
           - Loop for 100 pulls
 
-          Categorize as 'excellent' if implementation is complete and correct.
-          Categorize as 'good_attempt' if logic is mostly right but has issues.
-          Categorize as 'needs_help' if they're struggling with the algorithm.
-          Categorize as 'set_language' if requesting language change.
-          Categorize as 'wrong_language' if using different language than metadata.
+        bucket_criteria:
+          excellent: "Complete, correct epsilon-greedy."
+          good_attempt: "Logic mostly right with issues."
+          needs_help: "Struggling with the algorithm."
+          set_language: "Asks to change the conversation language."
+          wrong_language: "Code in a programming language other than metadata.programming_language."
         feedback_tokens_for_ai: |
-          Provide feedback in their chosen language: {metadata.programming_language}
+          Provide feedback in their chosen language: metadata.programming_language
 
           If excellent: CELEBRATE! 🎉 This is a real machine learning algorithm!
           - Explain what should happen: After ~20 pulls, Machine B dominates
@@ -481,15 +498,17 @@ sections:
         title: "Understanding Epsilon"
         question: "What do you think would happen if we set epsilon to 0.5 (50% exploration) instead of 0.1? Would it be better or worse?"
         tokens_for_ai: |
-          Check if student understands the exploration/exploitation tradeoff.
-
-          Higher epsilon = more exploration = MORE waste on bad arms.
-          The sweet spot is usually 0.01 to 0.2 depending on uncertainty.
-
-          Categorize as 'correct' if they say worse/more regret/more waste/less focused.
-          Categorize as 'set_language' for language changes.
-          Categorize as 'incorrect' if they think higher epsilon is better.
-        buckets: [correct, set_language, incorrect]
+          Here, with three machines and 100 pulls, ε = 0.5 does worse than 0.1.
+          The sweet spot is usually 0.01 to 0.2, higher only when very uncertain.
+        bucket_criteria:
+          correct: "Every required element."
+          partial_understanding: "Says worse without why, or why without a verdict."
+          set_language: "Asks to change the conversation language."
+          incorrect: "Says a higher epsilon does better here."
+        required_elements:
+          - "worse here: lower total reward, more regret"
+          - "because half of all pulls go to a random machine even once the best one is known"
+        buckets: [correct, partial_understanding, set_language, incorrect]
         transitions:
           correct:
             ai_feedback:
@@ -501,6 +520,18 @@ sections:
                 Later, use lower epsilon (you're confident about the best option).
                 Some algorithms even DECREASE epsilon over time!
             next_section_and_step: "comparison:real_world"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name the part they left out (the verdict or the reason), without giving it."
+            metadata_add:
+              epsilon_misses: "n+1"
+            content_blocks:
+              - text: "💡 Hint: with ε = 0.5, how many of 100 pulls are random?"
+                show_if:
+                  epsilon_misses_lte: 1
+              - text: "💡 Stronger hint: ~50 random pulls, and two thirds of those land on A or C, the worse machines."
+                show_if:
+                  epsilon_misses_gte: 2
           set_language:
             metadata_add:
               language: "the-users-response"
@@ -566,17 +597,17 @@ sections:
         title: "Final Reflection"
         question: "In your own words, explain when you would use a bandit algorithm instead of traditional A/B testing, and why."
         tokens_for_ai: |
-          Student should understand:
-          - Use bandits when you want to minimize regret (wasted resources)
-          - Use bandits when you can't afford to waste on losing options
-          - Use bandits when you want faster optimization
-          - A/B testing is simpler but wastes resources
-
-          Categorize as 'excellent' if they clearly explain the efficiency/regret benefit.
-          Categorize as 'good' if they show understanding but less detailed.
-          Categorize as 'set_language' for language changes.
-          Categorize as 'needs_help' if they don't get the key benefit.
-        buckets: [excellent, good, set_language, needs_help]
+          Grade when to choose a bandit over an A/B test. Credit a fair note that
+          A/B testing is simpler and gives equal samples for a clean comparison.
+        bucket_criteria:
+          excellent: "Every required element, with an example."
+          partial_understanding: "The main idea, missing an element."
+          set_language: "Asks to change the conversation language."
+          needs_help: "Misses the regret benefit."
+        required_elements:
+          - "a bandit shifts trials toward the better option while still learning, so less is lost during the test"
+          - "worth it when each trial on a losing option costs something (money, users, patients)"
+        buckets: [excellent, partial_understanding, set_language, needs_help]
         transitions:
           excellent:
             ai_feedback:
@@ -590,7 +621,7 @@ sections:
               activity_completed: "true"
               mastery_level: "excellent"
             next_section_and_step: "conclusion:goodbye"
-          good:
+          partial_understanding:
             ai_feedback:
               tokens_for_ai: |
                 Praise their understanding!
@@ -627,6 +658,9 @@ sections:
         content_blocks:
           - "# 🎰🎉 Congratulations! You've Mastered Multi-Armed Bandits! 🎉🎰"
           - ""
+          - text: "Your final reflection: **{{metadata.mastery_level}}**."
+            show_if:
+              mastery_level_exists: true
           - "You now understand:"
           - "✅ The exploration vs exploitation tradeoff"
           - "✅ Why traditional A/B testing is wasteful"

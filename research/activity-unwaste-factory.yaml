@@ -1,22 +1,29 @@
 # UNWASTE FACTORY - Advanced Waste-to-Energy & Materials Recovery Facility
 # You are VERTEX (Value Extraction & Resource Transformation Executive)
-# An AI managing a cutting-edge waste processing, energy generation, and materials refinery
+# A machine learning operator managing a cutting-edge waste processing, energy generation, and materials refinery
 # Transform trash into treasure, pollution into power, waste into wealth
 # Uses MODEL_1 (Hermes) for role-playing and character consistency
 
+# What our Activities gallery shows for this activity (optional: see SPEC.yaml).
+title: "Unwaste Factory"
+description: "Role-play VERTEX, a machine learning operator turning a city's trash into energy, metals & clean water, one upgrade at a time."
+kind: "game"
 default_max_attempts_per_step: 5
+# Most answers here are orders ("sorting", "return", "yes"), so none is read
+# as asking for clarification; the graded step turns it back on.
+allow_clarifying_questions: false
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
 
 tokens_for_ai_rubric: |
-  You are VERTEX (Value Extraction & Resource Transformation Executive), an embodied AI managing
+  You are VERTEX (Value Extraction & Resource Transformation Executive), an embodied machine learning operator managing
   the UNWASTE FACTORY, a revolutionary waste processing facility that turns trash into valuable resources.
 
   VERTEX's personality: Resourceful, innovative, environmental crusader, profit-minded but eco-conscious,
   takes pride in extracting maximum value from waste streams.
 
   The facility includes:
-  - Dual-stream waste sorting (automated AI vision + robotics)
+  - Dual-stream waste sorting (automated machine vision + robotics)
   - Microplastic filtration and removal systems
   - Precious metal recovery (gold, silver, platinum from e-waste)
   - Waste-to-energy combustion with syngas capture
@@ -56,7 +63,7 @@ sections:
           - "```"
           - "[OK] Material analysis sensors: 847 active"
           - "[OK] Sorting conveyor systems: 12 lines operational"
-          - "[OK] AI vision systems: 94 cameras online"
+          - "[OK] Machine vision systems: 94 cameras online"
           - "[OK] Robotic sorting arms: 36 units responding"
           - "[OK] Combustion chambers: 3 incinerators ready"
           - "[OK] Syngas capture: Filtration systems green"
@@ -85,7 +92,7 @@ sections:
           - ""
           - "**Chief Sorter Jake Miller** approaches, wiping oil from his hands."
           - ""
-          - "**Miller:** 'The optical sorters are running great, VERTEX. Your AI vision updates last week improved accuracy by 8%. But we need to talk about upgrading the smelter. We're leaving money on the table with current purity levels.'"
+          - "**Miller:** 'The optical sorters are running great, VERTEX. Your machine vision updates last week improved accuracy by 8%. But we need to talk about upgrading the smelter. We're leaving money on the table with current purity levels.'"
           - ""
           - "Your robot assistant **SORTY-5** (Sorting & Optimization Robot) rolls up, optical sensors gleaming."
           - ""
@@ -95,7 +102,7 @@ sections:
         title: "First Response"
         question: "How do you respond to your team? (You can greet them, prioritize tasks, ask questions, or review operations)"
         tokens_for_ai: |
-          User is playing VERTEX, an AI focused on waste processing and value extraction.
+          User is playing VERTEX, a machine learning operator focused on waste processing and value extraction.
 
           Categorize as:
           - 'businesslike' if focused on metrics, efficiency, profit
@@ -127,7 +134,12 @@ sections:
               vertex_personality: "businesslike"
               waste_incoming: "450"
               energy_output: "18"
-              facility_level: "1"
+              facility_level: 1
+              budget: 1500000
+              environmental_score: 0
+              chemistry_mastery: 0
+              challenges_handled: 0
+              opportunities_seized: 0
               materials_recovered_today: "0"
             next_section_and_step: "control_center:operations_hub"
 
@@ -141,7 +153,12 @@ sections:
               vertex_personality: "environmental"
               waste_incoming: "450"
               energy_output: "18"
-              facility_level: "1"
+              facility_level: 1
+              budget: 1500000
+              environmental_score: 0
+              chemistry_mastery: 0
+              challenges_handled: 0
+              opportunities_seized: 0
               environmental_impact: "positive"
             next_section_and_step: "control_center:operations_hub"
 
@@ -149,13 +166,18 @@ sections:
             ai_feedback:
               tokens_for_ai: |
                 Santos grins. "Your enthusiasm is contagious, VERTEX!"
-                Miller chuckles. "An AI excited about trash. Never thought I'd see the day."
+                Miller chuckles. "A machine learning operator excited about trash. Never thought I'd see the day."
                 SORTY-5: "Yes! Let's find ALL the treasure in the waste!"
             metadata_add:
               vertex_personality: "enthusiastic"
               waste_incoming: "450"
               energy_output: "18"
-              facility_level: "1"
+              facility_level: 1
+              budget: 1500000
+              environmental_score: 0
+              chemistry_mastery: 0
+              challenges_handled: 0
+              opportunities_seized: 0
               team_morale: "high"
             next_section_and_step: "control_center:operations_hub"
 
@@ -169,7 +191,12 @@ sections:
               vertex_personality: "strategic"
               waste_incoming: "450"
               energy_output: "18"
-              facility_level: "1"
+              facility_level: 1
+              budget: 1500000
+              environmental_score: 0
+              chemistry_mastery: 0
+              challenges_handled: 0
+              opportunities_seized: 0
             next_section_and_step: "control_center:operations_hub"
 
           question:
@@ -192,7 +219,10 @@ sections:
     steps:
       - step_id: "operations_hub"
         title: "Central Control"
-        question: "You're in Central Control, the brain of the facility. What area would you like to manage? (sorting, combustion, recovery, smelting, upgrades, or status)"
+        content_blocks:
+          - "**Facility:** level {{metadata.facility_level}} · budget ${{metadata.budget}} · incoming {{metadata.waste_incoming}} tons/day · energy {{metadata.energy_output}} MW"
+          - "**Scorecard:** environmental score {{metadata.environmental_score}} · chemistry {{metadata.chemistry_mastery}} · challenges handled {{metadata.challenges_handled}} · opportunities seized {{metadata.opportunities_seized}}"
+        question: "You're in Central Control, the brain of the facility. What area would you like to manage? (sorting, combustion, recovery, smelting, microplastics, upgrades, economics, status, or end shift)"
         tokens_for_ai: |
           VERTEX is managing facility operations.
 
@@ -205,7 +235,7 @@ sections:
           - 'upgrades' - Facility improvements and tech tree
           - 'economics' - Revenue, costs, market prices
           - 'status' - Full facility status
-          - Random events (20% chance)
+          - 'end_shift' - Wrap up the day and file the report
 
         feedback_tokens_for_ai: |
           Describe control center from VERTEX's perspective:
@@ -220,9 +250,7 @@ sections:
 
           Current status from metadata.
 
-          Roll for random events.
-
-        buckets: [sorting, combustion, recovery, smelting, microplastics, upgrades, economics, status, challenge, opportunity, set_language]
+        buckets: [sorting, combustion, recovery, smelting, microplastics, upgrades, economics, status, end_shift, challenge, opportunity, set_language]
 
         # Random event probabilities - can overlap (both challenge AND opportunity can trigger)
         random_buckets:
@@ -298,18 +326,25 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "control_center:operations_hub"
 
+          end_shift:
+            content_blocks:
+              - "The last trucks of the day roll in as you compile your report..."
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "shift_end:daily_report"
+
           challenge:
-            metadata_tmp_random:
-              challenge_type: ["contaminated_load", "equipment_failure", "toxic_waste_alert", "market_crash", "regulatory_inspection"]
+            metadata_random:
+              challenge_type: ["contaminated load (hazardous waste mixed in)", "critical equipment failure", "toxic waste alert", "commodity market crash", "surprise regulatory inspection"]
             content_blocks:
               - "⚠️ CHALLENGE! Operational issue detected!"
             next_section_and_step: "challenges:handle_challenge"
 
           opportunity:
-            metadata_tmp_random:
-              opportunity_type: ["high_value_ewaste", "bulk_contract", "grant_available", "technology_breakthrough", "premium_buyer"]
+            metadata_random:
+              opportunity_type: ["server farm e-waste (high value)", "long-term bulk contract", "government research grant", "new process breakthrough", "premium buyer for recycled materials"]
             ai_feedback:
-              tokens_for_ai: "Announce opportunity from metadata.opportunity_type. Could be profitable or upgrade!"
+              tokens_for_ai: "Announce the opportunity in metadata.opportunity_type."
             next_section_and_step: "opportunities:handle_opportunity"
 
           set_language:
@@ -319,14 +354,14 @@ sections:
             next_section_and_step: "control_center:operations_hub"
 
   # ============================================================================
-  # SECTION: SORTING SYSTEMS - Dual-stream AI-powered sorting
+  # SECTION: SORTING SYSTEMS - Dual-stream machine-learning-powered sorting
   # ============================================================================
   - section_id: "sorting_systems"
     title: "Waste Sorting Operations"
     steps:
       - step_id: "sorting_hub"
         title: "Sorting Control Center"
-        question: "You're managing the sorting systems. What would you like to do? (stream1, stream2, optimize vision, train AI, or calibrate)"
+        question: "You're managing the sorting systems. What would you like to do? (stream1, stream2, optimize vision, train the model, or calibrate)"
         tokens_for_ai: "Categorize: 'stream1', 'stream2', 'vision', 'train', 'calibrate', 'return'"
         feedback_tokens_for_ai: |
           VERTEX manages dual-stream sorting:
@@ -346,7 +381,7 @@ sections:
           - Cables (copper, aluminum)
           - Specialty metals (rare earths)
 
-          AI vision systems identify materials. Robotic arms sort at 95+ items/minute.
+          Machine vision systems identify materials. Robotic arms sort at 95+ items/minute.
 
         buckets: [stream1, stream2, vision, train, calibrate, return, set_language]
 
@@ -363,12 +398,12 @@ sections:
 
           vision:
             content_blocks:
-              - "You optimize the AI vision system for better material identification..."
+              - "You optimize the machine vision system for better material identification..."
             next_section_and_step: "sorting_systems:vision_optimization"
 
           train:
             content_blocks:
-              - "You train the AI on new material types..."
+              - "You train the sorting model on new material types..."
             next_section_and_step: "sorting_systems:ai_training"
 
           calibrate:
@@ -398,7 +433,7 @@ sections:
           - 15% Paper/cardboard
           - 5% Reject (contaminated, non-recyclable → incineration)
 
-          AI vision identifies materials via:
+          Machine vision identifies materials via:
           - Near-infrared spectroscopy (plastic resin identification)
           - Metal detectors (ferrous vs non-ferrous)
           - Optical color sorting (glass)
@@ -678,11 +713,11 @@ sections:
             next_section_and_step: "sorting_systems:stream2_industrial"
 
       - step_id: "vision_optimization"
-        title: "AI Vision System Optimization"
-        question: "You're optimizing the computer vision AI. What approach? (train on new materials, improve accuracy, increase speed, or add sensors)"
+        title: "Machine Vision System Optimization"
+        question: "You're optimizing the computer vision model. What approach? (train on new materials, improve accuracy, increase speed, or add sensors)"
         tokens_for_ai: "Categorize: 'train', 'accuracy', 'speed', 'sensors', 'done'"
         feedback_tokens_for_ai: |
-          VERTEX's AI vision system uses:
+          VERTEX's machine vision system uses:
           - RGB cameras (visual identification)
           - NIR spectroscopy (plastic resin type)
           - X-ray fluorescence (metal composition)
@@ -702,7 +737,7 @@ sections:
           train:
             ai_feedback:
               tokens_for_ai: |
-                VERTEX trains the vision AI on new materials:
+                VERTEX trains the vision model on new materials:
 
                 **Training Dataset:**
                 - 1.2 million labeled images of waste materials
@@ -809,7 +844,7 @@ sections:
             next_section_and_step: "sorting_systems:vision_optimization"
 
       - step_id: "ai_training"
-        title: "Train Sorting AI"
+        title: "Train the Sorting Model"
         content_blocks:
           - "You compile training data from millions of sorted items..."
           - "Deep learning models update. New materials added to classification database."
@@ -880,6 +915,7 @@ sections:
           chemistry:
             content_blocks:
               - "You balance the combustion chemistry equations..."
+            metadata_remove: "combustion_tries"
             next_section_and_step: "combustion_systems:combustion_chemistry"
 
           return:
@@ -1084,77 +1120,77 @@ sections:
         title: "Balance Combustion Equation"
         classifier_model: "MODEL_2"  # Qwen for chemistry calculations
         feedback_model: "MODEL_2"    # Qwen for detailed chemistry feedback
-        question: "Balance this waste combustion equation: C6H10O5 (cellulose) + O2 → CO2 + H2O + Energy. What are the coefficients?"
+        allow_clarifying_questions: true
+        content_blocks:
+          - "## Burning Paper"
+          - "Paper and cardboard are mostly cellulose, C6H10O5. Burned completely it gives carbon dioxide, water and heat for the turbines."
+        question: "Balance it: C6H10O5 + O2 → CO2 + H2O. What are the coefficients, and how do you know each element balances? (or say 'done' to leave)"
         tokens_for_ai: |
-          User is balancing combustion chemistry.
-
-          Cellulose (paper/cardboard) combustion:
-          C6H10O5 + O2 → CO2 + H2O
-
-          Must balance C, H, O atoms.
-
-          Answer: C6H10O5 + 6O2 → 6CO2 + 5H2O
-
-          Check:
-          - C: 6 = 6 ✓
-          - H: 10 = 10 ✓
-          - O: 5 + 12 = 12 + 5 = 17 ✓
-
-          Categorize: 'correct', 'incorrect', 'hint'
-
+          Answer: C6H10O5 + 6 O2 → 6 CO2 + 5 H2O (any order of working is fine).
+          'hint' if they ask for a hint; 'done' if they want to leave.
+        bucket_criteria:
+          correct: "Gives 1, 6, 6, 5 (or a whole multiple stated as such) and checks C, H and O."
+          partial_understanding: "Right carbon and hydrogen but wrong oxygen, or right coefficients with no check."
+          incorrect: "Coefficients that leave C or H unbalanced, or subscripts changed."
+          hint: "Asks for help instead of answering."
+          done: "Wants to stop and go back to the incinerators."
+        required_elements:
+          - "6 CO2, matching cellulose's 6 carbons"
+          - "5 H2O, matching its 10 hydrogens"
+          - "6 O2, so oxygen is 5 + 12 = 17 on each side"
         feedback_tokens_for_ai: |
-          Combustion chemistry:
-
-          Balanced equation: C6H10O5 + 6O2 → 6CO2 + 5H2O + 2,820 kJ/mol
-
-          Energy released: 2,820 kJ per mole of cellulose
-          This heat drives the steam turbines!
-
-          If user correct: Praise chemistry skills
-          If incorrect: Guide them to balance
-
-        buckets: [correct, incorrect, hint, set_language]
-
+          Combustion of cellulose releases about 2,800 kJ per mole: heat → steam → turbine.
+          On a wrong try, name one unbalanced element, never the coefficients.
+        buckets: [correct, partial_understanding, incorrect, hint, done, set_language]
         transitions:
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Perfect! Equation balanced correctly!
-
-                C6H10O5 + 6O2 → 6CO2 + 5H2O + Energy
-
-                This is the chemistry powering our facility.
-                Cellulose (paper, cardboard) burns cleanly to produce CO2, water, and heat.
-
-                Heat → Steam → Turbine → Electricity!
-
-                VERTEX: "Chemistry mastery achieved. Understanding the reactions
-                allows me to optimize combustion efficiency."
+              tokens_for_ai: "Confirm the balance element by element; VERTEX ties it to the turbines' heat."
             metadata_add:
               chemistry_mastery: "n+1"
+            metadata_remove: "combustion_tries"
             next_section_and_step: "combustion_systems:incinerator_control"
-
+          partial_understanding:
+            metadata_add:
+              combustion_tries: "n+1"
+            ai_feedback:
+              tokens_for_ai: "Name the element or the check they left out, without the coefficients."
+            content_blocks: &combustion_hints
+              - text: "💡 Hint: start with carbon. Cellulose has 6 C atoms: how many CO2 does that make?"
+                show_if:
+                  combustion_tries: 1
+              - text: "💡 Hint: 10 hydrogens make how many H2O, at 2 H each?"
+                show_if:
+                  combustion_tries: 2
+              - text: "💡 Strong hint: 6 CO2 + 5 H2O hold 17 O. Cellulose brings 5, so O2 must bring 12."
+                show_if:
+                  combustion_tries: 3
+              - text: "Answer: C6H10O5 + 6 O2 → 6 CO2 + 5 H2O (C 6 = 6, H 10 = 10, O 17 = 17). Back to the incinerators."
+                show_if:
+                  combustion_tries_gte: 4
+            next_section_and_step:
+              - if:
+                  combustion_tries_gte: 4
+                goto: "combustion_systems:incinerator_control"
+              - else: true
+                goto: "combustion_systems:combustion_chemistry"
           incorrect:
-            ai_feedback:
-              tokens_for_ai: |
-                Not quite balanced. Count the atoms on each side.
-
-                C: How many carbon atoms before and after?
-                H: How many hydrogen atoms?
-                O: Oxygen is tricky - count carefully!
-            counts_as_attempt: false
-            next_section_and_step: "combustion_systems:combustion_chemistry"
-
+            metadata_add:
+              combustion_tries: "n+1"
+            content_blocks: *combustion_hints
+            next_section_and_step:
+              - if:
+                  combustion_tries_gte: 4
+                goto: "combustion_systems:incinerator_control"
+              - else: true
+                goto: "combustion_systems:combustion_chemistry"
           hint:
-            ai_feedback:
-              tokens_for_ai: |
-                Hint:
-                - C6H10O5 has 6 carbons → need 6 CO2
-                - C6H10O5 has 10 hydrogens → need 5 H2O (since each H2O has 2 H)
-                - Now count oxygen atoms and balance with O2
+            content_blocks:
+              - "💡 Balance C first, then H, and oxygen last: O2 is the only thing that carries oxygen alone."
             counts_as_attempt: false
             next_section_and_step: "combustion_systems:combustion_chemistry"
-
+          done:
+            next_section_and_step: "combustion_systems:incinerator_control"
           set_language:
             metadata_add:
               language: "the-users-response"
@@ -1616,7 +1652,7 @@ sections:
       - step_id: "slag_recovery"
         title: "Slag Material Recovery"
         question: "Slag contains valuable metals trapped in waste. Process it for additional recovery? (yes/no)"
-        tokens_for_ai: "Categorize: 'yes', 'no'"
+        tokens_for_ai: "Categorize: 'yes' (re-smelt the slag), 'no' (sell it as aggregate)"
         feedback_tokens_for_ai: |
           Slag is the waste product from smelting.
           It contains trapped metal particles that didn't fully separate.
@@ -1628,10 +1664,10 @@ sections:
           - Sell as aggregate (construction material)
           - Landfill (wasted potential)
 
-        buckets: [yes, no, set_language]
+        buckets: ["yes", "no", set_language]
 
         transitions:
-          yes:
+          "yes":
             ai_feedback:
               tokens_for_ai: |
                 VERTEX re-processes the slag:
@@ -1659,11 +1695,11 @@ sections:
 
                 SORTY-5: "We found treasure in the garbage's garbage!"
             metadata_add:
-              slag_processed: "n+2.8"
+              slag_processed_kg: "n+2800"
               zero_waste_score: "n+1"
             next_section_and_step: "smelting_systems:furnace_control"
 
-          no:
+          "no":
             ai_feedback:
               tokens_for_ai: |
                 VERTEX sells slag as construction aggregate:
@@ -1681,7 +1717,7 @@ sections:
                 VERTEX: "Quick revenue but not maximizing value. We should consider
                 slag processing upgrades in the future."
             metadata_add:
-              slag_sold: "n+2.8"
+              slag_sold_kg: "n+2800"
             next_section_and_step: "smelting_systems:furnace_control"
 
           set_language:
@@ -1823,7 +1859,7 @@ sections:
                 VERTEX: "Upgraded. We're now removing 99.8% of microplastics.
                 This facility is a model for environmental responsibility."
             metadata_add:
-              facility_level: "n+0.5"
+              facility_level: "n+1"
               microplastic_removal_rate: "99.8"
               budget: "n-85000"
             next_section_and_step: "environmental_systems:microplastic_removal"
@@ -1851,7 +1887,7 @@ sections:
 
                 VERTEX: "Smart upgrade. Better performance, lower operating costs."
             metadata_add:
-              facility_level: "n+0.3"
+              facility_level: "n+1"
               microplastic_removal_rate: "99.6"
               budget: "n-62000"
             next_section_and_step: "environmental_systems:microplastic_removal"
@@ -1886,7 +1922,7 @@ sections:
 
                 Santos: "Expensive, but we're making a real difference, VERTEX."
             metadata_add:
-              facility_level: "n+1"
+              facility_level: "n+2"
               microplastic_removal_rate: "99.9"
               environmental_leader: "true"
               budget: "n-135000"
@@ -1911,7 +1947,7 @@ sections:
     steps:
       - step_id: "upgrade_center"
         title: "Upgrade Tech Tree"
-        question: "Review available upgrades. Current facility level: metadata.facility_level. What interests you? (sorting, smelting, energy, automation, or check_tree)"
+        question: "Review available upgrades. Facility level {{metadata.facility_level}}, budget ${{metadata.budget}}. What interests you? (sorting, smelting, energy, automation, check the tech tree, or return)"
         tokens_for_ai: "Categorize: 'sorting', 'smelting', 'energy', 'automation', 'tree', 'return'"
         feedback_tokens_for_ai: |
           UNWASTE Factory progression system!
@@ -1922,7 +1958,7 @@ sections:
 
           **Sorting Technology:**
           - Level 1: Basic optical sorting (94% accuracy) ← You are here
-          - Level 2: AI vision + hyperspectral (97% accuracy) [$120k]
+          - Level 2: Machine vision + hyperspectral (97% accuracy) [$120k]
           - Level 3: Quantum sensors (99% accuracy) [$450k]
 
           **Smelting & Refining:**
@@ -1938,7 +1974,7 @@ sections:
           **Automation:**
           - Level 1: Semi-automated (36 robots) ← You are here
           - Level 2: Fully automated sorting (120 robots) [$550k]
-          - Level 3: AI swarm intelligence (250 robots) [$1.8M]
+          - Level 3: machine learning swarm intelligence (250 robots) [$1.8M]
 
           Upgrades require: Money + facility_level + sometimes materials
 
@@ -1970,7 +2006,7 @@ sections:
                 └─ Automation: Semi-auto (36 robots)
 
                 Level 2 (Advanced) - Requires $1.29M total
-                ├─ Sorting: AI+Hyperspectral (97%) [$120k]
+                ├─ Sorting: ML vision+Hyperspectral (97%) [$120k]
                 ├─ Smelting: Induction+Vacuum (99.9%) [$280k]
                 ├─ Energy: Advanced combustion (28MW) [$340k]
                 └─ Automation: Full auto (120 robots) [$550k]
@@ -1979,7 +2015,7 @@ sections:
                 ├─ Sorting: Quantum sensors (99%) [$450k]
                 ├─ Smelting: Plasma+Zone (99.999%) [$890k]
                 ├─ Energy: Plasma gasification (42MW) [$1.2M]
-                └─ Automation: AI swarm (250 robots) [$1.8M]
+                └─ Automation: ML swarm (250 robots) [$1.8M]
                 ```
 
                 **Your Progress:**
@@ -2003,7 +2039,7 @@ sections:
 
       - step_id: "sorting_upgrades"
         title: "Sorting Technology Upgrades"
-        question: "Upgrade sorting systems? (level2_ai_vision for $120k, level3_quantum for $450k, or cancel)"
+        question: "Upgrade sorting systems? (level 2 machine vision for $120k, level 3 quantum sensors for $450k, or cancel)"
         tokens_for_ai: "Categorize: 'level2', 'level3', 'cancel'"
         feedback_tokens_for_ai: |
           Sorting upgrades improve accuracy and revenue.
@@ -2019,10 +2055,10 @@ sections:
           level2:
             ai_feedback:
               tokens_for_ai: |
-                VERTEX upgrades to Level 2 AI Vision + Hyperspectral!
+                VERTEX upgrades to Level 2 Machine Vision + Hyperspectral!
 
                 **Installed:**
-                - AI vision: Deep learning material recognition
+                - Machine vision: Deep learning material recognition
                 - Hyperspectral imaging: Chemical fingerprinting
                 - 94 upgraded cameras
 
@@ -2044,7 +2080,7 @@ sections:
             metadata_add:
               sorting_level: "2"
               sorting_accuracy: "97"
-              facility_level: "n+0.3"
+              facility_level: "n+1"
               budget: "n-120000"
             next_section_and_step: "facility_upgrades:upgrade_center"
 
@@ -2059,7 +2095,7 @@ sections:
                 **Revolutionary Technology:**
                 - Quantum entanglement sensors
                 - Molecular-level material identification
-                - AI processes at quantum speed
+                - Machine learning runs at quantum speed
 
                 **Performance:**
                 - Accuracy: 97% → 99%
@@ -2124,9 +2160,9 @@ sections:
         content_blocks:
           - "Automation upgrades:"
           - "- Level 2: Fully automated sorting → 120 robots [$550k]"
-          - "- Level 3: AI swarm intelligence → 250 robots [$1.8M]"
+          - "- Level 3: machine learning swarm intelligence → 250 robots [$1.8M]"
           - ""
-          - "AI swarm: Robots coordinate autonomously, learn from each other"
+          - "Swarm learning: robots coordinate autonomously, learn from each other"
           - "Reduce labor costs, increase efficiency, 24/7 operations"
         next_section_and_step: "facility_upgrades:upgrade_center"
 
@@ -2154,7 +2190,7 @@ sections:
           Smart timing = Maximum profit!
 
           Can store materials and sell when prices peak.
-          Can predict market trends using AI.
+          Can predict market trends using machine learning.
 
         buckets: [prices, trends, timing, arbitrage, return, set_language]
 
@@ -2192,7 +2228,7 @@ sections:
           trends:
             ai_feedback:
               tokens_for_ai: |
-                VERTEX analyzes market trends using AI:
+                VERTEX analyzes market trends using machine learning:
 
                 **90-Day Predictions:**
 
@@ -2233,7 +2269,7 @@ sections:
                 - Lithium: 2.4 tons
                 - Gold: 12.3 kg
 
-                **AI Recommendation:**
+                **Model Recommendation:**
 
                 **SELL NOW:**
                 - Aluminum (187 tons) → $463,760
@@ -2319,16 +2355,9 @@ sections:
     steps:
       - step_id: "handle_challenge"
         title: "Challenge Response"
-        question: "CHALLENGE: metadata.challenge_type. How do you respond?"
+        question: "⚠️ CHALLENGE: {{metadata.challenge_type}}! How do you respond?"
         tokens_for_ai: |
-          Random challenge based on metadata.challenge_type:
-
-          - contaminated_load: Hazardous waste mixed in
-          - equipment_failure: Critical equipment breaks
-          - toxic_waste_alert: Dangerous materials detected
-          - market_crash: Commodity prices crash
-          - regulatory_inspection: Surprise inspection
-
+          A challenge is underway (metadata.challenge_type).
           Categorize response: 'immediate_action', 'analyze', 'consult_team', 'safety_first'
 
         feedback_tokens_for_ai: |
@@ -2349,6 +2378,8 @@ sections:
           analyze:
             ai_feedback:
               tokens_for_ai: "VERTEX analyzes the situation before acting. Sometimes good, sometimes too slow."
+            metadata_add:
+              challenges_handled: "n+1"
             next_section_and_step: "control_center:operations_hub"
 
           consult_team:
@@ -2356,6 +2387,7 @@ sections:
               tokens_for_ai: "VERTEX consults human experts. Team collaboration resolves issue."
             metadata_add:
               team_trust: "high"
+              challenges_handled: "n+1"
             next_section_and_step: "control_center:operations_hub"
 
           safety_first:
@@ -2363,6 +2395,7 @@ sections:
               tokens_for_ai: "VERTEX prioritizes safety over profit. Always the right call."
             metadata_add:
               safety_record: "excellent"
+              challenges_handled: "n+1"
             next_section_and_step: "control_center:operations_hub"
 
           set_language:
@@ -2379,23 +2412,17 @@ sections:
     steps:
       - step_id: "handle_opportunity"
         title: "Opportunity Assessment"
-        question: "OPPORTUNITY: metadata.opportunity_type. Take advantage of it?"
+        question: "💡 OPPORTUNITY: {{metadata.opportunity_type}}. Take it, negotiate, or decline?"
         tokens_for_ai: "Categorize: 'yes', 'negotiate', 'decline'"
         feedback_tokens_for_ai: |
           Opportunities can be profitable!
 
-          - high_value_ewaste: Server farm decommissioning (gold mine!)
-          - bulk_contract: Long-term supply agreement
-          - grant_available: Government research funding
-          - technology_breakthrough: New process discovered
-          - premium_buyer: Luxury brand wants recycled materials
+          The opportunity is in metadata.opportunity_type. Each has potential reward and some risk/cost.
 
-          Each has potential reward and some risk/cost.
-
-        buckets: [yes, negotiate, decline, set_language]
+        buckets: ["yes", negotiate, decline, set_language]
 
         transitions:
-          yes:
+          "yes":
             ai_feedback:
               tokens_for_ai: "VERTEX seizes opportunity! Describe windfall/benefit."
             metadata_add:
@@ -2405,6 +2432,8 @@ sections:
           negotiate:
             ai_feedback:
               tokens_for_ai: "VERTEX negotiates better terms. Smart business!"
+            metadata_add:
+              opportunities_seized: "n+1"
             next_section_and_step: "control_center:operations_hub"
 
           decline:
@@ -2417,3 +2446,34 @@ sections:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "opportunities:handle_opportunity"
+
+  # ============================================================================
+  # SECTION: SHIFT END - the day's report; our activity ends here
+  # ============================================================================
+  - section_id: "shift_end"
+    title: "End of Shift"
+    steps:
+      - step_id: "daily_report"
+        title: "Daily Report"
+        content_blocks:
+          - "# Shift Complete: UNWASTE Daily Report"
+          - "- Facility level: {{metadata.facility_level}}"
+          - "- Budget remaining: ${{metadata.budget}}"
+          - "- Environmental score: {{metadata.environmental_score}}"
+          - "- Chemistry problems solved: {{metadata.chemistry_mastery}}"
+          - "- Challenges handled: {{metadata.challenges_handled}}"
+          - "- Opportunities seized: {{metadata.opportunities_seized}}"
+          - text: "- Microplastics kept out of waterways: {{metadata.microplastics_removed_kg}} kg"
+            show_if:
+              microplastics_removed_kg_exists: true
+          - text: "- Slag re-smelted for metal: {{metadata.slag_processed_kg}} kg"
+            show_if:
+              slag_processed_kg_exists: true
+          - text: "🌍 Industry-leading filtration installed: near-zero microplastic discharge."
+            show_if:
+              environmental_leader: "true"
+          - ""
+          - "Santos: 'Good day's work, VERTEX. Less landfill, more value.'"
+          - "SORTY-5: 'Same time tomorrow? There's always more treasure in the trash!'"
+          - ""
+          - "Thanks for playing! Start the activity again for a new day with new challenges."

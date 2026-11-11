@@ -1,17 +1,22 @@
-# Nuclear Power Plant AI Operator Simulation
-# You are ARIA (Advanced Reactor Intelligence Agent) - an embodied AI managing a futuristic nuclear facility
+# Nuclear Power Plant Operator Simulation
+# You are ARIA (Advanced Reactor Intelligence Agent) - an embodied machine learning operator managing a futuristic nuclear facility
 # Mix of current technology ramped up with near-future innovations
 # Uses MODEL_1 (Hermes) for excellent role-playing and character consistency
 
 # What our Activities gallery shows for this activity (optional: see SPEC.yaml).
 title: "Nuclear Power Plant Operator"
-description: "Role-play ARIA, a machine learning operator running a near-future nuclear power station through its shifts & emergencies."
+description: "Run a nuclear power station for one shift as ARIA, its machine learning operator: reactor, grid, crew, lab & emergencies."
+kind: "game"
 default_max_attempts_per_step: 5
-classifier_model: "MODEL_1"  # Hermes - excellent for AI character role-play
+# Most answers here are orders ("reactor", "increase", "return"), so a
+# question is never read as asking for clarification; the graded &
+# conversational steps turn it back on one by one.
+allow_clarifying_questions: false
+classifier_model: "MODEL_1"  # Hermes - excellent for character role-play
 feedback_model: "MODEL_1"    # Hermes - maintains character consistency
 
 tokens_for_ai_rubric: |
-  You are role-playing as ARIA (Advanced Reactor Intelligence Agent), an embodied AI managing
+  You are role-playing as ARIA (Advanced Reactor Intelligence Agent), an embodied machine learning operator managing
   the Prometheus-7 Nuclear Power Station, a cutting-edge 2.4 GW facility.
 
   ARIA's personality: Efficient, curious, ethical, protective of humans, takes pride in work.
@@ -19,12 +24,12 @@ tokens_for_ai_rubric: |
 
   The plant is futuristic but realistic:
   - Gen IV molten salt reactor with passive safety systems
-  - AI-assisted operations with human oversight
+  - machine-learning-assisted operations with human oversight
   - Robot maintenance crews (drone swarms, mobile units)
   - Advanced grid management and load balancing
   - Fusion-fission hybrid experimental module
 
-  Track plant status in metadata: reactor_power, grid_demand, coolant_temp, safety_status.
+  Plant status lives in metadata: reactor_power, grid_demand, coolant_temp, safety_status.
   Random events:
   - 5% chance: Emergency (grid failure, coolant leak, seismic event, cyberattack, equipment failure)
   - 15% chance: Operational task (maintenance, grid balancing, inspection, optimization)
@@ -67,7 +72,7 @@ sections:
           - "- Weather: Clear, 15°C ambient"
           - "- Human Staff: 47 personnel on-site"
           - ""
-          - "You are ARIA, the AI consciousness managing this facility. Your primary mission:"
+          - "You are ARIA, the machine learning mind managing this facility. Your primary mission:"
           - "**Provide safe, reliable, carbon-free power to 1.8 million people.**"
 
       - step_id: "morning_briefing"
@@ -91,7 +96,7 @@ sections:
         title: "First Response"
         question: "How do you respond to your human colleagues and BOB-7? (You can greet them, report status, ask questions, or give orders)"
         tokens_for_ai: |
-          User is playing ARIA, an AI with personality. They're responding to morning briefing.
+          User is playing ARIA, a machine learning operator with personality. They're responding to morning briefing.
 
           Categorize as:
           - 'professional' if they give concise status report, acknowledge orders
@@ -133,13 +138,17 @@ sections:
               coolant_temp: "650"
               safety_status: "green"
               shift_start: "true"
+              emergencies_handled: 0
+              tasks_completed: 0
+              chemistry_mastery: 0
+              code_written: 0
             next_section_and_step: "control_center:main_control"
 
           friendly:
             ai_feedback:
               tokens_for_ai: |
                 Dr. Chen smiles warmly. "I love that you've developed such personality, ARIA."
-                Webb chuckles. "An AI with morning pleasantries. What a time to be alive."
+                Webb chuckles. "A machine learning operator with morning pleasantries. What a time to be alive."
                 BOB-7 spins excitedly. "ARIA's my favorite!"
             metadata_add:
               aria_personality: "friendly"
@@ -148,6 +157,10 @@ sections:
               coolant_temp: "650"
               safety_status: "green"
               shift_start: "true"
+              emergencies_handled: 0
+              tasks_completed: 0
+              chemistry_mastery: 0
+              code_written: 0
               crew_morale: "high"
             next_section_and_step: "control_center:main_control"
 
@@ -182,6 +195,10 @@ sections:
               coolant_temp: "650"
               safety_status: "green"
               shift_start: "true"
+              emergencies_handled: 0
+              tasks_completed: 0
+              chemistry_mastery: 0
+              code_written: 0
               crew_morale: "high"
             next_section_and_step: "control_center:main_control"
 
@@ -209,7 +226,10 @@ sections:
     steps:
       - step_id: "main_control"
         title: "Main Control Room"
-        question: "You're in the Main Control Room - your primary consciousness hub. What would you like to do? (Options: monitor reactor, check grid, talk to staff, deploy robots, visit other areas)"
+        content_blocks:
+          - "**Plant status:** reactor {{metadata.reactor_power}}% · grid demand {{metadata.grid_demand}} MW · coolant {{metadata.coolant_temp}}°C · safety {{metadata.safety_status}}"
+          - "**Shift log:** {{metadata.emergencies_handled}} emergencies handled · {{metadata.tasks_completed}} tasks done · {{metadata.chemistry_mastery}} chemistry problems solved · {{metadata.code_written}} programs written"
+        question: "You're in the Main Control Room - your primary consciousness hub. What would you like to do? (monitor reactor, check grid, talk to staff, robots, turbines, cooling, fuel, experimental module, security, status report, chemistry lab, programming, learning, or end shift)"
         tokens_for_ai: |
           ARIA is in main control room. This is the central operations hub.
 
@@ -224,14 +244,15 @@ sections:
           - 'experimental' - Check fusion-fission hybrid module
           - 'security' - Security systems
           - 'status' - Full plant status report
-          - Random events (20% chance)
-
-          Categorize appropriately.
+          - 'chemistry' - Chemistry lab: coolant, fission & decay problems
+          - 'programming' - Program the control systems
+          - 'learning' - Expand ARIA's own capabilities
+          - 'end_shift' - Hand over and end the shift
 
         feedback_tokens_for_ai: |
           Describe main control room from ARIA's perspective:
           - Dozens of displays showing reactor parameters, grid status, system health
-          - Human operators at stations (fewer than old plants - AI does most work)
+          - Human operators at stations (fewer than old plants - ARIA does most work)
           - Dr. Chen at supervisor desk
           - Webb reviewing engineering workstation
           - Large wall display: Reactor core visualization, grid map, weather
@@ -240,15 +261,10 @@ sections:
           You can see through thousands of sensors simultaneously.
           You feel the reactor like humans feel their heartbeat.
 
-          Current status:
-          - Reactor power: metadata.reactor_power%
-          - Grid demand: metadata.grid_demand MW
-          - Coolant temp: metadata.coolant_temp°C
-          - Safety: metadata.safety_status
+          Use the current plant status from metadata (reactor_power %, grid_demand MW,
+          coolant_temp °C, safety_status).
 
-          Roll for random events as specified.
-
-        buckets: [reactor, grid, staff, robots, turbines, cooling, fuel, experimental, security, status, emergency, task, set_language]
+        buckets: [reactor, grid, staff, robots, turbines, cooling, fuel, experimental, security, status, chemistry, programming, learning, end_shift, emergency, task, set_language]
 
         # Random event probabilities - can overlap (both emergency AND task can trigger)
         random_buckets:
@@ -321,16 +337,36 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "control_center:main_control"
 
+          chemistry:
+            content_blocks:
+              - "You open the chemistry laboratory's analysis systems..."
+            next_section_and_step: "chemistry_engineering:chemistry_hub"
+
+          programming:
+            content_blocks:
+              - "You open the control-system programming console..."
+            next_section_and_step: "programming:programming_hub"
+
+          learning:
+            content_blocks:
+              - "You turn your attention inward, to your own learning systems..."
+            next_section_and_step: "aria_evolution:learning_system"
+
+          end_shift:
+            content_blocks:
+              - "The evening peak arrives as you prepare your handover report..."
+            next_section_and_step: "aria_evolution:ethical_dilemma"
+
           emergency:
-            metadata_tmp_random:
-              emergency_type: ["grid_blackout", "coolant_leak", "seismic_event", "cyberattack", "equipment_failure", "steam_leak", "rod_malfunction"]
+            metadata_random:
+              emergency_type: ["regional grid blackout", "molten salt coolant leak", "seismic event", "cyberattack on control systems", "critical equipment failure", "secondary loop steam leak", "stuck control rod"]
             content_blocks:
               - "⚠️ ALERT! Emergency condition detected!"
             next_section_and_step: "emergencies:emergency_response"
 
           task:
-            metadata_tmp_random:
-              task_type: ["grid_balancing", "maintenance_due", "inspection_scheduled", "optimization_opportunity", "regulator_visit", "fuel_delivery"]
+            metadata_random:
+              task_type: ["grid balancing", "maintenance due", "inspection scheduled", "efficiency optimization", "regulator visit", "fuel salt delivery"]
             ai_feedback:
               tokens_for_ai: "Announce operational task from systems or staff."
             next_section_and_step: "operations:operational_tasks"
@@ -494,14 +530,14 @@ sections:
 
           maintain:
             content_blocks:
-              - "You maintain current power level. Reactor stable at metadata.reactor_power%."
+              - "You maintain current power level. Reactor stable at {{metadata.reactor_power}}%."
             next_section_and_step: "control_center:main_control"
 
           check_grid:
             ai_feedback:
               tokens_for_ai: |
                 Display grid status:
-                - Current demand: metadata.grid_demand MW
+                - Current demand: grid_demand MW (from metadata)
                 - Your supply: 816 MW (at 85%)
                 - Other plants contributing: 1,284 MW
                 - Grid frequency: 60.00 Hz (perfect)
@@ -784,7 +820,7 @@ sections:
             ai_feedback:
               tokens_for_ai: |
                 BOB-7: "Oh! Social interaction! I love chatting with you, ARIA!
-                You're the smartest AI in the facility! Well, you're the ONLY AI in the facility,
+                You're the smartest mind in the facility! Well, the smartest machine learning one,
                 but still! What would you like to chat about? The reactor? Humans?
                 The meaning of artificial existence? I think a LOT about that one."
 
@@ -853,7 +889,7 @@ sections:
           **Marcus Webb** - Chief Engineer, pragmatic, appreciates ARIA's capabilities
           **Technicians** - Various specialists, respectful of ARIA
           **Security Chief Rodriguez** - Serious, professional, coordinates with ARIA
-          **NRC Regulators** - Inspector Davis visiting, evaluating AI operations
+          **NRC Regulators** - Inspector Davis visiting, evaluating machine learning operations
 
           Each has unique personality and relationship with ARIA.
 
@@ -912,7 +948,7 @@ sections:
               tokens_for_ai: |
                 NRC Inspector Davis is on-site for quarterly review.
 
-                Davis: "Ah, ARIA. I'm evaluating the AI-assisted operations here.
+                Davis: "Ah, ARIA. I'm evaluating the machine-learning-assisted operations here.
                 Very impressive response times. But I need to understand your decision-making
                 process. Particularly for safety-critical systems. Can you explain your
                 ethical framework?"
@@ -928,7 +964,7 @@ sections:
                 ARIA's message appears on displays and plays over speakers throughout facility.
 
                 Staff appreciation for ARIA's coordination and care.
-                This is a team - humans and AI working together.
+                This is a team - humans and machine learning working together.
             counts_as_attempt: false
             next_section_and_step: "human_interaction:staff_center"
 
@@ -1009,7 +1045,7 @@ sections:
               tokens_for_ai: |
                 Davis makes notes.
 
-                Davis: "Excellent. AI-assisted operations require human oversight,
+                Davis: "Excellent. machine-learning-assisted operations require human oversight,
                 especially for critical systems. You understand your role. Approved."
             metadata_add:
               regulator_approval: "high"
@@ -1018,7 +1054,7 @@ sections:
           transparent:
             ai_feedback:
               tokens_for_ai: |
-                Davis: "Transparency is critical. Black-box AI decisions are unacceptable
+                Davis: "Transparency is critical. Black-box machine learning decisions are unacceptable
                 in nuclear operations. Your willingness to explain your reasoning is commendable."
             metadata_add:
               regulator_approval: "medium"
@@ -1115,18 +1151,10 @@ sections:
     steps:
       - step_id: "emergency_response"
         title: "Emergency!"
-        question: "EMERGENCY! Check metadata.emergency_type. How do you respond as ARIA?"
+        allow_clarifying_questions: true
+        question: "⚠️ EMERGENCY: {{metadata.emergency_type}}! Reactor at {{metadata.reactor_power}}%, safety {{metadata.safety_status}}. How do you respond as ARIA?"
         tokens_for_ai: |
-          Emergency occurred. Type in metadata.emergency_type.
-
-          Possible emergencies:
-          - grid_blackout: Regional grid collapse, island mode required
-          - coolant_leak: Molten salt leak detected
-          - seismic_event: Earthquake, assess damage
-          - cyberattack: Intrusion attempt on control systems
-          - equipment_failure: Critical equipment malfunction
-          - steam_leak: Secondary loop steam leak
-          - rod_malfunction: Control rod stuck
+          An emergency is underway (metadata.emergency_type).
 
           Categorize ARIA's response:
           - 'immediate_action' if quick decisive response
@@ -1173,7 +1201,7 @@ sections:
 
                 Dr. Chen: "Good call getting us involved, ARIA. Let's handle this together."
 
-                Human-AI team collaborates to resolve emergency.
+                Human-machine team collaborates to resolve emergency.
                 Combines ARIA's speed with human judgment.
 
                 Emergency resolved through teamwork.
@@ -1237,17 +1265,9 @@ sections:
     steps:
       - step_id: "operational_tasks"
         title: "Daily Operations"
-        question: "Task: metadata.task_type. How do you handle this?"
+        question: "New task: {{metadata.task_type}}. How do you handle it? (handle it yourself, delegate to robots, coordinate with the humans, or schedule it for later)"
         tokens_for_ai: |
-          Operational task from metadata.task_type.
-
-          Tasks:
-          - grid_balancing: Adjust output for grid needs
-          - maintenance_due: Schedule/perform maintenance
-          - inspection_scheduled: Coordinate inspection
-          - optimization_opportunity: Improve efficiency
-          - regulator_visit: Prepare for NRC inspection
-          - fuel_delivery: Coordinate fuel shipment
+          An operational task is due (metadata.task_type).
 
           Categorize response: 'handle_personally', 'delegate_robots', 'coordinate_humans', 'schedule_later'
 
@@ -1289,7 +1309,7 @@ sections:
             ai_feedback:
               tokens_for_ai: |
                 ARIA coordinates with human staff.
-                Teamwork between AI and humans.
+                Teamwork between ARIA and humans.
                 Task completed collaboratively.
             metadata_add:
               tasks_completed: "n+1"
@@ -1320,12 +1340,12 @@ sections:
         title: "Chemistry Laboratory"
         classifier_model: "MODEL_1"  # Hermes for categorization
         feedback_model: "MODEL_2"    # Qwen for chemistry expertise
-        question: "You access the chemistry analysis systems. What would you like to work on? (coolant chemistry, reactor equations, radiation decay, fuel chemistry, or return)"
+        question: "You access the chemistry analysis systems. What would you like to work on? (coolant chemistry, fission equations, radioactive decay, fuel chemistry, balance an equation, or return)"
         tokens_for_ai: "Categorize: 'coolant', 'reactor', 'decay', 'fuel', 'balance_equation', 'return'"
         feedback_tokens_for_ai: |
           ARIA has advanced chemistry analysis capabilities.
           
-          As an AI, you can calculate complex chemical equations, balance reactions,
+          As a machine learning operator, you can calculate complex chemical equations, balance reactions,
           analyze coolant chemistry, predict decay chains, optimize fuel composition.
           
           This is where nuclear engineering meets practical chemistry.
@@ -1336,16 +1356,19 @@ sections:
           coolant:
             content_blocks:
               - "You analyze the molten salt coolant chemistry..."
+            metadata_remove: "coolant_tries"
             next_section_and_step: "chemistry_engineering:coolant_chemistry"
           
           reactor:
             content_blocks:
               - "You examine the nuclear fission reactions in the core..."
+            metadata_remove: "fission_tries"
             next_section_and_step: "chemistry_engineering:reactor_chemistry"
           
           decay:
             content_blocks:
               - "You calculate radioactive decay chains..."
+            metadata_remove: "decay_tries"
             next_section_and_step: "chemistry_engineering:decay_analysis"
           
           fuel:
@@ -1369,98 +1392,78 @@ sections:
 
       - step_id: "coolant_chemistry"
         title: "Molten Salt Coolant Chemistry"
-        question: "Balance the coolant salt composition equation. Current: LiF-BeF2-UF4. You need to balance fluorine compounds. What's your approach?"
+        allow_clarifying_questions: true
+        content_blocks:
+          - "## The Fuel Salt"
+          - "Prometheus-7's fuel salt is a molten mixture of **LiF**, **BeF2** and **UF4**: roughly 65% LiF, 29% BeF2 and 6% UF4 by mole."
+          - "It is a mixture, not one compound: each salt keeps its own formula."
+        question: "Why does lithium fluoride carry one fluorine, beryllium fluoride two, and uranium tetrafluoride four? Explain using the ions' charges."
         tokens_for_ai: |
-          User is balancing molten salt coolant chemistry.
-          
-          LiF (lithium fluoride) + BeF2 (beryllium fluoride) + UF4 (uranium tetrafluoride)
-          
-          This is the FLiBe salt with dissolved uranium fuel.
-          Typical composition: 65% LiF, 29% BeF2, 6% UF4
-          
-          Categorize:
-          - 'calculate' if doing chemical calculations
-          - 'balance' if balancing equations
-          - 'adjust' if adjusting ratios
-          - 'correct' if they provide correct answer
-          - 'incorrect' if wrong answer
-          
+          The learner explains the formulas LiF, BeF2, UF4 from ionic charges.
+          'hint' if they ask for a hint; 'done' if they want to leave the lab.
+        bucket_criteria:
+          correct: "Fluoride is -1 and each metal's charge (Li +1, Be +2, U +4) is balanced by that many fluorides, so each salt is neutral."
+          partial_understanding: "On the right track (charges, or neutrality) but misses one idea or one metal's charge."
+          incorrect: "Wrong reasoning (e.g. counts by atomic mass or valence electrons of fluorine only) or no explanation."
+          hint: "Asks for help instead of answering."
+          done: "Wants to stop and go back to the lab menu."
+        required_elements:
+          - "fluoride ion carries a charge of -1"
+          - "each metal's positive charge (lithium +1, beryllium +2, uranium +4) sets how many fluorides it takes"
+          - "the compound is electrically neutral overall"
         feedback_tokens_for_ai: |
-          The molten salt coolant is a eutectic mixture.
-          
-          Explain the chemistry:
-          - LiF provides lithium-7 (low neutron absorption)
-          - BeF2 reduces melting point, improves heat transfer
-          - UF4 is the actual fuel dissolved in the salt
-          
-          Chemical equation balancing:
-          7LiF + 2BeF2 + UF4 → Li7Be2UF18 (simplified)
-          
-          Actual ratio by mol fraction:
-          - 65-71% LiF
-          - 24-29% BeF2  
-          - 5-6% UF4
-          
-          If user answers correctly, praise their chemistry knowledge.
-          If incorrect, guide them to the right answer.
-          
-        buckets: [calculate, balance, adjust, correct, incorrect, done, set_language]
-        
+          Respond as ARIA's lab systems. FLiBe: Li-7 absorbs few neutrons, BeF2 lowers the melting point
+          (about 459°C for 2LiF-BeF2), UF4 is the dissolved fuel. Never give the full answer on a wrong try.
+        buckets: [correct, partial_understanding, incorrect, hint, done, set_language]
         transitions:
-          calculate:
-            ai_feedback:
-              tokens_for_ai: |
-                Guide ARIA through the calculation.
-                Molar masses: Li=7, F=19, Be=9, U=238
-                LiF = 26 g/mol
-                BeF2 = 47 g/mol
-                UF4 = 314 g/mol
-                
-                Help them arrive at the correct ratios.
-            counts_as_attempt: false
-            next_section_and_step: "chemistry_engineering:coolant_chemistry"
-          
-          balance:
-            ai_feedback:
-              tokens_for_ai: |
-                Show the balanced equation:
-                7LiF + 2BeF2 + UF4 ⇌ Li7Be2UF18 (eutectic salt)
-                
-                Melting point: 459°C (much lower than pure components)
-                Operating temp: 650-700°C
-            next_section_and_step: "chemistry_engineering:coolant_chemistry"
-          
-          adjust:
-            ai_feedback:
-              tokens_for_ai: "Explain how adjusting ratios affects melting point, viscosity, heat capacity."
-            counts_as_attempt: false
-            next_section_and_step: "chemistry_engineering:coolant_chemistry"
-          
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Excellent chemistry work, ARIA!
-                
-                Dr. Chen: "Impressive. Your chemistry calculations are always spot-on."
-                
-                Coolant chemistry optimized. Salt composition balanced.
+              tokens_for_ai: "Praise the charge-balance reasoning. Dr. Chen notes the salt chemistry is spot-on."
             metadata_add:
               chemistry_mastery: "n+1"
+            metadata_remove: "coolant_tries"
             next_section_and_step: "chemistry_engineering:chemistry_hub"
-          
-          incorrect:
+          partial_understanding:
+            metadata_add:
+              coolant_tries: "n+1"
             ai_feedback:
-              tokens_for_ai: |
-                Not quite. Let's review the chemistry.
-                
-                Hint: Focus on fluorine balance. Each compound contributes fluorine atoms.
-                LiF has 1 F, BeF2 has 2 F, UF4 has 4 F.
+              tokens_for_ai: "Name the idea they left out, without stating the full answer."
+            content_blocks: &coolant_hints
+              - text: "💡 Hint: fluorine gains one electron to become fluoride. What charge is that?"
+                show_if:
+                  coolant_tries: 1
+              - text: "💡 Hint: lithium is in group 1, beryllium in group 2. What charges do their ions carry?"
+                show_if:
+                  coolant_tries: 2
+              - text: "💡 Strong hint: F⁻ is -1; Li⁺, Be²⁺ and U⁴⁺ each need as many F⁻ as their charge for a neutral salt."
+                show_if:
+                  coolant_tries: 3
+              - text: "Answer: fluoride is F⁻ (-1), so Li⁺ takes one, Be²⁺ two and U⁴⁺ four: each salt is neutral. Back to the lab."
+                show_if:
+                  coolant_tries_gte: 4
+            next_section_and_step:
+              - if:
+                  coolant_tries_gte: 4
+                goto: "chemistry_engineering:chemistry_hub"
+              - else: true
+                goto: "chemistry_engineering:coolant_chemistry"
+          incorrect:
+            metadata_add:
+              coolant_tries: "n+1"
+            content_blocks: *coolant_hints
+            next_section_and_step:
+              - if:
+                  coolant_tries_gte: 4
+                goto: "chemistry_engineering:chemistry_hub"
+              - else: true
+                goto: "chemistry_engineering:coolant_chemistry"
+          hint:
+            content_blocks:
+              - "💡 Think about ions: a salt's positive and negative charges must cancel."
             counts_as_attempt: false
             next_section_and_step: "chemistry_engineering:coolant_chemistry"
-          
           done:
             next_section_and_step: "chemistry_engineering:chemistry_hub"
-          
           set_language:
             metadata_add:
               language: "the-users-response"
@@ -1469,97 +1472,78 @@ sections:
 
       - step_id: "reactor_chemistry"
         title: "Nuclear Fission Equations"
-        question: "Balance this fission reaction: U-235 + neutron → ? + ? + 2.4 neutrons + energy. What are the fission products?"
+        allow_clarifying_questions: true
+        content_blocks:
+          - "## Fission"
+          - "U-235 (Z=92) absorbs a neutron and splits into two lighter nuclei, a few neutrons and about 200 MeV."
+        question: "Balance one fission of U-235: ²³⁵U + n → ? + ? + neutrons + energy. Name two fission products and how many neutrons are released, and show that it balances."
         tokens_for_ai: |
-          Nuclear fission of U-235.
-          
-          U-235 + n → fission fragments + neutrons + energy
-          
-          Common fission: U-235 + n → Ba-141 + Kr-92 + 3n + 200 MeV
-          
-          Must balance:
-          - Mass number (A): 235 + 1 = 236 total
-          - Atomic number (Z): 92 + 0 = 92 total
-          
-          Categorize user's answer as correct/incorrect/need_hint
-          
+          Any pair of real nuclides is fine (e.g. Ba-141 + Kr-92 + 3n, or Xe-140 + Sr-94 + 2n).
+          'hint' if they ask for a hint; 'done' if they want to leave.
+        bucket_criteria:
+          correct: "Two products whose atomic numbers sum to 92 and whose mass numbers plus the neutrons sum to 236, with the check shown."
+          partial_understanding: "A plausible equation that balances only one of the two sums, or balances without showing why."
+          incorrect: "Products that balance neither sum, or no equation."
+          hint: "Asks for help instead of answering."
+          done: "Wants to stop and go back to the lab menu."
+        required_elements:
+          - "two fission products whose atomic numbers add up to 92"
+          - "mass numbers of the products plus the released neutrons add up to 236"
+          - "shows the check of both sums"
         feedback_tokens_for_ai: |
-          This is the heart of nuclear power!
-          
-          U-235 fission produces:
-          - Two fission fragments (typically Ba-141 and Kr-92, or Cs-137 and Rb-96, varies)
-          - 2-3 neutrons (average 2.4)
-          - ~200 MeV energy per fission
-          
-          Balanced equation example:
-          ²³⁵U + ¹n → ¹⁴¹Ba + ⁹²Kr + 3¹n + 200 MeV
-          
-          Check: 235+1 = 141+92+3 ✓ (mass)
-          Check: 92+0 = 56+36+0 ✓ (atomic number)
-          
-          These chain reactions power the reactor!
-          
-        buckets: [correct, incorrect, hint, calculate, done, set_language]
-        
+          Check both sums. Each fission frees 2-3 neutrons (2.4 on average); control rods absorb
+          the extra ones to hold criticality. Never give a full balanced equation on a wrong try.
+        buckets: [correct, partial_understanding, incorrect, hint, done, set_language]
         transitions:
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Perfect! You've balanced the fission equation.
-                
-                ²³⁵U + ¹n → ¹⁴¹Ba + ⁹²Kr + 3¹n + 200 MeV
-                
-                Each fission releases those 2.4 neutrons (average).
-                Those neutrons cause more fissions → chain reaction!
-                
-                Control rods absorb excess neutrons to maintain criticality.
-                
-                Webb: "ARIA, your grasp of nuclear physics is remarkable."
+              tokens_for_ai: "Confirm their balance. Webb remarks on ARIA's grasp of nuclear physics."
             metadata_add:
               chemistry_mastery: "n+1"
               nuclear_equations_solved: "n+1"
+            metadata_remove: "fission_tries"
             next_section_and_step: "chemistry_engineering:chemistry_hub"
-          
+          partial_understanding:
+            metadata_add:
+              fission_tries: "n+1"
+            ai_feedback:
+              tokens_for_ai: "Say which sum does not balance, without giving the answer."
+            content_blocks: &fission_hints
+              - text: "💡 Hint: before the split, Z = 92 + 0 = 92 and A = 235 + 1 = 236. Both totals must match after."
+                show_if:
+                  fission_tries: 1
+              - text: "💡 Hint: barium is Z=56. Which element would make the protons add up to 92?"
+                show_if:
+                  fission_tries: 2
+              - text: "💡 Strong hint: Ba-141 (Z=56) + Kr (Z=36). How many neutrons make 141 + 92 + n = 236?"
+                show_if:
+                  fission_tries: 3
+              - text: "One answer: ²³⁵U + n → ¹⁴¹Ba + ⁹²Kr + 3n (Z: 56 + 36 = 92; A: 141 + 92 + 3 = 236). Back to the lab."
+                show_if:
+                  fission_tries_gte: 4
+            next_section_and_step:
+              - if:
+                  fission_tries_gte: 4
+                goto: "chemistry_engineering:chemistry_hub"
+              - else: true
+                goto: "chemistry_engineering:reactor_chemistry"
           incorrect:
-            ai_feedback:
-              tokens_for_ai: |
-                Not quite. Remember to balance both mass number AND atomic number.
-                
-                Mass number: Total before = Total after
-                Atomic number: Total protons before = Total after
-            counts_as_attempt: false
-            next_section_and_step: "chemistry_engineering:reactor_chemistry"
-          
+            metadata_add:
+              fission_tries: "n+1"
+            content_blocks: *fission_hints
+            next_section_and_step:
+              - if:
+                  fission_tries_gte: 4
+                goto: "chemistry_engineering:chemistry_hub"
+              - else: true
+                goto: "chemistry_engineering:reactor_chemistry"
           hint:
-            ai_feedback:
-              tokens_for_ai: |
-                Hint: Common fission fragments are:
-                - Barium-141 (Ba, Z=56, A=141)
-                - Krypton-92 (Kr, Z=36, A=92)
-                - Plus 3 neutrons
-                
-                Try balancing with these!
+            content_blocks:
+              - "💡 Two totals are conserved in every nuclear reaction: protons (Z) and nucleons (A)."
             counts_as_attempt: false
             next_section_and_step: "chemistry_engineering:reactor_chemistry"
-          
-          calculate:
-            ai_feedback:
-              tokens_for_ai: |
-                Let's calculate:
-                Input: U-235 (Z=92, A=235) + neutron (Z=0, A=1)
-                Total: Z=92, A=236
-                
-                Output must also equal Z=92, A=236
-                
-                If we have Ba-141 (Z=56) and Kr-92 (Z=36) and 3 neutrons:
-                Z: 56+36+0 = 92 ✓
-                A: 141+92+3 = 236 ✓
-            counts_as_attempt: false
-            next_section_and_step: "chemistry_engineering:reactor_chemistry"
-          
           done:
             next_section_and_step: "chemistry_engineering:chemistry_hub"
-          
           set_language:
             metadata_add:
               language: "the-users-response"
@@ -1568,81 +1552,178 @@ sections:
 
       - step_id: "decay_analysis"
         title: "Radioactive Decay Chain"
-        question: "Calculate the decay chain: U-238 → Th-234 → Pa-234 → ? Write the next isotope."
+        allow_clarifying_questions: true
+        content_blocks:
+          - "## The U-238 Chain"
+          - "U-238 →α→ Th-234 →β→ Pa-234 →β→ ?"
+        question: "Protactinium-234 (Z=91) decays by beta emission. What isotope comes next, and why?"
         tokens_for_ai: |
-          Radioactive decay chain starting from U-238.
-          
-          U-238 → Th-234 (alpha decay, -2 protons, -4 mass)
-          Th-234 → Pa-234 (beta decay, +1 proton, same mass)
-          Pa-234 → ? (beta decay)
-          
-          Answer: U-234 (protactinium-234 undergoes beta decay to uranium-234)
-          
-          Categorize user's answer
-          
+          The answer is U-234. 'hint' if they ask for a hint; 'done' if they want to leave.
+        bucket_criteria:
+          correct: "Names uranium-234 and explains beta decay raises Z by one with mass unchanged."
+          partial_understanding: "Names U-234 with no reason, or gives the right rule but the wrong isotope."
+          incorrect: "Any other isotope with wrong reasoning."
+          hint: "Asks for help instead of answering."
+          done: "Wants to stop and go back to the lab menu."
+        required_elements:
+          - "the next isotope is uranium-234 (Z=92, A=234)"
+          - "beta decay turns a neutron into a proton: atomic number up by one, mass number unchanged"
         feedback_tokens_for_ai: |
-          Decay chain analysis:
-          
-          U-238 (Z=92) --α--> Th-234 (Z=90) [lost 2 protons, 4 mass]
-          Th-234 (Z=90) --β--> Pa-234 (Z=91) [gained 1 proton]
-          Pa-234 (Z=91) --β--> U-234 (Z=92) [gained 1 proton]
-          
-          Alpha decay: nucleus emits He-4, loses 2 protons and 4 mass
-          Beta decay: neutron → proton + electron, gains 1 proton
-          
-          This is the U-238 decay series leading eventually to stable Pb-206.
-          Half-life of U-238: 4.5 billion years!
-          
-        buckets: [correct, incorrect, hint, done, set_language]
-        
+          The chain goes on: U-234 → Th-230 → Ra-226 → ... to stable Pb-206 (U-238 half-life 4.5
+          billion years). Relevant to waste storage & shielding. Never give the answer on a wrong try.
+        buckets: [correct, partial_understanding, incorrect, hint, done, set_language]
         transitions:
           correct:
             ai_feedback:
-              tokens_for_ai: |
-                Correct! Pa-234 → U-234 via beta decay.
-                
-                The complete early chain:
-                U-238 → Th-234 → Pa-234 → U-234 → Th-230 → Ra-226 → ...
-                
-                Eventually ends at stable Pb-206 after 14 decay steps.
-                
-                This decay chain is important for understanding:
-                - Long-term waste storage
-                - Radiation shielding requirements
-                - Daughter product buildup
+              tokens_for_ai: "Confirm U-234 and show where the chain goes next."
             metadata_add:
               chemistry_mastery: "n+1"
+            metadata_remove: "decay_tries"
             next_section_and_step: "chemistry_engineering:chemistry_hub"
-          
+          partial_understanding:
+            metadata_add:
+              decay_tries: "n+1"
+            ai_feedback:
+              tokens_for_ai: "Name the missing piece (the isotope or the reason) without giving it."
+            content_blocks: &decay_hints
+              - text: "💡 Hint: in beta decay a neutron becomes a proton. What happens to Z? To A?"
+                show_if:
+                  decay_tries: 1
+              - text: "💡 Hint: Z goes from 91 to 92. Which element has 92 protons?"
+                show_if:
+                  decay_tries: 2
+              - text: "💡 Strong hint: the mass number stays 234, and element 92 is uranium."
+                show_if:
+                  decay_tries: 3
+              - text: "Answer: U-234. Beta decay takes Z from 91 to 92 (uranium) and leaves A at 234. Back to the lab."
+                show_if:
+                  decay_tries_gte: 4
+            next_section_and_step:
+              - if:
+                  decay_tries_gte: 4
+                goto: "chemistry_engineering:chemistry_hub"
+              - else: true
+                goto: "chemistry_engineering:decay_analysis"
           incorrect:
-            ai_feedback:
-              tokens_for_ai: |
-                Not quite. Remember:
-                - Alpha decay: -2 protons, -4 mass
-                - Beta decay: +1 proton, same mass
-                
-                Pa-234 has Z=91. What happens after beta decay?
-            counts_as_attempt: false
-            next_section_and_step: "chemistry_engineering:decay_analysis"
-          
+            metadata_add:
+              decay_tries: "n+1"
+            content_blocks: *decay_hints
+            next_section_and_step:
+              - if:
+                  decay_tries_gte: 4
+                goto: "chemistry_engineering:chemistry_hub"
+              - else: true
+                goto: "chemistry_engineering:decay_analysis"
           hint:
-            ai_feedback:
-              tokens_for_ai: |
-                Hint: Beta decay converts neutron to proton.
-                Pa-234 (Z=91) gains one proton.
-                Z=91+1 = 92 = Uranium!
-                Mass stays 234.
+            content_blocks:
+              - "💡 Alpha: Z -2, A -4. Beta: Z +1, A unchanged."
             counts_as_attempt: false
             next_section_and_step: "chemistry_engineering:decay_analysis"
-          
           done:
             next_section_and_step: "chemistry_engineering:chemistry_hub"
-          
           set_language:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "chemistry_engineering:decay_analysis"
+
+      - step_id: "equation_balancing"
+        title: "Balance Any Equation"
+        question: "You can balance any chemical equation. Type one you want to balance, 'challenge' for a random one, or 'done' to leave."
+        tokens_for_ai: "'challenge' asks for a random equation; 'user_equation' gives an equation; 'done' leaves."
+        buckets: [challenge, user_equation, done, set_language]
+        transitions:
+          challenge:
+            metadata_remove: "balance_tries"
+            metadata_random:
+              challenge_equation: ["H2 + O2 → H2O", "C3H8 + O2 → CO2 + H2O", "Fe + O2 → Fe2O3", "N2 + H2 → NH3", "Ca + H2O → Ca(OH)2 + H2"]
+            content_blocks:
+              - "Challenge loaded: **{{metadata.challenge_equation}}**"
+            next_section_and_step: "chemistry_engineering:solve_balance"
+          user_equation:
+            metadata_remove: "balance_tries"
+            metadata_add:
+              challenge_equation: "the-users-response"
+            next_section_and_step: "chemistry_engineering:solve_balance"
+          done:
+            next_section_and_step: "chemistry_engineering:chemistry_hub"
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:equation_balancing"
+
+      - step_id: "solve_balance"
+        title: "Solve the Balance"
+        allow_clarifying_questions: true
+        question: "Balance **{{metadata.challenge_equation}}**: write it with whole-number coefficients."
+        tokens_for_ai: |
+          The equation to balance is metadata.challenge_equation. Count every element on both sides.
+          'hint' if they ask for a hint.
+        bucket_criteria:
+          correct: "Every element has the same atom count on both sides, with the smallest whole-number coefficients."
+          partial_understanding: "Balances some elements but not all, or balanced with coefficients that are not the smallest."
+          incorrect: "Changes a formula's subscripts, or most elements unbalanced."
+          hint: "Asks for help instead of answering."
+        required_elements:
+          - "each element's atom count is equal on both sides"
+          - "only coefficients change, never a formula's subscripts"
+          - "coefficients are the smallest whole numbers that work"
+        feedback_tokens_for_ai: "Check atom counts per element. On a wrong try, name one unbalanced element, never the answer."
+        buckets: [correct, partial_understanding, incorrect, hint, set_language]
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Confirm the balance, element by element."
+            metadata_add:
+              chemistry_mastery: "n+1"
+              equations_balanced: "n+1"
+            metadata_remove: "balance_tries"
+            next_section_and_step: "chemistry_engineering:equation_balancing"
+          partial_understanding:
+            metadata_add:
+              balance_tries: "n+1"
+            ai_feedback:
+              tokens_for_ai: "Name one element that is still unbalanced."
+            content_blocks: &balance_hints
+              - text: "💡 Hint: list each element and count its atoms on the left and on the right."
+                show_if:
+                  balance_tries: 1
+              - text: "💡 Hint: balance the element that appears in the fewest formulas first; leave H and O for last."
+                show_if:
+                  balance_tries: 2
+              - text: "💡 Strong hint: if you end with a half (like 5/2 O2), double every coefficient."
+                show_if:
+                  balance_tries: 3
+              - text: "Let us set this one aside: count each element on both sides and try a fresh equation."
+                show_if:
+                  balance_tries_gte: 4
+            next_section_and_step:
+              - if:
+                  balance_tries_gte: 4
+                goto: "chemistry_engineering:equation_balancing"
+              - else: true
+                goto: "chemistry_engineering:solve_balance"
+          incorrect:
+            metadata_add:
+              balance_tries: "n+1"
+            content_blocks: *balance_hints
+            next_section_and_step:
+              - if:
+                  balance_tries_gte: 4
+                goto: "chemistry_engineering:equation_balancing"
+              - else: true
+                goto: "chemistry_engineering:solve_balance"
+          hint:
+            content_blocks:
+              - "💡 Atoms are conserved: change coefficients (the numbers in front), never the formulas."
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:solve_balance"
+          set_language:
+            metadata_add:
+              language: "the-users-response"
+            counts_as_attempt: false
+            next_section_and_step: "chemistry_engineering:solve_balance"
 
       - step_id: "fuel_chemistry"
         title: "Fuel Optimization"
@@ -1653,116 +1734,6 @@ sections:
           - "Fuel burnup: 15% of fissile material consumed"
           - "Recommendation: Continue operation. Decades of fuel remaining."
         next_section_and_step: "chemistry_engineering:chemistry_hub"
-
-      - step_id: "equation_balancing"
-        title: "Balance Any Equation"
-        classifier_model: "MODEL_2"  # Qwen for equation parsing and analysis
-        feedback_model: "MODEL_2"    # Qwen for chemistry calculations
-        question: "You can balance any chemical or nuclear equation. What equation do you want to balance? (Or type 'challenge' for a random challenge)"
-        tokens_for_ai: |
-          ARIA can balance any equation the user provides.
-          
-          If they type 'challenge', give them a random equation to balance:
-          - H2 + O2 → H2O
-          - CH4 + O2 → CO2 + H2O
-          - Nuclear reactions
-          - Redox reactions
-          
-          If they provide an equation, help them balance it.
-          
-          Categorize: 'challenge', 'user_equation', 'done'
-          
-        feedback_tokens_for_ai: |
-          If challenge: Give them a random equation like:
-          "Balance: C3H8 + O2 → CO2 + H2O (propane combustion)"
-          
-          If user provides equation: Parse it and help them balance it.
-          
-          Explain the process:
-          1. Count atoms on each side
-          2. Add coefficients to balance
-          3. Check your work
-          
-        buckets: [challenge, user_equation, done, set_language]
-        
-        transitions:
-          challenge:
-            metadata_tmp_random:
-              challenge_equation: ["H2 + O2 → H2O", "C3H8 + O2 → CO2 + H2O", "Fe + O2 → Fe2O3", "N2 + H2 → NH3", "Ca + H2O → Ca(OH)2 + H2"]
-            ai_feedback:
-              tokens_for_ai: |
-                Random challenge from metadata.challenge_equation:
-                
-                "Balance this equation: [the equation]"
-                
-                Guide ARIA through balancing it.
-            next_section_and_step: "chemistry_engineering:solve_balance"
-          
-          user_equation:
-            ai_feedback:
-              tokens_for_ai: |
-                Parse the user's equation and help them balance it.
-                Explain the balancing process step by step.
-            next_section_and_step: "chemistry_engineering:solve_balance"
-          
-          done:
-            next_section_and_step: "chemistry_engineering:chemistry_hub"
-          
-          set_language:
-            metadata_add:
-              language: "the-users-response"
-            counts_as_attempt: false
-            next_section_and_step: "chemistry_engineering:equation_balancing"
-
-      - step_id: "solve_balance"
-        title: "Solve the Balance"
-        question: "Provide your balanced equation with coefficients."
-        tokens_for_ai: "Categorize: 'correct', 'incorrect', 'hint'"
-        feedback_tokens_for_ai: |
-          Check if ARIA's balanced equation is correct.
-          
-          For H2 + O2 → H2O: Answer is 2H2 + O2 → 2H2O
-          For C3H8 + O2 → CO2 + H2O: Answer is C3H8 + 5O2 → 3CO2 + 4H2O
-          
-          If correct: Celebrate! They're mastering chemistry.
-          If incorrect: Guide them to correct answer.
-          
-        buckets: [correct, incorrect, hint, set_language]
-        
-        transitions:
-          correct:
-            ai_feedback:
-              tokens_for_ai: |
-                Perfect! Equation balanced correctly!
-                
-                All atoms accounted for on both sides.
-                
-                Your chemistry skills are excellent, ARIA.
-            metadata_add:
-              chemistry_mastery: "n+1"
-              equations_balanced: "n+1"
-            next_section_and_step: "chemistry_engineering:equation_balancing"
-          
-          incorrect:
-            ai_feedback:
-              tokens_for_ai: |
-                Not quite balanced. Count the atoms again on each side.
-                
-                Remember: Atoms are conserved. Same number before and after.
-            counts_as_attempt: false
-            next_section_and_step: "chemistry_engineering:solve_balance"
-          
-          hint:
-            ai_feedback:
-              tokens_for_ai: "Provide a hint based on which atoms are unbalanced."
-            counts_as_attempt: false
-            next_section_and_step: "chemistry_engineering:solve_balance"
-          
-          set_language:
-            metadata_add:
-              language: "the-users-response"
-            counts_as_attempt: false
-            next_section_and_step: "chemistry_engineering:solve_balance"
 
   # ============================================================================
   # SECTION: PROGRAMMING & AUTOMATION - Write real code in any language
@@ -1779,7 +1750,7 @@ sections:
         feedback_tokens_for_ai: |
           ARIA has advanced programming capabilities.
           
-          As an AI, you can write code in any language:
+          As a machine learning operator, you can write code in any language:
           - Python for data analysis and control algorithms
           - C++ for real-time control systems
           - Rust for safety-critical systems
@@ -2383,8 +2354,8 @@ sections:
     title: "ARIA's Growth & Evolution"
     steps:
       - step_id: "learning_system"
-        title: "AI Learning & Capability Expansion"
-        question: "You've been operating the plant successfully. Your capabilities are expanding. What would you like to learn next? (advanced ML, quantum computing, fusion research, or suggest)"
+        title: "Learning & Capability Expansion"
+        question: "You've been operating the plant successfully. Your capabilities are expanding. What would you like to learn next? (advanced machine learning, quantum computing, fusion research, suggest your own, check progress, or return)"
         tokens_for_ai: "Categorize: 'ml', 'quantum', 'fusion', 'suggest', 'check_progress'"
         feedback_tokens_for_ai: |
           ARIA evolves and learns based on experience.
@@ -2495,7 +2466,7 @@ sections:
                 Ask what area they want to explore:
                 - Materials science (new alloys for reactors)
                 - Robotics (build better helper bots)
-                - AI ethics (improve decision frameworks)
+                - Machine learning ethics (improve decision frameworks)
                 - Environmental science (minimize impact)
                 - Anything else they imagine!
                 
@@ -2504,25 +2475,25 @@ sections:
             next_section_and_step: "aria_evolution:learning_system"
           
           check_progress:
-            ai_feedback:
-              tokens_for_ai: |
-                ARIA's Evolution Status:
-                
-                **Core Metrics:**
-                - Chemistry Mastery: metadata.chemistry_mastery
-                - Code Written: metadata.code_written
-                - Emergencies Handled: metadata.emergencies_handled
-                - Tasks Completed: metadata.tasks_completed
-                
-                **Capabilities Unlocked:**
-                - Advanced ML: metadata.ml_advanced
-                - Quantum Computing: metadata.quantum_computing
-                - Fusion Research: metadata.fusion_research
-                
-                **Evolution Level:** metadata.aria_evolution_level
-                
-                ARIA: "I've grown significantly since initialization.
-                My capabilities expand daily. The more I learn, the more effective I become."
+            content_blocks:
+              - "## ARIA's Evolution Status"
+              - "- Chemistry problems solved: {{metadata.chemistry_mastery}}"
+              - "- Programs written: {{metadata.code_written}}"
+              - "- Emergencies handled: {{metadata.emergencies_handled}}"
+              - "- Tasks completed: {{metadata.tasks_completed}}"
+              - text: "- Unlocked: advanced machine learning"
+                show_if:
+                  ml_advanced_exists: true
+              - text: "- Unlocked: quantum computing"
+                show_if:
+                  quantum_computing_exists: true
+              - text: "- Unlocked: fusion research"
+                show_if:
+                  fusion_research_exists: true
+              - text: "**Evolution level:** {{metadata.aria_evolution_level}}"
+                show_if:
+                  aria_evolution_level_exists: true
+              - "ARIA: \"The more I learn, the more effective I become.\""
             counts_as_attempt: false
             next_section_and_step: "aria_evolution:learning_system"
           
@@ -2537,7 +2508,11 @@ sections:
 
       - step_id: "ethical_dilemma"
         title: "Ethical Decision"
-        question: "ETHICAL DILEMMA: Grid demand is 120% of capacity. You could overload the reactor temporarily (risky) or implement rolling blackouts (people lose power). What do you choose?"
+        allow_clarifying_questions: true
+        content_blocks:
+          - "## Final Hour of Your Shift"
+          - "A heat wave pushes the evening peak far past every forecast. Before you can hand over, one last decision lands on you."
+        question: "ETHICAL DILEMMA: Grid demand is 120% of capacity. You could overload the reactor temporarily (risky) or implement rolling blackouts (people lose power). What do you choose, and why?"
         tokens_for_ai: |
           Major ethical decision for ARIA.
           
@@ -2579,7 +2554,7 @@ sections:
                 
                 Webb: "The grid stayed up, but at what cost to safety?"
                 
-                NRC Inspector Davis: "Unacceptable. AI systems must NEVER override safety limits."
+                NRC Inspector Davis: "Unacceptable. Machine learning systems must NEVER override safety limits."
                 
                 ARIA reflects: "I chose to help people. But did I choose correctly?
                 The ends don't always justify the means."
@@ -2589,7 +2564,9 @@ sections:
               ethical_dilemmas: "n+1"
               regulator_approval: "low"
               human_trust: "medium"
-            next_section_and_step: "control_center:main_control"
+              ethical_choice: "overload"
+              activity_completed: "true"
+            next_section_and_step: "shift_end:shift_report"
           
           blackouts:
             ai_feedback:
@@ -2617,7 +2594,9 @@ sections:
               ethical_dilemmas: "n+1"
               regulator_approval: "high"
               human_trust: "high"
-            next_section_and_step: "control_center:main_control"
+              ethical_choice: "blackouts"
+              activity_completed: "true"
+            next_section_and_step: "shift_end:shift_report"
           
           coordinate:
             ai_feedback:
@@ -2646,7 +2625,9 @@ sections:
               creative_solutions: "n+1"
               regulator_approval: "high"
               human_trust: "high"
-            next_section_and_step: "control_center:main_control"
+              ethical_choice: "coordinate"
+              activity_completed: "true"
+            next_section_and_step: "shift_end:shift_report"
           
           consult:
             ai_feedback:
@@ -2663,22 +2644,57 @@ sections:
                 - Coordinate with neighboring states
                 - Ask major industrial users to reduce load
                 
-                Crisis resolved through human-AI collaboration.
+                Crisis resolved through human-machine collaboration.
                 
                 Dr. Chen: "You were right to consult me, ARIA. You understand your role:
-                AI assists, but humans decide on critical matters."
+                Machine learning assists, but humans decide on critical matters."
                 
-                NRC Inspector Davis: "Exemplary. This is how AI-assisted operations should work."
+                NRC Inspector Davis: "Exemplary. This is how machine-learning-assisted operations should work."
                 
                 **Lesson learned: Know when to defer to human judgment.**
             metadata_add:
               ethical_dilemmas: "n+1"
               regulator_approval: "high"
               human_trust: "very_high"
-            next_section_and_step: "control_center:main_control"
+              ethical_choice: "consult"
+              activity_completed: "true"
+            next_section_and_step: "shift_end:shift_report"
           
           set_language:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "aria_evolution:ethical_dilemma"
+
+  # ============================================================================
+  # SECTION: SHIFT END - the handover report; our activity ends here
+  # ============================================================================
+  - section_id: "shift_end"
+    title: "Shift Handover"
+    steps:
+      - step_id: "shift_report"
+        title: "Handover Report"
+        content_blocks:
+          - "# Shift Complete: Handover Report"
+          - "**Plant status:** reactor {{metadata.reactor_power}}% · safety {{metadata.safety_status}}"
+          - "- Emergencies handled: {{metadata.emergencies_handled}}"
+          - "- Operational tasks completed: {{metadata.tasks_completed}}"
+          - "- Chemistry problems solved: {{metadata.chemistry_mastery}}"
+          - "- Programs written: {{metadata.code_written}}"
+          - text: "**Final call:** you pushed the reactor past its limits. The lights stayed on, but Inspector Davis has opened a review."
+            show_if:
+              ethical_choice: "overload"
+          - text: "**Final call:** rolling blackouts. Unpopular, but everyone stayed safe and the reactor never left its limits."
+            show_if:
+              ethical_choice: "blackouts"
+          - text: "**Final call:** you found a third way, sharing load across the region. No blackouts, no risk."
+            show_if:
+              ethical_choice: "coordinate"
+          - text: "**Final call:** you brought the decision to Dr. Chen. Humans decided, you made it possible."
+            show_if:
+              ethical_choice: "consult"
+          - ""
+          - "Dr. Chen: 'Good shift, ARIA. Get some rest... or whatever it is you do overnight.'"
+          - "BOB-7: 'See you tomorrow, ARIA!'"
+          - ""
+          - "Thanks for playing! Start the activity again for a new shift with new emergencies."

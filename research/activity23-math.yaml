@@ -1,6 +1,10 @@
 title: "Math Quiz: From Basics to Algebra"
-description: "Nine questions from addition to algebra; show our work & get feedback on each."
+description: "Eight questions from addition to quadratics; show your work & get feedback on each."
+kind: "lesson"
 default_max_attempts_per_step: 3
+tokens_for_ai_rubric: |
+  Accept every valid method and every equivalent form of the answer.
+  Feedback never solves the learner's problem for them: to show a method, use a different example.
 sections:
   - section_id: "section_1"
     title: "Math Quiz: From Basics to Algebra"
@@ -8,362 +12,355 @@ sections:
       - step_id: "step_1"
         title: "Basic Addition"
         content_blocks:
-          - "Solve the following problem: 5 + 3"
-          - "You can show your work and provide the final answer."
-        question: "What is 5 + 3? Show your work and provide the answer."
-        tokens_for_ai: |
-          Determine if the user's response is correct by checking if the final answer is 8.
-          If the user shows their work but doesn't provide a final answer, categorize as 'show_work'.
-          If the answer is incorrect, categorize as 'incorrect'.
-          If the user wants to change the language, categorize as 'set_language'.
-        feedback_tokens_for_ai: |
-          DO NOT answer or solve the question problem when explaining the problem. Instead use a different contrived problem.
-        buckets:
-          - correct
-          - incorrect
-          - show_work
-          - set_language
+          - "# Math Quiz 🔢"
+          - "Eight questions, from addition to quadratics. Show your work: we grade the method as well as the answer."
+          - ""
+          - "**Question 1 of 8.** Solve: $5 + 3$"
+        question: "What is 5 + 3? Show your work and give the answer."
+        tokens_for_ai: "The answer is 8. Accept 8 or eight."
+        bucket_criteria:
+          correct: "Gives 8, with or without working."
+          partial_understanding: "Sound working but no final answer, or a slip on the last step."
+          incorrect: "A wrong final answer."
+          off_topic: "Does not attempt the problem."
+        required_elements:
+          - "states the final answer 8"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
-            ai_feedback:
-              tokens_for_ai: "Great job! You got the correct answer. if 'correct' give the answer and solve the question problem showing all work and explain the problem."
             metadata_add:
               score: "n+1"
+            content_blocks:
+              - "✅ Correct! **Score: {{metadata.score}} / 8**"
+            ai_feedback:
+              tokens_for_ai: "In one or two sentences, praise the specific method they used."
             next_section_and_step: "section_1:step_2"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name what is missing (the final answer, or the working) and ask for it. Never give the answer."
           incorrect:
             ai_feedback:
-              tokens_for_ai: "The answer is not right. Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              attempts: "n+1"
-            next_section_and_step: "section_1:step_1"
-          show_work:
-            ai_feedback:
-              tokens_for_ai: "Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              user_work: "the-users-response"
-            next_section_and_step: "section_1:step_1"
+              tokens_for_ai: "Point to the first mistake in their working and show the method on a different example. Never give this answer."
           set_language:
             content_blocks:
-              - "language updated!"
+              - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "section_1:step_1"
+          off_topic:
+            content_blocks:
+              - "Let's stay with the problem: Solve: $5 + 3$"
 
       - step_id: "step_2"
         title: "Basic Subtraction"
         content_blocks:
-          - "Solve the following problem: 10 - 4"
-          - "You can show your work and provide the final answer."
-        question: "What is 10 - 4? Show your work and provide the answer."
-        tokens_for_ai: |
-          Determine if the user's response is correct by checking if the final answer is 6.
-          If the user shows their work but doesn't provide a final answer, categorize as 'show_work'.
-          If the answer is incorrect, categorize as 'incorrect'.
-          If the user wants to change the language, categorize as 'set_language'.
-        feedback_tokens_for_ai: |
-          DO NOT answer or solve the question problem when explaining the problem. Instead use a different contrived problem.
-        buckets:
-          - correct
-          - incorrect
-          - show_work
-          - set_language
+          - "**Question 2 of 8.** Solve: $10 - 4$"
+        question: "What is 10 - 4? Show your work and give the answer."
+        tokens_for_ai: "The answer is 6. Accept 6 or six."
+        bucket_criteria:
+          correct: "Gives 6, with or without working."
+          partial_understanding: "Sound working but no final answer, or a slip on the last step."
+          incorrect: "A wrong final answer."
+          off_topic: "Does not attempt the problem."
+        required_elements:
+          - "states the final answer 6"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
-            ai_feedback:
-              tokens_for_ai: "Great job! You got the correct answer. if 'correct' give the answer and solve the question problem showing all work and explain the problem."
             metadata_add:
               score: "n+1"
+            content_blocks:
+              - "✅ Correct! **Score: {{metadata.score}} / 8**"
+            ai_feedback:
+              tokens_for_ai: "In one or two sentences, praise the specific method they used."
             next_section_and_step: "section_1:step_3"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name what is missing (the final answer, or the working) and ask for it. Never give the answer."
           incorrect:
             ai_feedback:
-              tokens_for_ai: "The answer is not right. Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              attempts: "n+1"
-            next_section_and_step: "section_1:step_2"
-          show_work:
-            ai_feedback:
-              tokens_for_ai: "Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              user_work: "the-users-response"
-            next_section_and_step: "section_1:step_2"
+              tokens_for_ai: "Point to the first mistake in their working and show the method on a different example. Never give this answer."
           set_language:
             content_blocks:
-              - "language updated!"
+              - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "section_1:step_2"
+          off_topic:
+            content_blocks:
+              - "Let's stay with the problem: Solve: $10 - 4$"
 
       - step_id: "step_3"
         title: "Basic Multiplication"
         content_blocks:
-          - "Solve the following problem: 4 * 2"
-          - "You can show your work and provide the final answer."
-        question: "What is 4 * 2? Show your work and provide the answer."
-        tokens_for_ai: |
-          Determine if the user's response is correct by checking if the final answer is 8.
-          If the user shows their work but doesn't provide a final answer, categorize as 'show_work'.
-          If the answer is incorrect, categorize as 'incorrect'.
-          If the user wants to change the language, categorize as 'set_language'.
-        feedback_tokens_for_ai: |
-          DO NOT answer or solve the question problem when explaining the problem. Instead use a different contrived problem.
-        buckets:
-          - correct
-          - incorrect
-          - show_work
-          - set_language
+          - "**Question 3 of 8.** Solve: $4 \\times 2$"
+        question: "What is 4 × 2? Show your work and give the answer."
+        tokens_for_ai: "The answer is 8. Accept 8 or eight."
+        bucket_criteria:
+          correct: "Gives 8, with or without working."
+          partial_understanding: "Sound working but no final answer, or a slip on the last step."
+          incorrect: "A wrong final answer."
+          off_topic: "Does not attempt the problem."
+        required_elements:
+          - "states the final answer 8"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
-            ai_feedback:
-              tokens_for_ai: "Great job! You got the correct answer. if 'correct' give the answer and solve the question problem showing all work and explain the problem."
             metadata_add:
               score: "n+1"
+            content_blocks:
+              - "✅ Correct! **Score: {{metadata.score}} / 8**"
+            ai_feedback:
+              tokens_for_ai: "In one or two sentences, praise the specific method they used."
             next_section_and_step: "section_1:step_4"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name what is missing (the final answer, or the working) and ask for it. Never give the answer."
           incorrect:
             ai_feedback:
-              tokens_for_ai: "The answer is not right. Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              attempts: "n+1"
-            next_section_and_step: "section_1:step_3"
-          show_work:
-            ai_feedback:
-              tokens_for_ai: "Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              user_work: "the-users-response"
-            next_section_and_step: "section_1:step_3"
+              tokens_for_ai: "Point to the first mistake in their working and show the method on a different example. Never give this answer."
           set_language:
             content_blocks:
-              - "language updated!"
+              - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "section_1:step_3"
+          off_topic:
+            content_blocks:
+              - "Let's stay with the problem: Solve: $4 \\times 2$"
 
       - step_id: "step_4"
         title: "Basic Division"
         content_blocks:
-          - "Solve the following problem: 16 / 4"
-          - "You can show your work and provide the final answer."
-        question: "What is 16 / 4? Show your work and provide the answer."
-        tokens_for_ai: |
-          Determine if the user's response is correct by checking if the final answer is 4.
-          If the user shows their work but doesn't provide a final answer, categorize as 'show_work'.
-          If the answer is incorrect, categorize as 'incorrect'.
-          If the user wants to change the language, categorize as 'set_language'.
-        feedback_tokens_for_ai: |
-          DO NOT answer or solve the question problem when explaining the problem. Instead use a different contrived problem.
-        buckets:
-          - correct
-          - incorrect
-          - show_work
-          - set_language
+          - "**Question 4 of 8.** Solve: $16 \\div 4$"
+        question: "What is 16 ÷ 4? Show your work and give the answer."
+        tokens_for_ai: "The answer is 4. Accept 4 or four."
+        bucket_criteria:
+          correct: "Gives 4, with or without working."
+          partial_understanding: "Sound working but no final answer, or a slip on the last step."
+          incorrect: "A wrong final answer."
+          off_topic: "Does not attempt the problem."
+        required_elements:
+          - "states the final answer 4"
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
-            ai_feedback:
-              tokens_for_ai: "Great job! You got the correct answer. if 'correct' give the answer and solve the question problem showing all work and explain the problem."
             metadata_add:
               score: "n+1"
+            content_blocks:
+              - "✅ Correct! **Score: {{metadata.score}} / 8**"
+            ai_feedback:
+              tokens_for_ai: "In one or two sentences, praise the specific method they used."
             next_section_and_step: "section_1:step_5"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name what is missing (the final answer, or the working) and ask for it. Never give the answer."
           incorrect:
             ai_feedback:
-              tokens_for_ai: "The answer is not right. Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              attempts: "n+1"
-            next_section_and_step: "section_1:step_4"
-          show_work:
-            ai_feedback:
-              tokens_for_ai: "Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              user_work: "the-users-response"
-            next_section_and_step: "section_1:step_4"
+              tokens_for_ai: "Point to the first mistake in their working and show the method on a different example. Never give this answer."
           set_language:
             content_blocks:
-              - "language updated!"
+              - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "section_1:step_4"
+          off_topic:
+            content_blocks:
+              - "Let's stay with the problem: Solve: $16 \\div 4$"
 
       - step_id: "step_5"
         title: "Introduction to Variables"
         content_blocks:
-          - "Solve for x: x + 5 = 10"
-          - "You can show your work and provide the final answer."
-        question: "What is the value of x in the equation x + 5 = 10? Show your work and provide the answer."
-        tokens_for_ai: |
-          Determine if the user's response is correct by checking if the final answer is x = 5.
-          If the user shows their work but doesn't provide a final answer, categorize as 'show_work'.
-          If the answer is incorrect, categorize as 'incorrect'.
-          If the user wants to change the language, categorize as 'set_language'.
-        feedback_tokens_for_ai: |
-          DO NOT answer or solve the question problem when explaining the problem. Instead use a different contrived problem.
-        buckets:
-          - correct
-          - incorrect
-          - show_work
-          - set_language
+          - "**Question 5 of 8.** Solve for $x$: $x + 5 = 10$"
+        question: "What is x in x + 5 = 10? Show your work and give the answer."
+        tokens_for_ai: "The answer is x = 5. Accept x = 5 (or just 5)."
+        bucket_criteria:
+          correct: "Reaches x = 5 with working that supports it (any valid method)."
+          partial_understanding: "Sound working but no final answer or a slip, or x = 5 with no working."
+          incorrect: "A wrong final answer."
+          off_topic: "Does not attempt the problem."
+        required_elements:
+          - "working that leads to the answer (any valid method)"
+          - "states the final answer x = 5"
+        hints:
+          - attempt: 1
+            text: "💡 Hint: what number plus 5 makes 10? Or subtract 5 from both sides."
+            counts_as_attempt: true
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
-            ai_feedback:
-              tokens_for_ai: "Great job! You got the correct answer for x. if 'correct' give the answer and solve the question problem showing all work and explain the problem."
             metadata_add:
               score: "n+1"
+            content_blocks:
+              - "✅ Correct! **Score: {{metadata.score}} / 8**"
+            ai_feedback:
+              tokens_for_ai: "In one or two sentences, praise the specific method they used."
             next_section_and_step: "section_1:step_6"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name what is missing (the final answer, or the working) and ask for it. Never give the answer."
           incorrect:
             ai_feedback:
-              tokens_for_ai: "The answer is not right. Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              attempts: "n+1"
-            next_section_and_step: "section_1:step_5"
-          show_work:
-            ai_feedback:
-              tokens_for_ai: "Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              user_work: "the-users-response"
-            next_section_and_step: "section_1:step_5"
+              tokens_for_ai: "Point to the first mistake in their working and show the method on a different example. Never give this answer."
           set_language:
             content_blocks:
-              - "language updated!"
+              - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "section_1:step_5"
+          off_topic:
+            content_blocks:
+              - "Let's stay with the problem: Solve for $x$: $x + 5 = 10$"
 
       - step_id: "step_6"
         title: "Solving Linear Equations"
         content_blocks:
-          - "Solve for x: 2x + 3 = 11"
-          - "You can show your work and provide the final answer."
-        question: "What is the value of x in the equation 2x + 3 = 11? Show your work and provide the answer."
-        tokens_for_ai: |
-          Determine if the user's response is correct by checking if the final answer is x = 4.
-          If the user shows their work but doesn't provide a final answer, categorize as 'show_work'.
-          If the answer is incorrect, categorize as 'incorrect'.
-          If the user wants to change the language, categorize as 'set_language'.
-        feedback_tokens_for_ai: |
-          DO NOT answer or solve the question problem when explaining the problem. Instead use a different contrived problem.
-        buckets:
-          - correct
-          - incorrect
-          - show_work
-          - set_language
+          - "**Question 6 of 8.** Solve for $x$: $2x + 3 = 11$"
+        question: "What is x in 2x + 3 = 11? Show your work and give the answer."
+        tokens_for_ai: "The answer is x = 4. Accept x = 4 (or just 4)."
+        bucket_criteria:
+          correct: "Reaches x = 4 with working that supports it (any valid method)."
+          partial_understanding: "Sound working but no final answer or a slip, or x = 4 with no working."
+          incorrect: "A wrong final answer."
+          off_topic: "Does not attempt the problem."
+        required_elements:
+          - "working that leads to the answer (any valid method)"
+          - "states the final answer x = 4"
+        hints:
+          - attempt: 1
+            text: "💡 Hint: undo the + 3 first: subtract 3 from both sides."
+            counts_as_attempt: true
+          - attempt: 2
+            text: "💡 Hint: you should now have $2x = 8$. What undoes multiplying by 2?"
+            counts_as_attempt: true
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
-            ai_feedback:
-              tokens_for_ai: "Great job! You got the correct answer for x. if 'correct' give the answer and solve the question problem showing all work and explain the problem."
             metadata_add:
               score: "n+1"
+            content_blocks:
+              - "✅ Correct! **Score: {{metadata.score}} / 8**"
+            ai_feedback:
+              tokens_for_ai: "In one or two sentences, praise the specific method they used."
             next_section_and_step: "section_1:step_7"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name what is missing (the final answer, or the working) and ask for it. Never give the answer."
           incorrect:
             ai_feedback:
-              tokens_for_ai: "The answer is not right. Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              attempts: "n+1"
-            next_section_and_step: "section_1:step_6"
-          show_work:
-            ai_feedback:
-              tokens_for_ai: "Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              user_work: "the-users-response"
-            next_section_and_step: "section_1:step_6"
+              tokens_for_ai: "Point to the first mistake in their working and show the method on a different example. Never give this answer."
           set_language:
             content_blocks:
-              - "language updated!"
+              - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "section_1:step_6"
+          off_topic:
+            content_blocks:
+              - "Let's stay with the problem: Solve for $x$: $2x + 3 = 11$"
 
       - step_id: "step_7"
         title: "Quadratic Equations"
         content_blocks:
-          - "Solve the quadratic equation: x^2 - 5x + 6 = 0"
-          - "You can show your work and provide the final answer."
-        question: "What are the values of x in the equation x^2 - 5x + 6 = 0? Show your work and provide the answers."
-        tokens_for_ai: |
-          Determine if the user's response is correct by checking if the final answers are x = 2 and x = 3.
-          If the user shows their work but doesn't provide final answers, categorize as 'show_work'.
-          If the answers are incorrect, categorize as 'incorrect'.
-          If the user wants to change the language, categorize as 'set_language'.
-        feedback_tokens_for_ai: |
-          DO NOT answer or solve the question problem when explaining the problem. Instead use a different contrived problem.
-        buckets:
-          - correct
-          - incorrect
-          - show_work
-          - set_language
+          - "**Question 7 of 8.** Solve: $x^2 - 5x + 6 = 0$"
+        question: "What values of x solve x² - 5x + 6 = 0? Show your work and give both answers."
+        tokens_for_ai: "The answer is x = 2 and x = 3. Accept both 2 and 3 (factoring, the quadratic formula or completing the square)."
+        bucket_criteria:
+          correct: "Reaches x = 2 and x = 3 with working that supports it (any valid method)."
+          partial_understanding: "Sound working but no final answer or a slip, only one of the two roots, or both roots with no working."
+          incorrect: "A wrong final answer."
+          off_topic: "Does not attempt the problem."
+        required_elements:
+          - "working that leads to the answer (any valid method)"
+          - "states the final answer x = 2 and x = 3"
+        hints:
+          - attempt: 1
+            text: "💡 Hint: look for two numbers that multiply to 6 and add to -5."
+            counts_as_attempt: true
+          - attempt: 2
+            text: "💡 Hint: write it as $(x - a)(x - b) = 0$; a product is zero when either factor is zero."
+            counts_as_attempt: true
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
-            ai_feedback:
-              tokens_for_ai: "Well done! You found the correct roots of the equation. if 'correct' give the answer and solve the question problem showing all work and explain the problem."
             metadata_add:
               score: "n+1"
+            content_blocks:
+              - "✅ Correct! **Score: {{metadata.score}} / 8**"
+            ai_feedback:
+              tokens_for_ai: "In one or two sentences, praise the specific method they used."
             next_section_and_step: "section_1:step_8"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name what is missing (the final answer, or the working) and ask for it. Never give the answer."
           incorrect:
             ai_feedback:
-              tokens_for_ai: "The answer is not right. Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              attempts: "n+1"
-            next_section_and_step: "section_1:step_7"
-          show_work:
-            ai_feedback:
-              tokens_for_ai: "Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              user_work: "the-users-response"
-            next_section_and_step: "section_1:step_7"
+              tokens_for_ai: "Point to the first mistake in their working and show the method on a different example. Never give this answer."
           set_language:
             content_blocks:
-              - "language updated!"
+              - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "section_1:step_7"
+          off_topic:
+            content_blocks:
+              - "Let's stay with the problem: Solve: $x^2 - 5x + 6 = 0$"
 
       - step_id: "step_8"
         title: "Simplifying Expressions"
         content_blocks:
-          - "Simplify the expression: 3(x + 2) - 4x"
-          - "You can show your work and provide the final answer."
-        question: "What is the simplified form of the expression 3(x + 2) - 4x? Show your work and provide the answer."
-        tokens_for_ai: |
-          Determine if the user's response is correct by checking if the final answer is: 6 - x or -x + 6
-          If the user shows their work but doesn't provide a final answer, categorize as 'show_work'.
-          If the answer is incorrect, categorize as 'incorrect'.
-          If the user wants to change the language, categorize as 'set_language'.
-        feedback_tokens_for_ai: |
-          DO NOT answer or solve the question problem when explaining the problem. Instead use a different contrived problem.
-        buckets:
-          - correct
-          - incorrect
-          - show_work
-          - set_language
+          - "**Question 8 of 8.** Simplify: $3(x + 2) - 4x$"
+        question: "What is 3(x + 2) - 4x in simplest form? Show your work and give the answer."
+        tokens_for_ai: "The answer is 6 - x. Accept 6 - x, -x + 6 or any equal form."
+        bucket_criteria:
+          correct: "Reaches 6 - x with working that supports it (any valid method)."
+          partial_understanding: "Sound working but no final answer or a slip, or 6 - x with no working."
+          incorrect: "A wrong final answer."
+          off_topic: "Does not attempt the problem."
+        required_elements:
+          - "working that leads to the answer (any valid method)"
+          - "states the final answer 6 - x"
+        hints:
+          - attempt: 1
+            text: "💡 Hint: distribute first: $3(x + 2) = 3x + 6$."
+            counts_as_attempt: true
+          - attempt: 2
+            text: "💡 Hint: now combine the $x$ terms: $3x - 4x$."
+            counts_as_attempt: true
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
         transitions:
           correct:
-            ai_feedback:
-              tokens_for_ai: "Excellent! You simplified the expression correctly. if 'correct' give the answer and solve the question problem showing all work and explain the problem."
             metadata_add:
               score: "n+1"
+              activity_completed: "true"
+            content_blocks:
+              - "✅ Correct! **Score: {{metadata.score}} / 8**"
+            ai_feedback:
+              tokens_for_ai: "In one or two sentences, praise the specific method they used."
             next_section_and_step: "section_2:step_1"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name what is missing (the final answer, or the working) and ask for it. Never give the answer."
           incorrect:
             ai_feedback:
-              tokens_for_ai: "The answer is not right. Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              attempts: "n+1"
-            next_section_and_step: "section_1:step_8"
-          show_work:
-            ai_feedback:
-              tokens_for_ai: "Thanks the user for showing work. Catch mistakes and suggest next steps. Remember give a separate example to show how to solve the answer, never reveal it."
-            metadata_add:
-              user_work: "the-users-response"
-            next_section_and_step: "section_1:step_8"
+              tokens_for_ai: "Point to the first mistake in their working and show the method on a different example. Never give this answer."
           set_language:
             content_blocks:
-              - "language updated!"
+              - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
             next_section_and_step: "section_1:step_8"
+          off_topic:
+            content_blocks:
+              - "Let's stay with the problem: Simplify: $3(x + 2) - 4x$"
 
   - section_id: "section_2"
     title: "Quiz Complete"
@@ -371,5 +368,11 @@ sections:
       - step_id: "step_1"
         title: "Completion"
         content_blocks:
-          - "Congratulations! You've completed the math quiz."
-          - "Your final score will be displayed at the end."
+          - "# Quiz Complete! 🎉"
+          - text: "**Final score: {{metadata.score}} / 8**"
+            show_if:
+              score_exists: true
+          - text: "**Final score: 0 / 8.** Every expert started here: try the quiz again and show each step."
+            show_if:
+              score_not_exists: true
+          - "From adding whole numbers to factoring a quadratic: each step builds on the last."

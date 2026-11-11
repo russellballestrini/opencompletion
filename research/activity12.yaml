@@ -1,6 +1,8 @@
-title: "American Revolutionary War: Why Break Away?"
-description: "Seventeen steps through causes, battles & outcomes, opening with why our colonies wanted out."
+title: "Revolutionary War: In the Colonists' Shoes"
+description: "The same events as our fact lesson, seen from the inside: why colonists acted as they did, and what it changed."
+kind: "lesson"
 default_max_attempts_per_step: 3
+tokens_for_ai_rubric: "Learners are about 13. Grade generously: accept any accurate detail beyond the ones listed, and any defensible reading where historians disagree. Never mark an answer down for naming Loyalist, enslaved or Native American perspectives."
 sections:
   - section_id: "section_1"
     title: "Introduction to the Revolutionary War"
@@ -8,72 +10,65 @@ sections:
       - step_id: "step_1"
         title: "What is the Revolutionary War?"
         content_blocks:
-          - "Welcome to the American Revolutionary War course!"
-          - "The American Revolutionary War, also known as the American War of Independence, was a conflict between Great Britain and its thirteen colonies in North America."
-          - "Think about why the colonies might have wanted to break away from British rule. Consider issues like governance, taxes, and representation."
-        tokens_for_ai: "Guide the student to think about the reasons for the colonies wanting independence. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Why do you think the American colonies wanted to break away from British rule?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "# The Revolutionary War: In the Colonists' Shoes 🇺🇸"
+          - "Welcome! In this lesson you'll step into the colonists' world and reason about why they acted as they did."
+          - "The American Revolutionary War (1775-1783), also called the American War of Independence, was fought between Great Britain and thirteen of its North American colonies, which became the United States."
+          - "Think about government, taxes and who got a say."
+        question: "Why do you think many American colonists wanted to break away from British rule?"
+        tokens_for_ai: "Grade the learner's reasoning about why colonists wanted independence. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Gives at least one reason (taxes, no representation, punishments, ideas about rights and self-government)."
+          partial_understanding: "Gives a feeling with no reason, or one word."
+          off_topic: "Does not address why colonists wanted independence."
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: What did colonists say about taxes passed in London?"
+          - attempt: 2
+            text: "💡 Bigger hint: Think about who made the laws, and whether colonists had a say."
         transitions:
           correct:
-            content_blocks:
-              - "Great! You have a good understanding of why the colonies wanted independence."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the reasons for independence."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the reasons for independence in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "Importance of the Revolutionary War"
         content_blocks:
-          - "The Revolutionary War was important because it led to the independence of the United States from British rule."
-          - "It also established the principles of liberty, democracy, and self-governance."
-          - "Think about how gaining independence might have changed the lives of the colonists. Consider aspects like freedom, governance, and rights."
-        tokens_for_ai: "Guide the student to think about the impact of independence on the colonists' lives. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
+          - "Independence ended British rule, but life changed differently for different people."
+          - "Not everyone agreed: Patriots wanted independence, Loyalists (perhaps one colonist in five) stayed loyal to the king, and many enslaved people and Native nations sided with Britain, which some saw as the better hope for their freedom or land."
+          - "Think about freedom, government and rights, and about who gained and who did not."
         question: "How do you think gaining independence changed the lives of the colonists?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+        tokens_for_ai: "Grade the learner's reasoning about how independence changed colonists' lives. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Names at least one change, with a reason or example."
+          partial_understanding: "Says life changed without saying how."
+          off_topic: "Does not address how independence changed colonists' lives."
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Who made the laws before and after independence?"
+          - attempt: 2
+            text: "💡 Bigger hint: Did independence change life the same way for a merchant, a Loyalist and an enslaved person?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand the impact of gaining independence."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the impact of independence."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the impact of independence in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
   - section_id: "section_2"
     title: "Causes of the Revolutionary War"
@@ -81,72 +76,64 @@ sections:
       - step_id: "step_1"
         title: "Taxation Without Representation"
         content_blocks:
-          - "One of the main causes of the Revolutionary War was the issue of 'taxation without representation.'"
-          - "The British government imposed taxes on the American colonies without giving them representation in Parliament."
-          - "Think about how you would feel if you had to pay taxes but had no say in how the money was spent. How might this lead to frustration and anger?"
-        tokens_for_ai: "Guide the student to think about the feelings of the colonists regarding taxation without representation. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "How do you think the colonists felt about 'taxation without representation' and why?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "After the costly Seven Years' War (1756-1763), Parliament taxed the colonies directly: the Stamp Act (1765), the Townshend Acts (1767), the Tea Act (1773)."
+          - "Colonists elected no members of Parliament, so many protested \"no taxation without representation\". British leaders answered that Parliament represented every subject of the empire (\"virtual representation\")."
+          - "Imagine paying taxes with no say in how they are set or spent."
+        question: "How do you think colonists felt about \"taxation without representation\", and why?"
+        tokens_for_ai: "Grade the learner's reasoning about colonists' feelings about taxation without representation. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Names a feeling (anger, unfairness, distrust) and a reason linked to having no say."
+          partial_understanding: "Names a feeling without a reason, or a reason without a feeling."
+          off_topic: "Does not address colonists' feelings about taxation without representation."
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: How would you feel paying a tax you had no vote on?"
+          - attempt: 2
+            text: "💡 Bigger hint: Why did having no elected member in Parliament matter so much?"
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand the colonists' feelings about 'taxation without representation.'"
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on 'taxation without representation.'"
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of 'taxation without representation' in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "The Intolerable Acts"
         content_blocks:
-          - "The Intolerable Acts were a series of punitive laws passed by the British Parliament in response to the Boston Tea Party."
-          - "These acts further angered the American colonists and contributed to the outbreak of the Revolutionary War."
-          - "Think about how you would feel if you were punished for protesting against something you believed was unfair. How might this lead to a desire for change?"
-        tokens_for_ai: "Guide the student to think about the feelings of the colonists regarding the Intolerable Acts. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "How do you think the colonists felt about the Intolerable Acts and why?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Parliament answered in 1774 with the Coercive Acts, which colonists called the **Intolerable Acts**: Boston's port was closed until the tea was paid for, and Massachusetts lost much of its self-government."
+          - "Twelve colonies sent delegates to the First Continental Congress (September 1774) to coordinate their resistance."
+          - "Imagine your whole city punished for a protest some people made."
+        question: "How do you think colonists felt about the Intolerable Acts, and why?"
+        tokens_for_ai: "Grade the learner's reasoning about colonists' feelings about the Intolerable Acts. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Names a feeling and a reason (collective punishment, losing self-government, fear it could happen to other colonies)."
+          partial_understanding: "Names a feeling without a reason."
+          off_topic: "Does not address colonists' feelings about the Intolerable Acts."
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Who was punished: only the tea-dumpers, or all of Boston?"
+          - attempt: 2
+            text: "💡 Bigger hint: Why might people in Virginia worry about laws aimed at Massachusetts?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand the colonists' feelings about the Intolerable Acts."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Intolerable Acts."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the Intolerable Acts in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
   - section_id: "section_3"
     title: "Key Events of the Revolutionary War"
@@ -154,72 +141,64 @@ sections:
       - step_id: "step_1"
         title: "The Boston Tea Party"
         content_blocks:
-          - "The Boston Tea Party was a political protest by the Sons of Liberty in Boston, Massachusetts, on December 16, 1773."
-          - "American colonists, frustrated with British taxation, dumped 342 chests of British tea into the harbor."
-          - "Think about why the colonists chose to protest in this way. What message were they trying to send to the British government?"
-        tokens_for_ai: "Guide the student to think about the reasons behind the Boston Tea Party. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
+          - "On December 16, 1773, the Sons of Liberty dumped 342 chests of East India Company tea into Boston Harbor in protest against the Tea Act."
+          - "Think about the message they wanted to send, and to whom."
         question: "Why do you think the colonists chose to protest by dumping tea into the harbor?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+        tokens_for_ai: "Grade the learner's reasoning about the choice of protest at the Boston Tea Party. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Gives a reason for this form of protest (refusing to pay the tax, a dramatic public message, stopping the tea from landing)."
+          partial_understanding: "Says they were angry without explaining why this protest."
+          off_topic: "Does not address the choice of protest at the Boston Tea Party."
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: If the tea had landed, what would someone have had to pay?"
+          - attempt: 2
+            text: "💡 Bigger hint: Who was the protest meant to be seen by?"
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand the reasons behind the Boston Tea Party."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Boston Tea Party."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the Boston Tea Party in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "The Battles of Lexington and Concord"
         content_blocks:
-          - "The Battles of Lexington and Concord were the first military engagements of the American Revolutionary War."
-          - "They were fought on April 19, 1775, in Middlesex County, Province of Massachusetts Bay."
-          - "Think about why these battles were significant. How did they change the relationship between the colonies and Great Britain?"
-        tokens_for_ai: "Guide the student to think about the significance of the Battles of Lexington and Concord. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Why do you think the Battles of Lexington and Concord were significant?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "On April 19, 1775, British troops marched to seize colonial weapons at Concord, Massachusetts. Shots at Lexington and fighting at Concord's North Bridge began the war."
+          - "Think about how the relationship with Britain changed once shots were fired."
+        question: "Why do you think the Battles of Lexington and Concord were so significant?"
+        tokens_for_ai: "Grade the learner's reasoning about the significance of Lexington and Concord. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Says they turned protest into war (the first battles), with a reason it mattered."
+          partial_understanding: "Says they mattered without saying how."
+          off_topic: "Does not address the significance of Lexington and Concord."
+        required_elements:
+          - "they were the first fighting: protest became war"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Before April 1775, were colonists and British troops at war?"
+          - attempt: 2
+            text: "💡 Bigger hint: What could no longer be undone after these battles?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand the significance of the Battles of Lexington and Concord."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Battles of Lexington and Concord."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the Battles of Lexington and Concord in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
   - section_id: "section_4"
     title: "Key Figures of the Revolutionary War"
@@ -227,72 +206,64 @@ sections:
       - step_id: "step_1"
         title: "George Washington"
         content_blocks:
-          - "George Washington was the commander-in-chief of the Continental Army during the American Revolutionary War."
-          - "He later became the first President of the United States."
-          - "Think about the qualities that made George Washington a good leader. How did his leadership contribute to the success of the American forces?"
-        tokens_for_ai: "Guide the student to think about the qualities of George Washington's leadership. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What qualities do you think made George Washington a good leader and how did his leadership contribute to the success of the American forces?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "George Washington commanded the Continental Army from 1775 to 1783, often with too few men, supplies or pay. He later became the first President of the United States."
+          - "Think about what kept an army together through hard winters like Valley Forge (1777-1778)."
+        question: "What qualities do you think made George Washington an effective leader, and how did they help the American forces?"
+        tokens_for_ai: "Grade the learner's reasoning about Washington's leadership. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Names at least one quality and links it to how it helped the army."
+          partial_understanding: "Names qualities without linking them to the war."
+          off_topic: "Does not address Washington's leadership."
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Think about the winter at Valley Forge."
+          - attempt: 2
+            text: "💡 Bigger hint: How might one leader keep a hungry, unpaid army from giving up?"
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand the qualities that made George Washington a good leader."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on George Washington's leadership qualities."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of George Washington's leadership qualities in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "Thomas Jefferson"
         content_blocks:
-          - "Thomas Jefferson was the principal author of the Declaration of Independence."
-          - "He later became the third President of the United States."
-          - "Think about the impact of the Declaration of Independence. How did Thomas Jefferson's words inspire the colonists and shape the new nation?"
-        tokens_for_ai: "Guide the student to think about the impact of the Declaration of Independence and Thomas Jefferson's role. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "How do you think Thomas Jefferson's words in the Declaration of Independence inspired the colonists and shaped the new nation?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Thomas Jefferson drafted the Declaration of Independence. He later became the third President of the United States."
+          - "It claims that all men are created equal, with unalienable rights to life, liberty and the pursuit of happiness; that governments get their power from the consent of the governed; and that people may alter or abolish a government that destroys those rights."
+          - "Jefferson himself enslaved more than 600 people over his lifetime, a contradiction people pointed out even then."
+          - "Think about what those words meant to people at the time, and later."
+        question: "How do you think the words of the Declaration of Independence inspired colonists and shaped the new nation?"
+        tokens_for_ai: "Grade the learner's reasoning about the Declaration's influence. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Gives at least one way the words inspired people or shaped the nation, with a reason."
+          partial_understanding: "Says the words were inspiring without saying how."
+          off_topic: "Does not address the Declaration's influence."
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Which phrase from the Declaration do people still quote?"
+          - attempt: 2
+            text: "💡 Bigger hint: How did later groups left out in 1776 use these words?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand the impact of Thomas Jefferson's words in the Declaration of Independence."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on Thomas Jefferson's role."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of Thomas Jefferson's role in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
   - section_id: "section_5"
     title: "Major Battles of the Revolutionary War"
@@ -300,72 +271,67 @@ sections:
       - step_id: "step_1"
         title: "The Battle of Bunker Hill"
         content_blocks:
-          - "The Battle of Bunker Hill was fought on June 17, 1775, during the early stages of the American Revolutionary War."
-          - "Despite being a British victory, the battle demonstrated that the American forces could stand up to the British army."
-          - "Think about the significance of this battle. How might it have affected the morale and determination of the American forces?"
-        tokens_for_ai: "Guide the student to think about the significance of the Battle of Bunker Hill. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Why do you think the Battle of Bunker Hill was significant for the American forces?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "At the Battle of Bunker Hill (June 17, 1775; mostly fought on nearby Breed's Hill) the British took the hill but lost over 1,000 men killed or wounded, far more than the colonial militia."
+          - "Think about morale: how it felt to lose the hill, but hurt the enemy badly."
+        question: "Why do you think the Battle of Bunker Hill mattered to the American forces, even though they lost?"
+        tokens_for_ai: "Grade the learner's reasoning about Bunker Hill's significance for American forces. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Says it showed militia could stand up to British regulars, boosting confidence or resolve."
+          partial_understanding: "Says it mattered without a reason."
+          off_topic: "Does not address Bunker Hill's significance for American forces."
+        required_elements:
+          - "it showed colonial forces could fight the British army, which raised morale or resolve"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Compare the British losses with the American ones."
+          - attempt: 2
+            text: "💡 Bigger hint: What did militia learn about themselves that day?"
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand the significance of the Battle of Bunker Hill for the American forces."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Battle of Bunker Hill."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the Battle of Bunker Hill in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "The Battle of Saratoga"
         content_blocks:
-          - "The Battle of Saratoga was a turning point in the American Revolutionary War."
-          - "Fought in 1777, it resulted in a decisive victory for the American forces and convinced France to join the war on the side of the Americans."
-          - "Think about why this battle was a turning point. How did the involvement of France change the course of the war?"
-        tokens_for_ai: "Guide the student to think about the significance of the Battle of Saratoga. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Why do you think the Battle of Saratoga was a turning point in the Revolutionary War?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "At Saratoga, New York (September-October 1777), American forces defeated a British army, and General Burgoyne surrendered his whole army. In 1778 France signed an alliance with the United States, bringing troops, money and a navy."
+          - "Think about what France could add that the Americans lacked."
+        question: "Why do you think the Battle of Saratoga became the turning point of the war?"
+        tokens_for_ai: "Grade the learner's reasoning about why Saratoga was a turning point. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Says the victory persuaded France to ally with the Americans, bringing help they badly needed."
+          partial_understanding: "Mentions the victory but not France, or France but not why it mattered."
+          off_topic: "Does not address why Saratoga was a turning point."
+        required_elements:
+          - "the victory brought France into the war as an ally"
+          - "French help (troops, money, ships) changed the balance"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Which country decided the Americans could win after Saratoga?"
+          - attempt: 2
+            text: "💡 Bigger hint: What did the Americans lack that France could bring?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand the significance of the Battle of Saratoga."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Battle of Saratoga."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the Battle of Saratoga in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
   - section_id: "section_6"
     title: "The Declaration of Independence"
@@ -373,72 +339,63 @@ sections:
       - step_id: "step_1"
         title: "Drafting the Declaration"
         content_blocks:
-          - "The Declaration of Independence was drafted by Thomas Jefferson and adopted by the Continental Congress on July 4, 1776."
-          - "It declared the thirteen American colonies as independent states, free from British rule."
-          - "Think about the significance of declaring independence. How might this document have inspired the colonists and affected their resolve to fight for freedom?"
-        tokens_for_ai: "Guide the student to think about the significance of the Declaration of Independence. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Why do you think the Declaration of Independence was significant for the colonists?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "The Continental Congress adopted the Declaration of Independence on July 4, 1776. Thomas Jefferson wrote the first draft; a committee and Congress revised it."
+          - "Think about how a written promise can change what people are fighting for."
+        question: "Why do you think the Declaration of Independence mattered so much to the colonists?"
+        tokens_for_ai: "Grade the learner's reasoning about the Declaration's significance to colonists. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Gives a reason (it made the goal independence, united the colonies, stated their ideals, made foreign help possible)."
+          partial_understanding: "Calls it important without a reason."
+          off_topic: "Does not address the Declaration's significance to colonists."
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Before July 1776, many colonists hoped to fix things with the king. After?"
+          - attempt: 2
+            text: "💡 Bigger hint: Could France ally with rebels who were still British subjects?"
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand the significance of the Declaration of Independence for the colonists."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Declaration of Independence."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the Declaration of Independence in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "Key Principles of the Declaration"
         content_blocks:
-          - "The Declaration of Independence outlined key principles such as equality, unalienable rights, and the right to alter or abolish government."
-          - "It emphasized that all men are created equal and have the right to life, liberty, and the pursuit of happiness."
-          - "Think about how these principles might have influenced the new nation. How do you think they shaped the values and government of the United States?"
-        tokens_for_ai: "Guide the student to think about the key principles of the Declaration of Independence and their influence. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "How do you think the key principles of the Declaration of Independence influenced the new nation?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "It claims that all men are created equal, with unalienable rights to life, liberty and the pursuit of happiness; that governments get their power from the consent of the governed; and that people may alter or abolish a government that destroys those rights."
+          - "Those words did not yet apply to everyone: slavery remained legal, and women and Native Americans were left out. Later movements used the same words to demand their rights."
+          - "Think about how these principles shaped the nation's government and values."
+        question: "How do you think the Declaration's principles influenced the new nation?"
+        tokens_for_ai: "Grade the learner's reasoning about the Declaration's principles in the new nation. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Names a principle and an influence (elected government, constitutions, rights, later struggles for equality)."
+          partial_understanding: "Names a principle with no influence, or the reverse."
+          off_topic: "Does not address the Declaration's principles in the new nation."
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Where does the Declaration say a government's power comes from?"
+          - attempt: 2
+            text: "💡 Bigger hint: How did abolitionists and suffragists use its words?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand the influence of the key principles of the Declaration of Independence."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the key principles of the Declaration of Independence."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the key principles of the Declaration of Independence in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
   - section_id: "section_7"
     title: "The End of the Revolutionary War"
@@ -446,72 +403,67 @@ sections:
       - step_id: "step_1"
         title: "The Siege of Yorktown"
         content_blocks:
-          - "The Siege of Yorktown was the last major battle of the American Revolutionary War."
-          - "Fought in 1781, it resulted in the surrender of British General Cornwallis and effectively ended the war."
-          - "Think about why this battle was significant. How did the surrender of Cornwallis impact the outcome of the war?"
-        tokens_for_ai: "Guide the student to think about the significance of the Siege of Yorktown. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Why do you think the Siege of Yorktown was significant in ending the Revolutionary War?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "In October 1781 American and French forces, with the French fleet blocking escape by sea, trapped General Cornwallis at Yorktown, Virginia. His surrender convinced Britain to seek peace."
+          - "Think about how losing a whole army affects a country far from home."
+        question: "Why do you think the Siege of Yorktown led to the end of the war?"
+        tokens_for_ai: "Grade the learner's reasoning about why Yorktown ended the war. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Says the surrender of Cornwallis's army made Britain give up on winning and seek peace."
+          partial_understanding: "Describes the siege without why it ended the war."
+          off_topic: "Does not address why Yorktown ended the war."
+        required_elements:
+          - "Cornwallis's army surrendered"
+          - "Britain lost the will to keep fighting and sought peace"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: What happened to Cornwallis's army?"
+          - attempt: 2
+            text: "💡 Bigger hint: How might people in Britain feel after losing a second whole army?"
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand the significance of the Siege of Yorktown in ending the Revolutionary War."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Siege of Yorktown."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the Siege of Yorktown in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "The Treaty of Paris"
         content_blocks:
-          - "The Treaty of Paris was signed on September 3, 1783, and officially ended the American Revolutionary War."
-          - "The treaty recognized the independence of the United States and established its borders."
-          - "Think about the significance of this treaty. How did it solidify the United States' status as an independent nation?"
-        tokens_for_ai: "Guide the student to think about the significance of the Treaty of Paris. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Why do you think the Treaty of Paris was significant in solidifying the United States' independence?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "The Treaty of Paris, signed September 3, 1783, ended the war: Britain recognized the independence of the United States and its borders, west to the Mississippi River."
+          - "Think about the difference between winning battles and being recognized as a country."
+        question: "Why do you think the Treaty of Paris mattered for the United States' independence?"
+        tokens_for_ai: "Grade the learner's reasoning about the Treaty of Paris's significance. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Says Britain formally recognized American independence (and borders), making it official."
+          partial_understanding: "Says it ended the war but not the recognition."
+          off_topic: "Does not address the Treaty of Paris's significance."
+        required_elements:
+          - "Britain formally recognized the United States as independent"
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Until 1783, did Britain accept that the United States was independent?"
+          - attempt: 2
+            text: "💡 Bigger hint: Why might other countries wait for that treaty?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand the significance of the Treaty of Paris in solidifying the United States' independence."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what they got right, then ask one question that points at the idea they left out. Do not give the answer."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the Treaty of Paris."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the Treaty of Paris in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
   - section_id: "section_8"
     title: "Legacy of the Revolutionary War"
@@ -519,72 +471,64 @@ sections:
       - step_id: "step_1"
         title: "Impact on the United States"
         content_blocks:
-          - "The American Revolutionary War had a profound impact on the United States."
-          - "It led to the establishment of a new nation based on principles of liberty, democracy, and self-governance."
-          - "Think about how these principles have shaped the United States. How do you see the influence of the Revolutionary War in the country's values and government today?"
-        tokens_for_ai: "Guide the student to think about the impact of the Revolutionary War on the United States. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "How do you think the principles established during the Revolutionary War have shaped the United States today?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "The new nation built governments on written constitutions and elected representatives, and in 1791 added the Bill of Rights."
+          - "Those words did not yet apply to everyone: slavery remained legal, and women and Native Americans were left out. Later movements used the same words to demand their rights."
+          - "Look for the Revolution's ideas in how the country works today."
+        question: "How do you think the principles of the Revolution shape the United States today?"
+        tokens_for_ai: "Grade the learner's reasoning about the Revolution's principles today. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Names a principle and where it shows up today, with a reason."
+          partial_understanding: "Names a principle without a present-day example."
+          off_topic: "Does not address the Revolution's principles today."
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Think about elections, rights or the Constitution."
+          - attempt: 2
+            text: "💡 Bigger hint: Which unfinished promises are people still working on?"
         transitions:
           correct:
-            content_blocks:
-              - "Great! You understand the impact of the Revolutionary War on the United States today."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the impact of the Revolutionary War."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the impact of the Revolutionary War in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
       - step_id: "step_2"
         title: "Influence on Other Nations"
         content_blocks:
-          - "The American Revolutionary War inspired other nations to fight for their independence and adopt democratic principles."
-          - "It had a significant influence on the French Revolution and other independence movements around the world."
-          - "Think about how the success of the American Revolution might have inspired other countries. How do you think it influenced global movements for independence and democracy?"
-        tokens_for_ai: "Guide the student to think about the influence of the American Revolutionary War on other nations. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "How do you think the success of the American Revolution influenced other countries' movements for independence and democracy?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "The Revolution inspired others: the French Revolution (1789), the Haitian Revolution (1791-1804) and independence movements across Latin America. Historians debate how much each borrowed from it."
+          - "Think about what a successful revolution shows people elsewhere."
+        question: "How do you think the American Revolution influenced movements for independence and democracy in other countries?"
+        tokens_for_ai: "Grade the learner's reasoning about the Revolution's influence abroad. Any view backed by a reason counts; accept Loyalist and other perspectives as well as Patriot ones."
+        bucket_criteria:
+          correct: "Names a way it influenced others (proof it could be done, ideas of rights, a model constitution), ideally with an example."
+          partial_understanding: "Says it inspired others without how."
+          off_topic: "Does not address the Revolution's influence abroad."
+        buckets: [correct, partial_understanding, off_topic]
+        hints:
+          - attempt: 1
+            text: "💡 Hint: Which European country had a revolution in 1789?"
+          - attempt: 2
+            text: "💡 Bigger hint: What did the Haitian Revolution take further than the American one?"
         transitions:
           correct:
-            content_blocks:
-              - "Excellent! You understand the influence of the American Revolution on other countries."
             ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the student to continue learning."
+              tokens_for_ai: "Affirm their reasoning, then add one perspective they did not mention (a Loyalist, an enslaved person, a Native nation, or a British official)."
+            metadata_add:
+              score: "n+1"
+              activity_completed: "true"
           partial_understanding:
-            content_blocks:
-              - "You have a partial understanding. Let's clarify a few points."
             ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the student's understanding in a friendly and supportive manner."
+              tokens_for_ai: "Say what is good in their answer, then ask one question that would take it further."
           off_topic:
             content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on the influence of the American Revolution."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the student back to the topic of the influence of the American Revolution in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the student's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Let's stay with the colonists: have a go at the question above. 🙂"
 
   - section_id: "section_9"
     title: "Congratulations!"
@@ -592,7 +536,10 @@ sections:
       - step_id: "step_1"
         title: "Well Done!"
         content_blocks:
-          - "Congratulations on completing the American Revolutionary War course!"
-          - "You have learned about the causes, key events, major battles, important figures, and the legacy of the Revolutionary War."
-          - "This knowledge will help you understand the foundations of the United States and the principles of liberty and democracy."
-          - "We are proud of your dedication and hard work. Well done!"
+          - "# Congratulations! 🎉"
+          - "You've reasoned your way through the Revolution from the inside: its causes, its turning points and its legacy."
+          - "Want the facts in one place? Try our companion lesson, **Revolutionary War: What Happened**."
+          - text: "**Your score: {{metadata.score}} of 16** 🏆"
+            show_if: {score_exists: true}
+          - text: "**Your score: 0 of 16**: every answer is a start. Try it again any time!"
+            show_if: {score_not_exists: true}

@@ -1,4 +1,12 @@
+title: "Minecraft Trivia"
+description: "Eighteen quick picks about Minecraft: modes, mobs, biomes, blocks, structures, Redstone, updates & community."
+kind: "game"
 default_max_attempts_per_step: 3
+
+# Every question is a pick: graded by its answer key, no model asked.
+# A wrong pick stays on the question (3 tries), then the game moves on.
+# metadata.score counts right picks; the first question's incorrect
+# transition starts it at 0 so the final screen always has a number.
 sections:
   - section_id: "section_1"
     title: "Introduction to Minecraft"
@@ -6,70 +14,51 @@ sections:
       - step_id: "step_1"
         title: "What is Minecraft?"
         content_blocks:
-          - "Welcome to the Minecraft Trivia game!"
-          - "Minecraft is a popular sandbox video game where players can build, explore, and survive in a blocky, procedurally-generated 3D world."
-        tokens_for_ai: "Explain what Minecraft is in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What do you know about Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "# Welcome to Minecraft Trivia! ⛏️"
+          - "Eighteen questions. Pick a letter (or tap a button). Three tries each."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "What kind of game is Minecraft?"
+        choices:
+          - {id: a, text: "A sandbox game: build, explore & survive in a blocky world"}
+          - {id: b, text: "A racing game with karts"}
+          - {id: c, text: "A card-battling game"}
+          - {id: d, text: "A puzzle game about falling blocks"}
+        answer: a
         transitions:
           correct:
             content_blocks:
-              - "Great! You know what Minecraft is."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Right! A blocky world that's yours to shape. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about Minecraft. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of Minecraft in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: think blocks you can place & break anywhere."
+            metadata_add:
+              score: "n+0"
 
       - step_id: "step_2"
         title: "Minecraft Gameplay"
         content_blocks:
-          - "In Minecraft, players can explore a blocky world, gather resources, craft items, and build structures."
-          - "The game has different modes, including Survival, Creative, Adventure, and Spectator."
-        tokens_for_ai: "Explain the basic gameplay of Minecraft in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you describe the basic gameplay of Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Minecraft has several game modes: Survival, Creative, Adventure & Spectator."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Which mode gives you unlimited blocks & lets you fly without taking damage?"
+        choices:
+          - {id: a, text: "Survival"}
+          - {id: b, text: "Creative"}
+          - {id: c, text: "Adventure"}
+          - {id: d, text: "Spectator"}
+        answer: b
         transitions:
           correct:
             content_blocks:
-              - "Excellent! You understand the basic gameplay of Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Yes, Creative! Pure building. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about Minecraft gameplay. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on Minecraft gameplay."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of Minecraft gameplay in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: Spectator can fly but can't build. Which mode is for building?"
 
   - section_id: "section_2"
     title: "Minecraft Mobs"
@@ -77,70 +66,50 @@ sections:
       - step_id: "step_1"
         title: "Friendly Mobs"
         content_blocks:
-          - "Minecraft has various friendly mobs, such as cows, pigs, and chickens."
-          - "These mobs can be found in different biomes and can be used for resources like food and materials."
-        tokens_for_ai: "Explain what friendly mobs are in Minecraft in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you name some friendly mobs in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Mobs are Minecraft's creatures. Some are friendly & give food or materials."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Pick EVERY friendly (passive) mob."
+        choices:
+          - {id: a, text: "Cow"}
+          - {id: b, text: "Creeper"}
+          - {id: c, text: "Pig"}
+          - {id: d, text: "Skeleton"}
+          - {id: e, text: "Chicken"}
+        answer: [a, c, e]
+        answer_mode: all
         transitions:
           correct:
             content_blocks:
-              - "Great! You know about friendly mobs in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "All three: cows, pigs & chickens. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about friendly mobs. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on friendly mobs."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of friendly mobs in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not the whole set: three of these are farm animals."
 
       - step_id: "step_2"
         title: "Hostile Mobs"
         content_blocks:
-          - "Minecraft also has hostile mobs, such as zombies, skeletons, and creepers."
-          - "These mobs attack players and can be found in dark areas or at night."
-        tokens_for_ai: "Explain what hostile mobs are in Minecraft in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you name some hostile mobs in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Hostile mobs attack players, mostly in the dark or at night."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Which hostile mob sneaks up silently & explodes?"
+        choices:
+          - {id: a, text: "Zombie"}
+          - {id: b, text: "Creeper"}
+          - {id: c, text: "Spider"}
+          - {id: d, text: "Enderman"}
+        answer: b
         transitions:
           correct:
             content_blocks:
-              - "Excellent! You know about hostile mobs in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Sssss... BOOM! The Creeper. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about hostile mobs. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on hostile mobs."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of hostile mobs in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: it's green & hisses."
 
   - section_id: "section_3"
     title: "Minecraft Biomes"
@@ -148,70 +117,48 @@ sections:
       - step_id: "step_1"
         title: "Overworld Biomes"
         content_blocks:
-          - "The Overworld in Minecraft has various biomes, such as forests, deserts, and plains."
-          - "Each biome has unique features, resources, and mobs."
-        tokens_for_ai: "Explain what biomes are in Minecraft and describe some Overworld biomes in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you name some Overworld biomes in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "The Overworld, where you start, has many biomes, each with its own features & mobs."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Which of these is an Overworld biome?"
+        choices:
+          - {id: a, text: "Crimson Forest"}
+          - {id: b, text: "Desert"}
+          - {id: c, text: "Soul Sand Valley"}
+          - {id: d, text: "End Highlands"}
+        answer: b
         transitions:
           correct:
             content_blocks:
-              - "Great! You know about Overworld biomes in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Right! Sand, cacti & desert temples. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about Overworld biomes. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on Overworld biomes."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of Overworld biomes in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: the others belong to the Nether or the End."
 
       - step_id: "step_2"
         title: "Nether Biomes"
         content_blocks:
-          - "The Nether is a dangerous dimension in Minecraft with unique biomes, such as Nether Wastes, Crimson Forest, and Warped Forest."
-          - "These biomes have unique resources and hostile mobs."
-        tokens_for_ai: "Explain what Nether biomes are in Minecraft and describe some of them in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you name some Nether biomes in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "The Nether is a dangerous fiery dimension with biomes of its own."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Which of these is a Nether biome?"
+        choices:
+          - {id: a, text: "Plains"}
+          - {id: b, text: "Taiga"}
+          - {id: c, text: "Warped Forest"}
+          - {id: d, text: "Mushroom Fields"}
+        answer: c
         transitions:
           correct:
             content_blocks:
-              - "Excellent! You know about Nether biomes in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Yes! Blue-green fungus & Endermen. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about Nether biomes. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on Nether biomes."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of Nether biomes in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: you'd find the others in the Overworld."
 
   - section_id: "section_4"
     title: "Minecraft Items and Blocks"
@@ -219,70 +166,48 @@ sections:
       - step_id: "step_1"
         title: "Common Blocks"
         content_blocks:
-          - "Minecraft has many common blocks, such as dirt, stone, and wood."
-          - "These blocks are used for building and crafting."
-        tokens_for_ai: "Explain what common blocks are in Minecraft and describe some of them in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you name some common blocks in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Blocks are what you build with & craft from."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Which block do you get by punching a tree?"
+        choices:
+          - {id: a, text: "Stone"}
+          - {id: b, text: "Log (wood)"}
+          - {id: c, text: "Obsidian"}
+          - {id: d, text: "Bedrock"}
+        answer: b
         transitions:
           correct:
             content_blocks:
-              - "Great! You know about common blocks in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Right! Every first night starts with wood. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about common blocks. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on common blocks."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of common blocks in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: what are trees made of?"
 
       - step_id: "step_2"
         title: "Crafting Items"
         content_blocks:
-          - "Crafting is an essential part of Minecraft, allowing players to create items like tools, weapons, and armor."
-          - "Common crafting items include sticks, planks, and ingots."
-        tokens_for_ai: "Explain what crafting items are in Minecraft and describe some of them in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you name some crafting items in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Crafting turns materials into tools, weapons & armor."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Which item, crafted from wooden planks, is the handle of every pickaxe?"
+        choices:
+          - {id: a, text: "Stick"}
+          - {id: b, text: "Iron ingot"}
+          - {id: c, text: "String"}
+          - {id: d, text: "Bone"}
+        answer: a
         transitions:
           correct:
             content_blocks:
-              - "Excellent! You know about crafting items in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Yes, the humble stick! Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about crafting items. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on crafting items."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of crafting items in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: it's made of wood & it's long & thin."
 
   - section_id: "section_5"
     title: "Minecraft Structures"
@@ -290,70 +215,48 @@ sections:
       - step_id: "step_1"
         title: "Villages"
         content_blocks:
-          - "Villages are structures in Minecraft where villagers live and work."
-          - "They have houses, farms, and other buildings."
-        tokens_for_ai: "Explain what villages are in Minecraft and describe their features in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you describe what a village is in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Villages are groups of houses, farms & paths across the Overworld."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Who lives & trades in a village?"
+        choices:
+          - {id: a, text: "Piglins"}
+          - {id: b, text: "Villagers"}
+          - {id: c, text: "Endermen"}
+          - {id: d, text: "Pillagers"}
+        answer: b
         transitions:
           correct:
             content_blocks:
-              - "Great! You know what a village is in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Right! Villagers trade for emeralds. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about villages. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on villages."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of villages in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: Pillagers raid villages, they don't live there."
 
       - step_id: "step_2"
         title: "Strongholds"
         content_blocks:
-          - "Strongholds are underground structures in Minecraft that contain the End Portal."
-          - "They are made of stone bricks and have various rooms and corridors."
-        tokens_for_ai: "Explain what strongholds are in Minecraft and describe their features in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you describe what a stronghold is in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Strongholds are hidden underground mazes of stone bricks."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "What does a stronghold hold that leads to the Ender Dragon?"
+        choices:
+          - {id: a, text: "A Nether portal"}
+          - {id: b, text: "The End Portal"}
+          - {id: c, text: "A diamond mine"}
+          - {id: d, text: "A beacon"}
+        answer: b
         transitions:
           correct:
             content_blocks:
-              - "Excellent! You know what a stronghold is in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Right! Fill its frames with Eyes of Ender. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about strongholds. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on strongholds."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of strongholds in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: the Ender Dragon lives in the End."
 
   - section_id: "section_6"
     title: "Minecraft Achievements"
@@ -361,70 +264,48 @@ sections:
       - step_id: "step_1"
         title: "Common Achievements"
         content_blocks:
-          - "Minecraft has various achievements that players can earn by completing specific tasks."
-          - "Common achievements include 'Taking Inventory,' 'Getting Wood,' and 'Benchmarking.'"
-        tokens_for_ai: "Explain what achievements are in Minecraft and describe some common ones in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you name some common achievements in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Achievements reward you for doing certain things, like 'Taking Inventory' or 'Getting Wood.'"
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Which achievement do you earn by crafting a crafting table?"
+        choices:
+          - {id: a, text: "Benchmarking"}
+          - {id: b, text: "Taking Inventory"}
+          - {id: c, text: "Getting Wood"}
+          - {id: d, text: "The End"}
+        answer: a
         transitions:
           correct:
             content_blocks:
-              - "Great! You know about common achievements in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Yes! A workbench, a bench mark. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about common achievements. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on common achievements."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of common achievements in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: a crafting table is a kind of workbench."
 
       - step_id: "step_2"
         title: "Rare Achievements"
         content_blocks:
-          - "Minecraft also has rare achievements that are more challenging to earn."
-          - "Rare achievements include 'The End,' 'Beaconator,' and 'Adventuring Time.'"
-        tokens_for_ai: "Explain what rare achievements are in Minecraft and describe some of them in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you name some rare achievements in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Rare achievements take real effort: 'The End,' 'Beaconator' & 'Adventuring Time.'"
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "What must you do to earn 'Adventuring Time'?"
+        choices:
+          - {id: a, text: "Defeat the Wither"}
+          - {id: b, text: "Discover every biome on its list"}
+          - {id: c, text: "Build a fully powered beacon"}
+          - {id: d, text: "Tame a wolf"}
+        answer: b
         transitions:
           correct:
             content_blocks:
-              - "Excellent! You know about rare achievements in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Right! A long trip across the whole world. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about rare achievements. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on rare achievements."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of rare achievements in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: adventuring means travelling far."
 
   - section_id: "section_7"
     title: "Minecraft Redstone"
@@ -432,70 +313,50 @@ sections:
       - step_id: "step_1"
         title: "What is Redstone?"
         content_blocks:
-          - "Redstone is a special material in Minecraft that can be used to create circuits and machines."
-          - "It allows players to build complex contraptions like doors, traps, and automated farms."
-        tokens_for_ai: "Explain what Redstone is in Minecraft and its uses in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "What is Redstone and what can you do with it in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Redstone is a red dust you mine deep underground."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "What is Redstone used for?"
+        choices:
+          - {id: a, text: "Carrying power to build circuits & machines"}
+          - {id: b, text: "Brewing potions only"}
+          - {id: c, text: "Taming animals"}
+          - {id: d, text: "Making armor"}
+        answer: a
         transitions:
           correct:
             content_blocks:
-              - "Great! You understand what Redstone is and its uses in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Yes! Redstone is Minecraft's wiring. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You have a partial understanding of Redstone. Let's clarify a few points."
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on Redstone."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of Redstone in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: think of it as electricity."
 
       - step_id: "step_2"
         title: "Basic Redstone Contraptions"
         content_blocks:
-          - "Some basic Redstone contraptions include pressure plates, levers, and buttons."
-          - "These can be used to create simple machines like doors that open automatically or lights that turn on with a switch."
-        tokens_for_ai: "Explain some basic Redstone contraptions in Minecraft and their uses in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you name some basic Redstone contraptions and their uses in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "A Redstone machine needs something to switch it on, like a door that opens itself."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Pick EVERY block that can switch on a Redstone circuit."
+        choices:
+          - {id: a, text: "Lever"}
+          - {id: b, text: "Crafting table"}
+          - {id: c, text: "Button"}
+          - {id: d, text: "Pressure plate"}
+          - {id: e, text: "Bed"}
+        answer: [a, c, d]
+        answer_mode: all
         transitions:
           correct:
             content_blocks:
-              - "Excellent! You know about basic Redstone contraptions and their uses in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "All three: lever, button & pressure plate. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You have a partial understanding of basic Redstone contraptions. Let's clarify a few points."
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on basic Redstone contraptions."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of basic Redstone contraptions in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not the whole set: three of these are things you flip, press or step on."
 
   - section_id: "section_8"
     title: "Minecraft Updates"
@@ -503,141 +364,92 @@ sections:
       - step_id: "step_1"
         title: "Major Updates"
         content_blocks:
-          - "Minecraft receives regular updates that add new features, blocks, and mobs to the game."
-          - "Some major updates include the 'Nether Update,' 'Caves & Cliffs Update,' and 'Village & Pillage Update.'"
-        tokens_for_ai: "Explain what major updates are in Minecraft and describe some of them in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you name some major updates in Minecraft?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+          - "Big updates add new biomes, mobs & blocks."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Which update added the Crimson & Warped Forests?"
+        choices:
+          - {id: a, text: "Caves & Cliffs Update"}
+          - {id: b, text: "Nether Update"}
+          - {id: c, text: "Village & Pillage Update"}
+          - {id: d, text: "Update Aquatic"}
+        answer: b
         transitions:
           correct:
             content_blocks:
-              - "Great! You know about major updates in Minecraft."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Right! The Nether Update (1.16). Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about major updates. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on major updates."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of major updates in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: those forests grow in the Nether."
 
       - step_id: "step_2"
         title: "New Features"
-        content_blocks:
-          - "Each major update introduces new features to Minecraft, such as new biomes, mobs, and blocks."
-          - "These features enhance the gameplay experience and provide new challenges and opportunities for players."
-        tokens_for_ai: "Explain what new features are introduced in Minecraft updates and describe some of them in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you describe some new features introduced in Minecraft updates?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Which mob arrived with the Caves & Cliffs Update?"
+        choices:
+          - {id: a, text: "Axolotl"}
+          - {id: b, text: "Creeper"}
+          - {id: c, text: "Pig"}
+          - {id: d, text: "Enderman"}
+        answer: a
         transitions:
           correct:
             content_blocks:
-              - "Excellent! You know about new features introduced in Minecraft updates."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Yes! Axolotls swim in lush caves. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You have a partial understanding of new features. Let's clarify a few points."
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on new features."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of new features in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: the others have been around for years. Look for the newest."
 
   - section_id: "section_9"
     title: "Minecraft Community"
     steps:
       - step_id: "step_1"
         title: "Minecraft Servers"
-        content_blocks:
-          - "Minecraft servers are online multiplayer worlds where players can join and play together."
-          - "Servers offer various game modes, mini-games, and custom content created by the community."
-        tokens_for_ai: "Explain what Minecraft servers are and their features in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you describe what Minecraft servers are and their features?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "What is a Minecraft server?"
+        choices:
+          - {id: a, text: "An online world where many players play together"}
+          - {id: b, text: "A villager who brings you food"}
+          - {id: c, text: "A single-player save file"}
+        answer: a
         transitions:
           correct:
             content_blocks:
-              - "Great! You know what Minecraft servers are and their features."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Right! Servers host mini-games & shared worlds. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+          incorrect:
             content_blocks:
-              - "You know a little about Minecraft servers. Let's learn more!"
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on Minecraft servers."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of Minecraft servers in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's answer them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: servers are about playing with others."
 
       - step_id: "step_2"
         title: "Minecraft Mods"
-        content_blocks:
-          - "Minecraft mods are modifications made by the community that add new features, items, and gameplay mechanics to the game."
-          - "Mods can be downloaded and installed to enhance the Minecraft experience."
-        tokens_for_ai: "Explain what Minecraft mods are and their uses in a friendly and engaging manner suitable for 7 to 13-year-olds. If any part of the user's answer is correct and on-topic, categorize it as 'correct'."
-        question: "Can you describe what Minecraft mods are and their uses?"
-        buckets:
-          - correct
-          - partial_understanding
-          - off_topic
-          - asking_clarifying_questions
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "What are Minecraft mods?"
+        choices:
+          - {id: a, text: "Official game modes like Creative"}
+          - {id: b, text: "Community-made changes that add new features"}
+          - {id: c, text: "Moderators who ban players"}
+        answer: b
         transitions:
           correct:
             content_blocks:
-              - "Excellent! You know what Minecraft mods are and their uses."
-            ai_feedback:
-              tokens_for_ai: "Provide positive reinforcement and encourage the user to continue learning."
-          partial_understanding:
+              - "Yes! Mods add items, mobs & whole new mechanics. Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+              activity_completed: "true"
+          incorrect:
             content_blocks:
-              - "You have a partial understanding of Minecraft mods. Let's clarify a few points."
-            ai_feedback:
-              tokens_for_ai: "Provide additional information to clarify the user's understanding in a friendly and supportive manner."
-          off_topic:
-            content_blocks:
-              - "It seems like your response is off-topic. Let's try to stay focused on Minecraft mods."
-            ai_feedback:
-              tokens_for_ai: "Gently guide the user back to the topic of Minecraft mods in a supportive manner."
-          asking_clarifying_questions:
-            content_blocks:
-              - "I see you have some questions. Let's address them."
-            ai_feedback:
-              tokens_for_ai: "Answer the user's clarifying questions and provide additional information in a friendly and engaging manner."
+              - "Not quite: mod is short for modification."
+            metadata_add:
+              activity_completed: "true"
 
   - section_id: "section_10"
     title: "Congratulations!"
@@ -645,8 +457,12 @@ sections:
       - step_id: "step_1"
         title: "Well Done!"
         content_blocks:
-          - "Congratulations on completing the Minecraft Trivia game!"
-          - "You have learned a lot about Minecraft, including its gameplay, mobs, biomes, items, structures, achievements, Redstone, updates, and community."
-          - "Remember, Minecraft is a game of creativity and exploration, so keep playing, building, and discovering new things."
-          - "We are proud of your dedication and hard work. Well done!"
-
+          - "# You finished Minecraft Trivia! 🏆"
+          - "You scored **{{metadata.score}} out of 18**."
+          - text: "A true Minecraft expert! 💎"
+            show_if:
+              score_gte: 15
+          - text: "Nice! Play again to dig up a higher score."
+            show_if:
+              score_lt: 15
+          - "Keep building, exploring & discovering."

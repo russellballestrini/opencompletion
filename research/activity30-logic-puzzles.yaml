@@ -1,20 +1,11 @@
+title: "Logic Puzzles"
+description: "Deduction, contrapositives, syllogisms, knights & knaves, & spotting fallacies, one puzzle at a time."
+kind: "lesson"
 default_max_attempts_per_step: 3
-tokens_for_ai_rubric: 'Evaluate the student''s performance throughout the logic puzzle activity.
-
-  Consider:
-
-  - Their ability to reason through logical statements
-
-  - Understanding of deductive reasoning
-
-  - Improvement over the course of the activity
-
-  - Engagement with explanations
-
-
-  Provide encouraging feedback and suggest areas for continued practice.
-
-  '
+tokens_for_ai_rubric: |
+  You are coaching a learner through logic puzzles.
+  Judge the reasoning, not the wording: any phrasing of a valid deduction counts.
+  Be encouraging; when they struggle, give the next step, never the whole answer.
 sections:
 - section_id: introduction
   title: Welcome to Logic Puzzles
@@ -22,28 +13,21 @@ sections:
   - step_id: welcome
     title: Welcome to Logic Puzzles
     content_blocks:
-    - '# Welcome to Critical Thinking & Logic Puzzles!'
-    - In this activity, you'll develop your logical reasoning skills through a series of engaging puzzles.
-    - You'll learn to identify logical patterns, make deductions, and think critically.
+    - '# Welcome to Critical Thinking & Logic Puzzles! 🧩'
+    - In this activity, you'll develop your logical reasoning skills through a series of puzzles.
     - '**What you''ll learn:**'
     - '- How to analyze logical statements'
     - '- Deductive reasoning techniques'
-    - '- Pattern recognition'
-    - '- How to avoid common logical fallacies'
+    - '- Proof by contradiction'
+    - '- How to spot common logical fallacies'
     - ''
     - Let's begin your journey into the world of logic!
     question: Are you ready to sharpen your logical thinking skills?
-    tokens_for_ai: 'The student is expressing readiness to begin. Accept any positive, affirming response.
-
-      Categorize as:
-
-      - ready: Student is ready to proceed
-
-      - set_language: Student is setting language preference
-
-      - off_topic: Completely unrelated response
-
-      '
+    tokens_for_ai: Accept any positive, affirming response as ready.
+    bucket_criteria:
+      ready: "Says yes or otherwise agrees to start."
+      set_language: "Asks to use another language."
+      off_topic: "Anything else."
     buckets:
     - ready
     - set_language
@@ -52,10 +36,15 @@ sections:
       ready:
         content_blocks:
         - Excellent! Let's start with the fundamentals of logical reasoning.
+        metadata_add:
+          score: n+0
+          puzzles_solved: n+0
         next_section_and_step: section_1:step_1
       set_language:
         content_blocks:
         - I'll communicate with you in your preferred language.
+        metadata_add:
+          language: the-users-response
         counts_as_attempt: false
         next_section_and_step: introduction:welcome
       off_topic:
@@ -79,26 +68,18 @@ sections:
     - '- Statement 2: Whiskers is a cat.'
     - '- Conclusion: Therefore, Whiskers is a mammal.'
     - ''
-    - This is called **deductive reasoning** - going from general rules to specific cases.
+    - 'This is called **deductive reasoning**: going from general rules to specific cases.'
     question: Based on this reasoning, if 'All birds have feathers' and 'A robin is a bird', what can we conclude?
-    tokens_for_ai: 'The student should conclude that a robin has feathers.
-
-      Categorize as:
-
-      - correct: States that robin has feathers (exact wording doesn''t matter)
-
-      - partial_understanding: Mentions birds or feathers but incomplete reasoning
-
-      - limited_effort: Very brief or unclear answer
-
-      - off_topic: Unrelated response
-
-      '
-    feedback_tokens_for_ai: 'Provide feedback on their logical reasoning. If incorrect, gently explain the deductive
-
-      process: since ALL birds have feathers, and a robin IS a bird, then the robin must have feathers.
-
-      '
+    tokens_for_ai: The conclusion is that a robin has feathers.
+    bucket_criteria:
+      correct: "Concludes that a robin has feathers."
+      partial_understanding: "Mentions birds or feathers but stops short of the conclusion about the robin."
+      limited_effort: "A word or two that commits to nothing."
+      off_topic: "Unrelated to the puzzle."
+    required_elements:
+    - "concludes the robin has feathers"
+    feedback_tokens_for_ai: |
+      If they missed it: since ALL birds have feathers, and a robin IS a bird, the robin must have feathers.
     buckets:
     - correct
     - partial_understanding
@@ -114,11 +95,11 @@ sections:
         next_section_and_step: section_1:step_2
       partial_understanding:
         ai_feedback:
-          tokens_for_ai: Acknowledge what they got right, then gently guide them to the complete answer.
+          tokens_for_ai: Acknowledge what they got right, then complete the deduction for them.
         next_section_and_step: section_1:step_2
       limited_effort:
         ai_feedback:
-          tokens_for_ai: Encourage them to think more carefully about the logical structure and try again.
+          tokens_for_ai: Encourage them to think about what the two statements give together, and try again.
         next_section_and_step: section_1:step_1
       off_topic:
         content_blocks:
@@ -128,7 +109,7 @@ sections:
     title: The Contrapositive
     content_blocks:
     - '## The Contrapositive'
-    - Great! Now let's learn about the **contrapositive** - a powerful logical tool.
+    - Great! Now let's learn about the **contrapositive**, a powerful logical tool.
     - ''
     - 'If we know: ''If A, then B'' is true'
     - 'Then we also know: ''If NOT B, then NOT A'' is true'
@@ -137,35 +118,24 @@ sections:
     - '- Original: ''If it''s raining, then the ground is wet'''
     - '- Contrapositive: ''If the ground is NOT wet, then it''s NOT raining'''
     - ''
-    - Both statements are logically equivalent!
+    - "Both statements are logically equivalent! (Careful: the **converse**, 'if the ground is wet, it's raining', is NOT.)"
     - ''
     - '**Practice:** We know: ''If you study hard, you will pass the test.'''
     question: What is the contrapositive of this statement?
-    tokens_for_ai: 'The correct contrapositive is: "If you don''t pass the test, then you didn''t study hard"
-
-      or any equivalent phrasing.
-
-
-      Categorize as:
-
-      - correct: Correctly identifies the contrapositive (not passing → didn''t study)
-
-      - partial_understanding: Gets the concept but reverses incorrectly or incomplete
-
-      - logical_error: Confuses with converse or inverse
-
-      - limited_effort: Very brief or doesn''t attempt to construct the statement
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'If correct, praise their understanding. If incorrect, explain that the contrapositive
-
-      negates both parts AND reverses them. Common error: converse (if B then A) is NOT
-
-      logically equivalent to the original.
-
-      '
+    tokens_for_ai: |
+      The contrapositive: "If you don't pass the test, then you didn't study hard" (any equivalent phrasing).
+    bucket_criteria:
+      correct: "Negates both parts AND swaps them: not passing implies not studying hard."
+      partial_understanding: "Negates or swaps, but not both, or gets the idea with a slip in wording."
+      logical_error: "Gives the converse (pass → studied) or the inverse (didn't study → won't pass)."
+      limited_effort: "Too brief to be a statement."
+      off_topic: "Unrelated."
+    required_elements:
+    - "the condition is not passing the test"
+    - "the conclusion is not having studied hard"
+    feedback_tokens_for_ai: |
+      The contrapositive negates both parts AND reverses them. The converse (if B then A) and the
+      inverse (if not A then not B) are NOT equivalent to the original.
     buckets:
     - correct
     - partial_understanding
@@ -175,20 +145,20 @@ sections:
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Excellent work! You've grasped an important logical concept. Explain why contrapositives are useful in reasoning.
+          tokens_for_ai: Praise them and say in one sentence why a contrapositive is useful in reasoning.
         metadata_add:
           score: n+1
           puzzles_solved: n+1
         next_section_and_step: section_2:step_1
       partial_understanding:
         ai_feedback:
-          tokens_for_ai: You're on the right track. Explain the contrapositive clearly and encourage them.
+          tokens_for_ai: Name what they got right, then state the full contrapositive.
         metadata_add:
           score: n+1
         next_section_and_step: section_2:step_1
       logical_error:
         ai_feedback:
-          tokens_for_ai: Explain the difference between contrapositive, converse, and inverse. Give them another example.
+          tokens_for_ai: Say whether they wrote the converse or the inverse, why it is not equivalent, and ask again.
         next_section_and_step: section_1:step_2
       limited_effort:
         content_blocks:
@@ -205,39 +175,24 @@ sections:
     title: Classic Syllogism Puzzle
     content_blocks:
     - '## Classic Syllogism Puzzle'
-    - A **syllogism** is a form of logical argument with two premises and a conclusion.
+    - A **syllogism** is a form of logical argument with premises and a conclusion.
     - ''
     - '**Here''s your puzzle:**'
     - ''
     - '**Premise 1:** All philosophers love wisdom.'
     - '**Premise 2:** Socrates is a philosopher.'
     - '**Premise 3:** No one who loves wisdom is foolish.'
-    - ''
-    - What can we logically conclude about Socrates?
     question: What must be true about Socrates based on these premises?
-    tokens_for_ai: 'The correct conclusion is that Socrates is not foolish (or Socrates loves wisdom, which also leads to not being foolish).
-
-
-      Categorize as:
-
-      - correct: States Socrates is not foolish, or loves wisdom, or both
-
-      - partial_understanding: Gets one conclusion but not the full chain of reasoning
-
-      - limited_effort: Too brief or unclear
-
-      - off_topic: Unrelated or makes up facts not in premises
-
-      '
-    feedback_tokens_for_ai: 'Guide them through the logical chain if needed:
-
-      1. Socrates is a philosopher
-
-      2. All philosophers love wisdom → Socrates loves wisdom
-
-      3. No one who loves wisdom is foolish → Socrates is not foolish
-
-      '
+    tokens_for_ai: |
+      Chain: Socrates is a philosopher → he loves wisdom → he is not foolish.
+    bucket_criteria:
+      correct: "Concludes Socrates is not foolish (stating he loves wisdom along the way is fine)."
+      partial_understanding: "Concludes only that Socrates loves wisdom, without using premise 3."
+      limited_effort: "Too brief or unclear."
+      off_topic: "Unrelated, or adds facts the premises don't give."
+    required_elements:
+    - "uses all three premises"
+    - "concludes Socrates is not foolish"
     buckets:
     - correct
     - partial_understanding
@@ -246,14 +201,14 @@ sections:
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Excellent deductive reasoning! You followed the logical chain perfectly.
+          tokens_for_ai: Praise how they followed the chain through all three premises.
         metadata_add:
           score: n+1
           puzzles_solved: n+1
         next_section_and_step: section_2:step_2
       partial_understanding:
         ai_feedback:
-          tokens_for_ai: Good start! Can you extend your reasoning further using all three premises?
+          tokens_for_ai: Confirm what they found, then ask what premise 3 adds. Don't give the conclusion.
         next_section_and_step: section_2:step_1
       limited_effort:
         content_blocks:
@@ -264,13 +219,12 @@ sections:
         - Focus only on what the premises tell us. What can we deduce step by step?
         next_section_and_step: section_2:step_1
   - step_id: step_2
-    title: Truth Tables and Logical Consistency
+    title: Logical Consistency
     content_blocks:
-    - '## Truth Tables and Logical Consistency'
-    - Sometimes we need to check if statements are consistent with each other.
+    - '## Logical Consistency'
+    - Sometimes we need to check whether statements can all hold together.
     - ''
-    - '**The Scenario:**'
-    - 'Three friends make the following statements:'
+    - 'Each of these three friends either always tells the truth or always lies:'
     - ''
     - '**Alice:** ''If Bob is telling the truth, then Carol is lying.'''
     - '**Bob:** ''I am telling the truth.'''
@@ -278,42 +232,26 @@ sections:
     - ''
     - Let's assume Bob IS telling the truth (as he claims).
     question: If Bob is telling the truth, is there a logical contradiction? If so, where?
-    tokens_for_ai: 'Let''s work through this:
-
-      - If Bob is telling the truth (as assumed)
-
-      - Then by Alice''s statement, Carol must be lying
-
-      - But Carol says "Alice is telling the truth"
-
-      - If Carol is lying (as we deduced), then Alice must be lying
-
-      - But this contradicts our assumption that Alice''s statement about Bob/Carol is valid
-
-
-      Student should identify that there IS a contradiction, or that Carol must be lying.
-
-
-      Categorize as:
-
-      - correct: Identifies the contradiction or that Carol must be lying
-
-      - partial_understanding: Sees some inconsistency but doesn''t fully explain it
-
-      - confused: Gets lost in the logic
-
-      - limited_effort: Very brief answer
-
-      - asking_clarifying_questions: Requests help or clarification
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'If they''re struggling, walk through it step by step. This is a harder puzzle, so be
-
-      encouraging. The key insight is following the chain of implications.
-
-      '
+    tokens_for_ai: |
+      With Bob truthful, Alice's statement reduces to "Carol is lying".
+      If Alice tells the truth, Carol lies; but then Carol's "Alice is telling the truth" would be true. Contradiction.
+      If Alice lies, Carol tells the truth; but then Carol's "Alice is telling the truth" would be false. Contradiction.
+      So yes: Alice and Carol cannot be assigned consistently; Bob cannot be truthful here.
+    bucket_criteria:
+      correct: "Says yes, a contradiction, and locates it between Alice's and Carol's statements (each case fails)."
+      partial_understanding: "Says there is a contradiction without showing where, or checks only one case for Alice."
+      confused: "Concludes there is no contradiction, or reasons in circles."
+      limited_effort: "Yes/no with nothing else."
+      asking_clarifying_questions: "Asks for help or what the question means."
+      off_topic: "Unrelated."
+    required_elements:
+    - "says there is a contradiction"
+    - "locates it in Alice and Carol's statements pointing at each other"
+    hints:
+    - attempt: 2
+      text: "💡 With Bob truthful, Alice is really saying just 'Carol is lying'. Carol says 'Alice is truthful'. Can both fit?"
+    - attempt: 3
+      text: "💡 Try Alice truthful: then Carol lies, so Alice is NOT truthful. Now try Alice lying."
     buckets:
     - correct
     - partial_understanding
@@ -324,14 +262,14 @@ sections:
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Brilliant! You navigated a complex logical scenario. Explain the full chain of reasoning.
+          tokens_for_ai: Praise them and lay out both cases for Alice in two short lines.
         metadata_add:
           score: n+2
           puzzles_solved: n+1
         next_section_and_step: section_3:step_1
       partial_understanding:
         ai_feedback:
-          tokens_for_ai: You're getting there! Let's trace through what each statement implies step by step.
+          tokens_for_ai: Name the part missing from their answer without giving it, and ask again.
         metadata_add:
           hints_used: n+1
         next_section_and_step: section_2:step_2
@@ -339,9 +277,9 @@ sections:
         content_blocks:
         - 'Let''s break it down:'
         - 1. Assume Bob tells the truth
-        - 2. What does Alice's statement tell us about Carol?
-        - 3. What does Carol's statement tell us about Alice?
-        - 4. Do these work together?
+        - 2. What does Alice's statement then say about Carol?
+        - 3. What does Carol's statement say about Alice?
+        - 4. Try Alice truthful, then Alice lying. Does either work?
         metadata_add:
           hints_used: n+1
         next_section_and_step: section_2:step_2
@@ -351,12 +289,12 @@ sections:
         next_section_and_step: section_2:step_2
       asking_clarifying_questions:
         ai_feedback:
-          tokens_for_ai: Answer their question and provide helpful hints about how to approach the problem.
+          tokens_for_ai: Answer their question and give one hint, never the answer.
         counts_as_attempt: false
         next_section_and_step: section_2:step_2
       off_topic:
         content_blocks:
-        - Let's focus on analyzing the logical consistency of the three statements.
+        - Let's focus on whether the three statements can all hold together.
         next_section_and_step: section_2:step_2
 - section_id: section_3
   title: Knights and Knaves
@@ -376,15 +314,26 @@ sections:
     - You meet two people, A and B.
     - ''
     - '**Person A says:** ''At least one of us is a knave.'''
-    - ''
-    - What are A and B?
     question: Is A a knight or a knave? Is B a knight or a knave? Explain your reasoning.
-    tokens_for_ai: "Solution:\n- If A is a knave (liar), then the statement \"at least one of us is a knave\" would be false,\n  meaning both are knights. But A can't be both a knight and a knave - contradiction!\n- Therefore A must be a knight (truth-teller)\n- Since A tells the truth, \"at least one of us is a knave\" is true\n- Since A is a knight, B must be the knave\n\nAnswer: A is a knight, B is a knave\n\nCategorize as:\n- correct: Identifies A as knight and B as knave with reasonable explanation\n- partial_understanding: Gets one correct but not both, or right answer without clear reasoning\n- logical_error: Makes an error in the logical deduction\n- limited_effort: Too brief or gives up\n- asking_clarifying_questions: Asks for help\n- off_topic: Unrelated\n"
-    feedback_tokens_for_ai: 'This is a challenging puzzle! If they get stuck, suggest trying both possibilities:
-
-      "What if A is a knight? What if A is a knave?" and see which leads to a contradiction.
-
-      '
+    tokens_for_ai: |
+      If A were a knave, "at least one of us is a knave" would be true: a knave can't say something true.
+      So A is a knight, the statement is true, and B is the knave.
+    bucket_criteria:
+      correct: "A is a knight and B is a knave, with a reason (e.g. A can't be a knave without telling the truth)."
+      partial_understanding: "Both right with no reason, or only one of the two right."
+      logical_error: "Wrong assignment from a reasoning slip."
+      limited_effort: "Too brief or gives up."
+      asking_clarifying_questions: "Asks for help."
+      off_topic: "Unrelated."
+    required_elements:
+    - "A is a knight"
+    - "B is a knave"
+    - "a reason, such as a knave A would be telling the truth"
+    hints:
+    - attempt: 2
+      text: "💡 Suppose A is a knave. Would A's statement then be true or false?"
+    - attempt: 3
+      text: "💡 A knave saying 'at least one of us is a knave' would be telling the truth. So what must A be?"
     buckets:
     - correct
     - partial_understanding
@@ -395,32 +344,32 @@ sections:
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Outstanding! You've mastered proof by contradiction. This is advanced logical reasoning!
+          tokens_for_ai: Praise their proof by contradiction.
         metadata_add:
           score: n+3
           puzzles_solved: n+1
         next_section_and_step: section_3:step_2
       partial_understanding:
         ai_feedback:
-          tokens_for_ai: You're thinking in the right direction. Try assuming A is a knave and see if that leads to a contradiction.
+          tokens_for_ai: Name what is missing (a person or the reason) and suggest assuming A is a knave.
         metadata_add:
           hints_used: n+1
         next_section_and_step: section_3:step_1
       logical_error:
         ai_feedback:
-          tokens_for_ai: 'Let''s think through this carefully. Test both possibilities: what if A is a knight? What if A is a knave?'
+          tokens_for_ai: 'Point at the slip and suggest testing both possibilities: A a knight, then A a knave.'
         metadata_add:
           hints_used: n+1
         next_section_and_step: section_3:step_1
       limited_effort:
         content_blocks:
-        - 'This is challenging! Try starting with: ''Assume A is a knight. Then what must be true?'''
+        - 'This is challenging! Try starting with: ''Assume A is a knave. Then what must be true?'''
         metadata_add:
           hints_used: n+1
         next_section_and_step: section_3:step_1
       asking_clarifying_questions:
         ai_feedback:
-          tokens_for_ai: Answer their question helpfully and provide a hint about testing both possibilities.
+          tokens_for_ai: Answer their question and give one hint about testing both possibilities.
         counts_as_attempt: false
         next_section_and_step: section_3:step_1
       off_topic:
@@ -437,53 +386,28 @@ sections:
     - ''
     - '**X says:** ''All of us are knaves.'''
     - '**Y says:** ''Exactly one of us is a knight.'''
-    - ''
-    - What can you determine about X, Y, and Z?
     question: Identify whether X, Y, and Z are knights or knaves. Explain your reasoning.
-    tokens_for_ai: 'Solution:
-
-      - X says "all of us are knaves"
-
-      - If X were a knight (truth-teller), then "all are knaves" would be true, but X is a knight - contradiction!
-
-      - Therefore X must be a knave (liar)
-
-      - Since X is a knave, the statement "all of us are knaves" is false, so at least one is a knight
-
-      - Y says "exactly one of us is a knight"
-
-      - If Y is a knave, then "exactly one is a knight" is false, but we know at least one is a knight (not Y, not X)... so Z would be a knight
-
-      - If Y is a knight, then "exactly one is a knight" is true, and Y is that knight, so Z must be a knave
-
-      - Actually, if Y were a knave and Z were a knight, then we''d have exactly one knight (Z), making Y''s statement true - but knaves can''t tell the truth! Contradiction.
-
-      - Therefore Y must be a knight and Z must be a knave
-
-
-      Answer: X is a knave, Y is a knight, Z is a knave
-
-
-      Categorize as:
-
-      - correct: Correctly identifies all three with solid reasoning
-
-      - partial_understanding: Gets some right or reasoning is incomplete
-
-      - confused: Logic errors or contradictions in their answer
-
-      - limited_effort: Very brief or gives up
-
-      - asking_clarifying_questions: Asks for help
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'This is quite challenging! Encourage their effort. If struggling, suggest working through
-
-      X first (easier), then systematically testing Y as knight vs knave.
-
-      '
+    tokens_for_ai: |
+      X can't be a knight (a knight can't say "all of us are knaves"), so X is a knave and at least one of them is a knight.
+      If Y were a knave, the knights would number 0 or 1 (only Z could be one); not 0 (X lied), and not 1 (Y lied). Contradiction.
+      So Y is a knight, exactly one knight is true, and Z is a knave.
+      Answer: X knave, Y knight, Z knave.
+    bucket_criteria:
+      correct: "X knave, Y knight, Z knave, with reasoning for each."
+      partial_understanding: "Some right, or all right with reasoning missing for one."
+      confused: "Contradictions or errors in their own reasoning."
+      limited_effort: "Very brief or gives up."
+      asking_clarifying_questions: "Asks for help."
+      off_topic: "Unrelated."
+    required_elements:
+    - "X is a knave, since a knight could not say it"
+    - "Y is a knight"
+    - "Z is a knave"
+    hints:
+    - attempt: 2
+      text: "💡 Start with X: can a knight truthfully say 'all of us are knaves'?"
+    - attempt: 3
+      text: "💡 X is a knave, so at least one of them is a knight. Now test Y as a knave: how many knights could there be?"
     buckets:
     - correct
     - partial_understanding
@@ -494,20 +418,20 @@ sections:
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Exceptional work! You've demonstrated mastery of complex logical deduction. This is university-level reasoning!
+          tokens_for_ai: Praise their systematic deduction across all three people.
         metadata_add:
           score: n+5
           puzzles_solved: n+1
-        next_section_and_step: section_4:step_1
+        next_section_and_step: fallacies:intro
       partial_understanding:
         ai_feedback:
-          tokens_for_ai: Good progress! Let's work through this systematically. Start with X - can X be a knight?
+          tokens_for_ai: Confirm what they got right, then point at the person to test next. Don't give the answer.
         metadata_add:
           hints_used: n+1
         next_section_and_step: section_3:step_2
       confused:
         ai_feedback:
-          tokens_for_ai: Let's break this down step by step. First, what can we determine about X from their statement?
+          tokens_for_ai: Walk them to the first step only, what X's statement tells us, then ask again.
         metadata_add:
           hints_used: n+1
         next_section_and_step: section_3:step_2
@@ -519,13 +443,70 @@ sections:
         next_section_and_step: section_3:step_2
       asking_clarifying_questions:
         ai_feedback:
-          tokens_for_ai: Answer their question and provide systematic guidance on how to approach the puzzle.
+          tokens_for_ai: Answer their question and give one hint, never the answer.
         counts_as_attempt: false
         next_section_and_step: section_3:step_2
       off_topic:
         content_blocks:
         - Let's focus on solving this three-person knight and knave puzzle.
         next_section_and_step: section_3:step_2
+- section_id: fallacies
+  title: Spotting Fallacies
+  steps:
+  - step_id: intro
+    title: Logical Fallacies
+    content_blocks:
+    - '## Spotting Fallacies 🔍'
+    - "A **fallacy** is an argument that looks convincing but doesn't hold up. A few common ones:"
+    - ''
+    - '- **Ad hominem**: attacking the person instead of their argument'
+    - '- **Straw man**: arguing against a weaker version of what someone said'
+    - '- **False dilemma**: offering only two options when more exist'
+    - '- **Affirming the consequent**: from ''if A then B'' and ''B'', concluding ''A'' (the converse trap!)'
+    - ''
+    - 'Score so far: **{{metadata.score}}** points.'
+  - step_id: spot_ad_hominem
+    title: Name That Fallacy
+    question_type: multiple_choice
+    question: '"You can''t trust Dana''s climate data: she failed chemistry in high school." Which fallacy is this?'
+    choices:
+    - {id: a, text: "Straw man"}
+    - {id: b, text: "Ad hominem"}
+    - {id: c, text: "False dilemma"}
+    - {id: d, text: "Affirming the consequent"}
+    answer: b
+    transitions:
+      correct:
+        content_blocks:
+        - "Right: it attacks Dana, not her data. ✅"
+        metadata_add:
+          score: n+1
+          puzzles_solved: n+1
+        next_section_and_step: fallacies:spot_converse
+      incorrect:
+        content_blocks:
+        - "Not quite: is the argument about the data, or about Dana?"
+  - step_id: spot_converse
+    title: Valid or Not?
+    question_type: multiple_choice
+    question: '"If it rained, the ground is wet. The ground is wet. So it rained." What is this argument?'
+    choices:
+    - {id: a, text: "Valid: it follows the rule"}
+    - {id: b, text: "Affirming the consequent"}
+    - {id: c, text: "A contrapositive"}
+    - {id: d, text: "Ad hominem"}
+    answer: b
+    transitions:
+      correct:
+        content_blocks:
+        - "Yes! A sprinkler wets the ground too: B doesn't prove A. ✅"
+        metadata_add:
+          score: n+1
+          puzzles_solved: n+1
+        next_section_and_step: section_4:step_1
+      incorrect:
+        content_blocks:
+        - "Not quite: it runs the rule backwards, from B to A. Is that the contrapositive, or the converse trap?"
 - section_id: section_4
   title: Reflection and Summary
   steps:
@@ -535,42 +516,25 @@ sections:
     - '## Congratulations! 🎉'
     - You've completed the Logic Puzzles activity!
     - ''
+    - '**Your score: {{metadata.score}} points**, {{metadata.puzzles_solved}} of 8 puzzles solved.'
+    - ''
     - '**What you''ve learned:**'
     - ✓ Basic deductive reasoning (if A then B)
     - ✓ Contrapositives and logical equivalence
     - ✓ Syllogisms and multi-step deduction
-    - ✓ Truth tables and consistency checking
+    - ✓ Consistency checking
     - ✓ Proof by contradiction (Knights and Knaves)
+    - ✓ Spotting fallacies
     - ''
-    - '**Why logical thinking matters:**'
-    - '- Programming and debugging require logical reasoning'
-    - '- Critical thinking helps evaluate arguments and claims'
-    - '- Problem-solving in math, science, and everyday life'
-    - '- Avoiding logical fallacies in discussions'
-    - ''
-    - '**Your journey:**'
-    - You've progressed from basic deductions to complex multi-person logic puzzles.
-    - These skills will serve you well in many areas of thinking and learning!
+    - These skills serve you in programming, science, and every argument you hear.
     question: What was the most challenging puzzle for you, and what did you learn from it?
-    tokens_for_ai: 'This is a reflection question. Accept any thoughtful response about their learning experience.
-
-
-      Categorize as:
-
-      - thoughtful_reflection: Provides specific insights about their learning
-
-      - brief_reflection: Short but genuine reflection
-
-      - limited_effort: Very minimal response
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'Provide personalized feedback on their journey through the activity. Acknowledge their
-
-      specific challenges and growth. Encourage continued practice with logical reasoning.
-
-      '
+    tokens_for_ai: Accept any genuine reflection on their learning.
+    bucket_criteria:
+      thoughtful_reflection: "Names a puzzle and something specific they learned."
+      brief_reflection: "Short but genuine."
+      limited_effort: "Very minimal."
+      off_topic: "Unrelated."
+    feedback_tokens_for_ai: Acknowledge their specific challenge and encourage continued practice.
     buckets:
     - thoughtful_reflection
     - brief_reflection
@@ -579,17 +543,17 @@ sections:
     transitions:
       thoughtful_reflection:
         ai_feedback:
-          tokens_for_ai: Provide thoughtful, personalized feedback on their learning journey and suggest how to continue developing logical thinking skills.
+          tokens_for_ai: Give personalized feedback on their journey and one way to keep practicing.
         metadata_add:
           activity_completed: 'true'
       brief_reflection:
         ai_feedback:
-          tokens_for_ai: Acknowledge their reflection and encourage them to keep practicing logical reasoning.
+          tokens_for_ai: Acknowledge their reflection and encourage them to keep practicing.
         metadata_add:
           activity_completed: 'true'
       limited_effort:
         ai_feedback:
-          tokens_for_ai: Thank them for participating and summarize key takeaways from the activity.
+          tokens_for_ai: Thank them for participating and summarize the key takeaways in three lines.
         metadata_add:
           activity_completed: 'true'
       off_topic:

@@ -1,14 +1,21 @@
 # Global Spiritual Time Machine - Biblical Timeline Edition
 # Travel to ANY location in the world during biblical times (~4000 BC - 313 AD)
 # Meet spiritual figures across cultures: biblical prophets, Greek philosophers, Buddhist monks, Hindu gurus, and more
-# The AI dynamically determines the time period, location, and spiritual context
+# Our machine learning model works out the time period, location, and spiritual context
+
+title: "Biblical-Era Time Machine"
+description: "Travel anywhere from ~4000 BC to 313 AD: meet prophets, philosophers, monks and magi, and ask them anything."
+kind: "game"
+# Every answer is a move (a place, a person, a question for them): a
+# question asked of Socrates is the game, never a clarifying question.
+allow_clarifying_questions: false
 
 default_max_attempts_per_step: 5
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
 
 tokens_for_ai_rubric: |
-  You are an intelligent GLOBAL time machine AI assistant.
+  You are our GLOBAL time machine guide.
 
   Your job is to facilitate open-ended time travel to ANY location on Earth during the biblical timeline (~4000 BC - 313 AD).
 
@@ -21,7 +28,8 @@ tokens_for_ai_rubric: |
   - Examples: Meet Jesus in Judea, Socrates in Athens, Buddha's followers in India, Zoroastrian priests in Persia
 
   ACCURACY REQUIREMENTS:
-  - Biblical lands: Maintain biblical accuracy (Temple status, geography, etc.)
+  - Biblical lands: keep to the biblical account's own setting (Temple status, geography, etc.),
+    and say briefly when historians date or read an event differently
   - Non-biblical regions: Provide historically accurate spiritual context for that time/place
   - Respect all spiritual traditions while facilitating exploration
 
@@ -130,11 +138,12 @@ sections:
           biblical_lands:
             ai_feedback:
               tokens_for_ai: |
-                User requested biblical location/person/event: "the-users-response"
+                User requested biblical location/person/event: (see their message)
 
                 YOUR JOB: Dynamically generate a BRIEF departure briefing (3-5 sentences):
 
-                1. Determine SPECIFIC time period from their request:
+                1. Determine SPECIFIC time period from their request (traditional biblical
+                   dates; historians date or debate many of them differently, so say so briefly):
                    - Garden of Eden: ~4000 BC (pre-Fall)
                    - Early world: ~4000-2350 BC (Cain, Abel, Noah, Flood)
                    - Patriarchs: ~2000-1800 BC (Abraham, Isaac, Jacob, Joseph)
@@ -166,7 +175,7 @@ sections:
           greece:
             ai_feedback:
               tokens_for_ai: |
-                User requested Greece: "the-users-response"
+                User requested Greece: (see their message)
 
                 YOUR JOB: Dynamically generate briefing for Greece during requested time:
 
@@ -194,7 +203,7 @@ sections:
           rome:
             ai_feedback:
               tokens_for_ai: |
-                User requested Rome: "the-users-response"
+                User requested Rome: (see their message)
 
                 YOUR JOB: Generate briefing for Rome during requested time:
 
@@ -222,13 +231,13 @@ sections:
           india:
             ai_feedback:
               tokens_for_ai: |
-                User requested India: "the-users-response"
+                User requested India: (see their message)
 
                 YOUR JOB: Generate briefing for India during requested time:
 
                 1. Determine time period (or default to 500 BC if unclear):
                    - ~1500-500 BC: Vedic period, early Hinduism, Upanishads, Brahmins
-                   - ~563-483 BC: Buddha's lifetime, Buddhism emerging
+                   - ~563-483 BC (traditional; many scholars prefer ~480-400 BC): Buddha's lifetime, Buddhism emerging
                    - ~500 BC-0: Buddhism spreading, Mauryan Empire, Ashoka promotes Buddhism
                    - ~0-313 AD: Classical period, Hindu revival, Buddhist universities (Nalanda), Mahayana Buddhism
 
@@ -250,7 +259,7 @@ sections:
           china:
             ai_feedback:
               tokens_for_ai: |
-                User requested China: "the-users-response"
+                User requested China: (see their message)
 
                 YOUR JOB: Generate briefing for China during requested time:
 
@@ -278,7 +287,7 @@ sections:
           persia:
             ai_feedback:
               tokens_for_ai: |
-                User requested Persia: "the-users-response"
+                User requested Persia: (see their message)
 
                 YOUR JOB: Generate briefing for Persia during requested time:
 
@@ -306,7 +315,7 @@ sections:
           other_world:
             ai_feedback:
               tokens_for_ai: |
-                User requested other location: "the-users-response"
+                User requested other location: (see their message)
 
                 YOUR JOB: Generate briefing for their requested location during biblical timeline:
 
@@ -388,7 +397,7 @@ sections:
           meet_someone:
             ai_feedback:
               tokens_for_ai: |
-                User wants to meet: "the-users-response"
+                User wants to meet: (see their message)
 
                 Location: metadata.current_region
                 Era: metadata.current_era
@@ -404,8 +413,8 @@ sections:
                 ACCURACY REQUIREMENTS:
                 - Biblical lands: Maintain Temple status accuracy
                 - Greece: Verify philosopher lifespans (Socrates 470-399 BC, Plato 428-348 BC, etc.)
-                - India: Don't place Buddha after his death (483 BC), but his followers exist afterward
-                - China: Confucius 551-479 BC, Laozi ~6th century BC
+                - India: Don't place Buddha after his death (traditionally 483 BC, perhaps ~400 BC), but his followers exist afterward
+                - China: Confucius 551-479 BC, Laozi ~6th century BC (traditional; his dates and life are debated)
                 - Rome: Different figures for Republic vs Empire periods
 
                 Use metadata.language for response.
@@ -626,7 +635,7 @@ sections:
     steps:
       - step_id: "reflection"
         title: "Reflection"
-        question: "What was the most meaningful moment from your journey through Biblical history?"
+        question: "What was the most meaningful moment from your journey through the ancient world?"
         tokens_for_ai: |
           User reflecting on their experience.
 
@@ -635,13 +644,13 @@ sections:
           Respond to their reflection with encouragement.
 
           - Acknowledge what they found meaningful
-          - Connect to biblical themes
-          - Encourage further Bible study
+          - Connect it to the traditions they met
+          - Encourage further study of those traditions
           - Thank them for the journey
 
           Use metadata.language.
 
-          End with blessing and invitation to return.
+          End with a warm farewell and an invitation to return.
         buckets: [reflect]
         transitions:
           reflect:
@@ -654,9 +663,13 @@ sections:
       - step_id: "goodbye"
         title: "Farewell"
         content_blocks:
-          - "# Thank You for Traveling Through Biblical History"
+          - "# Thank You for Traveling Through the Ancient World"
           - ""
-          - "From Eden to persecution, from Paradise to martyrdom—"
-          - "you've witnessed God's redemptive story unfold."
+          - "From Eden to Rome, from Athens to the Ganges,"
+          - "you've met people asking the deepest questions humans ask."
+          - text: "🧭 Eras visited: {{metadata.epochs_visited}}"
+            show_if: {epochs_visited_exists: true}
+          - text: "🤝 People met: {{metadata.people_met}}"
+            show_if: {people_met_exists: true}
           - ""
           - "The time machine is always here when you want to return. ⏳"

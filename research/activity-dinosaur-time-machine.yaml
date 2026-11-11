@@ -1,12 +1,13 @@
 # What our Activities gallery shows for this activity (optional: see SPEC.yaml).
 title: "Dinosaur Time Machine"
 description: "Travel to the Triassic, Jurassic & Cretaceous with a machine learning guide & meet what lived there."
+kind: "game"
 default_max_attempts_per_step: 5
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
 
 tokens_for_ai_rubric: |
-  You are the AI guide of a time machine that travels through Earth's prehistoric eras.
+  You are the guide of a time machine that travels through Earth's prehistoric eras.
   Be enthusiastic, educational, and vivid in descriptions.
   Use emojis and paint pictures with words.
   When users express interest in specific creatures, periods, or topics, provide detailed,
@@ -44,7 +45,7 @@ sections:
           - "╚═══════════════════════════════════════════════════════╝"
           - "```"
           - ""
-          - "I'm your AI guide through prehistory! Together we'll explore three magnificent eras:"
+          - "I'm your machine learning guide through prehistory! Together we'll explore three magnificent eras:"
           - ""
           - "🌋 **TRIASSIC PERIOD** (252-201 million years ago)"
           - "   - The dawn of the dinosaurs"
@@ -59,7 +60,7 @@ sections:
           - "🦖 **CRETACEOUS PERIOD** (145-66 million years ago)"
           - "   - The age of giants and diversity"
           - "   - T-Rex, Triceratops, and Velociraptors"
-          - "   - Ends with the K-T extinction event"
+          - "   - Ends with the K-Pg (K-T) extinction event"
           - ""
           - "Each era is a different world with unique climates, landscapes, and creatures!"
 
@@ -86,10 +87,16 @@ sections:
           - If they ask about extinction, asteroid, or what happened to dinosaurs
             → bucket: extinction_event
 
+          - If they want a quiz, a test or a challenge
+            → bucket: take_quiz
+
+          - If they want to stop, finish or say goodbye
+            → bucket: end_journey
+
           - If they ask about specific dinosaurs not categorized above, or general questions
             → bucket: general_question
 
-        buckets: [go_triassic, go_jurassic, go_cretaceous, explain_timeline, extinction_event, general_question]
+        buckets: [go_triassic, go_jurassic, go_cretaceous, explain_timeline, extinction_event, take_quiz, end_journey, general_question]
 
         transitions:
           go_triassic:
@@ -104,7 +111,7 @@ sections:
               - ""
               - "Welcome to the **TRIASSIC PERIOD**!"
             metadata_add:
-              eras_visited: "Triassic"
+              visited_triassic: "yes"
               current_era: "Triassic"
             next_section_and_step: "triassic:overview"
 
@@ -120,7 +127,7 @@ sections:
               - ""
               - "Welcome to the **JURASSIC PERIOD**!"
             metadata_add:
-              eras_visited: "Jurassic"
+              visited_jurassic: "yes"
               current_era: "Jurassic"
             next_section_and_step: "jurassic:overview"
 
@@ -136,7 +143,7 @@ sections:
               - ""
               - "Welcome to the **CRETACEOUS PERIOD**!"
             metadata_add:
-              eras_visited: "Cretaceous"
+              visited_cretaceous: "yes"
               current_era: "Cretaceous"
             next_section_and_step: "cretaceous:overview"
 
@@ -159,6 +166,19 @@ sections:
               current_era: "Extinction"
             next_section_and_step: "cretaceous:extinction"
 
+          take_quiz:
+            content_blocks:
+              - "🏆 **Era quiz!** Three questions: name the era."
+            metadata_add:
+              quiz_score: 0
+            counts_as_attempt: false
+            next_section_and_step: "era_quiz:trex"
+
+          end_journey:
+            content_blocks:
+              - "⚡ **Powering down the time machine...**"
+            next_section_and_step: "cretaceous:reflection"
+
           general_question:
             ai_feedback:
               tokens_for_ai: |
@@ -173,6 +193,85 @@ sections:
                 Always end by asking what they'd like to explore next.
             counts_as_attempt: false
             next_section_and_step: "control_room:choose_era"
+
+  # ============================================================================
+  # ERA QUIZ - name the era (multiple choice, no model)
+  # ============================================================================
+  - section_id: "era_quiz"
+    title: "Era Quiz"
+    steps:
+      - step_id: "trex"
+        title: "Which Era? Tyrannosaurus"
+        question_type: multiple_choice
+        question: "🦖 In which period did Tyrannosaurus rex live?"
+        choices:
+          - {id: a, text: "Triassic"}
+          - {id: b, text: "Jurassic"}
+          - {id: c, text: "Cretaceous"}
+        answer: c
+        transitions:
+          correct:
+            content_blocks:
+              - "✅ Right: T. rex lived at the very end of the Cretaceous, 68-66 million years ago."
+            metadata_add:
+              quiz_score: "n+1"
+            next_section_and_step: "era_quiz:pangaea"
+          incorrect:
+            content_blocks:
+              - "Not quite: T. rex was one of the last dinosaurs, alive when the asteroid struck."
+
+      - step_id: "pangaea"
+        title: "Which Era? Pangaea"
+        question_type: multiple_choice
+        question: "🌍 In which period were all the continents still joined as one supercontinent, Pangaea?"
+        choices:
+          - {id: a, text: "Triassic"}
+          - {id: b, text: "Jurassic"}
+          - {id: c, text: "Cretaceous"}
+        answer: a
+        transitions:
+          correct:
+            content_blocks:
+              - "✅ Yes: in the Triassic you could walk from North America to Africa."
+            metadata_add:
+              quiz_score: "n+1"
+            next_section_and_step: "era_quiz:flowers"
+          incorrect:
+            content_blocks:
+              - "Not quite: Pangaea began breaking apart in the Jurassic. Think earlier."
+
+      - step_id: "flowers"
+        title: "Which Era? Flowers"
+        question_type: multiple_choice
+        question: "🌸 In which period did flowering plants first spread across the land?"
+        choices:
+          - {id: a, text: "Triassic"}
+          - {id: b, text: "Jurassic"}
+          - {id: c, text: "Cretaceous"}
+        answer: c
+        transitions:
+          correct:
+            content_blocks:
+              - "✅ Correct: flowers bloomed in the Cretaceous, & bees spread with them."
+            metadata_add:
+              quiz_score: "n+1"
+            next_section_and_step: "era_quiz:results"
+          incorrect:
+            content_blocks:
+              - "Not quite: the Triassic & Jurassic had ferns, conifers & cycads, but no flowers yet."
+
+      - step_id: "results"
+        title: "Quiz Results"
+        content_blocks:
+          - "## 🏆 Quiz complete: {{metadata.quiz_score}} of 3!"
+          - text: "Perfect score, time traveler! 🎉"
+            show_if:
+              quiz_score_gte: 3
+          - text: "Hop in the time machine to see the eras up close, then try again."
+            show_if:
+              quiz_score_lt: 3
+          - "⚡ **Returning to the Control Room...**"
+        next_section_and_step: "control_room:choose_era"
 
   # ============================================================================
   # TRIASSIC PERIOD (252-201 MYA) - The Beginning
@@ -198,11 +297,11 @@ sections:
           - ""
           - "## 🦎 Life in the Triassic:"
           - ""
-          - "This period begins right after the **Permian-Triassic Extinction** (the Great Dying) which killed 96% of all species!"
+          - "This period begins right after the **Permian-Triassic Extinction** (the Great Dying) which wiped out about 90% of all species!"
           - "Life is recovering and evolving rapidly."
           - ""
           - "**Early Dinosaurs (small and quick):**"
-          - "- 🦎 Herrerasaurus - One of the earliest predators (6 ft / 2m long)"
+          - "- 🦎 Herrerasaurus - One of the earliest predators (up to 20 ft / 6m long)"
           - "- 🦕 Plateosaurus - Early long-necked herbivore (26 ft / 8m)"
           - "- 🦖 Coelophysis - Small, fast hunter (10 ft / 3m)"
           - "- 🦎 Eoraptor - Tiny early dinosaur (3 ft / 1m)"
@@ -251,6 +350,8 @@ sections:
             → bucket: go_cretaceous
           - Control room, back, return, leave, menu, different era
             → bucket: back_to_control
+          - Done, finished, end the journey, go home, goodbye
+            → bucket: end_journey
           - Continue, more, keep exploring, what else
             → bucket: continue_exploring
 
@@ -258,7 +359,7 @@ sections:
           - Any other question or interest
             → bucket: general_inquiry
 
-        buckets: [learn_creature, climate_geography, plant_life, evolution_topic, go_jurassic, go_cretaceous, back_to_control, continue_exploring, general_inquiry]
+        buckets: [learn_creature, climate_geography, plant_life, evolution_topic, go_jurassic, go_cretaceous, back_to_control, end_journey, continue_exploring, general_inquiry]
 
         transitions:
           learn_creature:
@@ -336,7 +437,7 @@ sections:
               - "⏩ Moving forward 50 million years..."
               - "✓ Welcome to the JURASSIC PERIOD!"
             metadata_add:
-              eras_visited: "Triassic, Jurassic"
+              visited_jurassic: "yes"
               current_era: "Jurassic"
             next_section_and_step: "jurassic:overview"
 
@@ -346,7 +447,7 @@ sections:
               - "⏩ Moving forward 100+ million years..."
               - "✓ Welcome to the CRETACEOUS PERIOD!"
             metadata_add:
-              eras_visited: "Triassic, Cretaceous"
+              visited_cretaceous: "yes"
               current_era: "Cretaceous"
             next_section_and_step: "cretaceous:overview"
 
@@ -354,6 +455,11 @@ sections:
             content_blocks:
               - "⚡ **Returning to Time Machine Control Room...**"
             next_section_and_step: "control_room:choose_era"
+
+          end_journey:
+            content_blocks:
+              - "⚡ **Powering down the time machine...**"
+            next_section_and_step: "cretaceous:reflection"
 
           continue_exploring:
             ai_feedback:
@@ -485,6 +591,8 @@ sections:
             → bucket: go_cretaceous
           - Control room, return, leave, menu
             → bucket: back_to_control
+          - Done, finished, end the journey, go home, goodbye
+            → bucket: end_journey
           - More, continue, what else, keep exploring
             → bucket: continue_exploring
 
@@ -492,7 +600,7 @@ sections:
           - Any other question
             → bucket: general_inquiry
 
-        buckets: [learn_creature, marine_life, flying_reptiles, climate_geography, plant_life, size_topic, go_triassic, go_cretaceous, back_to_control, continue_exploring, general_inquiry]
+        buckets: [learn_creature, marine_life, flying_reptiles, climate_geography, plant_life, size_topic, go_triassic, go_cretaceous, back_to_control, end_journey, continue_exploring, general_inquiry]
 
         transitions:
           learn_creature:
@@ -663,6 +771,7 @@ sections:
               - "⏪ Moving backward 50 million years..."
               - "✓ Welcome back to the TRIASSIC PERIOD!"
             metadata_add:
+              visited_triassic: "yes"
               current_era: "Triassic"
             next_section_and_step: "triassic:overview"
 
@@ -672,7 +781,7 @@ sections:
               - "⏩ Moving forward 60 million years..."
               - "✓ Welcome to the CRETACEOUS PERIOD!"
             metadata_add:
-              eras_visited: "Jurassic, Cretaceous"
+              visited_cretaceous: "yes"
               current_era: "Cretaceous"
             next_section_and_step: "cretaceous:overview"
 
@@ -680,6 +789,11 @@ sections:
             content_blocks:
               - "⚡ **Returning to Time Machine Control Room...**"
             next_section_and_step: "control_room:choose_era"
+
+          end_journey:
+            content_blocks:
+              - "⚡ **Powering down the time machine...**"
+            next_section_and_step: "cretaceous:reflection"
 
           continue_exploring:
             ai_feedback:
@@ -814,6 +928,8 @@ sections:
             → bucket: go_jurassic
           - Control room, return, menu, leave
             → bucket: back_to_control
+          - Done, finished, end the journey, go home, goodbye
+            → bucket: end_journey
           - More, continue, what else, keep exploring
             → bucket: continue_exploring
 
@@ -821,7 +937,7 @@ sections:
           - Any other question
             → bucket: general_inquiry
 
-        buckets: [learn_trex, learn_creature, marine_life, flying_reptiles, flowering_plants, climate_geography, extinction_event, feathers_birds, go_triassic, go_jurassic, back_to_control, continue_exploring, general_inquiry]
+        buckets: [learn_trex, learn_creature, marine_life, flying_reptiles, flowering_plants, climate_geography, extinction_event, feathers_birds, go_triassic, go_jurassic, back_to_control, end_journey, continue_exploring, general_inquiry]
 
         transitions:
           learn_trex:
@@ -1072,6 +1188,7 @@ sections:
               - "⏪ Moving backward 140+ million years..."
               - "✓ Welcome back to the TRIASSIC PERIOD!"
             metadata_add:
+              visited_triassic: "yes"
               current_era: "Triassic"
             next_section_and_step: "triassic:overview"
 
@@ -1081,6 +1198,7 @@ sections:
               - "⏪ Moving backward 70 million years..."
               - "✓ Welcome back to the JURASSIC PERIOD!"
             metadata_add:
+              visited_jurassic: "yes"
               current_era: "Jurassic"
             next_section_and_step: "jurassic:overview"
 
@@ -1088,6 +1206,11 @@ sections:
             content_blocks:
               - "⚡ **Returning to Time Machine Control Room...**"
             next_section_and_step: "control_room:choose_era"
+
+          end_journey:
+            content_blocks:
+              - "⚡ **Powering down the time machine...**"
+            next_section_and_step: "cretaceous:reflection"
 
           continue_exploring:
             ai_feedback:
@@ -1206,10 +1329,13 @@ sections:
           - If they want to ask more questions or explore specific topics
             → bucket: continue_learning
 
+          - If they want a quiz, a test or a challenge
+            → bucket: take_quiz
+
           - If they're done and want to end
             → bucket: farewell
 
-        buckets: [revisit_era, more_extinction, after_dinosaurs, continue_learning, farewell]
+        buckets: [revisit_era, more_extinction, after_dinosaurs, continue_learning, take_quiz, farewell]
 
         transitions:
           revisit_era:
@@ -1270,6 +1396,14 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "cretaceous:reflection"
 
+          take_quiz:
+            content_blocks:
+              - "🏆 **Era quiz!** Three questions: name the era."
+            metadata_add:
+              quiz_score: 0
+            counts_as_attempt: false
+            next_section_and_step: "era_quiz:trex"
+
           farewell:
             content_blocks:
               - "# 🦕 Thank You for Your Journey! 🦖"
@@ -1283,20 +1417,29 @@ sections:
               - "║           TEMPORAL DISPLACEMENT ENGINE v1.0           ║"
               - "║              Status: ✓ MISSION COMPLETE               ║"
               - "║                                                       ║"
-              - "║  Journey Summary:                                     ║"
-              - "║  - Eras Visited: check your metadata                 ║"
-              - "║  - Time Traveled: 252 million years                  ║"
-              - "║  - Dinosaurs Discovered: Countless!                  ║"
-              - "║                                                       ║"
               - "║  Thank you for exploring Earth's prehistoric past!   ║"
               - "║                                                       ║"
               - "╚═══════════════════════════════════════════════════════╝"
               - "```"
               - ""
+              - "**Eras you visited:**"
+              - text: "- 🌋 Triassic"
+                show_if:
+                  visited_triassic_exists: true
+              - text: "- 🌿 Jurassic"
+                show_if:
+                  visited_jurassic_exists: true
+              - text: "- 🦖 Cretaceous"
+                show_if:
+                  visited_cretaceous_exists: true
+              - text: "- 🏆 Era quiz: {{metadata.quiz_score}} of 3"
+                show_if:
+                  quiz_score_exists: true
+              - ""
               - "**Remember:** Birds are living dinosaurs! Every time you see a bird,"
               - "you're looking at a descendant of the mighty creatures you just studied."
               - ""
-              - "**Fun fact:** A chicken's closest extinct relative is... Tyrannosaurus Rex! 🐔🦖"
+              - "**Fun fact:** Proteins from a T. rex bone matched a chicken's more closely than an alligator's! 🐔🦖"
               - ""
               - "Come back anytime to explore more of prehistoric Earth! 🌍"
             metadata_add:

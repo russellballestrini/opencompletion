@@ -1,3 +1,6 @@
+title: "Monty Hall Simulation"
+description: "Stay or switch? Code the game show in your language and prove switching wins two times in three."
+kind: "lesson"
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
@@ -100,63 +103,27 @@ sections:
 
       - step_id: "intuition_check"
         title: "What's Your Intuition?"
-        question: "What do you think? Should you STAY with your original door, SWITCH to the other door, or does it NOT MATTER (50/50 odds)?"
-        tokens_for_ai: |
-          The user is giving their intuitive answer to the Monty Hall problem.
-
-          Categorize as 'stay' if they think staying is better.
-          Categorize as 'switch' if they think switching is better.
-          Categorize as 'same_odds' if they think it doesn't matter (50/50).
-          Categorize as 'set_language' if asking to change conversation language.
-          Categorize as 'unsure' if they don't know or want more explanation.
-        buckets: [stay, switch, same_odds, set_language, unsure]
+        question_type: multiple_choice
+        question: "Monty has opened a goat door. What should you do?"
+        choices:
+          - {id: a, text: "Stay with my first door"}
+          - {id: b, text: "Switch to the other closed door"}
+          - {id: c, text: "It doesn't matter: two doors left, 50/50"}
+        answer: b
         transitions:
-          stay:
+          correct:
             content_blocks:
-              - "Interesting! That's a common intuition."
-              - ""
-              - "Many people think staying is just as good as switching."
-              - ""
-              - "Let's find out if you're right... through CODE! 🔬"
-            metadata_add:
-              initial_intuition: "stay"
-            next_section_and_step: "probability_prediction:predict_probabilities"
-          switch:
-            content_blocks:
-              - "Aha! You might be onto something! 🤔"
-              - ""
-              - "That's actually the counterintuitive answer that most people reject at first."
-              - ""
+              - "Aha! That's the counterintuitive answer most people reject at first. 🤔"
               - "Let's prove it with code! 💻"
             metadata_add:
               initial_intuition: "switch"
             next_section_and_step: "probability_prediction:predict_probabilities"
-          same_odds:
+          incorrect:
             content_blocks:
-              - "That's what most people think! It FEELS like 50/50, right?"
-              - ""
-              - "After all, there are two doors left... seems like equal odds."
-              - ""
+              - "That's what most people think! Two doors left FEELS like 50/50."
               - "But prepare to have your mind blown! 🤯"
             metadata_add:
-              initial_intuition: "same_odds"
-            next_section_and_step: "probability_prediction:predict_probabilities"
-          set_language:
-            content_blocks:
-              - "Language preference updated."
-            metadata_add:
-              language: "the-users-response"
-            counts_as_attempt: false
-            next_section_and_step: "monty_hall_problem:intuition_check"
-          unsure:
-            content_blocks:
-              - "No problem! This is a VERY tricky problem."
-              - ""
-              - "Even famous mathematicians got it wrong at first!"
-              - ""
-              - "Let's discover the answer together through simulation. 🧪"
-            metadata_add:
-              initial_intuition: "unsure"
+              initial_intuition: "stay_or_same"
             next_section_and_step: "probability_prediction:predict_probabilities"
 
   - section_id: "probability_prediction"
@@ -164,66 +131,28 @@ sections:
     steps:
       - step_id: "predict_probabilities"
         title: "Predict the Win Rates"
-        question: |
-          Before we code, make a prediction:
-
-          If you play this game 1000 times...
-
-          - What % of the time will STAYING win?
-          - What % of the time will SWITCHING win?
-
-          Give your prediction (e.g., "50% stay, 50% switch" or "33% stay, 67% switch")
-        tokens_for_ai: |
-          The user is predicting the win rates for stay vs switch strategies.
-
-          The CORRECT answer is: ~33% stay wins, ~67% switch wins (or 1/3 vs 2/3).
-
-          Categorize as 'correct_prediction' if they predict something close to 33/67 or 1/3 vs 2/3.
-          Categorize as 'incorrect_prediction' for any other prediction (like 50/50).
-          Categorize as 'set_language' if asking to change conversation language.
-          Categorize as 'unsure' if they don't want to guess.
-        buckets: [correct_prediction, incorrect_prediction, set_language, unsure]
+        question_type: multiple_choice
+        question: "Before we code, predict: over 1000 games, how often does each strategy win?"
+        choices:
+          - {id: a, text: "Stay 50%, Switch 50%"}
+          - {id: b, text: "Stay 33%, Switch 67%"}
+          - {id: c, text: "Stay 67%, Switch 33%"}
+        answer: b
+        buckets: [correct_prediction, incorrect_prediction]
         transitions:
           correct_prediction:
             content_blocks:
-              - "Wow! You predicted correctly! 🎯"
-              - ""
-              - "**The answer:** Switching wins ~67% of the time (2/3)!"
-              - ""
+              - "Wow! You predicted correctly! 🎯 Switching wins ~67% (2/3)."
               - "Most people find this SHOCKING. Let's prove it with code!"
             metadata_add:
-              prediction: "the-users-response"
               predicted_correctly: "true"
             next_section_and_step: "implement_stay:explain_stay_strategy"
           incorrect_prediction:
             content_blocks:
-              - "Good guess! That's what most people predict."
-              - ""
-              - "But here's the truth: **Switching wins ~67% of the time (2/3)!** 🤯"
-              - ""
-              - "I know, I know... it seems impossible."
-              - ""
-              - "That's why we're going to PROVE it with simulation! Let's code it up! 💻"
+              - "Good guess, and a common one. The truth: **switching wins ~67% (2/3)!** 🤯"
+              - "It seems impossible, so let's PROVE it with a simulation! 💻"
             metadata_add:
-              prediction: "the-users-response"
               predicted_correctly: "false"
-            next_section_and_step: "implement_stay:explain_stay_strategy"
-          set_language:
-            content_blocks:
-              - "Language preference updated."
-            metadata_add:
-              language: "the-users-response"
-            counts_as_attempt: false
-            next_section_and_step: "probability_prediction:predict_probabilities"
-          unsure:
-            content_blocks:
-              - "No worries! The math is tricky."
-              - ""
-              - "Here's the answer: **Switching wins ~67% of the time (2/3)!**"
-              - ""
-              - "Sounds crazy, right? Let's prove it with code! 💻"
-            metadata_add:
-              prediction: "unsure"
             next_section_and_step: "implement_stay:explain_stay_strategy"
 
   - section_id: "implement_stay"
@@ -265,21 +194,19 @@ sections:
 
           Share your code!
         tokens_for_ai: |
-          The user is writing code to simulate the STAY strategy in Monty Hall.
-          Their programming language is: metadata.programming_language
-
-          Check if their code demonstrates:
-          1. Random number generation (picking 1-3 for car and player)
-          2. A loop running many trials (doesn't have to be exactly 1000)
-          3. A counter for wins
-          4. Comparison logic (if car_door == player_door, count as win)
-          5. Calculating/printing win percentage
-
-          Categorize as 'correct_code' if they have all 5 elements (even if syntax has minor issues).
-          Categorize as 'partial_code' if they have 3-4 elements or the right idea but incomplete.
-          Categorize as 'needs_help' if they're stuck, have major errors, or ask for help.
-          Categorize as 'set_language' if asking to change conversation language.
-          Categorize as 'off_topic' if completely unrelated.
+          Grade their STAY simulation, written in metadata.programming_language.
+          Minor syntax slips are fine; any trial count of 1000 or more is fine.
+        bucket_criteria:
+          correct_code: "Code holding every required element."
+          partial_understanding: "Code with the right idea that misses an element."
+          needs_help: "Stuck, asks for help, or code with major errors."
+          set_language: "Asks to change the conversation language."
+          off_topic: "Not about this simulation."
+        required_elements:
+          - "places the car and the first pick at random among three doors"
+          - "repeats over many trials"
+          - "counts a win when the first pick is the car's door"
+          - "reports the win rate (wins over trials)"
         feedback_tokens_for_ai: |
           The user's programming language is: metadata.programming_language
 
@@ -301,7 +228,7 @@ sections:
           - Provide a complete working example in their language
           - Explain each part clearly
           - Ask them to try running it
-        buckets: [correct_code, partial_code, needs_help, set_language, off_topic]
+        buckets: [correct_code, partial_understanding, needs_help, set_language, off_topic]
         transitions:
           correct_code:
             ai_feedback:
@@ -309,7 +236,7 @@ sections:
             metadata_add:
               stay_strategy_completed: "true"
             next_section_and_step: "implement_switch:explain_switch_strategy"
-          partial_code:
+          partial_understanding:
             ai_feedback:
               tokens_for_ai: "User wrote partial code - see feedback_tokens_for_ai above"
             counts_as_attempt: true
@@ -375,27 +302,21 @@ sections:
 
           Share your code!
         tokens_for_ai: |
-          The user is writing code to simulate the SWITCH strategy in Monty Hall.
-          Their programming language is: metadata.programming_language
-
-          Check if their code demonstrates:
-          1. Random number generation (picking 1-3 for car and initial player choice)
-          2. A loop running many trials
-          3. A counter for wins
-          4. Logic that switching wins when initial choice != car door
-          5. Calculating/printing win percentage
-
-          They might implement it in two ways:
-          - Simple: if first_choice != car_door, then win (because switch gets the car)
-          - Complex: Actually simulate Monty opening a door and switching to remaining door
-
-          Both are correct!
-
-          Categorize as 'correct_code' if they have the right logic.
-          Categorize as 'partial_code' if they have the right idea but incomplete.
-          Categorize as 'needs_help' if they're stuck or have major errors.
-          Categorize as 'set_language' if asking to change conversation language.
-          Categorize as 'off_topic' if completely unrelated.
+          Grade their SWITCH simulation, written in metadata.programming_language.
+          Two methods are equally correct: the shortcut (a switch wins when the
+          first pick is not the car) or simulating Monty opening a goat door and
+          moving to the remaining one. Minor syntax slips are fine.
+        bucket_criteria:
+          correct_code: "Code holding every required element, by either method."
+          partial_understanding: "Code with the right idea that misses an element."
+          needs_help: "Stuck, asks for help, or code with major errors."
+          set_language: "Asks to change the conversation language."
+          off_topic: "Not about this simulation."
+        required_elements:
+          - "places the car and the first pick at random among three doors"
+          - "repeats over many trials"
+          - "counts a switch as a win exactly when the first pick was not the car"
+          - "reports the switch win rate (wins over trials)"
         feedback_tokens_for_ai: |
           The user's programming language is: metadata.programming_language
 
@@ -416,7 +337,7 @@ sections:
           - Be encouraging!
           - Provide a complete working example
           - Explain the key insight clearly
-        buckets: [correct_code, partial_code, needs_help, set_language, off_topic]
+        buckets: [correct_code, partial_understanding, needs_help, set_language, off_topic]
         transitions:
           correct_code:
             ai_feedback:
@@ -424,9 +345,18 @@ sections:
             metadata_add:
               switch_strategy_completed: "true"
             next_section_and_step: "run_simulations:compare_results"
-          partial_code:
+          partial_understanding:
             ai_feedback:
               tokens_for_ai: "User wrote partial code - see feedback_tokens_for_ai above"
+            metadata_add:
+              switch_misses: "n+1"
+            content_blocks:
+              - text: "💡 Hint: you never need to pick Monty's door. Ask: was the first pick wrong?"
+                show_if:
+                  switch_misses_lte: 1
+              - text: "💡 Stronger hint: `if first_pick != car: switch_wins += 1`, inside your trial loop."
+                show_if:
+                  switch_misses_gte: 2
             counts_as_attempt: true
             next_section_and_step: "implement_switch:code_switch_strategy"
           needs_help:
@@ -463,22 +393,13 @@ sections:
           - What % does SWITCH win?
           - What do you observe?
         tokens_for_ai: |
-          The user is reporting results from running both simulations.
-
-          The expected results are:
-          - STAY wins ~33% (approximately 1/3)
-          - SWITCH wins ~67% (approximately 2/3)
-
-          Categorize as 'correct_results' if they report something close to these percentages.
-          Accept anything in ranges: STAY 30-36%, SWITCH 64-70%
-
-          Categorize as 'incorrect_results' if their numbers are way off (suggesting bugs in code).
-
-          Categorize as 'needs_help' if they couldn't run it or had errors.
-
-          Categorize as 'set_language' if asking to change conversation language.
-
-          Categorize as 'insightful' if they not only report numbers but also express the "aha!" insight.
+          They report results from both simulations. Expected: STAY ~33%, SWITCH ~67%.
+        bucket_criteria:
+          correct_results: "STAY within 30-36% and SWITCH within 64-70% (or the same as fractions)."
+          insightful: "Those numbers plus why: switching wins when the first pick was wrong."
+          incorrect_results: "Numbers far outside those ranges (a defect in their code)."
+          needs_help: "Could not run it, or hit errors."
+          set_language: "Asks to change the conversation language."
         buckets: [correct_results, incorrect_results, insightful, needs_help, set_language]
         transitions:
           correct_results:
@@ -494,6 +415,7 @@ sections:
               - "This is the Monty Hall paradox - counterintuitive but mathematically proven!"
             metadata_add:
               simulations_completed: "true"
+              reported_results: "the-users-response"
             next_section_and_step: "reflection:reflect_on_why"
           incorrect_results:
             content_blocks:
@@ -519,6 +441,7 @@ sections:
             metadata_add:
               simulations_completed: "true"
               deep_understanding: "true"
+              reported_results: "the-users-response"
             next_section_and_step: "reflection:reflect_on_why"
           needs_help:
             content_blocks:
@@ -552,19 +475,18 @@ sections:
 
           Think about it and share your explanation!
         tokens_for_ai: |
-          The user is explaining why switching wins in the Monty Hall problem.
-
-          Good explanations mention:
-          - Initially, you have a 1/3 chance of picking the car (2/3 chance of picking a goat)
-          - Monty ALWAYS reveals a goat from the doors you didn't pick
-          - If you picked a goat initially (2/3 probability), the remaining door MUST have the car
-          - So switching wins whenever you initially picked a goat (2/3 of the time)
-
-          Categorize as 'excellent_explanation' if they demonstrate deep understanding.
-          Categorize as 'good_explanation' if they get the main idea right.
-          Categorize as 'partial_explanation' if they're on the right track but missing key insights.
-          Categorize as 'set_language' if asking to change conversation language.
-          Categorize as 'needs_help' if they're still confused.
+          They explain why switching wins. Accept any valid route: counting cases,
+          the 100-door version, conditional probability, or their simulation's logic.
+        bucket_criteria:
+          excellent_explanation: "Every required element, clearly connected."
+          good_explanation: "Every required element, stated loosely."
+          partial_understanding: "On the right track but missing an element."
+          set_language: "Asks to change the conversation language."
+          needs_help: "Still confused, or restates 50/50."
+        required_elements:
+          - "the first pick holds the car only 1/3 of the time"
+          - "Monty knows where the car is and always opens a goat door, never the car"
+          - "so whenever the first pick was a goat (2/3), the other closed door has the car"
         feedback_tokens_for_ai: |
           Provide encouraging, detailed feedback on their explanation.
 
@@ -586,7 +508,7 @@ sections:
             2. Monty opens a goat door from the OTHER two doors
             3. If you picked a goat (2/3 probability), the remaining door has the car
             4. So switching wins 2/3 of the time!
-        buckets: [excellent_explanation, good_explanation, partial_explanation, set_language, needs_help]
+        buckets: [excellent_explanation, good_explanation, partial_understanding, set_language, needs_help]
         transitions:
           excellent_explanation:
             ai_feedback:
@@ -602,7 +524,7 @@ sections:
               activity_completed: "true"
               understanding_level: "good"
             next_section_and_step: "reflection:conclusion"
-          partial_explanation:
+          partial_understanding:
             ai_feedback:
               tokens_for_ai: "User has partial understanding - see feedback_tokens_for_ai"
             metadata_add:
@@ -631,6 +553,15 @@ sections:
           - ""
           - "You've conquered the **Monty Hall Paradox** through programming!"
           - ""
+          - text: "**Your simulation said:** {{metadata.reported_results}}"
+            show_if:
+              reported_results_exists: true
+          - text: "You picked **switch** before writing a line of code. Sharp instinct! 🎯"
+            show_if:
+              initial_intuition: "switch"
+          - text: "Your first instinct said stay or 50/50, and your own code proved it wrong. That's science! 🔬"
+            show_if:
+              initial_intuition: "stay_or_same"
           - "## What You've Learned:"
           - ""
           - "✅ **Probability can be counterintuitive** - our gut feelings often fail us"

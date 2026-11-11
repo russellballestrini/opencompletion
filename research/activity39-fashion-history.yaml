@@ -1,3 +1,6 @@
+title: "Fashion History: 1800 to Now"
+description: "A lesson through 225 years of clothes, from corsets to TikTok: what each era wore & why society dressed that way."
+kind: "lesson"
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
@@ -46,6 +49,8 @@ sections:
           ready:
             content_blocks:
               - "Excellent! Let's begin in the 1800s... ⏰"
+            metadata_add:
+              score: 0
             next_section_and_step: era_1800s:step_1
           set_language:
             content_blocks:
@@ -53,12 +58,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: introduction:welcome
           off_topic:
             content_blocks:
               - "Let's explore fashion history together! Ready to begin?"
-            counts_as_attempt: false
-            next_section_and_step: introduction:welcome
 
   - section_id: era_1800s
     title: "1800s-1900: The Victorian Era"
@@ -100,14 +102,13 @@ sections:
           - Social class divisions
           - Values of modesty/propriety
           - Women's limited freedom
-
-          Categorize as:
-          - insightful_analysis: Connects fashion to social restrictions, gender roles, or class
-          - basic_observation: Notes the restrictive or formal nature
-          - curious_question: Asks questions or expresses interest
-          - brief_response: Short but relevant
-          - set_language: Language preference
-          - off_topic: Unrelated
+        bucket_criteria:
+          insightful_analysis: "Connects fashion to social restrictions, gender roles, or class."
+          basic_observation: "Notes the restrictive or formal nature."
+          curious_question: "Asks questions or expresses interest."
+          brief_response: "Short but relevant."
+          set_language: "Asks for another language."
+          off_topic: "Not about fashion or its history."
         feedback_tokens_for_ai: |
           Provide historical context to their observation!
 
@@ -136,7 +137,7 @@ sections:
                 But change was coming...
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_1920s:step_1
+            next_section_and_step: era_1800s:corset_check
           basic_observation:
             ai_feedback:
               tokens_for_ai: |
@@ -144,7 +145,7 @@ sections:
                 Expand on it: The clothing reflected rigid social rules.
                 Women had few rights and fashion physically restricted them.
                 Mention this would dramatically change in coming decades.
-            next_section_and_step: era_1920s:step_1
+            next_section_and_step: era_1800s:corset_check
           curious_question:
             ai_feedback:
               tokens_for_ai: |
@@ -152,24 +153,43 @@ sections:
                 Answer their question if they asked one.
                 Provide context about social restrictions and women's roles.
                 Tease upcoming dramatic fashion changes.
-            next_section_and_step: era_1920s:step_1
+            next_section_and_step: era_1800s:corset_check
           brief_response:
             ai_feedback:
               tokens_for_ai: |
                 Yes! The Victorian era was about strict social control.
                 Fashion would soon undergo a revolution...
-            next_section_and_step: era_1920s:step_1
+            next_section_and_step: era_1800s:corset_check
           set_language:
             content_blocks:
               - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: era_1800s:step_1
           off_topic:
             content_blocks:
               - "Think about what the restrictive clothing tells us about how society viewed women and social class in the 1800s."
-            next_section_and_step: era_1800s:step_1
+
+      - step_id: corset_check
+        title: "Quick Check: The Hourglass"
+        question_type: multiple_choice
+        question: "What gave Victorian women the coveted hourglass figure?"
+        choices:
+          - {id: a, text: "Shoulder pads"}
+          - {id: b, text: "A tight corset"}
+          - {id: c, text: "Go-go boots"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "Right: a tight corset, worn under up to 20 pounds of layers."
+              - "Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1920s:step_1
+          incorrect:
+            content_blocks:
+              - "💡 Think about what was laced tight around the waist."
 
   - section_id: era_1920s
     title: "1920s: The Roaring Twenties"
@@ -217,14 +237,13 @@ sections:
           - Rebellion against old values
           - New freedoms and attitudes
           - Technology/modernity
-
-          Categorize as:
-          - connects_to_rights: Mentions women's suffrage, changing roles, or liberation
-          - social_change: Notes post-war society changes or rebellion
-          - freedom_theme: Talks about wanting freedom or rejecting restrictions
-          - basic_answer: Notes it changed but limited analysis
-          - set_language: Language preference
-          - off_topic: Unrelated
+        bucket_criteria:
+          connects_to_rights: "Mentions women's suffrage, changing roles, or liberation."
+          social_change: "Notes post-war society changes or rebellion."
+          freedom_theme: "Talks about wanting freedom or rejecting restrictions."
+          basic_answer: "Notes it changed but limited analysis."
+          set_language: "Asks for another language."
+          off_topic: "Not about fashion or its history."
         feedback_tokens_for_ai: |
           Validate their historical thinking!
 
@@ -254,7 +273,7 @@ sections:
                 Fashion and freedom went hand in hand.
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_1940s:step_1
+            next_section_and_step: era_1920s:flapper_check
           social_change:
             ai_feedback:
               tokens_for_ai: |
@@ -264,7 +283,7 @@ sections:
                 Jazz, voting rights, and short skirts all represented liberation!
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_1940s:step_1
+            next_section_and_step: era_1920s:flapper_check
           freedom_theme:
             ai_feedback:
               tokens_for_ai: |
@@ -272,7 +291,7 @@ sections:
                 Women wanted to move, dance, work, vote, LIVE freely.
                 Fashion reflected that dramatic shift.
                 The 1920s flapper was a revolution in fabric form!
-            next_section_and_step: era_1940s:step_1
+            next_section_and_step: era_1920s:flapper_check
           basic_answer:
             ai_feedback:
               tokens_for_ai: |
@@ -280,18 +299,37 @@ sections:
                 The key was women's changing roles after WWI.
                 They worked, gained the vote, and refused to go back to restrictions.
                 Fashion became a form of rebellion and freedom!
-            next_section_and_step: era_1940s:step_1
+            next_section_and_step: era_1920s:flapper_check
           set_language:
             content_blocks:
               - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: era_1920s:step_1
           off_topic:
             content_blocks:
               - "Think about how World War I changed women's roles in society. How might that affect what they wanted to wear?"
-            next_section_and_step: era_1920s:step_1
+
+      - step_id: flapper_check
+        title: "Quick Check: Spot the Flapper"
+        question_type: multiple_choice
+        question: "Which look belongs to a 1920s flapper?"
+        choices:
+          - {id: a, text: "A poodle skirt & saddle shoes"}
+          - {id: b, text: "Bobbed hair, a cloche hat & a dropped-waist dress"}
+          - {id: c, text: "Bell-bottoms & a peasant blouse"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "Yes: bobbed hair, a cloche hat & a loose dress made for the Charleston."
+              - "Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1940s:step_1
+          incorrect:
+            content_blocks:
+              - "💡 Corsets were out & hair was cut short."
 
   - section_id: era_1940s
     title: "1940s: War & Rationing"
@@ -336,14 +374,13 @@ sections:
           - Women wearing pants/work clothes
           - Breaking gender norms out of necessity
           - Resourcefulness during rationing
-
-          Categorize as:
-          - practical_insight: Notes shift to practical, functional clothing
-          - gender_norms: Recognizes breaking of traditional women's dress codes
-          - resourceful_theme: Mentions rationing, making do, creativity
-          - good_observation: Relevant but general
-          - set_language: Language preference
-          - off_topic: Unrelated
+        bucket_criteria:
+          practical_insight: "Notes shift to practical, functional clothing."
+          gender_norms: "Recognizes breaking of traditional women's dress codes."
+          resourceful_theme: "Mentions rationing, making do, creativity."
+          good_observation: "Relevant but general."
+          set_language: "Asks for another language."
+          off_topic: "Not about fashion or its history."
         feedback_tokens_for_ai: |
           Affirm their understanding!
 
@@ -373,7 +410,7 @@ sections:
                 Once women wore pants, there was no going back!
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_1950s:step_1
+            next_section_and_step: era_1940s:rationing_check
           gender_norms:
             ai_feedback:
               tokens_for_ai: |
@@ -383,7 +420,7 @@ sections:
                 While the 1950s tried to push femininity again, the barrier was broken.
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_1950s:step_1
+            next_section_and_step: era_1940s:rationing_check
           resourceful_theme:
             ai_feedback:
               tokens_for_ai: |
@@ -391,7 +428,7 @@ sections:
                 Women got creative - drawing stocking seams, repurposing fabric, making do.
                 Simple, versatile pieces became the norm.
                 Less was more out of necessity!
-            next_section_and_step: era_1950s:step_1
+            next_section_and_step: era_1940s:rationing_check
           good_observation:
             ai_feedback:
               tokens_for_ai: |
@@ -399,18 +436,70 @@ sections:
                 The war made practical work clothes acceptable for women.
                 This was a major shift - women in pants, working, active!
                 Fashion adapted to women's new roles.
-            next_section_and_step: era_1950s:step_1
+            next_section_and_step: era_1940s:rationing_check
           set_language:
             content_blocks:
               - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: era_1940s:step_1
           off_topic:
             content_blocks:
               - "Consider: Women worked in factories during the war. How did that change what they could wear compared to before?"
-            next_section_and_step: era_1940s:step_1
+
+      - step_id: rationing_check
+        title: Making Do
+        question: "Name one way rationing saved fabric, and one way women's war work changed what they wore."
+        tokens_for_ai: "Accept any example taught in this era, in the learner's own words."
+        bucket_criteria:
+          correct: "Gives both: a fabric-saving change and a work-driven change."
+          partial_understanding: "Gives only one of the two."
+          off_topic: "Not about 1940s clothes."
+        required_elements:
+          - "a fabric-saving change (shorter hems, no cuffs or extra pockets, A-line skirts, simpler designs, drawn-on stocking seams)"
+          - "a change from women's war work (trousers or overalls, headscarves or turbans, practical separates, denim work clothes)"
+        buckets: [correct, partial_understanding, off_topic]
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Confirm both examples they gave in two sentences."
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1940s:dior_check
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Praise the example they gave; ask for the missing half without naming it."
+          off_topic:
+            content_blocks:
+              - "Think of hemlines & pockets, then of the factory floor."
+
+      - step_id: dior_check
+        title: "Quick Check: The New Look"
+        question_type: multiple_choice
+        question: "Who launched the 'New Look' in 1947?"
+        choices:
+          - {id: a, text: "Coco Chanel"}
+          - {id: b, text: "Christian Dior"}
+          - {id: c, text: "Mary Quant"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "Right: Christian Dior's New Look brought back full skirts & tiny waists."
+              - "Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1950s:step_1
+          incorrect:
+            metadata_add:
+              dior_misses: "n+1"
+            content_blocks:
+              - text: "💡 It is in our 1940s notes, under Post-War."
+                show_if:
+                  dior_misses_lt: 2
+              - text: "💡 Mary Quant came later (the 1960s miniskirt); the New Look carries a French couturier's name."
+                show_if:
+                  dior_misses_gte: 2
 
   - section_id: era_1950s
     title: "1950s: Post-War Glamour"
@@ -454,14 +543,13 @@ sections:
           - Taking jobs back for returning soldiers
           - Social pressure/idealization of domesticity
           - Push-back against women's independence
-
-          Categorize as:
-          - critical_analysis: Recognizes social/political push to return women to traditional roles
-          - gender_politics: Notes attempt to make women more 'feminine' again
-          - cultural_observation: Comments on societal ideals or expectations
-          - basic_response: Notes the change without deep analysis
-          - set_language: Language preference
-          - off_topic: Unrelated
+        bucket_criteria:
+          critical_analysis: "Recognizes social/political push to return women to traditional roles."
+          gender_politics: "Notes attempt to make women more 'feminine' again."
+          cultural_observation: "Comments on societal ideals or expectations."
+          basic_response: "Notes the change without deep analysis."
+          set_language: "Asks for another language."
+          off_topic: "Not about fashion or its history."
         feedback_tokens_for_ai: |
           Validate their critical thinking!
 
@@ -526,11 +614,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: era_1950s:step_1
           off_topic:
             content_blocks:
               - "Think about: After women proved they could do factory work, why would society want them in full skirts and heels again?"
-            next_section_and_step: era_1950s:step_1
 
   - section_id: era_1960s_70s
     title: "1960s-70s: Revolution & Expression"
@@ -582,14 +668,13 @@ sections:
           - Rejection of conformity
           - Social/political upheaval
           - Youth culture power
-
-          Categorize as:
-          - connects_to_freedom: Links fashion diversity to individual freedom/expression
-          - social_movements: Connects to civil rights, anti-war, counter-culture
-          - rebellion_theme: Notes rejection of conformity or establishment
-          - diversity_observation: Comments on variety and choice
-          - set_language: Language preference
-          - off_topic: Unrelated
+        bucket_criteria:
+          connects_to_freedom: "Links fashion diversity to individual freedom/expression."
+          social_movements: "Connects to civil rights, anti-war, counter-culture."
+          rebellion_theme: "Notes rejection of conformity or establishment."
+          diversity_observation: "Comments on variety and choice."
+          set_language: "Asks for another language."
+          off_topic: "Not about fashion or its history."
         feedback_tokens_for_ai: |
           Celebrate their analysis!
 
@@ -620,7 +705,7 @@ sections:
                 This era changed fashion forever - no going back to conformity!
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_1980s_90s:step_1
+            next_section_and_step: era_1960s_70s:miniskirt_check
           social_movements:
             ai_feedback:
               tokens_for_ai: |
@@ -631,7 +716,7 @@ sections:
                 Fashion became a powerful form of protest!
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_1980s_90s:step_1
+            next_section_and_step: era_1960s_70s:miniskirt_check
           rebellion_theme:
             ai_feedback:
               tokens_for_ai: |
@@ -639,7 +724,7 @@ sections:
                 Young people rejected their parents' values and fashion.
                 Mini skirts, long hair, wild patterns - all shocking to the older generation.
                 Fashion became a generation gap battleground!
-            next_section_and_step: era_1980s_90s:step_1
+            next_section_and_step: era_1960s_70s:miniskirt_check
           diversity_observation:
             ai_feedback:
               tokens_for_ai: |
@@ -647,18 +732,44 @@ sections:
                 For the first time, there wasn't ONE correct way to dress.
                 You could be mod, hippie, disco, preppy - all valid!
                 This diversity in fashion reflected a more diverse, pluralistic society.
-            next_section_and_step: era_1980s_90s:step_1
+            next_section_and_step: era_1960s_70s:miniskirt_check
           set_language:
             content_blocks:
               - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: era_1960s_70s:step_1
           off_topic:
             content_blocks:
               - "Think about: When fashion becomes diverse, what does that say about society's values around conformity and individual expression?"
-            next_section_and_step: era_1960s_70s:step_1
+
+      - step_id: miniskirt_check
+        title: "Quick Check: Hemlines Up"
+        question_type: multiple_choice
+        question: "Which designer raised hemlines to mid-thigh with the 1960s miniskirt?"
+        choices:
+          - {id: a, text: "Vivienne Westwood"}
+          - {id: b, text: "Calvin Klein"}
+          - {id: c, text: "Mary Quant"}
+        answer: c
+        transitions:
+          correct:
+            content_blocks:
+              - "Yes: Mary Quant's miniskirt defined mod fashion."
+              - "Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_1980s_90s:step_1
+          incorrect:
+            metadata_add:
+              miniskirt_misses: "n+1"
+            content_blocks:
+              - text: "💡 Westwood is punk (late 70s) & Klein is 90s minimalism."
+                show_if:
+                  miniskirt_misses_lt: 2
+              - text: "💡 Look under Mod Fashion (Early 60s)."
+                show_if:
+                  miniskirt_misses_gte: 2
 
   - section_id: era_1980s_90s
     title: "1980s-90s: Excess to Minimalism"
@@ -717,14 +828,13 @@ sections:
           - Economic factors (recession)
           - Alternative/indie culture rise
           - Rejection of superficiality
-
-          Categorize as:
-          - backlash_insight: Recognizes reaction against 80s excess/materialism
-          - authenticity_theme: Notes desire for 'realness' or authenticity
-          - cultural_shift: Understands broader cultural change
-          - basic_answer: Notes the difference
-          - set_language: Language preference
-          - off_topic: Unrelated
+        bucket_criteria:
+          backlash_insight: "Recognizes reaction against 80s excess/materialism."
+          authenticity_theme: "Notes desire for 'realness' or authenticity."
+          cultural_shift: "Understands broader cultural change."
+          basic_answer: "Notes the difference."
+          set_language: "Asks for another language."
+          off_topic: "Not about fashion or its history."
         feedback_tokens_for_ai: |
           Affirm their understanding!
 
@@ -756,7 +866,7 @@ sections:
                 Fashion reflected a cultural rejection of superficiality.
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_2000s_2010s:step_1
+            next_section_and_step: era_1980s_90s:decade_check
           authenticity_theme:
             ai_feedback:
               tokens_for_ai: |
@@ -767,7 +877,7 @@ sections:
                 This anti-fashion became THE fashion.
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_2000s_2010s:step_1
+            next_section_and_step: era_1980s_90s:decade_check
           cultural_shift:
             ai_feedback:
               tokens_for_ai: |
@@ -776,7 +886,7 @@ sections:
                 Generation X rejected their parents' materialism.
                 Music, economics, and attitudes all changed.
                 Fashion always reflects these broader shifts!
-            next_section_and_step: era_2000s_2010s:step_1
+            next_section_and_step: era_1980s_90s:decade_check
           basic_answer:
             ai_feedback:
               tokens_for_ai: |
@@ -784,18 +894,37 @@ sections:
                 The 90s rejected 80s excess.
                 People wanted authenticity and simplicity instead of flash.
                 Grunge reflected that cultural shift perfectly!
-            next_section_and_step: era_2000s_2010s:step_1
+            next_section_and_step: era_1980s_90s:decade_check
           set_language:
             content_blocks:
               - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: era_1980s_90s:step_1
           off_topic:
             content_blocks:
               - "Consider: After a decade of bright colors, designer labels, and excess, why would the opposite (thrift stores, 'I don't care') become cool?"
-            next_section_and_step: era_1980s_90s:step_1
+
+      - step_id: decade_check
+        title: "Quick Check: Name the Decade"
+        question_type: multiple_choice
+        question: "Huge shoulder pads, neon colours & visible designer labels: which decade?"
+        choices:
+          - {id: a, text: "The 1950s"}
+          - {id: b, text: "The 1980s"}
+          - {id: c, text: "The 1990s"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "Right: 1980s power dressing, more is more."
+              - "Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_2000s_2010s:step_1
+          incorrect:
+            content_blocks:
+              - "💡 The 1990s answered it with grunge & minimalism."
 
   - section_id: era_2000s_2010s
     title: "2000s-2010s: Digital Age Fashion"
@@ -855,15 +984,14 @@ sections:
           - Constant exposure/comparison
           - Democratization of fashion
           - Pressure to constantly have new looks
-
-          Categorize as:
-          - speed_and_trends: Notes faster trend cycles, constant newness
-          - democratization: Notes regular people can influence, not just designers/magazines
-          - pressure_awareness: Mentions pressure, comparison, or negative aspects
-          - influence_shift: Notes shift from magazines/designers to influencers/individuals
-          - basic_observation: Notes social media changed things
-          - set_language: Language preference
-          - off_topic: Unrelated
+        bucket_criteria:
+          speed_and_trends: "Notes faster trend cycles, constant newness."
+          democratization: "Notes regular people can influence, not just designers/magazines."
+          pressure_awareness: "Mentions pressure, comparison, or negative aspects."
+          influence_shift: "Notes shift from magazines/designers to influencers/individuals."
+          basic_observation: "Notes social media changed things."
+          set_language: "Asks for another language."
+          off_topic: "Not about fashion or its history."
         feedback_tokens_for_ai: |
           Validate their media literacy!
 
@@ -896,7 +1024,7 @@ sections:
                 The constant newness creates pressure and waste.
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_2020s:step_1
+            next_section_and_step: era_2000s_2010s:fast_fashion_check
           democratization:
             ai_feedback:
               tokens_for_ai: |
@@ -908,7 +1036,7 @@ sections:
                 Power shifted from gatekeepers to the crowd!
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_2020s:step_1
+            next_section_and_step: era_2000s_2010s:fast_fashion_check
           pressure_awareness:
             ai_feedback:
               tokens_for_ai: |
@@ -920,7 +1048,7 @@ sections:
                 Fashion should be fun, not stressful!
             metadata_add:
               score: "n+1"
-            next_section_and_step: era_2020s:step_1
+            next_section_and_step: era_2000s_2010s:fast_fashion_check
           influence_shift:
             ai_feedback:
               tokens_for_ai: |
@@ -929,25 +1057,44 @@ sections:
                 A YouTuber with a million followers has more impact than Vogue!
                 This shifted power in the fashion industry.
                 More democratic, but also more commercial in new ways.
-            next_section_and_step: era_2020s:step_1
+            next_section_and_step: era_2000s_2010s:fast_fashion_check
           basic_observation:
             ai_feedback:
               tokens_for_ai: |
                 True!
                 Social media made trends move faster and gave regular people fashion influence.
                 Instagram and TikTok changed the whole industry!
-            next_section_and_step: era_2020s:step_1
+            next_section_and_step: era_2000s_2010s:fast_fashion_check
           set_language:
             content_blocks:
               - "Language updated!"
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: era_2000s_2010s:step_1
           off_topic:
             content_blocks:
               - "Think about how seeing everyone's outfits constantly on Instagram or TikTok might change fashion compared to just seeing magazines once a month."
-            next_section_and_step: era_2000s_2010s:step_1
+
+      - step_id: fast_fashion_check
+        title: "Quick Check: Fast Fashion"
+        question_type: multiple_choice
+        question: "Which describes fast fashion?"
+        choices:
+          - {id: a, text: "Hand-tailored pieces made to last decades"}
+          - {id: b, text: "Runway trends in stores within weeks, cheap & disposable"}
+          - {id: c, text: "Outfits rented & returned after one wear"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "Yes: H&M, Zara & Forever 21 turned runway trends around in weeks."
+              - "Score: {{metadata.score}}"
+            metadata_add:
+              score: "n+1"
+            next_section_and_step: era_2020s:step_1
+          incorrect:
+            content_blocks:
+              - "💡 Think about the word fast: speed & price."
 
   - section_id: era_2020s
     title: "2020s: Now and Future"
@@ -1007,16 +1154,15 @@ sections:
           - Continued inclusivity
           - Personalization
           - Reaction to current trends
-
-          Categorize as:
-          - sustainability_focus: Predicts environmental/ethical fashion
-          - tech_integration: Mentions technology, digital fashion, innovation
-          - inclusivity_expansion: Predicts more diversity and accessibility
-          - individualism_theme: Predicts personal expression over trends
-          - creative_prediction: Unique or interesting ideas
-          - general_future: Mentions future without specific predictions
-          - set_language: Language preference
-          - off_topic: Unrelated
+        bucket_criteria:
+          sustainability_focus: "Predicts environmental/ethical fashion."
+          tech_integration: "Mentions technology, digital fashion, innovation."
+          inclusivity_expansion: "Predicts more diversity and accessibility."
+          individualism_theme: "Predicts personal expression over trends."
+          creative_prediction: "Unique or interesting ideas."
+          general_future: "Mentions future without specific predictions."
+          set_language: "Asks for another language."
+          off_topic: "Not about fashion or its history."
         feedback_tokens_for_ai: |
           Engage with their predictions enthusiastically!
 
@@ -1024,7 +1170,7 @@ sections:
           Add expert predictions if appropriate:
           - Circular fashion (rental, resale, repair)
           - Lab-grown materials
-          - AI-personalized recommendations
+          - Machine learning personalized recommendations
           - Even more gender-neutral options
           - Continued vintage/thrift dominance
           - Local/small brands vs global corporations
@@ -1058,7 +1204,7 @@ sections:
               tokens_for_ai: |
                 Great future thinking!
                 Technology will absolutely transform fashion!
-                Digital clothing, virtual try-ons, AI personalization.
+                Digital clothing, virtual try-ons, machine learning personalization.
                 3D printing custom garments at home?
                 Smart fabrics that adapt to temperature?
                 The possibilities are exciting!
@@ -1112,11 +1258,9 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false
-            next_section_and_step: era_2020s:step_1
           off_topic:
             content_blocks:
               - "Based on the patterns you've seen through history, what do you think fashion will look like in 2035 or 2040?"
-            next_section_and_step: era_2020s:step_1
 
   - section_id: conclusion
     title: Fashion History Complete
@@ -1158,4 +1302,7 @@ sections:
           - "- Think about your own style choices and what they express"
           - "- Maybe explore vintage fashion from your favorite era!"
           - ""
+          - text: "**Your score:** {{metadata.score}}"
+            show_if:
+              score_exists: true
           - "**Fashion is history you can WEAR! 💫**"

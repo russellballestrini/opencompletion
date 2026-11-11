@@ -1,6 +1,11 @@
 title: "History Quiz Challenge"
-description: "Five quick history questions; each right answer adds one to our score."
+description: "Five quick history questions, one shot each; every right answer adds one to our score."
+kind: "game"
 default_max_attempts_per_step: 3
+
+# One shot per question: both transitions move on, so a wrong pick is
+# counted & answered, never retried. The first question starts both counters
+# at 0 so the results always show numbers.
 sections:
   - section_id: "section_1"
     title: "History Quiz Challenge"
@@ -8,64 +13,133 @@ sections:
       - step_id: "step_1"
         title: "Question 1"
         content_blocks:
-          - "Welcome to the History Quiz Challenge! 🏆"
-          - "Let's see how well you know your history. Answer the following questions:"
+          - "# History Quiz Challenge! 🏆"
+          - "Five questions, one shot each."
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
         question: "Who was the first President of the United States? 🇺🇸"
-        buckets:
-          - george_washington
-          - incorrect
+        choices:
+          - {id: a, text: "Abraham Lincoln"}
+          - {id: b, text: "George Washington"}
+          - {id: c, text: "Thomas Jefferson"}
+          - {id: d, text: "John Adams"}
+        answer: b
         transitions:
-          george_washington:
+          correct:
             content_blocks:
-              - "Correct! George Washington was the first President of the United States."
+              - "Correct! George Washington, from 1789 to 1797."
             metadata_add:
               correct_answers: "n+1"
+              wrong_answers: "n+0"
             next_section_and_step: "section_1:step_2"
           incorrect:
             content_blocks:
-              - "That's not correct. The first President was George Washington."
+              - "Not this time: it was George Washington."
             metadata_add:
-              incorrect_attempts: "n+1"
+              correct_answers: "n+0"
+              wrong_answers: "n+1"
             next_section_and_step: "section_1:step_2"
 
       - step_id: "step_2"
         title: "Question 2"
+        # Free answer on purpose: its bucket is the integer 1912, our
+        # regression check that a number-named bucket matches a model's
+        # "1912" (tests/functional/test_activity_flows.py & friends).
         question: "What year did the Titanic sink? 🚢"
+        tokens_for_ai: "1912 if they answer 1912 (digits or words). Otherwise incorrect."
+        bucket_criteria:
+          1912: "Answers the year 1912."
+          incorrect: "Any other year or answer."
         buckets:
           - 1912
           - incorrect
         transitions:
           1912:
             content_blocks:
-              - "Correct! The Titanic sank in 1912."
+              - "Correct! The Titanic sank in April 1912, on its first voyage. Score: {{metadata.correct_answers}}"
             metadata_add:
               correct_answers: "n+1"
             next_section_and_step: "section_1:step_3"
           incorrect:
             content_blocks:
-              - "That's not correct. The Titanic sank in 1912."
+              - "Not this time: the Titanic sank in 1912."
             metadata_add:
-              incorrect_attempts: "n+1"
+              wrong_answers: "n+1"
             next_section_and_step: "section_1:step_3"
 
       - step_id: "step_3"
         title: "Question 3"
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
         question: "Who painted the Mona Lisa? 🎨"
-        buckets:
-          - leonardo_da_vinci
-          - incorrect
+        choices:
+          - {id: a, text: "Michelangelo"}
+          - {id: b, text: "Vincent van Gogh"}
+          - {id: c, text: "Leonardo da Vinci"}
+          - {id: d, text: "Raphael"}
+        answer: c
         transitions:
-          leonardo_da_vinci:
+          correct:
             content_blocks:
-              - "Correct! Leonardo da Vinci painted the Mona Lisa."
+              - "Correct! Leonardo da Vinci, in the early 1500s. Score: {{metadata.correct_answers}}"
+            metadata_add:
+              correct_answers: "n+1"
+            next_section_and_step: "section_1:step_4"
+          incorrect:
+            content_blocks:
+              - "Not this time: it was Leonardo da Vinci."
+            metadata_add:
+              wrong_answers: "n+1"
+            next_section_and_step: "section_1:step_4"
+
+      - step_id: "step_4"
+        title: "Question 4"
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "In what year did humans first walk on the Moon? 🌕"
+        choices:
+          - {id: a, text: "1957"}
+          - {id: b, text: "1969"}
+          - {id: c, text: "1975"}
+          - {id: d, text: "1981"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "Correct! Apollo 11, July 1969. Score: {{metadata.correct_answers}}"
+            metadata_add:
+              correct_answers: "n+1"
+            next_section_and_step: "section_1:step_5"
+          incorrect:
+            content_blocks:
+              - "Not this time: Apollo 11 landed in 1969."
+            metadata_add:
+              wrong_answers: "n+1"
+            next_section_and_step: "section_1:step_5"
+
+      - step_id: "step_5"
+        title: "Question 5"
+        question_type: multiple_choice
+        buckets: [correct, incorrect]
+        question: "Which Wonder of the Ancient World still stands today? 🏛️"
+        choices:
+          - {id: a, text: "The Colossus of Rhodes"}
+          - {id: b, text: "The Hanging Gardens of Babylon"}
+          - {id: c, text: "The Great Pyramid of Giza"}
+          - {id: d, text: "The Lighthouse of Alexandria"}
+        answer: c
+        transitions:
+          correct:
+            content_blocks:
+              - "Correct! Over 4,500 years old. Score: {{metadata.correct_answers}}"
             metadata_add:
               correct_answers: "n+1"
             next_section_and_step: "section_2:step_1"
           incorrect:
             content_blocks:
-              - "That's not correct. The Mona Lisa was painted by Leonardo da Vinci."
+              - "Not this time: only the Great Pyramid of Giza survives."
             metadata_add:
-              incorrect_attempts: "n+1"
+              wrong_answers: "n+1"
             next_section_and_step: "section_2:step_1"
 
   - section_id: "section_2"
@@ -74,11 +148,17 @@ sections:
       - step_id: "step_1"
         title: "Results"
         content_blocks:
-          - "Congratulations on completing the quiz! 🎉"
-          - "Let's see how you did:"
-          - "Correct Answers: {{correct_answers}}"
-          - "Incorrect Attempts: {{incorrect_attempts}}"
-        question: "Do you want to try the quiz again or exit? Type 'retry' to start over or 'exit' to finish."
+          - "# Quiz complete! 🎉"
+          - "Correct answers: **{{metadata.correct_answers}} of 5**"
+          - "Wrong answers: {{metadata.wrong_answers}}"
+          - text: "Perfect score! 🌟"
+            show_if:
+              correct_answers_gte: 5
+        question: "Type 'retry' to play again or 'exit' to finish."
+        tokens_for_ai: "retry: they want to play again. exit: they want to stop."
+        bucket_criteria:
+          retry: "Wants to play again (retry, again, yes, restart)."
+          exit: "Wants to stop (exit, no, done, quit)."
         buckets:
           - retry
           - exit
@@ -88,11 +168,13 @@ sections:
               - "Great! Let's start the quiz again. 🏆"
             metadata_remove:
               - correct_answers
-              - incorrect_attempts
+              - wrong_answers
             next_section_and_step: "section_1:step_1"
           exit:
             content_blocks:
-              - "Thank you for playing the History Quiz Challenge! Have a great day! 🌟"
+              - "Thank you for playing the History Quiz Challenge! 🌟"
+            metadata_add:
+              activity_completed: "true"
             next_section_and_step: "section_3:step_1"
 
   - section_id: "section_3"
@@ -101,4 +183,4 @@ sections:
       - step_id: "step_1"
         title: "Exit"
         content_blocks:
-          - "Thank you for participating! We hope you enjoyed the quiz. Goodbye! 👋"
+          - "Thanks for playing. Goodbye! 👋"

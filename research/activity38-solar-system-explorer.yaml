@@ -1,7 +1,19 @@
 # Solar System Explorer - Comprehensive Interactive Journey
 # Explore the Sun, planets, moons, asteroid belt, and beyond!
+#
+# Flow: introduction -> any body's arrival -> its details (content steps run
+# in file order) -> its *_explore_more hub, which warps anywhere. Every warp
+# sets visited_<body>: true, shown in our mission log. "exit" anywhere ends
+# the journey: mission log, an optional 3-question Mission Quiz, farewell.
+
+title: "Solar System Explorer"
+description: "Warp anywhere from the Sun to Pluto, tour the moons of the giant planets, then take a Mission Quiz on what you saw."
+kind: "lesson"
 
 default_max_attempts_per_step: 3
+# Answers here are destinations ("Jupiter", "Europa"); each hub's 'stay'
+# bucket already answers questions, so no built-in clarifying bucket.
+allow_clarifying_questions: false
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
 
@@ -29,7 +41,7 @@ sections:
           - "You'll discover:"
           - "- ☀️ Our magnificent Sun"
           - "- 🪐 Eight incredible planets"
-          - "- 🌙 Over 200 fascinating moons"
+          - "- 🌙 Over 400 fascinating moons"
           - "- ☄️ Asteroid belts and distant objects"
           - ""
           - "This is an **open exploration** - you can visit any location in any order!"
@@ -70,46 +82,68 @@ sections:
           sun:
             ai_feedback:
               tokens_for_ai: "Confirm their choice to visit the Sun and build excitement! Mention we'll need special protection from the intense heat and radiation."
+            metadata_add:
+              visited_sun: true
             next_section_and_step: "sun:arrival"
           mercury:
             ai_feedback:
               tokens_for_ai: "Confirm their choice to visit Mercury. Mention the extreme temperature swings and lack of atmosphere."
+            metadata_add:
+              visited_mercury: true
             next_section_and_step: "mercury:arrival"
           venus:
             ai_feedback:
               tokens_for_ai: "Confirm their choice to visit Venus. Mention the thick atmosphere and extreme greenhouse effect."
+            metadata_add:
+              visited_venus: true
             next_section_and_step: "venus:arrival"
           earth:
             ai_feedback:
               tokens_for_ai: "Confirm their choice to visit Earth. Mention our unique water world and the Moon."
+            metadata_add:
+              visited_earth: true
             next_section_and_step: "earth:arrival"
           mars:
             ai_feedback:
               tokens_for_ai: "Confirm their choice to visit Mars. Mention the red surface, polar ice caps, and two small moons."
+            metadata_add:
+              visited_mars: true
             next_section_and_step: "mars:arrival"
           asteroid_belt:
             ai_feedback:
               tokens_for_ai: "Confirm their choice to visit the Asteroid Belt. Mention millions of rocky objects between Mars and Jupiter."
+            metadata_add:
+              visited_asteroid_belt: true
             next_section_and_step: "asteroid_belt:arrival"
           jupiter:
             ai_feedback:
               tokens_for_ai: "Confirm their choice to visit Jupiter. Mention it's the largest planet with dozens of moons and the Great Red Spot."
+            metadata_add:
+              visited_jupiter: true
             next_section_and_step: "jupiter:arrival"
           saturn:
             ai_feedback:
               tokens_for_ai: "Confirm their choice to visit Saturn. Mention the spectacular ring system and many moons."
+            metadata_add:
+              visited_saturn: true
             next_section_and_step: "saturn:arrival"
           uranus:
             ai_feedback:
               tokens_for_ai: "Confirm their choice to visit Uranus. Mention it rotates on its side and has a pale blue color."
+            metadata_add:
+              visited_uranus: true
             next_section_and_step: "uranus:arrival"
           neptune:
             ai_feedback:
               tokens_for_ai: "Confirm their choice to visit Neptune. Mention the deep blue color and supersonic winds."
+            metadata_add:
+              visited_neptune: true
             next_section_and_step: "neptune:arrival"
           kuiper_belt:
             ai_feedback:
               tokens_for_ai: "Confirm their choice to visit the Kuiper Belt. Mention Pluto and other dwarf planets in the outer reaches."
+            metadata_add:
+              visited_kuiper_belt: true
             next_section_and_step: "kuiper_belt:arrival"
           help:
             content_blocks:
@@ -122,7 +156,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "introduction:start_location"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # THE SUN
@@ -188,42 +224,62 @@ sections:
           mercury:
             ai_feedback:
               tokens_for_ai: "Acknowledge their choice and prepare for warp to Mercury!"
+            metadata_add:
+              visited_mercury: true
             next_section_and_step: "mercury:arrival"
           venus:
             ai_feedback:
               tokens_for_ai: "Acknowledge their choice and prepare for warp to Venus!"
+            metadata_add:
+              visited_venus: true
             next_section_and_step: "venus:arrival"
           earth:
             ai_feedback:
               tokens_for_ai: "Acknowledge their choice and prepare for warp to Earth!"
+            metadata_add:
+              visited_earth: true
             next_section_and_step: "earth:arrival"
           mars:
             ai_feedback:
               tokens_for_ai: "Acknowledge their choice and prepare for warp to Mars!"
+            metadata_add:
+              visited_mars: true
             next_section_and_step: "mars:arrival"
           asteroid_belt:
             ai_feedback:
               tokens_for_ai: "Acknowledge their choice and prepare for warp to the Asteroid Belt!"
+            metadata_add:
+              visited_asteroid_belt: true
             next_section_and_step: "asteroid_belt:arrival"
           jupiter:
             ai_feedback:
               tokens_for_ai: "Acknowledge their choice and prepare for warp to Jupiter!"
+            metadata_add:
+              visited_jupiter: true
             next_section_and_step: "jupiter:arrival"
           saturn:
             ai_feedback:
               tokens_for_ai: "Acknowledge their choice and prepare for warp to Saturn!"
+            metadata_add:
+              visited_saturn: true
             next_section_and_step: "saturn:arrival"
           uranus:
             ai_feedback:
               tokens_for_ai: "Acknowledge their choice and prepare for warp to Uranus!"
+            metadata_add:
+              visited_uranus: true
             next_section_and_step: "uranus:arrival"
           neptune:
             ai_feedback:
               tokens_for_ai: "Acknowledge their choice and prepare for warp to Neptune!"
+            metadata_add:
+              visited_neptune: true
             next_section_and_step: "neptune:arrival"
           kuiper_belt:
             ai_feedback:
               tokens_for_ai: "Acknowledge their choice and prepare for warp to the Kuiper Belt!"
+            metadata_add:
+              visited_kuiper_belt: true
             next_section_and_step: "kuiper_belt:arrival"
           stay:
             ai_feedback:
@@ -231,7 +287,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "sun:sun_explore_more"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # MERCURY
@@ -302,42 +360,62 @@ sections:
           sun:
             ai_feedback:
               tokens_for_ai: "Confirm and warp to the Sun!"
+            metadata_add:
+              visited_sun: true
             next_section_and_step: "sun:arrival"
           venus:
             ai_feedback:
               tokens_for_ai: "Confirm and warp to Venus!"
+            metadata_add:
+              visited_venus: true
             next_section_and_step: "venus:arrival"
           earth:
             ai_feedback:
               tokens_for_ai: "Confirm and warp to Earth!"
+            metadata_add:
+              visited_earth: true
             next_section_and_step: "earth:arrival"
           mars:
             ai_feedback:
               tokens_for_ai: "Confirm and warp to Mars!"
+            metadata_add:
+              visited_mars: true
             next_section_and_step: "mars:arrival"
           asteroid_belt:
             ai_feedback:
               tokens_for_ai: "Confirm and warp to the Asteroid Belt!"
+            metadata_add:
+              visited_asteroid_belt: true
             next_section_and_step: "asteroid_belt:arrival"
           jupiter:
             ai_feedback:
               tokens_for_ai: "Confirm and warp to Jupiter!"
+            metadata_add:
+              visited_jupiter: true
             next_section_and_step: "jupiter:arrival"
           saturn:
             ai_feedback:
               tokens_for_ai: "Confirm and warp to Saturn!"
+            metadata_add:
+              visited_saturn: true
             next_section_and_step: "saturn:arrival"
           uranus:
             ai_feedback:
               tokens_for_ai: "Confirm and warp to Uranus!"
+            metadata_add:
+              visited_uranus: true
             next_section_and_step: "uranus:arrival"
           neptune:
             ai_feedback:
               tokens_for_ai: "Confirm and warp to Neptune!"
+            metadata_add:
+              visited_neptune: true
             next_section_and_step: "neptune:arrival"
           kuiper_belt:
             ai_feedback:
               tokens_for_ai: "Confirm and warp to the Kuiper Belt!"
+            metadata_add:
+              visited_kuiper_belt: true
             next_section_and_step: "kuiper_belt:arrival"
           stay:
             ai_feedback:
@@ -345,7 +423,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "mercury:mercury_explore_more"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # VENUS
@@ -419,42 +499,62 @@ sections:
           sun:
             ai_feedback:
               tokens_for_ai: "Warping to the Sun!"
+            metadata_add:
+              visited_sun: true
             next_section_and_step: "sun:arrival"
           mercury:
             ai_feedback:
               tokens_for_ai: "Warping to Mercury!"
+            metadata_add:
+              visited_mercury: true
             next_section_and_step: "mercury:arrival"
           earth:
             ai_feedback:
               tokens_for_ai: "Warping to Earth!"
+            metadata_add:
+              visited_earth: true
             next_section_and_step: "earth:arrival"
           mars:
             ai_feedback:
               tokens_for_ai: "Warping to Mars!"
+            metadata_add:
+              visited_mars: true
             next_section_and_step: "mars:arrival"
           asteroid_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Asteroid Belt!"
+            metadata_add:
+              visited_asteroid_belt: true
             next_section_and_step: "asteroid_belt:arrival"
           jupiter:
             ai_feedback:
               tokens_for_ai: "Warping to Jupiter!"
+            metadata_add:
+              visited_jupiter: true
             next_section_and_step: "jupiter:arrival"
           saturn:
             ai_feedback:
               tokens_for_ai: "Warping to Saturn!"
+            metadata_add:
+              visited_saturn: true
             next_section_and_step: "saturn:arrival"
           uranus:
             ai_feedback:
               tokens_for_ai: "Warping to Uranus!"
+            metadata_add:
+              visited_uranus: true
             next_section_and_step: "uranus:arrival"
           neptune:
             ai_feedback:
               tokens_for_ai: "Warping to Neptune!"
+            metadata_add:
+              visited_neptune: true
             next_section_and_step: "neptune:arrival"
           kuiper_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Kuiper Belt!"
+            metadata_add:
+              visited_kuiper_belt: true
             next_section_and_step: "kuiper_belt:arrival"
           stay:
             ai_feedback:
@@ -462,7 +562,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "venus:venus_explore_more"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # EARTH
@@ -579,42 +681,62 @@ sections:
           sun:
             ai_feedback:
               tokens_for_ai: "Warping to the Sun!"
+            metadata_add:
+              visited_sun: true
             next_section_and_step: "sun:arrival"
           mercury:
             ai_feedback:
               tokens_for_ai: "Warping to Mercury!"
+            metadata_add:
+              visited_mercury: true
             next_section_and_step: "mercury:arrival"
           venus:
             ai_feedback:
               tokens_for_ai: "Warping to Venus!"
+            metadata_add:
+              visited_venus: true
             next_section_and_step: "venus:arrival"
           mars:
             ai_feedback:
               tokens_for_ai: "Warping to Mars!"
+            metadata_add:
+              visited_mars: true
             next_section_and_step: "mars:arrival"
           asteroid_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Asteroid Belt!"
+            metadata_add:
+              visited_asteroid_belt: true
             next_section_and_step: "asteroid_belt:arrival"
           jupiter:
             ai_feedback:
               tokens_for_ai: "Warping to Jupiter!"
+            metadata_add:
+              visited_jupiter: true
             next_section_and_step: "jupiter:arrival"
           saturn:
             ai_feedback:
               tokens_for_ai: "Warping to Saturn!"
+            metadata_add:
+              visited_saturn: true
             next_section_and_step: "saturn:arrival"
           uranus:
             ai_feedback:
               tokens_for_ai: "Warping to Uranus!"
+            metadata_add:
+              visited_uranus: true
             next_section_and_step: "uranus:arrival"
           neptune:
             ai_feedback:
               tokens_for_ai: "Warping to Neptune!"
+            metadata_add:
+              visited_neptune: true
             next_section_and_step: "neptune:arrival"
           kuiper_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Kuiper Belt!"
+            metadata_add:
+              visited_kuiper_belt: true
             next_section_and_step: "kuiper_belt:arrival"
           stay:
             ai_feedback:
@@ -622,7 +744,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "earth:earth_explore_more"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # MARS
@@ -724,42 +848,62 @@ sections:
           sun:
             ai_feedback:
               tokens_for_ai: "Warping to the Sun!"
+            metadata_add:
+              visited_sun: true
             next_section_and_step: "sun:arrival"
           mercury:
             ai_feedback:
               tokens_for_ai: "Warping to Mercury!"
+            metadata_add:
+              visited_mercury: true
             next_section_and_step: "mercury:arrival"
           venus:
             ai_feedback:
               tokens_for_ai: "Warping to Venus!"
+            metadata_add:
+              visited_venus: true
             next_section_and_step: "venus:arrival"
           earth:
             ai_feedback:
               tokens_for_ai: "Warping to Earth!"
+            metadata_add:
+              visited_earth: true
             next_section_and_step: "earth:arrival"
           asteroid_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Asteroid Belt!"
+            metadata_add:
+              visited_asteroid_belt: true
             next_section_and_step: "asteroid_belt:arrival"
           jupiter:
             ai_feedback:
               tokens_for_ai: "Warping to Jupiter!"
+            metadata_add:
+              visited_jupiter: true
             next_section_and_step: "jupiter:arrival"
           saturn:
             ai_feedback:
               tokens_for_ai: "Warping to Saturn!"
+            metadata_add:
+              visited_saturn: true
             next_section_and_step: "saturn:arrival"
           uranus:
             ai_feedback:
               tokens_for_ai: "Warping to Uranus!"
+            metadata_add:
+              visited_uranus: true
             next_section_and_step: "uranus:arrival"
           neptune:
             ai_feedback:
               tokens_for_ai: "Warping to Neptune!"
+            metadata_add:
+              visited_neptune: true
             next_section_and_step: "neptune:arrival"
           kuiper_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Kuiper Belt!"
+            metadata_add:
+              visited_kuiper_belt: true
             next_section_and_step: "kuiper_belt:arrival"
           stay:
             ai_feedback:
@@ -767,7 +911,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "mars:mars_explore_more"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # ASTEROID BELT
@@ -849,42 +995,62 @@ sections:
           sun:
             ai_feedback:
               tokens_for_ai: "Warping to the Sun!"
+            metadata_add:
+              visited_sun: true
             next_section_and_step: "sun:arrival"
           mercury:
             ai_feedback:
               tokens_for_ai: "Warping to Mercury!"
+            metadata_add:
+              visited_mercury: true
             next_section_and_step: "mercury:arrival"
           venus:
             ai_feedback:
               tokens_for_ai: "Warping to Venus!"
+            metadata_add:
+              visited_venus: true
             next_section_and_step: "venus:arrival"
           earth:
             ai_feedback:
               tokens_for_ai: "Warping to Earth!"
+            metadata_add:
+              visited_earth: true
             next_section_and_step: "earth:arrival"
           mars:
             ai_feedback:
               tokens_for_ai: "Warping to Mars!"
+            metadata_add:
+              visited_mars: true
             next_section_and_step: "mars:arrival"
           jupiter:
             ai_feedback:
               tokens_for_ai: "Warping to Jupiter - hold on, it's huge!"
+            metadata_add:
+              visited_jupiter: true
             next_section_and_step: "jupiter:arrival"
           saturn:
             ai_feedback:
               tokens_for_ai: "Warping to Saturn!"
+            metadata_add:
+              visited_saturn: true
             next_section_and_step: "saturn:arrival"
           uranus:
             ai_feedback:
               tokens_for_ai: "Warping to Uranus!"
+            metadata_add:
+              visited_uranus: true
             next_section_and_step: "uranus:arrival"
           neptune:
             ai_feedback:
               tokens_for_ai: "Warping to Neptune!"
+            metadata_add:
+              visited_neptune: true
             next_section_and_step: "neptune:arrival"
           kuiper_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Kuiper Belt!"
+            metadata_add:
+              visited_kuiper_belt: true
             next_section_and_step: "kuiper_belt:arrival"
           stay:
             ai_feedback:
@@ -892,7 +1058,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "asteroid_belt:asteroid_explore_more"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # JUPITER
@@ -1433,42 +1601,62 @@ sections:
           sun:
             ai_feedback:
               tokens_for_ai: "Warping to the Sun!"
+            metadata_add:
+              visited_sun: true
             next_section_and_step: "sun:arrival"
           mercury:
             ai_feedback:
               tokens_for_ai: "Warping to Mercury!"
+            metadata_add:
+              visited_mercury: true
             next_section_and_step: "mercury:arrival"
           venus:
             ai_feedback:
               tokens_for_ai: "Warping to Venus!"
+            metadata_add:
+              visited_venus: true
             next_section_and_step: "venus:arrival"
           earth:
             ai_feedback:
               tokens_for_ai: "Warping to Earth!"
+            metadata_add:
+              visited_earth: true
             next_section_and_step: "earth:arrival"
           mars:
             ai_feedback:
               tokens_for_ai: "Warping to Mars!"
+            metadata_add:
+              visited_mars: true
             next_section_and_step: "mars:arrival"
           asteroid_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Asteroid Belt!"
+            metadata_add:
+              visited_asteroid_belt: true
             next_section_and_step: "asteroid_belt:arrival"
           saturn:
             ai_feedback:
               tokens_for_ai: "Warping to Saturn - prepare for ring view!"
+            metadata_add:
+              visited_saturn: true
             next_section_and_step: "saturn:arrival"
           uranus:
             ai_feedback:
               tokens_for_ai: "Warping to Uranus!"
+            metadata_add:
+              visited_uranus: true
             next_section_and_step: "uranus:arrival"
           neptune:
             ai_feedback:
               tokens_for_ai: "Warping to Neptune!"
+            metadata_add:
+              visited_neptune: true
             next_section_and_step: "neptune:arrival"
           kuiper_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Kuiper Belt!"
+            metadata_add:
+              visited_kuiper_belt: true
             next_section_and_step: "kuiper_belt:arrival"
           stay:
             ai_feedback:
@@ -1476,7 +1664,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "jupiter:jupiter_explore_more"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # SATURN
@@ -1496,7 +1686,7 @@ sections:
           - "**Day Length**: 10.7 hours"
           - "**Year Length**: 29.4 Earth years"
           - "**Temperature**: -178°C at cloud tops"
-          - "**Moons**: 146 confirmed!"
+          - "**Moons**: 274 confirmed!"
           - "**Atmosphere**: 96% H₂, 3% He, traces of methane"
           - "**Rings**: Spectacular and extensive!"
           - ""
@@ -1563,7 +1753,7 @@ sections:
         content_blocks:
           - "# 🌙 Saturn's Incredible Moon System"
           - ""
-          - "Saturn has 146 confirmed moons - the most of any planet!"
+          - "Saturn has 274 confirmed moons - the most of any planet!"
           - ""
           - "**Major Moons We'll Explore:**"
           - "- **Titan** - Larger than Mercury, has atmosphere and lakes!"
@@ -1943,42 +2133,62 @@ sections:
           sun:
             ai_feedback:
               tokens_for_ai: "Warping to the Sun!"
+            metadata_add:
+              visited_sun: true
             next_section_and_step: "sun:arrival"
           mercury:
             ai_feedback:
               tokens_for_ai: "Warping to Mercury!"
+            metadata_add:
+              visited_mercury: true
             next_section_and_step: "mercury:arrival"
           venus:
             ai_feedback:
               tokens_for_ai: "Warping to Venus!"
+            metadata_add:
+              visited_venus: true
             next_section_and_step: "venus:arrival"
           earth:
             ai_feedback:
               tokens_for_ai: "Warping to Earth!"
+            metadata_add:
+              visited_earth: true
             next_section_and_step: "earth:arrival"
           mars:
             ai_feedback:
               tokens_for_ai: "Warping to Mars!"
+            metadata_add:
+              visited_mars: true
             next_section_and_step: "mars:arrival"
           asteroid_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Asteroid Belt!"
+            metadata_add:
+              visited_asteroid_belt: true
             next_section_and_step: "asteroid_belt:arrival"
           jupiter:
             ai_feedback:
               tokens_for_ai: "Warping to Jupiter!"
+            metadata_add:
+              visited_jupiter: true
             next_section_and_step: "jupiter:arrival"
           uranus:
             ai_feedback:
               tokens_for_ai: "Warping to Uranus - the sideways planet!"
+            metadata_add:
+              visited_uranus: true
             next_section_and_step: "uranus:arrival"
           neptune:
             ai_feedback:
               tokens_for_ai: "Warping to Neptune!"
+            metadata_add:
+              visited_neptune: true
             next_section_and_step: "neptune:arrival"
           kuiper_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Kuiper Belt!"
+            metadata_add:
+              visited_kuiper_belt: true
             next_section_and_step: "kuiper_belt:arrival"
           stay:
             ai_feedback:
@@ -1986,7 +2196,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "saturn:saturn_explore_more"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # URANUS
@@ -2006,7 +2218,7 @@ sections:
           - "**Day Length**: 17.2 hours (retrograde)"
           - "**Year Length**: 84 Earth years"
           - "**Temperature**: -224°C at cloud tops (coldest planetary atmosphere)"
-          - "**Moons**: 28 confirmed"
+          - "**Moons**: 29 confirmed"
           - "**Atmosphere**: 83% H₂, 15% He, 2% methane (gives blue-green color)"
           - "**Rings**: 13 known rings"
           - "**Axial Tilt**: 98° (essentially on its side!)"
@@ -2051,7 +2263,7 @@ sections:
         content_blocks:
           - "# 🌙 The Moons of Uranus"
           - ""
-          - "Uranus has 28 known moons, all named after characters from Shakespeare and Alexander Pope!"
+          - "Uranus has 29 known moons, named after characters from Shakespeare and Alexander Pope!"
           - ""
           - "**The Five Major Moons:**"
           - "- **Miranda** - Patchwork moon with extreme features"
@@ -2241,42 +2453,62 @@ sections:
           sun:
             ai_feedback:
               tokens_for_ai: "Warping to the Sun!"
+            metadata_add:
+              visited_sun: true
             next_section_and_step: "sun:arrival"
           mercury:
             ai_feedback:
               tokens_for_ai: "Warping to Mercury!"
+            metadata_add:
+              visited_mercury: true
             next_section_and_step: "mercury:arrival"
           venus:
             ai_feedback:
               tokens_for_ai: "Warping to Venus!"
+            metadata_add:
+              visited_venus: true
             next_section_and_step: "venus:arrival"
           earth:
             ai_feedback:
               tokens_for_ai: "Warping to Earth!"
+            metadata_add:
+              visited_earth: true
             next_section_and_step: "earth:arrival"
           mars:
             ai_feedback:
               tokens_for_ai: "Warping to Mars!"
+            metadata_add:
+              visited_mars: true
             next_section_and_step: "mars:arrival"
           asteroid_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Asteroid Belt!"
+            metadata_add:
+              visited_asteroid_belt: true
             next_section_and_step: "asteroid_belt:arrival"
           jupiter:
             ai_feedback:
               tokens_for_ai: "Warping to Jupiter!"
+            metadata_add:
+              visited_jupiter: true
             next_section_and_step: "jupiter:arrival"
           saturn:
             ai_feedback:
               tokens_for_ai: "Warping to Saturn!"
+            metadata_add:
+              visited_saturn: true
             next_section_and_step: "saturn:arrival"
           neptune:
             ai_feedback:
               tokens_for_ai: "Warping to Neptune - the final planet!"
+            metadata_add:
+              visited_neptune: true
             next_section_and_step: "neptune:arrival"
           kuiper_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Kuiper Belt!"
+            metadata_add:
+              visited_kuiper_belt: true
             next_section_and_step: "kuiper_belt:arrival"
           stay:
             ai_feedback:
@@ -2284,7 +2516,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "uranus:uranus_explore_more"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # NEPTUNE
@@ -2556,42 +2790,62 @@ sections:
           sun:
             ai_feedback:
               tokens_for_ai: "Warping back to the Sun!"
+            metadata_add:
+              visited_sun: true
             next_section_and_step: "sun:arrival"
           mercury:
             ai_feedback:
               tokens_for_ai: "Warping to Mercury!"
+            metadata_add:
+              visited_mercury: true
             next_section_and_step: "mercury:arrival"
           venus:
             ai_feedback:
               tokens_for_ai: "Warping to Venus!"
+            metadata_add:
+              visited_venus: true
             next_section_and_step: "venus:arrival"
           earth:
             ai_feedback:
               tokens_for_ai: "Warping home to Earth!"
+            metadata_add:
+              visited_earth: true
             next_section_and_step: "earth:arrival"
           mars:
             ai_feedback:
               tokens_for_ai: "Warping to Mars!"
+            metadata_add:
+              visited_mars: true
             next_section_and_step: "mars:arrival"
           asteroid_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Asteroid Belt!"
+            metadata_add:
+              visited_asteroid_belt: true
             next_section_and_step: "asteroid_belt:arrival"
           jupiter:
             ai_feedback:
               tokens_for_ai: "Warping to Jupiter!"
+            metadata_add:
+              visited_jupiter: true
             next_section_and_step: "jupiter:arrival"
           saturn:
             ai_feedback:
               tokens_for_ai: "Warping to Saturn!"
+            metadata_add:
+              visited_saturn: true
             next_section_and_step: "saturn:arrival"
           uranus:
             ai_feedback:
               tokens_for_ai: "Warping to Uranus!"
+            metadata_add:
+              visited_uranus: true
             next_section_and_step: "uranus:arrival"
           kuiper_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Kuiper Belt - to the edge of the solar system!"
+            metadata_add:
+              visited_kuiper_belt: true
             next_section_and_step: "kuiper_belt:arrival"
           stay:
             ai_feedback:
@@ -2599,7 +2853,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "neptune:neptune_explore_more"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # KUIPER BELT
@@ -2735,42 +2991,62 @@ sections:
           sun:
             ai_feedback:
               tokens_for_ai: "Warping back to the Sun!"
+            metadata_add:
+              visited_sun: true
             next_section_and_step: "sun:arrival"
           mercury:
             ai_feedback:
               tokens_for_ai: "Warping to Mercury!"
+            metadata_add:
+              visited_mercury: true
             next_section_and_step: "mercury:arrival"
           venus:
             ai_feedback:
               tokens_for_ai: "Warping to Venus!"
+            metadata_add:
+              visited_venus: true
             next_section_and_step: "venus:arrival"
           earth:
             ai_feedback:
               tokens_for_ai: "Warping home to Earth!"
+            metadata_add:
+              visited_earth: true
             next_section_and_step: "earth:arrival"
           mars:
             ai_feedback:
               tokens_for_ai: "Warping to Mars!"
+            metadata_add:
+              visited_mars: true
             next_section_and_step: "mars:arrival"
           asteroid_belt:
             ai_feedback:
               tokens_for_ai: "Warping to the Asteroid Belt!"
+            metadata_add:
+              visited_asteroid_belt: true
             next_section_and_step: "asteroid_belt:arrival"
           jupiter:
             ai_feedback:
               tokens_for_ai: "Warping to Jupiter!"
+            metadata_add:
+              visited_jupiter: true
             next_section_and_step: "jupiter:arrival"
           saturn:
             ai_feedback:
               tokens_for_ai: "Warping to Saturn!"
+            metadata_add:
+              visited_saturn: true
             next_section_and_step: "saturn:arrival"
           uranus:
             ai_feedback:
               tokens_for_ai: "Warping to Uranus!"
+            metadata_add:
+              visited_uranus: true
             next_section_and_step: "uranus:arrival"
           neptune:
             ai_feedback:
               tokens_for_ai: "Warping to Neptune!"
+            metadata_add:
+              visited_neptune: true
             next_section_and_step: "neptune:arrival"
           stay:
             ai_feedback:
@@ -2778,7 +3054,9 @@ sections:
             counts_as_attempt: false
             next_section_and_step: "kuiper_belt:kuiper_explore_more"
           exit:
-            next_section_and_step: "conclusion:farewell"
+            metadata_add:
+              activity_completed: "true"
+            next_section_and_step: "conclusion:mission_log"
 
   # ============================================================================
   # CONCLUSION
@@ -2786,24 +3064,171 @@ sections:
   - section_id: "conclusion"
     title: "Journey's End"
     steps:
+      - step_id: "mission_log"
+        title: "Mission Log"
+        content_blocks:
+          - "# 📓 Mission Log"
+          - "Places you warped to:"
+          - text: "- Nowhere yet! Our whole solar system is still waiting for you."
+            show_if:
+              visited_sun_not_exists: true
+              visited_mercury_not_exists: true
+              visited_venus_not_exists: true
+              visited_earth_not_exists: true
+              visited_mars_not_exists: true
+              visited_asteroid_belt_not_exists: true
+              visited_jupiter_not_exists: true
+              visited_saturn_not_exists: true
+              visited_uranus_not_exists: true
+              visited_neptune_not_exists: true
+              visited_kuiper_belt_not_exists: true
+          - text: "- ☀️ The Sun"
+            show_if:
+              visited_sun: true
+          - text: "- ☿ Mercury"
+            show_if:
+              visited_mercury: true
+          - text: "- ♀ Venus"
+            show_if:
+              visited_venus: true
+          - text: "- 🌍 Earth & the Moon"
+            show_if:
+              visited_earth: true
+          - text: "- 🔴 Mars"
+            show_if:
+              visited_mars: true
+          - text: "- ☄️ The Asteroid Belt"
+            show_if:
+              visited_asteroid_belt: true
+          - text: "- 🟠 Jupiter"
+            show_if:
+              visited_jupiter: true
+          - text: "- 🪐 Saturn"
+            show_if:
+              visited_saturn: true
+          - text: "- 🔵 Uranus"
+            show_if:
+              visited_uranus: true
+          - text: "- 🌀 Neptune"
+            show_if:
+              visited_neptune: true
+          - text: "- 🧊 The Kuiper Belt & Pluto"
+            show_if:
+              visited_kuiper_belt: true
+
+      - step_id: "quiz_offer"
+        title: "Mission Quiz?"
+        question: "Before you land: take the 3-question Mission Quiz, or land now?"
+        tokens_for_ai: |
+          - 'take_quiz' if they want the quiz (yes, sure, quiz)
+          - 'land_now' if they want to finish without it (no, land, skip)
+        buckets: [take_quiz, land_now]
+        transitions:
+          take_quiz:
+            content_blocks:
+              - "🧑‍🚀 Mission Control: 'Three questions. Let's see what stuck!'"
+            metadata_add:
+              quiz_score: "0"
+            next_section_and_step: "conclusion:quiz_venus"
+          land_now:
+            next_section_and_step: "conclusion:farewell"
+
+      # Explain-why: graded with criteria & required elements
+      - step_id: "quiz_venus"
+        title: "Quiz 1: The Hottest Planet"
+        question: "Mercury is closest to the Sun, yet Venus is the hottest planet. Why?"
+        allow_clarifying_questions: true
+        tokens_for_ai: "Grade the learner's explanation of why Venus is hotter than Mercury."
+        bucket_criteria:
+          correct: "Says Venus's thick (carbon dioxide) atmosphere traps heat, a runaway greenhouse effect."
+          partial_understanding: "Names the thick atmosphere or the greenhouse effect, but not how it keeps heat in."
+          incorrect: "Gives another reason (distance, size, volcanoes alone) or doesn't engage."
+        required_elements:
+          - "Venus has a very thick atmosphere, mostly carbon dioxide"
+          - "that atmosphere traps heat (a greenhouse effect) so it can't escape"
+        hints:
+          - attempt: 1
+            text: "💡 Hint: think about what Venus is wrapped in."
+          - attempt: 2
+            text: "💡 Strong hint: Venus's air is ~96% carbon dioxide & 90 times thicker than Earth's. What does a thick blanket do to heat?"
+        buckets: [correct, partial_understanding, incorrect]
+        transitions:
+          correct:
+            ai_feedback:
+              tokens_for_ai: "Praise their reason in one sentence; add that Mercury, with almost no air, loses its heat at night."
+            metadata_add:
+              quiz_score: "n+1"
+            next_section_and_step: "conclusion:quiz_red_spot"
+          partial_understanding:
+            ai_feedback:
+              tokens_for_ai: "Name the idea they left out, without giving the answer."
+          incorrect:
+            content_blocks:
+              - "Not quite: distance alone doesn't explain it. Try again!"
+
+      - step_id: "quiz_red_spot"
+        title: "Quiz 2: A Giant Storm"
+        question_type: multiple_choice
+        question: "Which planet has the Great Red Spot, a storm bigger than Earth?"
+        choices:
+          - {id: a, text: "Mars"}
+          - {id: b, text: "Jupiter"}
+          - {id: c, text: "Saturn"}
+          - {id: d, text: "Neptune"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "✅ Jupiter! The storm has raged for at least 350 years."
+            metadata_add:
+              quiz_score: "n+1"
+            next_section_and_step: "conclusion:quiz_oceans"
+          incorrect:
+            content_blocks:
+              - "Not that one: it's the biggest planet of all."
+
+      - step_id: "quiz_oceans"
+        title: "Quiz 3: Hidden Oceans"
+        question_type: multiple_choice
+        question: "Which of these moons may hide a liquid-water ocean under their ice? Pick every one."
+        choices:
+          - {id: europa, text: "Europa (Jupiter)"}
+          - {id: enceladus, text: "Enceladus (Saturn)"}
+          - {id: io, text: "Io (Jupiter)"}
+          - {id: phobos, text: "Phobos (Mars)"}
+        answer: [europa, enceladus]
+        answer_mode: all
+        transitions:
+          correct:
+            content_blocks:
+              - "✅ Europa & Enceladus! Enceladus even sprays its ocean into space through geysers."
+            metadata_add:
+              quiz_score: "n+1"
+            next_section_and_step: "conclusion:farewell"
+          incorrect:
+            content_blocks:
+              - "Not the whole set: Io is volcanic & Phobos is a dry rock. Which two are icy?"
+
       - step_id: "farewell"
         title: "Thank You for Exploring"
         content_blocks:
           - "# 🌌 Thank You for Exploring Our Solar System!"
           - ""
-          - "You've journeyed from the blazing Sun to the frozen Kuiper Belt!"
+          - text: "**Mission Quiz: {{metadata.quiz_score}} of 3** 🏅"
+            show_if:
+              quiz_score_exists: true
           - ""
-          - "**What You've Discovered:**"
+          - "**Our Solar System Holds:**"
           - "- ☀️ 1 magnificent star"
           - "- 🪐 8 diverse planets"
-          - "- 🌙 Over 200 fascinating moons"
+          - "- 🌙 Over 400 fascinating moons"
           - "- ☄️ Countless asteroids and comets"
           - "- 🌠 Dwarf planets at the solar system's edge"
           - ""
           - "**Amazing Facts to Remember:**"
           - "- The Sun contains 99.86% of the solar system's mass"
           - "- Jupiter's Great Red Spot is a storm larger than Earth"
-          - "- Saturn has 146 known moons (and counting!)"
+          - "- Saturn has 274 known moons (and counting!)"
           - "- Enceladus shoots water geysers 500 km into space"
           - "- Europa and Enceladus may harbor life in subsurface oceans"
           - "- Titan has lakes of liquid methane"

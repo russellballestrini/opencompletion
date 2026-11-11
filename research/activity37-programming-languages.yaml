@@ -1,24 +1,11 @@
+title: Learn Programming in Any Language
+description: 'Pick any programming language & write your first programs: output, variables, types, if/else, loops & functions.'
+kind: lesson
 default_max_attempts_per_step: 3
 classifier_model: MODEL_0
 feedback_model: MODEL_1
-tokens_for_ai_rubric: 'Evaluate the student''s understanding of programming concepts in their chosen language.
-
-  Consider:
-
-  - Grasp of fundamental concepts (variables, types, control flow, functions)
-
-  - Ability to write code that uses stdout to display output
-
-  - Understanding of syntax in their chosen language
-
-  - Problem-solving approach
-
-  - Progression from simple to complex concepts
-
-
-  Provide encouraging feedback adapted to their specific programming language.
-
-  '
+tokens_for_ai_rubric: |
+  Grade code in the learner's chosen programming language (metadata.programming_language). Any working approach counts; judge the ideas, not one exact syntax. Feedback stays in their language & is encouraging.
 sections:
 - section_id: introduction
   title: Welcome to Programming
@@ -48,32 +35,21 @@ sections:
     - ''
     - '**All programming languages share core concepts** - what you learn in one language helps you learn others!'
     question: Which programming language would you like to learn? (Type the name of any programming language)
-    tokens_for_ai: 'The student is choosing a programming language. Store their choice in metadata.
-
+    tokens_for_ai: |
+      The student is choosing a programming language. Store their choice in metadata.
 
       Accept ANY programming language they name (Python, JavaScript, C++, COBOL, Brainfuck, whatever).
-
       Be enthusiastic about their choice regardless of language.
 
-
       For the REST of this activity:
-
       - ALL code examples must be in their chosen language
-
-      - ALL explanations must be adapted to their language''s syntax and conventions
-
+      - ALL explanations must be adapted to their language's syntax and conventions
       - ALL feedback must reference their specific language
 
-
       Categorize as:
-
       - language_chosen: Student named a programming language (any language)
-
       - set_language: Student setting human language preference (not programming language)
-
-      - off_topic: Didn''t choose a programming language
-
-      '
+      - off_topic: Didn't choose a programming language
     buckets:
     - language_chosen
     - set_language
@@ -81,30 +57,28 @@ sections:
     transitions:
       language_chosen:
         ai_feedback:
-          tokens_for_ai: 'Identify the programming language they chose. Be enthusiastic!
-
+          tokens_for_ai: |
+            Identify the programming language they chose. Be enthusiastic!
             Say something like: "Excellent choice! [Language] is great for [typical use cases]."
-
             Store the EXACT language name they provided in metadata.
 
-
             Remember: From now on, ALL code examples and explanations must be in their chosen language.
-
-            '
         metadata_add:
           programming_language: the-users-response
+          score: 0
+          concepts_mastered: 0
         counts_as_attempt: false
         next_section_and_step: hello_world:step_1
       set_language:
         content_blocks:
         - I'll communicate in your preferred human language. But please also choose a PROGRAMMING language to learn (like Python, JavaScript, C++, etc.)
         counts_as_attempt: false
-        next_section_and_step: introduction:welcome
+        metadata_add:
+          language: the-users-response
       off_topic:
         content_blocks:
         - Please choose a programming language you'd like to learn. You can pick any language - Python, JavaScript, C++, or any other language you're interested in!
         counts_as_attempt: false
-        next_section_and_step: introduction:welcome
 - section_id: hello_world
   title: Hello World - Your First Program
   steps:
@@ -112,6 +86,9 @@ sections:
     title: Displaying Output
     content_blocks:
     - '## Your First Program: Hello World! 👋'
+    - text: '_Progress: {{metadata.concepts_mastered}} of 8 concepts · {{metadata.score}} points_'
+      show_if:
+        score_exists: true
     - ''
     - '### What is "Hello World"?'
     - The traditional first program in any language is 'Hello World' - a program that displays text to the screen. This tradition dates back to the 1970s and serves as a simple test that your programming environment is working correctly.
@@ -119,7 +96,7 @@ sections:
     - '### Understanding Standard Output (stdout)'
     - ''
     - '**What is stdout?**'
-    - 'The term **stdout** (pronounced "standard out") stands for **standard output**. It''s the default destination where programs send their text output. When you run a program in a terminal or console, stdout is what displays on the screen.'
+    - The term **stdout** (pronounced "standard out") stands for **standard output**. It's the default destination where programs send their text output. When you run a program in a terminal or console, stdout is what displays on the screen.
     - ''
     - '**Breaking down the terminology:**'
     - '- **Standard** = The default, conventional way programs handle output'
@@ -129,11 +106,11 @@ sections:
     - '**The Three Standard Streams**'
     - 'In Unix/Linux systems (and adopted by Windows), every program has three standard "streams" of data:'
     - ''
-    - '1. **stdin (standard input)** - Where programs receive input (usually keyboard)'
-    - '2. **stdout (standard output)** - Where programs send normal output (usually screen)'
-    - '3. **stderr (standard error)** - Where programs send error messages (usually screen)'
+    - 1. **stdin (standard input)** - Where programs receive input (usually keyboard)
+    - 2. **stdout (standard output)** - Where programs send normal output (usually screen)
+    - 3. **stderr (standard error)** - Where programs send error messages (usually screen)
     - ''
-    - 'Right now we''re focusing on **stdout** because displaying output is the first thing beginners learn!'
+    - Right now we're focusing on **stdout** because displaying output is the first thing beginners learn!
     - ''
     - '**Why is stdout important?**'
     - 'Almost every program needs to communicate with its users. Whether it''s:'
@@ -147,10 +124,10 @@ sections:
     - '**How stdout works:**'
     - ''
     - '```'
-    - 'Your Program → stdout → Terminal/Console → Your Screen'
+    - Your Program → stdout → Terminal/Console → Your Screen
     - '```'
     - ''
-    - 'When you write `print("Hello")` in Python or `console.log("Hello")` in JavaScript, you''re sending text to stdout, which the operating system then displays in your terminal window.'
+    - When you write `print("Hello")` in Python or `console.log("Hello")` in JavaScript, you're sending text to stdout, which the operating system then displays in your terminal window.
     - ''
     - '**Historical Context**'
     - 'The concept of standard streams comes from Unix in the 1970s. Before graphical interfaces, all computing was done in text terminals. Programs needed a consistent way to:'
@@ -158,7 +135,7 @@ sections:
     - '- Display output (stdout)'
     - '- Report errors (stderr)'
     - ''
-    - 'This simple, powerful design is still used today in every programming language!'
+    - This simple, powerful design is still used today in every programming language!
     - ''
     - '**Why "standard"?**'
     - 'It''s called "standard" because:'
@@ -172,7 +149,7 @@ sections:
     - '- `program > output.txt` - Send stdout to a file instead of the screen'
     - '- `program1 | program2` - Send program1''s stdout to program2''s stdin'
     - ''
-    - 'This is why understanding stdout matters - it''s not just "printing to the screen," it''s sending data to a stream that can go anywhere!'
+    - This is why understanding stdout matters - it's not just "printing to the screen," it's sending data to a stream that can go anywhere!
     - ''
     - '### How Languages Display Output'
     - ''
@@ -185,120 +162,83 @@ sections:
     - 'Despite different syntax, they all accomplish the same goal: sending text to stdout.'
     - ''
     - '**Important Concept:**'
-    - 'Text in quotes (like `"Hello, World!"`) is called a **string** - it represents text data that you want to display.'
+    - Text in quotes (like `"Hello, World!"`) is called a **string** - it represents text data that you want to display.
     - ''
-    - 'Now you''ll figure out how YOUR chosen language does it!'
+    - Now you'll figure out how YOUR chosen language does it!
     - ''
     - '### Now It''s Your Turn!'
     question: How do you display 'Hello, World!' to stdout in your chosen language? Write the complete code.
-    tokens_for_ai: 'IMPORTANT: Get the student''s chosen language from metadata (programming_language).
-
-
-      Evaluate their Hello World code in THAT specific language.
-
-
-      Examples of correct Hello World in various languages:
-
-      - Python: print("Hello, World!")
-
-      - JavaScript: console.log("Hello, World!");
-
-      - Java: System.out.println("Hello, World!");
-
-      - C++: std::cout << "Hello, World!" << std::endl;
-
-      - C: printf("Hello, World!\n");
-
-      - Ruby: puts "Hello, World!"
-
-      - Go: fmt.Println("Hello, World!")
-
-      - Rust: println!("Hello, World!");
-
-      - PHP: echo "Hello, World!";
-
-      - Swift: print("Hello, World!")
-
-
-      If they write correct code for their language, praise them!
-
-      If incorrect, show them the correct syntax for their specific language.
-
-
-      Categorize as:
-
-      - correct: Valid Hello World code in their chosen language
-
-      - close: Has the right idea but syntax errors
-
-      - wrong_language: Used a different language than they chose
-
-      - incomplete: Missing parts
-
-      - limited_effort: Too brief or unclear
-
-      - asking_clarifying_questions: Asking for help
-
-      - off_topic: Not attempting the task
-
-      '
-    feedback_tokens_for_ai: 'Provide feedback specific to their language.
-
-      If correct, show enthusiasm!
-
-      If incorrect, show the correct syntax and explain it.
-
-
-      Always show the correct code for their specific language.
-
-      '
+    tokens_for_ai: |
+      Their Hello World program. It should be in their chosen programming language (metadata.programming_language); working code in another language is partial_understanding. Any valid approach counts.
+    bucket_criteria:
+      correct: Working code in their chosen language that displays Hello, World! on stdout.
+      partial_understanding: Right idea with one piece missing or wrong (a syntax slip, no quotes, another language).
+      incorrect: Code that could not display Hello, World!
+      limited_effort: A word or two, or no code at all.
+      off_topic: Not about this task.
+    required_elements:
+    - an output statement that writes to stdout
+    - the text Hello, World! as a string
+    feedback_tokens_for_ai: |
+      Feedback in their chosen language (metadata.programming_language), about their own code.
     buckets:
     - correct
-    - close
-    - wrong_language
-    - incomplete
+    - partial_understanding
+    - incorrect
     - limited_effort
-    - asking_clarifying_questions
+    - set_language
     - off_topic
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Perfect! That's exactly how you write Hello World in [their language]. Explain what each part does (the output function/statement, the string, any semicolons/syntax).
+          tokens_for_ai: Perfect! That's exactly how you write Hello World in their language. Explain what each part does (the output function/statement, the string, any semicolons/syntax).
         metadata_add:
           score: n+2
           concepts_mastered: n+1
         next_section_and_step: hello_world:step_2
-      close:
-        ai_feedback:
-          tokens_for_ai: You have the right idea! Show them the correct syntax for their language and explain what was slightly off.
+      partial_understanding:
         metadata_add:
-          score: n+1
-        next_section_and_step: hello_world:step_1
-      wrong_language:
+          hello_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: find your language''s built-in way to print a line of text, & put the text in quotes.'
+          show_if:
+            hello_tries_lt: 2
+        - text: '💡 Hint: in many languages it is one line: the output call with the text as its argument. Some (C, Java, Go, Rust) also wrap it in a main function.'
+          show_if:
+            hello_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: 'That looks like code for a different language! You chose [their language]. Here''s how you do it in [their language]: [show correct code]'
-        next_section_and_step: hello_world:step_1
-      incomplete:
+          tokens_for_ai: 'Say what they got right, then name the one missing or wrong piece. Don''t write the solution for them, unless metadata.hello_tries is 3 or more: then show a complete working one.'
+      incorrect:
+        metadata_add:
+          hello_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: find your language''s built-in way to print a line of text, & put the text in quotes.'
+          show_if:
+            hello_tries_lt: 2
+        - text: '💡 Hint: in many languages it is one line: the output call with the text as its argument. Some (C, Java, Go, Rust) also wrap it in a main function.'
+          show_if:
+            hello_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: You're on the right track but missing some parts. Show the complete Hello World code for their language.
-        next_section_and_step: hello_world:step_1
+          tokens_for_ai: 'Say kindly what their code would do instead, & which idea to reach for. Don''t write the solution for them, unless metadata.hello_tries is 3 or more: then show a complete working one.'
       limited_effort:
         content_blocks:
-        - Try writing the actual code! How does your chosen language display text to the screen?
-        next_section_and_step: hello_world:step_1
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Help them with their question, then show the Hello World code for their specific language.
+        - 'Give it a go: a broken first try teaches more than none. Stuck? Ask a question.'
+      set_language:
+        content_blocks:
+        - Language preference updated.
+        metadata_add:
+          language: the-users-response
         counts_as_attempt: false
-        next_section_and_step: hello_world:step_1
       off_topic:
         content_blocks:
         - Let's write your first program! How do you display 'Hello, World!' in your chosen language?
-        next_section_and_step: hello_world:step_1
   - step_id: step_2
     title: Multiple Outputs
     content_blocks:
     - '## Displaying Multiple Lines'
+    - text: '_Progress: {{metadata.concepts_mastered}} of 8 concepts · {{metadata.score}} points_'
+      show_if:
+        score_exists: true
     - ''
     - '### Building on What You''ve Learned'
     - Great! Now that you can display one message, let's display multiple messages. This is a fundamental skill because real programs often need to show multiple pieces of information.
@@ -310,9 +250,9 @@ sections:
     - ''
     - '**Example in Python:**'
     - '```python'
-    - 'print("First line")'
-    - 'print("Second line")'
-    - 'print("Third line")'
+    - print("First line")
+    - print("Second line")
+    - print("Third line")
     - '```'
     - ''
     - '**Method 2: Newline Characters**'
@@ -320,11 +260,11 @@ sections:
     - ''
     - '**Example in Python:**'
     - '```python'
-    - 'print("First line\nSecond line\nThird line")'
+    - print("First line\nSecond line\nThird line")
     - '```'
     - ''
     - '### Understanding Newlines'
-    - The `\n` is called an "escape sequence" - a special character that represents a line break. When the computer sees `\n`, it moves to the next line.'
+    - The `\n` is called an "escape sequence" - a special character that represents a line break. When the computer sees `\n`, it moves to the next line.
     - ''
     - '**Why use multiple statements vs newlines?**'
     - '- Multiple statements are clearer and easier to read'
@@ -333,92 +273,70 @@ sections:
     - ''
     - '### Now It''s Your Turn!'
     question: 'Write a program that displays three lines to stdout: ''My first program'', ''Learning to code'', and ''This is fun!'' (each on its own line)'
-    tokens_for_ai: 'The student should write code in THEIR chosen language (from metadata) that outputs three lines.
-
-
-      Check that:
-
-      - Code is in their chosen language
-
-      - Outputs all three strings
-
-      - Each on a separate line (using newlines or multiple output statements)
-
-
-      Categorize as:
-
-      - correct: Valid code outputting all three lines in their language
-
-      - close: Right idea, minor syntax issues
-
-      - missing_newlines: All on one line instead of three
-
-      - incomplete: Missing one or more lines
-
-      - wrong_language: Used different language
-
-      - limited_effort: Too brief
-
-      - asking_clarifying_questions: Asking for help
-
-      - off_topic: Not attempting
-
-      '
-    feedback_tokens_for_ai: 'Provide feedback specific to their language.
-
-      Show the correct code if needed.
-
-      Explain how newlines work in their language (\\n in strings, or separate output statements, etc.).
-
-      '
+    tokens_for_ai: |
+      Their program displaying three messages. It should be in their chosen programming language (metadata.programming_language); working code in another language is partial_understanding. Any valid approach counts.
+    bucket_criteria:
+      correct: Displays all three messages, each on its own line.
+      partial_understanding: Right approach but a message is missing or they share one line.
+      incorrect: Could not display the three messages.
+      limited_effort: A word or two, or no code at all.
+      off_topic: Not about this task.
+    required_elements:
+    - all three messages
+    - each message on its own line (separate output calls or newline characters)
+    feedback_tokens_for_ai: |
+      Feedback in their chosen language (metadata.programming_language), about their own code.
     buckets:
     - correct
-    - close
-    - missing_newlines
-    - incomplete
-    - wrong_language
+    - partial_understanding
+    - incorrect
     - limited_effort
-    - asking_clarifying_questions
+    - set_language
     - off_topic
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Excellent! You've written multiple output statements in [their language]. Explain how they can use this to build more complex programs.
+          tokens_for_ai: Excellent! You've written multiple output statements in their language. Explain how they can use this to build more complex programs.
         metadata_add:
           score: n+2
           concepts_mastered: n+1
         next_section_and_step: variables:step_1
-      close:
-        ai_feedback:
-          tokens_for_ai: Almost there! Show the correct code and explain the minor issue.
+      partial_understanding:
         metadata_add:
-          score: n+1
-        next_section_and_step: hello_world:step_2
-      missing_newlines:
+          lines_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: the output call from Hello World works here too. How many times will you call it?'
+          show_if:
+            lines_tries_lt: 2
+        - text: '💡 Hint: call it three times, or put `\n` between the messages in one string.'
+          show_if:
+            lines_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: Good try! But they should be on separate lines. Show how to create newlines in their language (either \n in strings or multiple statements).
-        next_section_and_step: hello_world:step_2
-      incomplete:
+          tokens_for_ai: 'Say what they got right, then name the one missing or wrong piece. Don''t write the solution for them, unless metadata.lines_tries is 3 or more: then show a complete working one.'
+      incorrect:
+        metadata_add:
+          lines_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: the output call from Hello World works here too. How many times will you call it?'
+          show_if:
+            lines_tries_lt: 2
+        - text: '💡 Hint: call it three times, or put `\n` between the messages in one string.'
+          show_if:
+            lines_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: You're missing one or more of the required lines. Show the complete code for their language.
-        next_section_and_step: hello_world:step_2
-      wrong_language:
-        ai_feedback:
-          tokens_for_ai: 'Remember, you''re learning [their language]! Here''s how to do it in [their language]: [show code]'
-        next_section_and_step: hello_world:step_2
+          tokens_for_ai: 'Say kindly what their code would do instead, & which idea to reach for. Don''t write the solution for them, unless metadata.lines_tries is 3 or more: then show a complete working one.'
       limited_effort:
         content_blocks:
-        - Write the actual code to display all three messages!
-        next_section_and_step: hello_world:step_2
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question, then guide them on how to output multiple lines in their language.
+        - 'Give it a go: a broken first try teaches more than none. Stuck? Ask a question.'
+      set_language:
+        content_blocks:
+        - Language preference updated.
+        metadata_add:
+          language: the-users-response
         counts_as_attempt: false
-        next_section_and_step: hello_world:step_2
       off_topic:
         content_blocks:
         - Write code to display three lines of text using your chosen language.
-        next_section_and_step: hello_world:step_2
 - section_id: variables
   title: Variables and Data Types
   steps:
@@ -426,6 +344,9 @@ sections:
     title: Creating Variables
     content_blocks:
     - '## Variables: Storing Information 📦'
+    - text: '_Progress: {{metadata.concepts_mastered}} of 8 concepts · {{metadata.score}} points_'
+      show_if:
+        score_exists: true
     - ''
     - '### What Are Variables?'
     - Variables are one of the most fundamental concepts in programming. A variable is a named storage location in your computer''s memory that holds a value. Think of it as a labeled container where you can store information and retrieve it later.
@@ -457,9 +378,9 @@ sections:
     - '### How Languages Handle Variables'
     - ''
     - 'Every programming language has its own syntax for creating variables, but they all follow the same basic pattern:'
-    - '1. Give the variable a name'
-    - '2. Use an assignment operator (usually `=`)'
-    - '3. Provide a value'
+    - 1. Give the variable a name
+    - 2. Use an assignment operator (usually `=`)
+    - 3. Provide a value
     - ''
     - '**Important Language Difference:**'
     - ''
@@ -473,130 +394,96 @@ sections:
     - '- Example: declare that `name` will store a String'
     - '- More verbose, but catches type errors early'
     - ''
-    - 'You''ll use YOUR language''s specific syntax to create variables!'
+    - You'll use YOUR language's specific syntax to create variables!
     - ''
     - '### The Assignment Operator'
-    - 'The `=` sign is the **assignment operator**. It means "assign the value on the right to the variable on the left."'
+    - The `=` sign is the **assignment operator**. It means "assign the value on the right to the variable on the left."
     - ''
     - '```'
-    - 'name = "Alice"'
-    - '│      │'
-    - '│      └── The value (what goes in the box)'
-    - '└── The variable name (the label on the box)'
+    - name = "Alice"
+    - │      │
+    - │      └── The value (what goes in the box)
+    - └── The variable name (the label on the box)
     - '```'
     - ''
     - '**Important:** In programming, `=` means assignment, NOT mathematical equality! To test equality, most languages use `==`.'
     - ''
     - '### Now It''s Your Turn!'
     question: Write a program that creates a variable called 'name' with your name as the value, then displays it to stdout.
-    tokens_for_ai: 'Check that student writes code in THEIR language that:
-
-      - Creates a variable (using their language''s syntax)
-
-      - Assigns a string value to it
-
-      - Outputs the variable to stdout
-
-
-      Examples:
-
-      - Python: name = "Alice" \\n print(name)
-
-      - JavaScript: let name = "Alice"; \\n console.log(name);
-
-      - Java: String name = "Alice"; \\n System.out.println(name);
-
-      - C++: std::string name = "Alice"; \\n std::cout << name << std::endl;
-
-
-      Categorize as:
-
-      - correct: Valid variable creation and output in their language
-
-      - close: Right idea, minor syntax issues
-
-      - missing_declaration: In typed languages, forgot type
-
-      - wrong_output: Created variable but didn''t output it
-
-      - hardcoded_output: Outputted string directly instead of using variable
-
-      - wrong_language: Used different language
-
-      - limited_effort: Too brief
-
-      - asking_clarifying_questions: Needs help
-
-      - off_topic: Not attempting
-
-      '
-    feedback_tokens_for_ai: 'Provide feedback for their specific language.
-
-      Show correct syntax for variable declaration (including type if their language requires it).
-
-      Explain how to output a variable in their language.
-
-      '
+    tokens_for_ai: |
+      Their program storing a name in a variable & displaying it. It should be in their chosen programming language (metadata.programming_language); working code in another language is partial_understanding. Any valid approach counts.
+    bucket_criteria:
+      correct: A variable called name holds their name & the variable itself is displayed.
+      partial_understanding: Has a variable but displays typed text instead, or skips a required type.
+      incorrect: No variable, or code that could not run.
+      limited_effort: A word or two, or no code at all.
+      off_topic: Not about this task.
+    required_elements:
+    - creates a variable holding their name as a string
+    - displays the variable, not the text typed again
+    feedback_tokens_for_ai: |
+      Feedback in their chosen language (metadata.programming_language), about their own code.
     buckets:
     - correct
-    - close
-    - missing_declaration
-    - wrong_output
-    - hardcoded_output
-    - wrong_language
+    - partial_understanding
+    - incorrect
     - limited_effort
-    - asking_clarifying_questions
+    - set_language
     - off_topic
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Perfect! You've created a variable and displayed it in [their language]. Explain how variables make code reusable and dynamic.
+          tokens_for_ai: Perfect! You've created a variable and displayed it in their language. Explain how variables make code reusable and dynamic.
         metadata_add:
           score: n+2
           concepts_mastered: n+1
         next_section_and_step: variables:step_2
-      close:
-        ai_feedback:
-          tokens_for_ai: Almost! Show the correct syntax and explain the issue.
+      partial_understanding:
         metadata_add:
-          score: n+1
-        next_section_and_step: variables:step_1
-      missing_declaration:
+          variable_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: make the variable first, then hand the variable''s name (no quotes) to your output call.'
+          show_if:
+            variable_tries_lt: 2
+        - text: '💡 Hint: statically typed languages want a type before the name (a string type); dynamic ones just assign.'
+          show_if:
+            variable_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: In [their language], you need to declare the variable type. Show the correct syntax with type declaration.
-        next_section_and_step: variables:step_1
-      wrong_output:
+          tokens_for_ai: 'Say what they got right, then name the one missing or wrong piece. Don''t write the solution for them, unless metadata.variable_tries is 3 or more: then show a complete working one.'
+      incorrect:
+        metadata_add:
+          variable_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: make the variable first, then hand the variable''s name (no quotes) to your output call.'
+          show_if:
+            variable_tries_lt: 2
+        - text: '💡 Hint: statically typed languages want a type before the name (a string type); dynamic ones just assign.'
+          show_if:
+            variable_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: You created the variable but didn't display it! Show how to output the variable in their language.
-        next_section_and_step: variables:step_1
-      hardcoded_output:
-        ai_feedback:
-          tokens_for_ai: You need to store the value in a variable first, then display the VARIABLE, not the string directly. Show the correct approach.
-        next_section_and_step: variables:step_1
-      wrong_language:
-        ai_feedback:
-          tokens_for_ai: 'That''s not [their language] syntax! Here''s how to create and display a variable in [their language]: [show code]'
-        next_section_and_step: variables:step_1
+          tokens_for_ai: 'Say kindly what their code would do instead, & which idea to reach for. Don''t write the solution for them, unless metadata.variable_tries is 3 or more: then show a complete working one.'
       limited_effort:
         content_blocks:
-        - Write the actual code! Create a variable and then display it.
-        next_section_and_step: variables:step_1
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question about variables in their specific language.
+        - 'Give it a go: a broken first try teaches more than none. Stuck? Ask a question.'
+      set_language:
+        content_blocks:
+        - Language preference updated.
+        metadata_add:
+          language: the-users-response
         counts_as_attempt: false
-        next_section_and_step: variables:step_1
       off_topic:
         content_blocks:
         - Create a variable with your name and display it using your chosen language.
-        next_section_and_step: variables:step_1
   - step_id: step_2
     title: Data Types
     content_blocks:
     - '## Understanding Data Types'
+    - text: '_Progress: {{metadata.concepts_mastered}} of 8 concepts · {{metadata.score}} points_'
+      show_if:
+        score_exists: true
     - ''
     - '### What Are Data Types?'
-    - 'Just as in real life we have different kinds of information (names, ages, prices, yes/no answers), programming has different **data types** to represent different kinds of values. The type of data determines what operations you can perform on it.'
+    - Just as in real life we have different kinds of information (names, ages, prices, yes/no answers), programming has different **data types** to represent different kinds of values. The type of data determines what operations you can perform on it.
     - ''
     - '### Why Data Types Matter'
     - 'Data types tell the computer:'
@@ -642,10 +529,10 @@ sections:
     - ''
     - '**Example in Java:**'
     - '```java'
-    - 'int age = 25;              // Integer type'
-    - 'double height = 1.75;      // Decimal type'
-    - 'String city = "Tokyo";     // String type'
-    - 'boolean isStudent = true;  // Boolean type'
+    - int age = 25;              // Integer type
+    - double height = 1.75;      // Decimal type
+    - String city = "Tokyo";     // String type
+    - boolean isStudent = true;  // Boolean type
     - '```'
     - ''
     - '**Dynamically Typed Languages** (Python, JavaScript, Ruby, PHP):'
@@ -666,25 +553,25 @@ sections:
     - ''
     - '**Python - f-strings (modern):**'
     - '```python'
-    - 'age = 25'
+    - age = 25
     - 'print(f"Age: {age}")  # Output: Age: 25'
     - '```'
     - ''
     - '**JavaScript - template literals:**'
     - '```javascript'
-    - 'let age = 25;'
+    - let age = 25;
     - 'console.log(`Age: ${age}`);  // Output: Age: 25'
     - '```'
     - ''
     - '**Java - concatenation:**'
     - '```java'
-    - 'int age = 25;'
+    - int age = 25;
     - 'System.out.println("Age: " + age);  // Output: Age: 25'
     - '```'
     - ''
     - '**C++ - stream insertion:**'
     - '```cpp'
-    - 'int age = 25;'
+    - int age = 25;
     - 'std::cout << "Age: " << age << std::endl;  // Output: Age: 25'
     - '```'
     - ''
@@ -695,117 +582,98 @@ sections:
     - '- Integer to float: Usually automatic in most languages'
     - ''
     - '### Now It''s Your Turn!'
-    - 'Practice working with multiple data types by creating variables of different types and displaying them with descriptive labels.'
+    - Practice working with multiple data types by creating variables of different types and displaying them with descriptive labels.
     question: 'Write a program with three variables: an integer (age), a decimal/float (height in meters), and a string (city). Display all three with labels, like ''Age: 25'', ''Height: 1.75'', ''City: Tokyo'''
-    tokens_for_ai: 'Check that student creates three variables of different types and outputs them with labels.
-
-
-      For their specific language:
-
-      - Integer variable
-
-      - Float/decimal variable
-
-      - String variable
-
-      - Outputs each with descriptive label
-
-
-      Categorize as:
-
-      - correct: All three types declared and outputted correctly
-
-      - close: Right idea, minor issues
-
-      - missing_types: In typed language, didn''t specify types
-
-      - wrong_types: Used wrong type for data (string for number, etc.)
-
-      - missing_labels: Outputted values but without labels
-
-      - incomplete: Missing one or more variables
-
-      - wrong_language: Used different language
-
-      - limited_effort: Too brief
-
-      - asking_clarifying_questions: Needs help
-
-      - off_topic: Not attempting
-
-      '
-    feedback_tokens_for_ai: 'For their language, show:
-
-      - How to declare each type
-
-      - How to output strings and variables together (concatenation or formatting)
-
-      - Any type-specific syntax
-
-
-      If statically typed language (Java, C++, etc.): ensure they declared types
-
-      If dynamically typed (Python, JavaScript, Ruby): explain that types are inferred
-
-      '
+    tokens_for_ai: |
+      Their program with three typed variables displayed with labels. It should be in their chosen programming language (metadata.programming_language); working code in another language is partial_understanding. Any valid approach counts.
+    bucket_criteria:
+      correct: Integer age, decimal height & string city, each displayed with its label.
+      partial_understanding: Most of it, but a type is wrong, a variable is missing or labels are missing.
+      incorrect: Not three variables of different types.
+      limited_effort: A word or two, or no code at all.
+      off_topic: Not about this task.
+    required_elements:
+    - an integer variable for age
+    - a decimal (floating-point) variable for height
+    - a string variable for city
+    - displays each value beside its label
+    feedback_tokens_for_ai: |
+      Feedback in their chosen language (metadata.programming_language), about their own code.
     buckets:
     - correct
-    - close
-    - missing_types
-    - wrong_types
-    - missing_labels
-    - incomplete
-    - wrong_language
+    - partial_understanding
+    - incorrect
     - limited_effort
-    - asking_clarifying_questions
+    - set_language
     - off_topic
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Excellent! You've worked with multiple data types in [their language]. Explain how different types are used for different purposes.
+          tokens_for_ai: Excellent! You've worked with multiple data types in their language. Explain how different types are used for different purposes.
         metadata_add:
           score: n+3
           concepts_mastered: n+1
-        next_section_and_step: control_flow:step_1
-      close:
-        ai_feedback:
-          tokens_for_ai: Good work! Show the corrected version and explain string concatenation or formatting in their language.
+        next_section_and_step: variables:type_check
+      partial_understanding:
         metadata_add:
-          score: n+2
-        next_section_and_step: variables:step_2
-      missing_types:
+          types_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: check each value''s kind: a whole number, a number with a decimal point, text.'
+          show_if:
+            types_tries_lt: 2
+        - text: '💡 Hint: to show a label beside a value, join them: `+`, a format string (f-string, printf, template string) or separate arguments.'
+          show_if:
+            types_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: In [their language], you need to specify variable types. Show the correct syntax with type declarations.
-        next_section_and_step: variables:step_2
-      wrong_types:
+          tokens_for_ai: 'Say what they got right, then name the one missing or wrong piece. Don''t write the solution for them, unless metadata.types_tries is 3 or more: then show a complete working one.'
+      incorrect:
+        metadata_add:
+          types_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: check each value''s kind: a whole number, a number with a decimal point, text.'
+          show_if:
+            types_tries_lt: 2
+        - text: '💡 Hint: to show a label beside a value, join them: `+`, a format string (f-string, printf, template string) or separate arguments.'
+          show_if:
+            types_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: Check your data types! Numbers shouldn't be in quotes (they'd be strings). Show the correct way to declare each type.
-        next_section_and_step: variables:step_2
-      missing_labels:
-        ai_feedback:
-          tokens_for_ai: 'Add labels like ''Age: 25'' so it''s clear what each value represents. Show how to combine strings and variables in their language.'
-        next_section_and_step: variables:step_2
-      incomplete:
-        ai_feedback:
-          tokens_for_ai: You need all three variables (integer, float, string). Show the complete code.
-        next_section_and_step: variables:step_2
-      wrong_language:
-        ai_feedback:
-          tokens_for_ai: 'That''s not [their language]! Here''s how to declare different types in [their language]: [show code]'
-        next_section_and_step: variables:step_2
+          tokens_for_ai: 'Say kindly what their code would do instead, & which idea to reach for. Don''t write the solution for them, unless metadata.types_tries is 3 or more: then show a complete working one.'
       limited_effort:
         content_blocks:
-        - Write complete code with all three variable types and display them with labels!
-        next_section_and_step: variables:step_2
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question about data types or string formatting in their language.
+        - 'Give it a go: a broken first try teaches more than none. Stuck? Ask a question.'
+      set_language:
+        content_blocks:
+        - Language preference updated.
+        metadata_add:
+          language: the-users-response
         counts_as_attempt: false
-        next_section_and_step: variables:step_2
       off_topic:
         content_blocks:
         - Create three variables of different types (integer, float, string) and display them.
-        next_section_and_step: variables:step_2
+  - step_id: type_check
+    title: 'Quick Check: Types'
+    question_type: multiple_choice
+    question: Which data type is `"42"`, quotes included?
+    choices:
+    - id: a
+      text: Integer
+    - id: b
+      text: Float
+    - id: c
+      text: String
+    - id: d
+      text: Boolean
+    answer: c
+    transitions:
+      correct:
+        content_blocks:
+        - 'Right: the quotes make it text. `42` without them is an integer.'
+        metadata_add:
+          score: n+1
+        next_section_and_step: control_flow:step_1
+      incorrect:
+        content_blocks:
+        - 'Not quite: look at the quotes around it.'
 - section_id: control_flow
   title: 'Control Flow: Making Decisions'
   steps:
@@ -813,9 +681,12 @@ sections:
     title: If Statements
     content_blocks:
     - '## Conditional Logic: Making Decisions 🔀'
+    - text: '_Progress: {{metadata.concepts_mastered}} of 8 concepts · {{metadata.score}} points_'
+      show_if:
+        score_exists: true
     - ''
     - '### What Is Conditional Logic?'
-    - 'Up until now, your programs have been linear - they execute every line in order from top to bottom. But real programs need to make **decisions** based on different situations. This is called **conditional logic** or **branching**.'
+    - Up until now, your programs have been linear - they execute every line in order from top to bottom. But real programs need to make **decisions** based on different situations. This is called **conditional logic** or **branching**.
     - ''
     - '### Why Do We Need Conditionals?'
     - 'Think about everyday decisions:'
@@ -823,10 +694,10 @@ sections:
     - '- "IF you have enough money, buy the item. ELSE, save up more."'
     - '- "IF the user is logged in, show their dashboard. ELSE, show the login page."'
     - ''
-    - 'Programs need to make similar decisions based on the current state or user input.'
+    - Programs need to make similar decisions based on the current state or user input.
     - ''
     - '### The If Statement'
-    - 'An **if statement** tests a **condition** (something that evaluates to true or false) and executes code only if that condition is true.'
+    - An **if statement** tests a **condition** (something that evaluates to true or false) and executes code only if that condition is true.
     - ''
     - '**Basic structure:**'
     - '```'
@@ -853,7 +724,7 @@ sections:
     - '- `<=` Less than or equal to'
     - ''
     - '**Examples:**'
-    - '- `age >= 18` → true if age is 18 or more, false otherwise'
+    - '- `score >= 50` → true if score is 50 or more, false otherwise'
     - '- `score == 100` → true if score is exactly 100'
     - '- `temperature > 30` → true if temperature exceeds 30'
     - ''
@@ -861,43 +732,43 @@ sections:
     - ''
     - '**Python:**'
     - '```python'
-    - 'age = 20'
-    - 'if age >= 18:'
-    - '    print("Adult")'
+    - temperature = 25
+    - 'if temperature >= 30:'
+    - '    print("Hot")'
     - 'else:'
-    - '    print("Minor")'
+    - '    print("Cool")'
     - '```'
     - 'Note: Python uses **indentation** to show which code belongs to the if/else blocks. Colons (`:`) start each block.'
     - ''
     - '**JavaScript:**'
     - '```javascript'
-    - 'let age = 20;'
-    - 'if (age >= 18) {'
-    - '    console.log("Adult");'
+    - let temperature = 25;
+    - if (temperature >= 30) {
+    - '    console.log("Hot");'
     - '} else {'
-    - '    console.log("Minor");'
+    - '    console.log("Cool");'
     - '}'
     - '```'
     - 'Note: Curly braces `{}` group the code blocks. Condition must be in parentheses `()`.'
     - ''
     - '**Java:**'
     - '```java'
-    - 'int age = 20;'
-    - 'if (age >= 18) {'
-    - '    System.out.println("Adult");'
+    - int temperature = 25;
+    - if (temperature >= 30) {
+    - '    System.out.println("Hot");'
     - '} else {'
-    - '    System.out.println("Minor");'
+    - '    System.out.println("Cool");'
     - '}'
     - '```'
-    - 'Similar to JavaScript - uses braces and parentheses.'
+    - Similar to JavaScript - uses braces and parentheses.
     - ''
     - '**C++:**'
     - '```cpp'
-    - 'int age = 20;'
-    - 'if (age >= 18) {'
-    - '    std::cout << "Adult" << std::endl;'
+    - int temperature = 25;
+    - if (temperature >= 30) {
+    - '    std::cout << "Hot" << std::endl;'
     - '} else {'
-    - '    std::cout << "Minor" << std::endl;'
+    - '    std::cout << "Cool" << std::endl;'
     - '}'
     - '```'
     - ''
@@ -905,136 +776,103 @@ sections:
     - 'You can chain multiple conditions using else-if:'
     - ''
     - '```python'
-    - 'if age < 13:'
-    - '    print("Child")'
-    - 'elif age < 18:      # else if in Python'
-    - '    print("Teen")'
+    - 'if temperature < 10:'
+    - '    print("Cold")'
+    - 'elif temperature < 30:      # else if in Python'
+    - '    print("Mild")'
     - 'else:'
-    - '    print("Adult")'
+    - '    print("Hot")'
     - '```'
     - ''
     - '### How the Computer Evaluates Conditionals'
-    - '1. Evaluate the condition (does it produce true or false?)'
-    - '2. If true, execute the if block and skip the else'
-    - '3. If false, skip the if block and execute the else'
-    - '4. Continue with the rest of the program'
+    - 1. Evaluate the condition (does it produce true or false?)
+    - 2. If true, execute the if block and skip the else
+    - 3. If false, skip the if block and execute the else
+    - 4. Continue with the rest of the program
     - ''
     - '### Boolean Logic'
     - 'Remember boolean data types? Conditions always evaluate to a boolean:'
-    - '- `age >= 18` → evaluates to `true` or `false`'
+    - '- `temperature >= 30` → evaluates to `true` or `false`'
     - '- You can also use boolean variables directly: `if isLoggedIn:`'
     - ''
     - '### Now It''s Your Turn!'
-    - 'Practice conditional logic by writing an if/else statement that checks age and displays different messages.'
+    - Practice conditional logic by writing an if/else statement that checks age and displays different messages.
     question: 'Write a program that: creates a variable for age, then uses an if/else statement to display ''Adult'' if age is 18 or older, or ''Minor'' if younger. Test with age = 20.'
-    tokens_for_ai: 'Check their if/else code in their chosen language.
-
-
-      Should have:
-
-      - Age variable (set to 20 or any value)
-
-      - If statement checking if age >= 18
-
-      - Displays "Adult" if true
-
-      - Else displays "Minor"
-
-      - Uses stdout for output
-
-
-      Categorize as:
-
-      - correct: Valid if/else in their language
-
-      - close: Right logic, minor syntax issues
-
-      - wrong_comparison: Used wrong operator (==, <, etc.)
-
-      - missing_else: Has if but no else
-
-      - logic_error: Backwards logic (minor when >= 18)
-
-      - wrong_language: Used different language
-
-      - limited_effort: Too brief
-
-      - asking_clarifying_questions: Needs help
-
-      - off_topic: Not attempting
-
-      '
-    feedback_tokens_for_ai: 'Show if/else syntax for their specific language.
-
-      Explain:
-
-      - Comparison operators in their language
-
-      - How to structure if/else blocks
-
-      - Any language-specific syntax (colons, braces, etc.)
-
-      '
+    tokens_for_ai: |
+      Their if/else program classifying an age. It should be in their chosen programming language (metadata.programming_language); working code in another language is partial_understanding. Any valid approach counts.
+    bucket_criteria:
+      correct: Displays Adult for 18 & older and Minor otherwise; age = 20 shows Adult.
+      partial_understanding: 'An if/else with one slip: wrong boundary (> 18), no else, swapped messages.'
+      incorrect: No conditional, or logic that could not tell adults from minors.
+      limited_effort: A word or two, or no code at all.
+      off_topic: Not about this task.
+    required_elements:
+    - an age variable
+    - a condition true when age is 18 or more
+    - Adult when it holds & Minor otherwise (an else branch)
+    feedback_tokens_for_ai: |
+      Feedback in their chosen language (metadata.programming_language), about their own code.
     buckets:
     - correct
-    - close
-    - wrong_comparison
-    - missing_else
-    - logic_error
-    - wrong_language
+    - partial_understanding
+    - incorrect
     - limited_effort
-    - asking_clarifying_questions
+    - set_language
     - off_topic
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Perfect if/else statement in [their language]! Explain how conditional logic lets programs make decisions.
+          tokens_for_ai: Perfect if/else statement in their language! Explain how conditional logic lets programs make decisions.
         metadata_add:
           score: n+3
           concepts_mastered: n+1
         next_section_and_step: control_flow:step_2
-      close:
-        ai_feedback:
-          tokens_for_ai: Good logic! Fix the minor syntax issue and show the correct version.
+      partial_understanding:
         metadata_add:
-          score: n+2
-        next_section_and_step: control_flow:step_1
-      wrong_comparison:
+          if_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: check each piece: an age variable, a test that is true for 18 itself, & an else for everyone younger.'
+          show_if:
+            if_tries_lt: 2
+        - text: '💡 Hint: the shape is if (condition) show one word, else show the other.'
+          show_if:
+            if_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: Check your comparison operator! You need 'greater than or equal to 18'. Show the correct operator for their language (>=).
-        next_section_and_step: control_flow:step_1
-      missing_else:
+          tokens_for_ai: 'Say what they got right, then name the one missing or wrong piece. Don''t write the solution for them, unless metadata.if_tries is 3 or more: then show a complete working one.'
+      incorrect:
+        metadata_add:
+          if_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: check each piece: an age variable, a test that is true for 18 itself, & an else for everyone younger.'
+          show_if:
+            if_tries_lt: 2
+        - text: '💡 Hint: the shape is if (condition) show one word, else show the other.'
+          show_if:
+            if_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: You need an else clause for when age < 18. Show the complete if/else structure in their language.
-        next_section_and_step: control_flow:step_1
-      logic_error:
-        ai_feedback:
-          tokens_for_ai: Your logic is backwards! Age >= 18 should be 'Adult', not 'Minor'. Show the corrected version.
-        next_section_and_step: control_flow:step_1
-      wrong_language:
-        ai_feedback:
-          tokens_for_ai: 'That''s not [their language] syntax! Here''s how if/else works in [their language]: [show code]'
-        next_section_and_step: control_flow:step_1
+          tokens_for_ai: 'Say kindly what their code would do instead, & which idea to reach for. Don''t write the solution for them, unless metadata.if_tries is 3 or more: then show a complete working one.'
       limited_effort:
         content_blocks:
-        - Write the complete if/else code to check age and display the appropriate message!
-        next_section_and_step: control_flow:step_1
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question about if/else statements in their language.
+        - 'Give it a go: a broken first try teaches more than none. Stuck? Ask a question.'
+      set_language:
+        content_blocks:
+        - Language preference updated.
+        metadata_add:
+          language: the-users-response
         counts_as_attempt: false
-        next_section_and_step: control_flow:step_1
       off_topic:
         content_blocks:
         - Write an if/else statement to check if age is 18 or older.
-        next_section_and_step: control_flow:step_1
   - step_id: step_2
     title: Loops
     content_blocks:
     - '## Loops: Repeating Actions 🔁'
+    - text: '_Progress: {{metadata.concepts_mastered}} of 8 concepts · {{metadata.score}} points_'
+      show_if:
+        score_exists: true
     - ''
     - '### What Are Loops?'
-    - 'Imagine you want to display numbers 1 through 1000. Would you write 1000 print statements? Of course not! **Loops** let you repeat code multiple times without writing it over and over.'
+    - Imagine you want to display numbers 1 through 1000. Would you write 1000 print statements? Of course not! **Loops** let you repeat code multiple times without writing it over and over.
     - ''
     - '### Why Do We Need Loops?'
     - 'Loops are essential for:'
@@ -1043,7 +881,7 @@ sections:
     - '- **Automation:** Doing the same thing many times efficiently'
     - '- **Iteration:** Repeating until a goal is reached'
     - ''
-    - 'Without loops, programs would be extremely limited and repetitive!'
+    - Without loops, programs would be extremely limited and repetitive!
     - ''
     - '### The Two Main Types of Loops'
     - ''
@@ -1059,67 +897,65 @@ sections:
     - ''
     - '### For Loops in Detail'
     - 'A for loop typically has three parts:'
-    - '1. **Initialization:** Set up a counter variable'
-    - '2. **Condition:** When to stop looping'
-    - '3. **Update:** How to change the counter after each iteration'
+    - 1. **Initialization:** Set up a counter variable
+    - 2. **Condition:** When to stop looping
+    - 3. **Update:** How to change the counter after each iteration
     - ''
     - '### For Loops in Different Languages'
     - ''
     - '**Python (using range):**'
     - '```python'
-    - 'for i in range(1, 6):  # Start at 1, stop before 6 (so 1,2,3,4,5)'
+    - 'for i in range(1, 4):  # Start at 1, stop before 4 (so 1,2,3)'
     - '    print(i)'
     - '```'
-    - 'Python''s `range(start, stop)` generates numbers from start up to (but not including) stop.'
+    - Python's `range(start, stop)` generates numbers from start up to (but not including) stop.
     - ''
     - '**JavaScript (C-style):**'
     - '```javascript'
-    - 'for (let i = 1; i <= 5; i++) {  // Start; Condition; Increment'
+    - for (let i = 1; i <= 3; i++) {  // Start; Condition; Increment
     - '    console.log(i);'
     - '}'
     - '```'
     - 'Breaking it down:'
     - '- `let i = 1` - Initialize counter to 1'
-    - '- `i <= 5` - Keep going while i is 5 or less'
+    - '- `i <= 3` - Keep going while i is 3 or less'
     - '- `i++` - Add 1 to i after each iteration (`++` means increment by 1)'
     - ''
     - '**Java (same as JavaScript):**'
     - '```java'
-    - 'for (int i = 1; i <= 5; i++) {'
+    - for (int i = 1; i <= 3; i++) {
     - '    System.out.println(i);'
     - '}'
     - '```'
     - ''
     - '**C++ (same pattern):**'
     - '```cpp'
-    - 'for (int i = 1; i <= 5; i++) {'
+    - for (int i = 1; i <= 3; i++) {
     - '    std::cout << i << std::endl;'
     - '}'
     - '```'
     - ''
     - '**Ruby:**'
     - '```ruby'
-    - '(1..5).each do |i|  # Range from 1 to 5'
+    - '(1..3).each do |i|  # Range from 1 to 3'
     - '    puts i'
-    - 'end'
+    - end
     - '```'
     - ''
     - '**Go:**'
     - '```go'
-    - 'for i := 1; i <= 5; i++ {'
+    - for i := 1; i <= 3; i++ {
     - '    fmt.Println(i)'
     - '}'
     - '```'
     - ''
     - '### How a For Loop Executes'
-    - 'Let''s trace through `for (let i = 1; i <= 5; i++)`:'
+    - 'Let''s trace through `for (let i = 1; i <= 3; i++)`:'
     - ''
-    - '1. **Iteration 1:** i=1, check 1<=5 (true), print 1, increment to i=2'
-    - '2. **Iteration 2:** i=2, check 2<=5 (true), print 2, increment to i=3'
-    - '3. **Iteration 3:** i=3, check 3<=5 (true), print 3, increment to i=4'
-    - '4. **Iteration 4:** i=4, check 4<=5 (true), print 4, increment to i=5'
-    - '5. **Iteration 5:** i=5, check 5<=5 (true), print 5, increment to i=6'
-    - '6. **Check:** i=6, check 6<=5 (false), exit loop'
+    - 1. **Iteration 1:** i=1, check 1<=3 (true), print 1, increment to i=2
+    - 2. **Iteration 2:** i=2, check 2<=3 (true), print 2, increment to i=3
+    - 3. **Iteration 3:** i=3, check 3<=3 (true), print 3, increment to i=4
+    - 4. **Check:** i=4, check 4<=3 (false), exit loop
     - ''
     - '### The Loop Variable'
     - 'The variable `i` is called the **loop variable** or **counter**:'
@@ -1154,127 +990,72 @@ sections:
     - '- Modifying the counter incorrectly inside the loop'
     - ''
     - '### Now It''s Your Turn!'
-    - 'Practice loops by writing a simple counting loop that displays numbers 1 through 5.'
+    - Practice loops by writing a counting loop of your own.
     question: Write a program using a for loop that displays the numbers 1 through 5 to stdout, each on its own line.
-    tokens_for_ai: 'Check their for loop code in their chosen language.
-
-
-      Should:
-
-      - Use a for loop (or equivalent iteration construct)
-
-      - Display numbers 1, 2, 3, 4, 5
-
-      - Each number on separate line
-
-      - Use stdout
-
-
-      Note: Loop syntax varies WIDELY between languages!
-
-      - Python: for i in range(1, 6): print(i)
-
-      - JavaScript: for (let i = 1; i <= 5; i++) console.log(i);
-
-      - Java: for (int i = 1; i <= 5; i++) System.out.println(i);
-
-      - C++: for (int i = 1; i <= 5; i++) std::cout << i << std::endl;
-
-
-      Categorize as:
-
-      - correct: Valid for loop in their language
-
-      - close: Right idea, minor syntax issues
-
-      - off_by_one: Shows 0-4 or 1-6 instead of 1-5
-
-      - wrong_loop_type: Used while instead of for (acceptable if works)
-
-      - missing_output: Loop exists but doesn''t display
-
-      - wrong_language: Used different language
-
-      - limited_effort: Too brief
-
-      - asking_clarifying_questions: Needs help
-
-      - off_topic: Not attempting
-
-      '
-    feedback_tokens_for_ai: 'Show for loop syntax for their specific language.
-
-      Explain:
-
-      - How to initialize loop variable
-
-      - How to set the condition
-
-      - How to increment
-
-      - Language-specific syntax (parentheses, colons, braces, etc.)
-
-
-      If they used a while loop that works, that''s acceptable - mention that for loops
-
-      are more common for counting.
-
-      '
+    tokens_for_ai: |
+      Their loop displaying 1 through 5. A while loop or range iteration counts too. It should be in their chosen programming language (metadata.programming_language); working code in another language is partial_understanding. Any valid approach counts.
+    bucket_criteria:
+      correct: A loop displays exactly 1, 2, 3, 4, 5, one per line.
+      partial_understanding: A loop that is off by one (0-4, 1-6) or never displays.
+      incorrect: No loop (five separate output lines), or a loop that never ends.
+      limited_effort: A word or two, or no code at all.
+      off_topic: Not about this task.
+    required_elements:
+    - a loop, not five separate output lines
+    - displays exactly 1 to 5, each on its own line
+    feedback_tokens_for_ai: |
+      Feedback in their chosen language (metadata.programming_language), about their own code.
     buckets:
     - correct
-    - close
-    - off_by_one
-    - wrong_loop_type
-    - missing_output
-    - wrong_language
+    - partial_understanding
+    - incorrect
     - limited_effort
-    - asking_clarifying_questions
+    - set_language
     - off_topic
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Excellent for loop in [their language]! Explain how loops save you from writing repetitive code.
+          tokens_for_ai: Excellent for loop in their language! Explain how loops save you from writing repetitive code.
         metadata_add:
           score: n+3
           concepts_mastered: n+1
         next_section_and_step: functions:step_1
-      close:
-        ai_feedback:
-          tokens_for_ai: Good approach! Fix the syntax issue and show the correct version.
+      partial_understanding:
         metadata_add:
-          score: n+2
-        next_section_and_step: control_flow:step_2
-      off_by_one:
+          loop_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: where does your counter start, & where does it stop? Check both 1 & 5 are shown.'
+          show_if:
+            loop_tries_lt: 2
+        - text: '💡 Hint: if your language counts with a range, check whether the range''s end is included.'
+          show_if:
+            loop_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: Close! But you're displaying the wrong numbers. Should be 1-5. Show the corrected loop for their language.
-        next_section_and_step: control_flow:step_2
-      wrong_loop_type:
-        ai_feedback:
-          tokens_for_ai: Your while loop works! But try using a for loop - it's more common for counting. Show the for loop version.
+          tokens_for_ai: 'Say what they got right, then name the one missing or wrong piece. Don''t write the solution for them, unless metadata.loop_tries is 3 or more: then show a complete working one.'
+      incorrect:
         metadata_add:
-          score: n+2
-        next_section_and_step: functions:step_1
-      missing_output:
+          loop_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: where does your counter start, & where does it stop? Check both 1 & 5 are shown.'
+          show_if:
+            loop_tries_lt: 2
+        - text: '💡 Hint: if your language counts with a range, check whether the range''s end is included.'
+          show_if:
+            loop_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: You have a loop but it's not displaying anything! Add output inside the loop body.
-        next_section_and_step: control_flow:step_2
-      wrong_language:
-        ai_feedback:
-          tokens_for_ai: 'That''s not [their language]! Here''s the for loop syntax in [their language]: [show code]'
-        next_section_and_step: control_flow:step_2
+          tokens_for_ai: 'Say kindly what their code would do instead, & which idea to reach for. Don''t write the solution for them, unless metadata.loop_tries is 3 or more: then show a complete working one.'
       limited_effort:
         content_blocks:
-        - Write a complete for loop that displays 1, 2, 3, 4, 5!
-        next_section_and_step: control_flow:step_2
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question about for loops in their specific language.
+        - 'Give it a go: a broken first try teaches more than none. Stuck? Ask a question.'
+      set_language:
+        content_blocks:
+        - Language preference updated.
+        metadata_add:
+          language: the-users-response
         counts_as_attempt: false
-        next_section_and_step: control_flow:step_2
       off_topic:
         content_blocks:
         - Write a for loop that displays numbers 1 through 5.
-        next_section_and_step: control_flow:step_2
 - section_id: functions
   title: 'Functions: Reusable Code'
   steps:
@@ -1282,9 +1063,12 @@ sections:
     title: Creating Functions
     content_blocks:
     - '## Functions: Organize and Reuse Your Code 📦'
+    - text: '_Progress: {{metadata.concepts_mastered}} of 8 concepts · {{metadata.score}} points_'
+      show_if:
+        score_exists: true
     - ''
     - '### What Are Functions?'
-    - 'A **function** is a named block of reusable code that performs a specific task. Think of it as a mini-program within your program. Functions are one of the most important concepts in programming because they let you organize code and avoid repetition.'
+    - A **function** is a named block of reusable code that performs a specific task. Think of it as a mini-program within your program. Functions are one of the most important concepts in programming because they let you organize code and avoid repetition.
     - ''
     - '### Why Do We Need Functions?'
     - ''
@@ -1314,10 +1098,10 @@ sections:
     - ''
     - 'Every function has these parts:'
     - ''
-    - '1. **Name:** What you call the function (`greet`, `calculateTotal`, `isValid`)'
-    - '2. **Parameters:** Inputs the function needs (optional)'
-    - '3. **Body:** The code that runs when you call the function'
-    - '4. **Return value:** What the function sends back (optional)'
+    - 1. **Name:** What you call the function (`welcome`, `calculateTotal`, `isValid`)
+    - 2. **Parameters:** Inputs the function needs (optional)
+    - 3. **Body:** The code that runs when you call the function
+    - 4. **Return value:** What the function sends back (optional)
     - ''
     - '**Defining vs Calling:**'
     - '- **Definition** = Creating the function (writing the recipe)'
@@ -1328,48 +1112,48 @@ sections:
     - '**Python:**'
     - '```python'
     - '# Define the function'
-    - 'def greet(name):                    # def = define, name = parameter'
-    - '    print(f"Hello, {name}!")        # Function body (indented)'
+    - 'def welcome(city):                    # def = define, city = parameter'
+    - '    print(f"Welcome to {city}!")        # Function body (indented)'
     - ''
     - '# Call the function'
-    - 'greet("Alice")                      # Output: Hello, Alice!'
-    - 'greet("Bob")                        # Output: Hello, Bob!'
+    - 'welcome("Paris")                      # Output: Welcome to Paris!'
+    - 'welcome("Lima")                        # Output: Welcome to Lima!'
     - '```'
     - ''
     - '**JavaScript:**'
     - '```javascript'
-    - '// Define the function'
-    - 'function greet(name) {              // function keyword'
-    - '    console.log(`Hello, ${name}!`); // Function body in braces'
+    - // Define the function
+    - function welcome(city) {              // function keyword
+    - '    console.log(`Welcome to ${city}!`); // Function body in braces'
     - '}'
     - ''
-    - '// Call the function'
-    - 'greet("Alice");                     // Output: Hello, Alice!'
-    - 'greet("Bob");                       // Output: Hello, Bob!'
+    - // Call the function
+    - 'welcome("Paris");                     // Output: Welcome to Paris!'
+    - 'welcome("Lima");                       // Output: Welcome to Lima!'
     - '```'
     - ''
     - '**Java:**'
     - '```java'
-    - '// Define the function (method)'
-    - 'void greet(String name) {                      // void = no return value'
-    - '    System.out.println("Hello, " + name + "!");'
+    - // Define the function (method)
+    - void welcome(String city) {                      // void = no return value
+    - '    System.out.println("Welcome to " + city + "!");'
     - '}'
     - ''
-    - '// Call the function'
-    - 'greet("Alice");'
-    - 'greet("Bob");'
+    - // Call the function
+    - welcome("Paris");
+    - welcome("Lima");
     - '```'
     - ''
     - '**C++:**'
     - '```cpp'
-    - '// Define the function'
-    - 'void greet(std::string name) {                 // void = no return'
-    - '    std::cout << "Hello, " << name << "!" << std::endl;'
+    - // Define the function
+    - void welcome(std::string city) {                 // void = no return
+    - '    std::cout << "Welcome to " << city << "!" << std::endl;'
     - '}'
     - ''
-    - '// Call the function'
-    - 'greet("Alice");'
-    - 'greet("Bob");'
+    - // Call the function
+    - welcome("Paris");
+    - welcome("Lima");
     - '```'
     - ''
     - '### Understanding Parameters'
@@ -1377,23 +1161,23 @@ sections:
     - '**Parameters** (also called arguments) are values you pass into a function:'
     - ''
     - '```python'
-    - 'def greet(name):       # "name" is a parameter'
-    - '    print(f"Hello, {name}!")'
+    - 'def welcome(city):       # "city" is a parameter'
+    - '    print(f"Welcome to {city}!")'
     - ''
-    - 'greet("Alice")         # "Alice" is the argument passed to name'
+    - 'welcome("Paris")         # "Paris" is the argument passed to city'
     - '```'
     - ''
-    - 'When you call `greet("Alice")`:'
-    - '1. The value `"Alice"` is passed to the function'
-    - '2. Inside the function, `name = "Alice"`'
-    - '3. The function can use `name` like any other variable'
+    - 'When you call `welcome("Paris")`:'
+    - 1. The value `"Paris"` is passed to the function
+    - 2. Inside the function, `city = "Paris"`
+    - 3. The function can use `city` like any other variable
     - ''
     - '**Multiple parameters:**'
     - '```python'
-    - 'def greet(first_name, last_name):'
-    - '    print(f"Hello, {first_name} {last_name}!")'
+    - 'def welcome(city, country):'
+    - '    print(f"Welcome to {city}, {country}!")'
     - ''
-    - 'greet("Alice", "Smith")  # Output: Hello, Alice Smith!'
+    - 'welcome("Paris", "France")  # Output: Welcome to Paris, France!'
     - '```'
     - ''
     - '### The DRY Principle'
@@ -1401,22 +1185,22 @@ sections:
     - ''
     - '**Without functions (repetitive):**'
     - '```python'
-    - 'print("Hello, Alice!")'
-    - 'print("Hello, Bob!")'
-    - 'print("Hello, Carol!")'
+    - print("Welcome to Paris!")
+    - print("Welcome to Lima!")
+    - print("Welcome to Oslo!")
     - '```'
     - ''
     - '**With functions (DRY):**'
     - '```python'
-    - 'def greet(name):'
-    - '    print(f"Hello, {name}!")'
+    - 'def welcome(city):'
+    - '    print(f"Welcome to {city}!")'
     - ''
-    - 'greet("Alice")'
-    - 'greet("Bob")'
-    - 'greet("Carol")'
+    - welcome("Paris")
+    - welcome("Lima")
+    - welcome("Oslo")
     - '```'
     - ''
-    - 'If you need to change the greeting format, you only change it in ONE place (the function), not everywhere it''s used!'
+    - If you need to change the message, you only change it in ONE place (the function), not everywhere it's used!
     - ''
     - '### Function Naming Conventions'
     - 'Choose clear, descriptive names that describe what the function does:'
@@ -1427,125 +1211,83 @@ sections:
     - 'Use verb names since functions perform actions: `get`, `set`, `calculate`, `validate`, `send`, `display`'
     - ''
     - '### Now It''s Your Turn!'
-    - 'Practice creating and calling a function with a parameter.'
+    - Practice creating and calling a function with a parameter.
     question: Write a function called 'greet' that takes a name as a parameter and displays 'Hello, [name]!' to stdout. Then call the function with your own name.
-    tokens_for_ai: 'Check their function code in their chosen language.
-
-
-      Should have:
-
-      - Function definition/declaration named ''greet''
-
-      - Takes one parameter (name)
-
-      - Outputs "Hello, [name]!" to stdout
-
-      - Function is called with a name
-
-
-      Function syntax varies greatly:
-
-      - Python: def greet(name): \\n    print(f"Hello, {name}!")
-
-      - JavaScript: function greet(name) { console.log(\`Hello, ${name}!\`); }
-
-      - Java: void greet(String name) { System.out.println("Hello, " + name + "!"); }
-
-
-      Categorize as:
-
-      - correct: Valid function definition and call
-
-      - close: Right idea, minor syntax issues
-
-      - missing_call: Defined function but didn''t call it
-
-      - missing_parameter: Function doesn''t take parameter
-
-      - hardcoded_name: Doesn''t use parameter, outputs fixed name
-
-      - wrong_language: Used different language
-
-      - limited_effort: Too brief
-
-      - asking_clarifying_questions: Needs help
-
-      - off_topic: Not attempting
-
-      '
-    feedback_tokens_for_ai: 'For their language, explain:
-
-      - How to define a function
-
-      - How to specify parameters
-
-      - How to use parameters inside function
-
-      - How to call the function
-
-      - Any language-specific syntax (def, function keyword, return types, etc.)
-
-      '
+    tokens_for_ai: |
+      Their greet function & its call. It should be in their chosen programming language (metadata.programming_language); working code in another language is partial_understanding. Any valid approach counts.
+    bucket_criteria:
+      correct: greet takes a name, displays Hello, <name>! & is called with a name.
+      partial_understanding: 'A function with one piece missing: no call, no parameter, or a fixed name.'
+      incorrect: No function.
+      limited_effort: A word or two, or no code at all.
+      off_topic: Not about this task.
+    required_elements:
+    - defines a function greet with one parameter
+    - displays Hello, the parameter's value & !
+    - calls greet with a name
+    feedback_tokens_for_ai: |
+      Feedback in their chosen language (metadata.programming_language), about their own code.
     buckets:
     - correct
-    - close
-    - missing_call
-    - missing_parameter
-    - hardcoded_name
-    - wrong_language
+    - partial_understanding
+    - incorrect
     - limited_effort
-    - asking_clarifying_questions
+    - set_language
     - off_topic
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Perfect function in [their language]! You've defined it, used a parameter, and called it. Explain how functions make code reusable.
+          tokens_for_ai: Perfect function in their language! You've defined it, used a parameter, and called it. Explain how functions make code reusable.
         metadata_add:
           score: n+3
           concepts_mastered: n+1
         next_section_and_step: functions:step_2
-      close:
-        ai_feedback:
-          tokens_for_ai: Good function structure! Fix the syntax issue and show the corrected version.
+      partial_understanding:
         metadata_add:
-          score: n+2
-        next_section_and_step: functions:step_1
-      missing_call:
+          greet_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: defining a function doesn''t run it. Did you call it?'
+          show_if:
+            greet_tries_lt: 2
+        - text: '💡 Hint: inside the function, use the parameter, never a fixed name.'
+          show_if:
+            greet_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: You defined the function but didn't call it! Show how to call the function with a name.
-        next_section_and_step: functions:step_1
-      missing_parameter:
+          tokens_for_ai: 'Say what they got right, then name the one missing or wrong piece. Don''t write the solution for them, unless metadata.greet_tries is 3 or more: then show a complete working one.'
+      incorrect:
+        metadata_add:
+          greet_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: defining a function doesn''t run it. Did you call it?'
+          show_if:
+            greet_tries_lt: 2
+        - text: '💡 Hint: inside the function, use the parameter, never a fixed name.'
+          show_if:
+            greet_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: Your function needs to accept a name parameter! Show how to add parameters in their language.
-        next_section_and_step: functions:step_1
-      hardcoded_name:
-        ai_feedback:
-          tokens_for_ai: You need to USE the parameter inside the function, not hardcode a name. Show how to use the parameter.
-        next_section_and_step: functions:step_1
-      wrong_language:
-        ai_feedback:
-          tokens_for_ai: 'That''s not [their language]! Here''s how to define and call functions in [their language]: [show code]'
-        next_section_and_step: functions:step_1
+          tokens_for_ai: 'Say kindly what their code would do instead, & which idea to reach for. Don''t write the solution for them, unless metadata.greet_tries is 3 or more: then show a complete working one.'
       limited_effort:
         content_blocks:
-        - Write a complete function that takes a name parameter and displays a greeting!
-        next_section_and_step: functions:step_1
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question about functions in their specific language.
+        - 'Give it a go: a broken first try teaches more than none. Stuck? Ask a question.'
+      set_language:
+        content_blocks:
+        - Language preference updated.
+        metadata_add:
+          language: the-users-response
         counts_as_attempt: false
-        next_section_and_step: functions:step_1
       off_topic:
         content_blocks:
         - Create a function that takes a name and displays a greeting.
-        next_section_and_step: functions:step_1
   - step_id: step_2
     title: Return Values
     content_blocks:
     - '## Functions That Return Values'
+    - text: '_Progress: {{metadata.concepts_mastered}} of 8 concepts · {{metadata.score}} points_'
+      show_if:
+        score_exists: true
     - ''
     - '### Display vs Return: A Critical Difference'
-    - 'So far, our `greet` function **displayed** output directly to stdout. But functions can also **return** values that can be used elsewhere. This is a crucial concept that many beginners find confusing at first.'
+    - So far, our `greet` function **displayed** output directly to stdout. But functions can also **return** values that can be used elsewhere. This is a crucial concept that many beginners find confusing at first.
     - ''
     - '**Displaying (printing):**'
     - '- Shows output to the user immediately'
@@ -1559,7 +1301,7 @@ sections:
     - ''
     - '### Why Return Values?'
     - ''
-    - 'Imagine a calculator. It doesn''t just print results on paper - it gives you the answer so you can use it in the next calculation. That''s what return values do!'
+    - Imagine a calculator. It doesn't just print results on paper - it gives you the answer so you can use it in the next calculation. That's what return values do!
     - ''
     - '**Return values let you:**'
     - '- **Calculate and send back results:** `calculateTax(100)` returns `15`'
@@ -1571,19 +1313,19 @@ sections:
     - ''
     - '**Function that displays:**'
     - '```python'
-    - 'def add(a, b):'
-    - '    print(a + b)        # Shows result but can''t reuse it'
+    - 'def multiply(a, b):'
+    - '    print(a * b)        # Shows result but can''t reuse it'
     - ''
-    - 'add(5, 3)               # Displays: 8'
-    - 'result = add(5, 3)      # result = None (nothing returned!)'
+    - 'multiply(4, 2)               # Displays: 8'
+    - 'result = multiply(4, 2)      # result = None (nothing returned!)'
     - '```'
     - ''
     - '**Function that returns:**'
     - '```python'
-    - 'def add(a, b):'
-    - '    return a + b        # Sends result back to caller'
+    - 'def multiply(a, b):'
+    - '    return a * b        # Sends result back to caller'
     - ''
-    - 'result = add(5, 3)      # result = 8 (can use it!)'
+    - 'result = multiply(4, 2)      # result = 8 (can use it!)'
     - 'print(result)           # Displays: 8'
     - 'double = result * 2     # Can do more calculations!'
     - '```'
@@ -1591,56 +1333,56 @@ sections:
     - '### The Return Statement'
     - ''
     - 'The **return statement** does two things:'
-    - '1. Sends a value back to whoever called the function'
-    - '2. Immediately exits the function (no code after return runs)'
+    - 1. Sends a value back to whoever called the function
+    - 2. Immediately exits the function (no code after return runs)
     - ''
     - '**Syntax in different languages:**'
     - '```python'
     - 'return value            # Python'
     - '```'
     - '```javascript'
-    - 'return value;           // JavaScript, Java, C++, etc.'
+    - return value;           // JavaScript, Java, C++, etc.
     - '```'
     - ''
     - '### Return Values in Different Languages'
     - ''
     - '**Python:**'
     - '```python'
-    - 'def add(a, b):'
-    - '    return a + b'
+    - 'def multiply(a, b):'
+    - '    return a * b'
     - ''
-    - 'result = add(5, 3)      # result = 8'
+    - 'result = multiply(4, 2)      # result = 8'
     - 'print(result)           # Display the result'
     - '```'
     - ''
     - '**JavaScript:**'
     - '```javascript'
-    - 'function add(a, b) {'
-    - '    return a + b;'
+    - function multiply(a, b) {
+    - '    return a * b;'
     - '}'
     - ''
-    - 'let result = add(5, 3);'
+    - let result = multiply(4, 2);
     - 'console.log(result);    // Output: 8'
     - '```'
     - ''
     - '**Java:**'
     - '```java'
-    - 'int add(int a, int b) {        // int before name = return type'
-    - '    return a + b;'
+    - int multiply(int a, int b) {        // int before name = return type
+    - '    return a * b;'
     - '}'
     - ''
-    - 'int result = add(5, 3);'
+    - int result = multiply(4, 2);
     - 'System.out.println(result);    // Output: 8'
     - '```'
     - 'Note: In statically typed languages like Java/C++, you must declare the return type!'
     - ''
     - '**C++:**'
     - '```cpp'
-    - 'int add(int a, int b) {        // int = return type'
-    - '    return a + b;'
+    - int multiply(int a, int b) {        // int = return type
+    - '    return a * b;'
     - '}'
     - ''
-    - 'int result = add(5, 3);'
+    - int result = multiply(4, 2);
     - 'std::cout << result << std::endl;  // Output: 8'
     - '```'
     - ''
@@ -1652,7 +1394,7 @@ sections:
     - ''
     - '**Statically typed languages** (Java, C++, C#, Go):'
     - '- Must declare return type before function name'
-    - '- `int add(...)` means function returns an integer'
+    - '- `int multiply(...)` means function returns an integer'
     - '- `String getName(...)` means function returns a string'
     - '- `void doSomething(...)` means function returns nothing'
     - ''
@@ -1662,22 +1404,22 @@ sections:
     - ''
     - '**Store it in a variable:**'
     - '```python'
-    - 'sum = add(5, 3)        # sum = 8'
+    - 'product = multiply(4, 2)    # product = 8'
     - '```'
     - ''
     - '**Use it in calculations:**'
     - '```python'
-    - 'total = add(5, 3) * 2  # total = 16'
+    - 'total = multiply(4, 2) * 2  # total = 16'
     - '```'
     - ''
     - '**Pass it to another function:**'
     - '```python'
-    - 'print(add(5, 3))       # Displays 8'
+    - 'print(multiply(4, 2))       # Displays 8'
     - '```'
     - ''
     - '**Use it in conditionals:**'
     - '```python'
-    - 'if add(5, 3) > 10:'
+    - 'if multiply(4, 2) > 10:'
     - '    print("Big number!")'
     - '```'
     - ''
@@ -1685,26 +1427,26 @@ sections:
     - ''
     - '**Mistake 1: Forgetting to return**'
     - '```python'
-    - 'def add(a, b):'
-    - '    a + b              # Calculates but doesn''t return!'
+    - 'def multiply(a, b):'
+    - '    a * b              # Calculates but doesn''t return!'
     - ''
-    - 'result = add(5, 3)     # result = None ❌'
+    - 'result = multiply(4, 2)     # result = None ❌'
     - '```'
     - ''
     - '**Mistake 2: Printing instead of returning**'
     - '```python'
-    - 'def add(a, b):'
-    - '    print(a + b)       # Displays but doesn''t return!'
+    - 'def multiply(a, b):'
+    - '    print(a * b)       # Displays but doesn''t return!'
     - ''
-    - 'result = add(5, 3)     # Shows 8, but result = None ❌'
+    - 'result = multiply(4, 2)     # Shows 8, but result = None ❌'
     - '```'
     - ''
     - '**Correct:**'
     - '```python'
-    - 'def add(a, b):'
-    - '    return a + b       # Returns the value ✓'
+    - 'def multiply(a, b):'
+    - '    return a * b       # Returns the value ✓'
     - ''
-    - 'result = add(5, 3)     # result = 8 ✓'
+    - 'result = multiply(4, 2)     # result = 8 ✓'
     - '```'
     - ''
     - '### When to Display vs Return'
@@ -1723,112 +1465,73 @@ sections:
     - '**Best practice:** Most functions should return values. Let the caller decide whether to display them.'
     - ''
     - '### Now It''s Your Turn!'
-    - 'Practice creating a function that returns a value, then using that returned value.'
+    - Practice creating a function that returns a value, then using that returned value.
     question: Write a function called 'add' that takes two numbers as parameters, returns their sum, and then call it with 5 and 3 and display the result to stdout.
-    tokens_for_ai: 'Check their function with return value.
-
-
-      Should have:
-
-      - Function named ''add''
-
-      - Takes two parameters (numbers)
-
-      - Returns the sum
-
-      - Function is called with 5 and 3
-
-      - Result is displayed to stdout
-
-
-      Categorize as:
-
-      - correct: Valid function with return, called correctly, result displayed
-
-      - close: Right idea, minor issues
-
-      - displays_instead_of_return: Function outputs instead of returning
-
-      - missing_display: Returns but doesn''t display result
-
-      - missing_call: Defined but didn''t call
-
-      - wrong_language: Used different language
-
-      - limited_effort: Too brief
-
-      - asking_clarifying_questions: Needs help
-
-      - off_topic: Not attempting
-
-      '
-    feedback_tokens_for_ai: 'For their language, explain:
-
-      - How to return a value (return keyword or equivalent)
-
-      - Difference between returning and displaying
-
-      - How to capture and use returned value
-
-      - How to display the result
-
-
-      Some languages (like early BASIC) don''t have explicit return statements - be flexible!
-
-      '
+    tokens_for_ai: |
+      Their add function, its call with 5 & 3 & the displayed result. It should be in their chosen programming language (metadata.programming_language); working code in another language is partial_understanding. Any valid approach counts.
+    bucket_criteria:
+      correct: add returns the sum; the call add(5, 3) is displayed (8).
+      partial_understanding: add prints instead of returning, isn't called, or the result isn't displayed.
+      incorrect: No function, or it doesn't add.
+      limited_effort: A word or two, or no code at all.
+      off_topic: Not about this task.
+    required_elements:
+    - defines add with two parameters
+    - returns their sum rather than only displaying it
+    - calls add with 5 & 3 & displays what it returns
+    feedback_tokens_for_ai: |
+      Feedback in their chosen language (metadata.programming_language), about their own code.
     buckets:
     - correct
-    - close
-    - displays_instead_of_return
-    - missing_display
-    - missing_call
-    - wrong_language
+    - partial_understanding
+    - incorrect
     - limited_effort
-    - asking_clarifying_questions
+    - set_language
     - off_topic
     transitions:
       correct:
         ai_feedback:
-          tokens_for_ai: Excellent! You've mastered functions with return values in [their language]. Explain the difference between returning and displaying.
+          tokens_for_ai: Excellent! You've mastered functions with return values in their language. Explain the difference between returning and displaying.
         metadata_add:
           score: n+3
           concepts_mastered: n+1
         next_section_and_step: conclusion:step_1
-      close:
-        ai_feedback:
-          tokens_for_ai: Good work! Fix the minor issue and show the correct version.
+      partial_understanding:
         metadata_add:
-          score: n+2
-        next_section_and_step: functions:step_2
-      displays_instead_of_return:
+          add_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: does your function hand its answer back with return, or only print it?'
+          show_if:
+            add_tries_lt: 2
+        - text: '💡 Hint: the function returns; the caller displays. Call add(5, 3) & show what comes back.'
+          show_if:
+            add_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: Your function displays the sum instead of returning it. Show how to use return to send the value back.
-        next_section_and_step: functions:step_2
-      missing_display:
+          tokens_for_ai: 'Say what they got right, then name the one missing or wrong piece. Don''t write the solution for them, unless metadata.add_tries is 3 or more: then show a complete working one.'
+      incorrect:
+        metadata_add:
+          add_tries: n+1
+        content_blocks:
+        - text: '💡 Hint: does your function hand its answer back with return, or only print it?'
+          show_if:
+            add_tries_lt: 2
+        - text: '💡 Hint: the function returns; the caller displays. Call add(5, 3) & show what comes back.'
+          show_if:
+            add_tries_gte: 2
         ai_feedback:
-          tokens_for_ai: You're returning the value but not displaying it! Show how to capture the returned value and display it.
-        next_section_and_step: functions:step_2
-      missing_call:
-        ai_feedback:
-          tokens_for_ai: You defined the function but didn't call it with 5 and 3! Show how to call it and display the result.
-        next_section_and_step: functions:step_2
-      wrong_language:
-        ai_feedback:
-          tokens_for_ai: 'That''s not [their language]! Here''s how return values work in [their language]: [show code]'
-        next_section_and_step: functions:step_2
+          tokens_for_ai: 'Say kindly what their code would do instead, & which idea to reach for. Don''t write the solution for them, unless metadata.add_tries is 3 or more: then show a complete working one.'
       limited_effort:
         content_blocks:
-        - Write a complete function that returns a sum, call it, and display the result!
-        next_section_and_step: functions:step_2
-      asking_clarifying_questions:
-        ai_feedback:
-          tokens_for_ai: Answer their question about return values in their language.
+        - 'Give it a go: a broken first try teaches more than none. Stuck? Ask a question.'
+      set_language:
+        content_blocks:
+        - Language preference updated.
+        metadata_add:
+          language: the-users-response
         counts_as_attempt: false
-        next_section_and_step: functions:step_2
       off_topic:
         content_blocks:
         - Create a function that returns the sum of two numbers.
-        next_section_and_step: functions:step_2
 - section_id: conclusion
   title: Congratulations, Programmer!
   steps:
@@ -1836,6 +1539,9 @@ sections:
     title: Your Programming Journey
     content_blocks:
     - '## Congratulations! You''ve Learned to Program! 🎉'
+    - text: You mastered **{{metadata.concepts_mastered}} of 8** concepts & scored **{{metadata.score}}** points.
+      show_if:
+        score_exists: true
     - You've mastered fundamental programming concepts that work in ANY language.
     - ''
     - '**Core concepts you''ve learned:**'
@@ -1859,42 +1565,23 @@ sections:
     - ''
     - '**Remember:** The best way to learn programming is by writing code and solving problems.'
     question: What would you like to build with your new programming skills? What kind of program interests you?
-    tokens_for_ai: 'This is a reflection question.
-
-
-      Based on their answer, provide encouragement and suggestions for their specific language.
-
-      Suggest projects appropriate for beginners in their chosen language.
-
-
-      Categorize as:
-
-      - specific_project: Has a specific project idea
-
-      - general_interest: General area of interest (games, websites, data, etc.)
-
-      - exploring: Still exploring what to build
-
-      - limited_effort: Very brief
-
-      - off_topic: Unrelated
-
-      '
-    feedback_tokens_for_ai: 'Provide enthusiastic, personalized feedback!
-
+    tokens_for_ai: |
+      A reflection: any genuine answer about what they'd like to build is fine.
+    bucket_criteria:
+      specific_project: Names a particular program they want to build.
+      general_interest: Names an area (games, websites, data, automation).
+      exploring: Not sure yet, or curious about several things.
+      limited_effort: A word or two with no idea in it.
+      off_topic: Not about what they'd build.
+    feedback_tokens_for_ai: |
+      Provide enthusiastic, personalized feedback!
 
       Reference their specific programming language.
-
       Suggest beginner-friendly projects for their language and interests.
-
       Encourage them to start small and build up.
-
       Remind them that the programming community is welcoming and helpful.
 
-
       Celebrate their completion of the fundamentals!
-
-      '
     buckets:
     - specific_project
     - general_interest
@@ -1904,25 +1591,32 @@ sections:
     transitions:
       specific_project:
         ai_feedback:
-          tokens_for_ai: Great project idea! For [their language], suggest how they might approach that project. Recommend beginner-friendly libraries or frameworks if applicable. Encourage them to start with a simple version.
+          tokens_for_ai: Great project idea! For their language, suggest how they might approach that project. Recommend beginner-friendly libraries or frameworks if applicable. Encourage them to start with a simple version.
         metadata_add:
           activity_completed: 'true'
+        next_section_and_step: conclusion:farewell
       general_interest:
         ai_feedback:
-          tokens_for_ai: Great area of interest! For [interest area] in [their language], suggest 2-3 beginner projects they could start with. Provide encouragement and resources.
+          tokens_for_ai: Great area of interest! For [interest area] in their language, suggest 2-3 beginner projects they could start with. Provide encouragement and resources.
         metadata_add:
           activity_completed: 'true'
+        next_section_and_step: conclusion:farewell
       exploring:
         ai_feedback:
-          tokens_for_ai: Exploration is great! For [their language], suggest 3-4 different types of beginner projects they could try (web, automation, data analysis, games, etc.) to discover what they enjoy.
+          tokens_for_ai: Exploration is great! For their language, suggest 3-4 different types of beginner projects they could try (web, automation, data analysis, games, etc.) to discover what they enjoy.
         metadata_add:
           activity_completed: 'true'
+        next_section_and_step: conclusion:farewell
       limited_effort:
         ai_feedback:
-          tokens_for_ai: Congratulate them on completing programming fundamentals in [their language]! Encourage them to build something, even if it's small.
+          tokens_for_ai: Congratulate them on completing programming fundamentals in their language! Encourage them to build something, even if it's small.
         metadata_add:
           activity_completed: 'true'
+        next_section_and_step: conclusion:farewell
       off_topic:
         content_blocks:
         - Think about what interests you! What kind of program would you like to create with your new skills?
-        next_section_and_step: conclusion:step_1
+  - step_id: farewell
+    title: Happy Coding
+    content_blocks:
+    - Happy coding! 👋 Come back any time to try another language.

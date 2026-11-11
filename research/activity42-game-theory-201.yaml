@@ -1,6 +1,15 @@
+title: "Game Theory 201"
+description: "Mixed strategies & repeated games: when to be unpredictable, and how cooperation survives temptation."
+kind: "lesson"
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_1"
 feedback_model: "MODEL_1"
+tokens_for_ai_rubric: |
+  Evaluate understanding of mixed strategies and repeated games:
+  exploitation of predictable play, the indifference principle, games with
+  no pure equilibrium, Tit-for-Tat, and the discount factor. Accept every
+  valid method; credit reasoning, not memorized phrases.
+
 sections:
   - section_id: introduction
     title: Welcome to Game Theory 201
@@ -9,79 +18,158 @@ sections:
         title: Beyond Pure Strategies
         content_blocks:
           - "# Game Theory 201: Mixed Strategies & Repeated Games 🎲🔄"
-          - "**Building on Game Theory 101!**"
+          - "**Building on Game Theory 101**: Prisoner's Dilemma, Nash equilibrium & dominant strategies."
           - ""
           - "**You'll learn:**"
-          - "✓ Mixed strategies (randomization)"
-          - "✓ When and why to randomize"
-          - "✓ Repeated games (shadow of the future)"
-          - "✓ How cooperation emerges"
-          - "✓ Tit-for-Tat and winning strategies"
+          - "✓ Mixed strategies (randomizing on purpose)"
+          - "✓ How to find the right mix: the indifference principle"
+          - "✓ Games with no pure-strategy equilibrium"
+          - "✓ Repeated games & the shadow of the future"
+          - "✓ Tit-for-Tat and how patient players sustain cooperation"
         question: Ready to explore more advanced strategic concepts?
-        tokens_for_ai: Accept positive as 'ready', language as 'set_language', else 'off_topic'
+        tokens_for_ai: Accept positive as 'ready', a language request as 'set_language', else 'off_topic'.
         buckets: [ready, set_language, off_topic]
         transitions:
           ready:
+            metadata_add: {score: 0}
             next_section_and_step: mixed_strategies:step_1
           set_language:
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
             next_section_and_step: introduction:welcome
           off_topic:
+            content_blocks:
+              - "Say **ready** whenever you'd like to begin."
             counts_as_attempt: false
-            next_section_and_step: introduction:welcome
-  
+
   - section_id: mixed_strategies
-    title: Mixed Strategies  
+    title: Mixed Strategies
     steps:
       - step_id: step_1
         title: Randomization as Strategy
         content_blocks:
           - "## Mixed Strategies: The Power of Unpredictability 🎲"
           - ""
-          - "**Pure vs Mixed Strategies:**"
-          - "- Pure: Always play the same action"
-          - "- Mixed: Randomize between actions with specific probabilities"
+          - "**Pure vs mixed strategies:**"
+          - "- Pure: always play the same action"
+          - "- Mixed: randomize between actions with chosen probabilities"
           - ""
-          - "**Rock-Paper-Scissors:**"
-          - "No pure strategy works - opponent can exploit patterns!"
-          - "Solution: Randomize equally (1/3, 1/3, 1/3)"
+          - "**Rock-Paper-Scissors:** every pure strategy loses to something. The equilibrium is to randomize equally (1/3, 1/3, 1/3)."
           - ""
-          - "**Penalty Kicks in Soccer:**"
-          - "- Kicker: Left or Right?"
-          - "- Goalie: Dive Left or Right?"
-          - "- Must be unpredictable!"
-          - "- Data shows pros randomize ~50/50"
+          - "**Penalty kicks:** the kicker picks Left or Right, the goalie dives Left or Right. Studies of professional penalties find both sides mix close to what theory predicts."
           - ""
-          - "**When to use mixed strategies:**"
-          - "- No dominant pure strategy"
-          - "- Opponent can exploit predictability"
-          - "- Matching Pennies, Hide and Seek, Security games"
+          - "**When to mix:** no dominant pure strategy, and an opponent who could exploit any pattern (Matching Pennies, hide & seek, security patrols)."
         question: In Rock-Paper-Scissors, why can't you always play Rock? What happens if you're predictable?
-        tokens_for_ai: |
-          Should recognize: predictability allows exploitation.
-          If always Rock, opponent plays Paper and wins.
-          Categorize: understands_exploitation, recognizes_problem, vague, set_language, off_topic
-        buckets: [understands_exploitation, recognizes_problem, vague, set_language, off_topic]
+        tokens_for_ai: Grade whether they see that a predictable player gets exploited.
+        bucket_criteria:
+          correct: "An opponent who learns you always play Rock plays Paper and wins every round; so you must be unpredictable."
+          partial_understanding: "Says predictability is bad, or that Paper beats Rock, without linking the two."
+          off_topic: "Does not engage the question."
+        required_elements:
+          - "an opponent can learn or predict your pattern"
+          - "they answer with the counter (Paper) and win every time"
+        buckets: [correct, partial_understanding, set_language, off_topic]
         transitions:
-          understands_exploitation:
-            ai_feedback: {tokens_for_ai: "Perfect! Predictability = exploitation. Opponent plays Paper, you lose. Randomization prevents exploitation!"}
+          correct:
+            ai_feedback: {tokens_for_ai: "Confirm: predictability invites exploitation, so randomizing removes anything to exploit."}
             metadata_add: {score: "n+2"}
-            next_section_and_step: repeated_games:step_1
-          recognizes_problem:
-            ai_feedback: {tokens_for_ai: "Right! If you always play Rock, smart opponent plays Paper every time. Randomization is the solution!"}
-            metadata_add: {score: "n+1"}
-            next_section_and_step: repeated_games:step_1
-          vague:
-            ai_feedback: {tokens_for_ai: "If you always play Rock, opponent learns and always plays Paper. You lose every time! Must randomize."}
-            next_section_and_step: repeated_games:step_1
+            next_section_and_step: mixed_strategies:step_2
+          partial_understanding:
+            ai_feedback: {tokens_for_ai: "Credit what they said and ask what a smart opponent would do once they notice the pattern. Don't give the answer."}
           set_language:
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
             next_section_and_step: mixed_strategies:step_1
           off_topic:
-            next_section_and_step: mixed_strategies:step_1
-  
+            content_blocks:
+              - "Imagine your opponent notices you always throw Rock. What do they throw next?"
+
+      - step_id: step_2
+        title: Finding the Mix
+        content_blocks:
+          - "## The Indifference Principle ⚖️"
+          - ""
+          - "In a mixed equilibrium each player mixes so that the **other** player gains nothing by favouring one action: the opponent is *indifferent*."
+          - ""
+          - "**A penalty kick.** Chance the kicker scores:"
+          - ""
+          - "```"
+          - "                 Goalie dives Left   Goalie dives Right"
+          - "Kick Left              0.4                 0.9"
+          - "Kick Right             0.8                 0.3"
+          - "```"
+          - ""
+          - "The goalie dives Left with probability $p$. The kicker's chance of scoring is then:"
+          - "- Kick Left: $0.4p + 0.9(1-p)$"
+          - "- Kick Right: $0.8p + 0.3(1-p)$"
+          - ""
+          - "If one of these were bigger, the kicker would always kick that way and the goalie could exploit it."
+        question: "What value of p (how often the goalie dives Left) makes the kicker indifferent between kicking Left and Right? Show your working."
+        tokens_for_ai: |
+          Setting the two expressions equal: 0.9 - 0.5p = 0.3 + 0.5p, so
+          p = 0.6 (60%). The kicker then scores 60% either way. Accept any
+          valid method (algebra, trial values, a graph) and 0.6 as 3/5 or 60%.
+        bucket_criteria:
+          correct: "Equates the kicker's two scoring chances (or an equivalent method) and reaches p = 0.6."
+          partial_understanding: "A sound method with no final value or an arithmetic slip, or 0.6 with no working."
+          incorrect: "A wrong method (e.g. assumes 50/50) or a wrong value from no clear method."
+          off_topic: "Does not attempt it."
+        required_elements:
+          - "makes the kicker's chance from Left equal to that from Right (any valid method)"
+          - "states the final value p = 0.6 (60%, 3/5)"
+        hints:
+          - attempt: 1
+            text: "💡 Hint: set $0.4p + 0.9(1-p) = 0.8p + 0.3(1-p)$ and solve for $p$."
+            counts_as_attempt: true
+          - attempt: 2
+            text: "💡 Hint: the left side simplifies to $0.9 - 0.5p$, the right side to $0.3 + 0.5p$."
+            counts_as_attempt: true
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
+        transitions:
+          correct:
+            content_blocks:
+              - "✅ $p = 0.6$: the goalie dives Left 60% of the time, toward the kicker's stronger side, and the kicker scores 60% either way."
+              - "Notice the goalie's mix is set by the **kicker's** payoffs. That surprises almost everyone. **Score: {{metadata.score}}**"
+            metadata_add: {score: "n+3"}
+            next_section_and_step: mixed_strategies:step_3
+          partial_understanding:
+            ai_feedback: {tokens_for_ai: "Credit their method or value and name what's missing (the working, or the final p). Don't solve it for them."}
+          incorrect:
+            ai_feedback: {tokens_for_ai: "Point them at the indifference idea: the two kicks must score equally often. Don't give p."}
+          set_language:
+            metadata_add: {language: "the-users-response"}
+            counts_as_attempt: false
+            next_section_and_step: mixed_strategies:step_2
+          off_topic:
+            content_blocks:
+              - "Give it a try: what p makes Kick Left and Kick Right score equally often?"
+
+      - step_id: step_3
+        title: No Pure Equilibrium
+        content_blocks:
+          - "## When Must Players Mix? 🪙"
+          - ""
+          - "Some games have a pure-strategy Nash equilibrium; some have none, and then the only equilibrium is mixed."
+          - ""
+          - "**Matching Pennies:** each player shows Heads or Tails. If they match, Player A takes both pennies; if not, Player B does."
+        question_type: multiple_choice
+        question: "Which of these games has NO pure-strategy Nash equilibrium?"
+        choices:
+          - {id: a, text: "Prisoner's Dilemma"}
+          - {id: b, text: "Matching Pennies"}
+          - {id: c, text: "Choosing which side of the road to drive on"}
+        answer: b
+        transitions:
+          correct:
+            content_blocks:
+              - "✅ Right. In Matching Pennies, whoever is losing at any pure outcome wants to switch, so nothing is stable until both mix 50/50."
+              - "Prisoner's Dilemma has (Betray, Betray); driving has two (both Left, both Right). **Score: {{metadata.score}}**"
+            metadata_add: {score: "n+1"}
+            next_section_and_step: repeated_games:step_1
+          incorrect:
+            content_blocks:
+              - "Not that one: it has a stable pure outcome. Look for the game where, at every outcome, someone wants to switch."
+
   - section_id: repeated_games
     title: Repeated Games
     steps:
@@ -90,45 +178,144 @@ sections:
         content_blocks:
           - "## Repeated Games: When Tomorrow Matters 🔄"
           - ""
-          - "**One-shot vs Repeated:**"
-          - "- One-shot PD: Defect dominates"
-          - "- Repeated PD: Cooperation can emerge!"
+          - "**One-shot vs repeated:**"
+          - "- One-shot Prisoner's Dilemma: betraying dominates"
+          - "- Repeated with no known last round: cooperation can emerge"
           - ""
-          - "**Why repetition changes everything:**"
-          - "- Reputation matters"
-          - "- Retaliation is possible"
-          - "- Future gains can outweigh immediate temptation"
+          - "**Why repetition changes things:** reputation matters, retaliation is possible, and future gains can outweigh today's temptation."
           - ""
-          - "**Tit-for-Tat Strategy:**"
-          - "1. Start with cooperation"
-          - "2. Then copy opponent's previous move"
-          - "- Nice (never defects first)"
-          - "- Retaliatory (punishes defection)"
-          - "- Forgiving (returns to cooperation)"
-          - "- Clear (easy to understand)"
+          - "**Tit-for-Tat:** cooperate first, then copy whatever your opponent did last round. It is:"
+          - "- **Nice**: never defects first"
+          - "- **Retaliatory**: punishes a defection at once"
+          - "- **Forgiving**: returns to cooperation once the opponent does"
+          - "- **Clear**: easy for opponents to read"
           - ""
-          - "**Axelrod's Tournament:**"
-          - "Tit-for-Tat won! Simplest, most effective."
-          - "Beat complex strategies through cooperation + accountability"
-        question: Why can cooperation emerge in repeated Prisoner's Dilemma but not in one-shot games?
-        tokens_for_ai: |
-          Key insight: future interactions create incentive to cooperate.
-          Fear of retaliation, value of reputation, shadow of future.
-          Categorize: excellent_understanding, identifies_repetition, partial, set_language, off_topic
-        buckets: [excellent_understanding, identifies_repetition, partial, set_language, off_topic]
+          - "**Axelrod's tournaments (1980):** Tit-for-Tat, the simplest entry, won both rounds against far more complex strategies."
+        question: Why can cooperation emerge in a repeated Prisoner's Dilemma but not in a one-shot game?
+        tokens_for_ai: Grade whether they connect future rounds to today's incentives.
+        bucket_criteria:
+          correct: "Future rounds let a defection be punished, so the long-run value of cooperating beats the one-time gain."
+          partial_understanding: "Mentions repetition, trust or reputation without saying how it changes the incentive to defect."
+          off_topic: "Does not engage the question."
+        required_elements:
+          - "in a repeated game a defection can be punished (retaliation) in later rounds"
+          - "the stream of future cooperative payoffs outweighs the one-time gain from defecting"
+        buckets: [correct, partial_understanding, set_language, off_topic]
         transitions:
-          excellent_understanding:
-            ai_feedback: {tokens_for_ai: "Brilliant! Future interactions change incentives. Retaliation possible, reputation matters. Short-term gain < long-term cooperation!"}
-            metadata_add: {score: "n+2", activity_completed: "true"}
-          identifies_repetition:
-            ai_feedback: {tokens_for_ai: "Exactly! Repeated games allow punishment and reward. Cooperation becomes rational when future matters!"}
-            metadata_add: {score: "n+1", activity_completed: "true"}
-          partial:
-            ai_feedback: {tokens_for_ai: "Right direction! Key: future interactions create accountability. Can punish defectors, reward cooperators. Changes incentives!"}
-            metadata_add: {activity_completed: "true"}
+          correct:
+            ai_feedback: {tokens_for_ai: "Confirm their reasoning in one or two sentences: the shadow of the future makes cooperation rational."}
+            metadata_add: {score: "n+2"}
+            next_section_and_step: repeated_games:step_2
+          partial_understanding:
+            ai_feedback: {tokens_for_ai: "Credit their idea and ask what a betrayed partner can do next round, and what that costs the betrayer. Don't give the answer."}
           set_language:
             metadata_add: {language: "the-users-response"}
             counts_as_attempt: false
             next_section_and_step: repeated_games:step_1
           off_topic:
-            metadata_add: {activity_completed: "true"}
+            content_blocks:
+              - "Think about what changes when you'll face the same player again tomorrow."
+
+      - step_id: step_2
+        title: Reading Tit-for-Tat
+        content_blocks:
+          - "## Tit-for-Tat in Action 🔁"
+          - ""
+          - "```"
+          - "Round:     1  2  3  4  5"
+          - "You:       C  C  D  C  C"
+          - "TfT:       C  C  C  D  C"
+          - "```"
+          - "(C = cooperate, D = defect; TfT = Tit-for-Tat)"
+        question_type: multiple_choice
+        question: "In round 5, Tit-for-Tat cooperates again even though you defected in round 3. Which of its properties is that?"
+        choices:
+          - {id: a, text: "Nice"}
+          - {id: b, text: "Retaliatory"}
+          - {id: c, text: "Forgiving"}
+          - {id: d, text: "Clear"}
+        answer: c
+        transitions:
+          correct:
+            content_blocks:
+              - "✅ Forgiving. It punished once (round 4), then went back to cooperating as soon as you did. One defection doesn't start an endless feud."
+              - "**Score: {{metadata.score}}**"
+            metadata_add: {score: "n+1"}
+            next_section_and_step: repeated_games:step_3
+          incorrect:
+            content_blocks:
+              - "Not that one. Round 4 shows it punishing; round 5 shows something else. What does it do after the punishment?"
+
+      - step_id: step_3
+        title: How Patient Is Patient Enough?
+        content_blocks:
+          - "## The Discount Factor δ ⏳"
+          - ""
+          - "Let $\\delta$ (between 0 and 1) be how much a payoff next round is worth to you today, or the chance there is a next round."
+          - "A payoff $x$ every round forever is worth $x + \\delta x + \\delta^2 x + \\dots = \\dfrac{x}{1-\\delta}$."
+          - ""
+          - "**Grim Trigger:** cooperate until the opponent defects once, then defect forever."
+          - ""
+          - "Prisoner's Dilemma payoffs per round (higher is better):"
+          - "- Both cooperate: 3 each"
+          - "- You defect while they cooperate: you get 5"
+          - "- Both defect: 1 each"
+          - ""
+          - "Against Grim Trigger, cooperating forever earns $\\dfrac{3}{1-\\delta}$. Defecting now earns 5 today, then 1 every round after."
+        question: "How large must δ be for cooperating forever to pay at least as much as defecting now? Show your working."
+        tokens_for_ai: |
+          Defecting is worth 5 + δ/(1-δ). Cooperate when
+          3/(1-δ) >= 5 + δ/(1-δ), i.e. 3 >= 5 - 4δ, so δ >= 1/2.
+          Accept any valid method (algebra, a round-by-round comparison,
+          trying values) and 0.5, 1/2 or 50%.
+        bucket_criteria:
+          correct: "Compares the cooperation stream with defect-then-punished (any valid method) and reaches δ ≥ 1/2."
+          partial_understanding: "Sets up the comparison correctly but has no final threshold or a slip, or gives 1/2 with no working."
+          incorrect: "A wrong set-up (e.g. ignores the punishment rounds) or a wrong threshold."
+          off_topic: "Does not attempt it."
+        required_elements:
+          - "compares cooperating forever with defecting once and being punished ever after (any valid method)"
+          - "states the final threshold δ ≥ 1/2 (0.5)"
+        hints:
+          - attempt: 1
+            text: "💡 Hint: defecting pays 5 now, then 1 per round from tomorrow on: $5 + \\delta \\cdot \\dfrac{1}{1-\\delta}$."
+            counts_as_attempt: true
+          - attempt: 2
+            text: "💡 Hint: multiply $\\dfrac{3}{1-\\delta} \\ge 5 + \\dfrac{\\delta}{1-\\delta}$ through by $(1-\\delta)$ and solve."
+            counts_as_attempt: true
+        buckets: [correct, partial_understanding, incorrect, set_language, off_topic]
+        transitions:
+          correct:
+            content_blocks:
+              - "✅ $\\delta \\ge \\tfrac{1}{2}$. If the future counts for at least half as much as today, cooperation holds itself up with no contract and no referee."
+            metadata_add: {score: "n+3", activity_completed: "true"}
+            next_section_and_step: conclusion:wrap_up
+          partial_understanding:
+            ai_feedback: {tokens_for_ai: "Credit their set-up or value and name what's missing (the working, or the final threshold). Don't solve it for them."}
+          incorrect:
+            ai_feedback: {tokens_for_ai: "Ask them to write what defecting earns over all rounds, not just today. Don't give the threshold."}
+          set_language:
+            metadata_add: {language: "the-users-response"}
+            counts_as_attempt: false
+            next_section_and_step: repeated_games:step_3
+          off_topic:
+            content_blocks:
+              - "Give it a try: compare 3 every round with 5 once and then 1 every round."
+
+  - section_id: conclusion
+    title: Series Complete
+    steps:
+      - step_id: wrap_up
+        title: Strategic Toolkit Complete
+        content_blocks:
+          - "# Game Theory Series Complete! 🎓🎲"
+          - ""
+          - "**Final score: {{metadata.score}} / 12**"
+          - ""
+          - "**Across 101 & 201 you've learned:**"
+          - "✓ The Prisoner's Dilemma & dominant strategies"
+          - "✓ Nash equilibrium, pure and mixed"
+          - "✓ The indifference principle for finding a mix"
+          - "✓ Why repeated play, reputation & patience sustain cooperation"
+          - ""
+          - "This is the last course in our series. To keep going, watch for these structures around you: pricing wars, group projects, penalty kicks, traffic. Ask who gains by switching, and whether tomorrow matters."
