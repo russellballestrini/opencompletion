@@ -588,6 +588,12 @@ class ActivityYAMLValidator:
                 self.errors.append(
                     f"{where}: required_elements must be a list of non-empty text"
                 )
+            elif len(elements) > 8:
+                # unyaml's limit: past 8 a grader stops checking each one.
+                self.warnings.append(
+                    f"{where}: required_elements lists {len(elements)}; keep it to"
+                    " 8 or fewer checkable elements"
+                )
 
         if "question_type" not in step:
             for key in (

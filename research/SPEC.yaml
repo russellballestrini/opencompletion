@@ -7,7 +7,7 @@
 # Version: 3.0
 # Last Updated: 2026-11-11
 #
-# A sibling of unhomeschool's unyaml (lessons/SCHEMA.md, v0.5.0): the same
+# A sibling of unhomeschool's unyaml (lessons/SCHEMA.md, v0.5.1): the same
 # lineage & the same grading primitives (bucket_criteria, required_elements,
 # the clarifying bucket, multiple choice), plus what only our engine runs
 # (step scripts, metadata lists, a content step's own navigation, gallery

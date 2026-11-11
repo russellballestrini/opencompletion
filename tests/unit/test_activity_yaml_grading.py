@@ -186,3 +186,9 @@ def test_a_bare_yes_bucket_warns(tmp_path):
 def test_a_long_description_warns(tmp_path):
     _, warnings = check(tmp_path, activity(QUESTION, description="x" * 141))
     assert any("141 characters" in w for w in warnings)
+
+
+def test_more_than_eight_elements_warns(tmp_path):
+    step = with_keys(QUESTION, required_elements=[f"idea {i}" for i in range(9)])
+    _, warnings = check(tmp_path, activity(step))
+    assert any("keep it to 8 or fewer" in w for w in warnings)
