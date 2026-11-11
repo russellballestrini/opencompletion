@@ -14,7 +14,7 @@ blob_store (SQLite today). Limits: OPENCOMPLETION_UPLOAD_MAX_MB per file
 
 from urllib.parse import quote
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify, redirect, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
 import auth
@@ -26,7 +26,7 @@ from blob_store import (
     read_attachment,
     save_attachment,
 )
-from models import Room, db
+from models import Attachment, Room, db
 from routes.rooms import room_access_denied
 from throttle import Throttle, client_ip
 
@@ -93,11 +93,25 @@ def serve_attachment(public_id, filename):
     video, PDF, plain text) show inline; anything else, SVG & HTML
     included, downloads, so an upload never runs script on our origin."""
     attachment = find_attachment(public_id)
-    if attachment is None or attachment.filename != filename:
+    if attachment is None:
         return jsonify({"error": "File not found"}), 404
     room = db.session.get(Room, attachment.room_id)
     if room is None or room_access_denied(room, auth.get_current_user()):
         return jsonify({"error": "File not found"}), 404
+    if attachment.filename != filename:
+        # A model writing links to several files it shared sometimes gives
+        # one file's id to another's name (fox, 2026-11-10: phone_ring.mp3
+        # carried phone_ring.wav's id & read as not found). The name is
+        # what it meant: someone who may open this room is sent to this
+        # room's file of that name, its newest. Any other name is a 404.
+        named = (
+            Attachment.query.filter_by(room_id=attachment.room_id, filename=filename)
+            .order_by(Attachment.id.desc())
+            .first()
+        )
+        if named is None:
+            return jsonify({"error": "File not found"}), 404
+        return redirect(named.url, code=302)
 
     etag = f'"{attachment.sha256}"'
     cache = "private, max-age=31536000, immutable"

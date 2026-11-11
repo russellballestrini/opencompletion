@@ -174,6 +174,44 @@ def test_a_file_is_found_by_its_random_id_and_name_together(test_app):
     assert client.get(f"/attachments/{body['id']}/notes.TXT").status_code == 404
 
 
+def test_one_files_id_with_anothers_name_leads_to_the_file_named(test_app):
+    """A model that shared a .wav & a .mp3 wrote the mp3's link with the
+    wav's id (fox, 2026-11-10): the name is what it meant."""
+    make_room("lobby")
+    make_room("other")
+    client = client_for(test_app)
+    wav = upload(client, "lobby", b"RIFF wav", "ring.wav", "audio/wav").json
+    old = upload(client, "lobby", b"ID3 first", "ring.mp3", "audio/mpeg").json
+    mp3 = upload(client, "lobby", b"ID3 newest", "ring.mp3", "audio/mpeg").json
+    upload(client, "other", b"elsewhere", "secret.txt", "text/plain")
+
+    crossed = client.get(f"/attachments/{wav['id']}/ring.mp3")
+    # Sent to this room's file of that name, its newest; never the wav.
+    assert crossed.status_code == 302 and crossed.headers["Location"] == mp3["url"]
+    assert mp3["url"] != old["url"]
+    assert client.get(crossed.headers["Location"]).data == b"ID3 newest"
+    # A name no file here has, or another room's file's name, is a 404.
+    assert client.get(f"/attachments/{wav['id']}/ring.ogg").status_code == 404
+    assert client.get(f"/attachments/{wav['id']}/secret.txt").status_code == 404
+
+
+def test_a_solo_chats_file_names_cannot_be_tried_by_anyone_else(test_app):
+    from models import Attachment, Room, db
+
+    make_room("lobby")
+    client = client_for(test_app)
+    wav = upload(client, "lobby", b"RIFF wav", "ring.wav", "audio/wav").json
+    upload(client, "lobby", b"ID3", "ring.mp3", "audio/mpeg")
+    room = Room.query.filter_by(name="lobby").one()
+    room.is_private, room.owner_id = True, 4242
+    db.session.commit()
+    assert Attachment.query.count() == 2
+    # Not its owner: a right name & a wrong one read the same, as missing.
+    assert client.get(f"/attachments/{wav['id']}/ring.mp3").status_code == 404
+    assert client.get(f"/attachments/{wav['id']}/ring.wav").status_code == 404
+    assert client.get(f"/attachments/{wav['id']}/nope").status_code == 404
+
+
 def test_every_file_reads_as_the_markdown_our_composer_writes(test_app):
     from blob_store import attachment_markdown
     from models import Attachment, db
