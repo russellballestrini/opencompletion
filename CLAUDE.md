@@ -83,7 +83,7 @@ git remote -v
 ### Backend Structure
 - `app.py`: our Flask app, chat itself (`/chat/<room>`, Socket.IO events, model streaming, S3 & title helpers) & the model map
 - `routes/`: HTTP blueprints registered by `routes.register(app, ...)`: `pages.py` (home, sign in, profile, style guide), `accounts.py` (email-code sign in, names), `rooms.py` (the Rooms page: filter & message search `?q=`, old `/search` redirects; rooms API, downloads, `room_access_denied`), `code.py` (unsandbox proxy, fix-code, artifact names), `status.py` (`/version`: running commit, its date & process start, `OPENCOMPLETION_GIT_COMMIT` for a deploy without .git; `/health`: 200 with our database answering `SELECT 1`, else 503; neither calls a model nor says why)
-- `activity_engine.py`: our one activity engine (a learner's answer to a step, the walk to the next question), no Flask, database or socket: `activity.py`'s `RoomIO` runs it in a chat room (ActivityState, messages, emits) & `research/guarded_ai.py`'s `TerminalIO` in a terminal (MemoryState, print & input), so a fix lands in both. Step scripts get `metadata` with `user_response` in it, read/write (SPEC.yaml); their writes & `script_result.metadata` are kept
+- `activity_engine.py`: our one activity engine (a learner's answer to a step, the walk to the next question), no Flask, database or socket: `activity.py`'s `RoomIO` runs it in a chat room (ActivityState, messages, emits) & `research/guarded_ai.py`'s `TerminalIO` in a terminal (MemoryState, print & input), so a fix lands in both. Step scripts get `metadata` with `user_response` in it, read/write (SPEC.yaml); their writes & `script_result.metadata` are kept. `activity_grading.py` (pure, shared the same way) is unyaml's grading (unhomeschool's `lessons/SCHEMA.md`, v0.5.0): `bucket_criteria` & `required_elements` written into every grader's instructions (missing an element = partial, never correct); a clarifying bucket (`asking_clarifying_questions`) on every question step, never an attempt, with a built-in transition unless the step has its own (`allow_clarifying_questions: false` on the activity or a step turns it off, for games); multiple choice (`question_type: multiple_choice`, `choices` {id, text}, `answer`, `answer_mode` one/any/all, default buckets correct/incorrect, `mc_correct`/`mc_incorrect`, `mc_ai_feedback`) graded by key with no model, the question listing its choices & `RoomIO.offer_choices` emitting `activity_choices` (ids & texts, never the answer) for chat's buttons (`7-activities.js`). A content-only step's own `next_section_and_step` (a target or conditional list) is where it goes next, else the next step in the file. `n+c`/`n-c` count from a number kept as text & from nothing. `make activity-walk` (`activity_walk.py`) plays every activity with dice, no model: what raised, raw `metadata.x` names a learner would see (`{{metadata.x}}` shows the value), unrendered templates, steps never reached
 - Blueprints never `import app` (a server started as `python app.py` runs as `__main__`); shared helpers arrive via `routes.DEPS`, Socket.IO via `current_app.extensions["socketio"]`
 - A NEW room's name must match `[a-z0-9][a-z0-9_-]{0,63}` (`routes.rooms.valid_room_name`, what `slugify()` in `static/js/utils.js` makes); `/chat/<junk>` is a 404 & creates nothing, rooms that already exist open whatever they're called
 - Model routing (`app.py`): a model id is pinned to the lowest `MODEL_ENDPOINT_n` listing it (`MODEL_CLIENT_MAP`) & `MODEL_ENDPOINTS` keeps every endpoint serving it, pin first. A pin that fails its health check, or fails while its stream is being opened (`open_with_failover`: connection errors, timeouts & 5xx, never a 4xx), hands over to the next copy of the same model; only with every copy down does `DEFAULT_MODEL`'s rotation answer. `/models` answers at once from the map we have; one older than `ENDPOINT_HEALTH_TTL` is rebuilt in a background greenlet (one at a time; `initialize_model_map` builds aside & swaps in, so nobody reads a half-built map). A `MODEL_n` whose endpoint is down looks for its model (`MODEL_NAME_n`, else what it last listed) on other endpoints first. A stream that breaks while being read carries on (`ReplyStream.carry_on`): asked again, failing over likewise, with what it wrote so far & a note to continue where it stopped, up to `OPENCOMPLETION_STREAM_RETRIES` (2; 0 = off) times a reply; past that, the reply keeps its words & says the stream broke
@@ -1152,6 +1152,22 @@ metadata_clear: true                       # Clear all metadata
 metadata_feedback_filter: ["key1", "key2"] # Filter feedback by metadata
 counts_as_attempt: false                   # Don't count toward max_attempts
 run_processing_script: true                # Execute step's processing_script
+run_post_script: true                      # Same, newer name (a step's post_script, else processing_script)
+metadata_append: {key: "the-users-response"} # Append to a list (metadata_tmp_append: this turn only)
+
+# Step Level (Grading, shared with unhomeschool's unyaml)
+bucket_criteria: {correct: "...", partial_understanding: "..."}  # A boundary per bucket
+required_elements: ["states 12", "explains why"]  # Missing one = partial, never correct
+allow_clarifying_questions: false          # Also at activity level: no clarifying bucket (games)
+
+# Step Level (Multiple Choice: graded by key, no model)
+question_type: multiple_choice
+choices: [{id: a, text: "Carbon dioxide"}, {id: b, text: "Oxygen"}]
+answer: a                                  # Or a list, with answer_mode: all (every one) or any
+transitions: {correct: {...}, incorrect: {...}}  # Default buckets
+
+# Content-only Step Level
+next_section_and_step: "hub:main"          # Where it goes next (else the next step in the file)
 ```
 
 ### Example: Complete Minimal Activity

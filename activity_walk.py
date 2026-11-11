@@ -30,6 +30,7 @@ import traceback
 import yaml
 
 import activity_engine
+import activity_grading
 
 ANSWERS = [
     "yes",
@@ -74,8 +75,11 @@ class WalkIO(activity_engine.ActivityIO):
         self.findings = findings
         self.bucket = None
         self.where = ""
+        self.state = None  # set by walk(): each step that speaks is reached
 
     def say(self, content, username="System", shown_as=None):
+        if self.state is not None:
+            self.findings["reached"].add((self.state.section_id, self.state.step_id))
         text = str(content)
         if "{{" in text or "{%" in text:
             self.findings["unrendered"].add((self.where, text[:160]))
@@ -108,9 +112,14 @@ class WalkIO(activity_engine.ActivityIO):
         state.completed = True
 
 
-def an_answer(rng, question):
-    """Something a learner might type: a stock answer, or a word or number
-    lifted from the question itself."""
+def an_answer(rng, question, step=None):
+    """Something a learner might type: on a multiple-choice step, a few of
+    its ids most times; else a stock answer, or a word or number lifted
+    from the question itself."""
+    if step and activity_grading.is_multiple_choice(step) and rng.random() < 0.8:
+        ids = [str(c.get("id")) for c in step.get("choices") or []]
+        if ids:
+            return ", ".join(rng.sample(ids, rng.randint(1, len(ids))))
     words = re.findall(r"[A-Za-z0-9']+", str(question))
     if words and rng.random() < 0.4:
         return rng.choice(words)
@@ -135,6 +144,7 @@ def walk(content, rng, findings, turns):
         metadata={"language": "English"},
     )
     walker = WalkIO(rng, findings)
+    walker.state = state
     _, feedback_model = activity_engine.models_for(content, "MODEL_1")
     walker.where = f"{state.section_id}:{state.step_id}"
     findings["reached"].add((state.section_id, state.step_id))
@@ -153,7 +163,7 @@ def walk(content, rng, findings, turns):
             return True
         here = (state.section_id, state.step_id)
         findings["reached"].add(here)
-        said = an_answer(rng, step.get("question", ""))
+        said = an_answer(rng, step.get("question", ""), step)
         walker.where = f"{here[0]}:{here[1]}"
         walker.bucket = None
         try:

@@ -94,6 +94,9 @@ style.css): show & hide with the attribute, never a display rule.
 - **Follow-ups** `.followups` of `.followup-chip`s under our newest reply,
   after its own actions: outlined pills in our text colour (their rules
   name `#chat` to outrank chat's quiet buttons), 40px tall on phones.
+  An activity's multiple-choice question reuses them as `.activity-choices`
+  (`7-activities.js`): one tap sends a choice's id; a pick-every-one question
+  toggles `aria-pressed` chips & a `.btn` Send sends the set.
   **(tested)** `.scroll-bottom` (↓) floats above the composer once you
   scroll up.
 - **Tool lines** `.message-tools` of `.message-tool`s inside a reply

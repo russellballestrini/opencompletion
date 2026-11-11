@@ -2598,9 +2598,22 @@ button.sidebar-more {
     background-color: var(--bg-hover);
 }
 
+/* A multiple-choice question's picks (7-activities.js): a picked one of
+   several shows pressed, & Send waits for one. */
+#chat .activity-choices .followup-chip[aria-pressed="true"] {
+    border-color: var(--button-primary);
+    background-color: var(--bg-hover);
+    font-weight: 600;
+}
+
+#chat .activity-choices-send {
+    min-height: 36px;
+}
+
 @media (max-width: 768px) {
     .followup-chip,
-    #chat .followup-chip {
+    #chat .followup-chip,
+    #chat .activity-choices-send {
         min-height: 40px;
     }
 }

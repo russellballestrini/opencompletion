@@ -13,6 +13,8 @@ omit =
 include =
     activity.py
     activity_engine.py
+    activity_grading.py
+    activity_walk.py
     activity_gallery.py
     activity_utils.py
     activity_yaml_validator.py

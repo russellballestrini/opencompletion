@@ -134,7 +134,7 @@ test-functional: venv
 .PHONY: test-ui
 test-ui: venv
 	@echo "📱 Running page contract tests..."
-	venv/bin/python -m pytest tests/functional/test_ui_contract.py tests/functional/test_home.py tests/functional/test_auth_ui_regressions.py tests/functional/test_tools_ui.py tests/functional/test_notices_ui.py tests/functional/test_edit_ui.py tests/functional/test_versions_ui.py tests/functional/test_verify_ui.py tests/functional/test_composer_ui.py tests/functional/test_activities_ui.py tests/functional/test_undo_delete_ui.py tests/functional/test_walk_ui.py tests/functional/test_live_reply_ui.py
+	venv/bin/python -m pytest tests/functional/test_ui_contract.py tests/functional/test_home.py tests/functional/test_auth_ui_regressions.py tests/functional/test_tools_ui.py tests/functional/test_notices_ui.py tests/functional/test_edit_ui.py tests/functional/test_versions_ui.py tests/functional/test_verify_ui.py tests/functional/test_composer_ui.py tests/functional/test_activities_ui.py tests/functional/test_undo_delete_ui.py tests/functional/test_walk_ui.py tests/functional/test_live_reply_ui.py tests/functional/test_activity_choices_ui.py
 
 .PHONY: test-validator
 test-validator: venv
@@ -203,7 +203,7 @@ ci: lint test
 # Production-only metrics.
 PYTHON ?= venv/bin/python
 REPORT_DIR ?= reports
-QUALITY_SOURCES := activity.py activity_engine.py activity_gallery.py activity_utils.py activity_yaml_validator.py app.py auth.py battleship_arena.py battleship_modes.py blob_store.py chain.py classifier.py db_migrate.py fade.py gevent_asyncio.py init_db.py jev_hunter.py models.py repetition_guard.py research/guarded_ai.py routes/__init__.py routes/accounts.py routes/code.py routes/files.py routes/pages.py routes/rooms.py routes/sandbox_proxy.py routes/speech.py routes/status.py throttle.py tools/__init__.py tools/browser.py tools/loop.py tools/oversight.py tools/policy.py tools/sandbox.py tools/web_fetch.py
+QUALITY_SOURCES := activity.py activity_engine.py activity_gallery.py activity_grading.py activity_walk.py activity_utils.py activity_yaml_validator.py app.py auth.py battleship_arena.py battleship_modes.py blob_store.py chain.py classifier.py db_migrate.py fade.py gevent_asyncio.py init_db.py jev_hunter.py models.py repetition_guard.py research/guarded_ai.py routes/__init__.py routes/accounts.py routes/code.py routes/files.py routes/pages.py routes/rooms.py routes/sandbox_proxy.py routes/speech.py routes/status.py throttle.py tools/__init__.py tools/browser.py tools/loop.py tools/oversight.py tools/policy.py tools/sandbox.py tools/web_fetch.py
 TEST_PATHS ?= tests/
 COVERAGE_MIN ?= 0
 

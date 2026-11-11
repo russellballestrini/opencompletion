@@ -394,6 +394,11 @@ class RoomIO(activity_engine.ActivityIO):
         )
         socketio.sleep(0.1)
 
+    def offer_choices(self, offer):
+        # Ids & texts only (activity_grading.choices_for_page): the answer
+        # key stays on our server, which grades.
+        socketio.emit("activity_choices", offer, room=self.room_name)
+
     def complete(self, state, username, feedback_model):
         complete_activity(state, self.room_name, username, feedback_model)
 

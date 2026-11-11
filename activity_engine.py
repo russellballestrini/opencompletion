@@ -18,6 +18,8 @@ import copy
 import json
 import random
 
+import activity_grading
+
 from activity_utils import (
     check_conditions,
     create_template_context,
@@ -95,6 +97,11 @@ class ActivityIO:
 
     def set_background(self, image_base64):
         """A post-script's plot shown as the background, where one can be."""
+
+    def offer_choices(self, offer):
+        """A multiple-choice step's {choices: [{id, text}], multiple} for a
+        page to show as buttons, where one can (never its answer). Its
+        question already lists them, so typing an id works anywhere."""
 
     def complete(self, state, username, feedback_model):
         """The activity is over: report & forget it."""
@@ -205,18 +212,35 @@ def show_until_question(content, state, io, username, feedback_model="MODEL_0"):
 
         # A question: ask it & wait for an answer
         if "question" in step:
-            question_content = render_template(step["question"], context)
+            question_content = io.translate(
+                render_template(step["question"], context),
+                user_language,
+                feedback_model,
+            )
+            if activity_grading.is_multiple_choice(step):
+                # Choice texts are content (translated); their ids never are.
+                question_content += "\n\n" + io.translate(
+                    activity_grading.choices_markdown(step),
+                    user_language,
+                    feedback_model,
+                )
             io.say(
-                io.translate(question_content, user_language, feedback_model),
+                question_content,
                 username="System (Question)",
                 shown_as="System",
             )
+            if activity_grading.is_multiple_choice(step):
+                io.offer_choices(activity_grading.choices_for_page(step))
             break
 
-        # Move to the next step
-        next_section, next_step = get_next_step(
-            content, state.section_id, state.step_id
-        )
+        # Move on: where this content step says (its own
+        # next_section_and_step, a target or conditional list), else the
+        # next step in order.
+        next_section, next_step = _step_target(content, step, state)
+        if next_step is None:
+            next_section, next_step = get_next_step(
+                content, state.section_id, state.step_id
+            )
         if not next_step:
             io.complete(state, username, feedback_model)
             break
@@ -224,6 +248,24 @@ def show_until_question(content, state, io, username, feedback_model="MODEL_0"):
         state.section_id = next_section["section_id"]
         state.step_id = next_step["step_id"]
         io.save(state)
+
+
+def _step_target(content, step, state):
+    """A content step's own next_section_and_step, resolved against our
+    metadata: (section, step), or (None, None) without one."""
+    target = step.get("next_section_and_step")
+    if not target:
+        return None, None
+    resolved = resolve_conditional_navigation(target, state.dict_metadata)
+    if not resolved or ":" not in str(resolved):
+        return None, None
+    section_id, step_id = str(resolved).split(":", 1)
+    for section in content["sections"]:
+        if section["section_id"] == section_id:
+            for candidate in section["steps"]:
+                if candidate["step_id"] == step_id:
+                    return section, candidate
+    return None, None
 
 
 def answer(content, state, user_response, username, io, default_model="MODEL_0"):
@@ -291,6 +333,12 @@ class _Turn:
         self.next_target = None
         # If ANY transition counts as an attempt, it counts
         self.counts_as_attempt = False
+        # A multiple-choice step's transitions carry static feedback; a
+        # model writes some only when the step asks (mc_ai_feedback).
+        self.model_feedback = not (
+            activity_grading.is_multiple_choice(self.step)
+            and not self.step.get("mc_ai_feedback", False)
+        )
 
 
 def _answer_question(turn):
@@ -305,20 +353,25 @@ def _answer_question(turn):
     # Roll for random buckets BEFORE categorization
     triggered_random_buckets = _roll_random_buckets(turn)
 
-    # Categorize the user's response
-    category = turn.io.categorize(
-        step["question"],
-        turn.user_response,
-        step["buckets"],
-        step.get("tokens_for_ai", ""),
-        turn.classifier_model,
-    )
+    # Categorize the user's response: a multiple-choice answer by its key,
+    # no model asked; anything else by the step's grader, which reads its
+    # criteria, required elements & the clarifying bucket too.
+    if activity_grading.is_multiple_choice(step):
+        category = activity_grading.grade_choice(step, turn.user_response)
+    else:
+        category = turn.io.categorize(
+            step["question"],
+            turn.user_response,
+            activity_grading.buckets_for(turn.content, step),
+            activity_grading.grading_instructions(turn.content, step),
+            turn.classifier_model,
+        )
     _announce_category(turn, category)
 
     # Combine user's category with triggered random buckets
     # User's response is processed FIRST, then random events
     all_active_buckets = [category] + triggered_random_buckets
-    active_transitions = _active_transitions(step["transitions"], all_active_buckets)
+    active_transitions = _active_transitions(step, all_active_buckets)
 
     # Error only if NO transitions found at all
     if not active_transitions:
@@ -434,13 +487,18 @@ def _announce_category(turn, category):
     _notice(turn, f"Category: {category}{_conf}", pause=0.1)
 
 
-def _active_transitions(transitions, buckets):
-    """(bucket, transition) for every bucket that has a transition, in order."""
+def _active_transitions(step, buckets):
+    """(bucket, transition) for every bucket that has a transition, in order:
+    the step's own, else the built-in one for the clarifying bucket."""
+    transitions = step.get("transitions") or {}
     active = []
     for bucket in buckets:
-        bucket, transition = _find_transition(transitions, bucket)
+        found, transition = _find_transition(transitions, bucket)
+        if transition is None:
+            transition = activity_grading.transition_for(step, bucket)
+            found = bucket
         if transition is not None:  # `a: {}` is a transition that does nothing
-            active.append((bucket, transition))
+            active.append((found, transition))
     return active
 
 
@@ -761,6 +819,8 @@ def _post_feedback(turn, bucket_name, transition, user_language, new_metadata):
     step = turn.step
     state = turn.state
     feedback_messages = []
+    if not turn.model_feedback:
+        return
 
     if "feedback_prompts" in step:
         # New multi-prompt system - pass full metadata, let each prompt filter

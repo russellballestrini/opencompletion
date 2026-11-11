@@ -326,7 +326,12 @@ def test_correct_answer_advances_and_asks_next_question(engine):
     # The categorize ask carries the step's tokens & bucket list.
     kind, messages = engine.model.calls[0]
     assert kind == "categorize"
-    assert messages[0]["content"].startswith("Grade it. Categorize the following")
+    # The step's instructions, then the clarifying bucket every question
+    # step gains (activity_grading.py), then our categorizer's own words.
+    assert messages[0]["content"].startswith(
+        "Grade it.\n\n- asking_clarifying_questions: the learner asks"
+    )
+    assert "Categorize the following" in messages[0]["content"]
     assert messages[1]["content"] == "Question: What is 2+2?\nResponse: 4\n\nCategory:"
 
 
@@ -488,12 +493,17 @@ def test_classifier_path_answers_with_confidence(engine):
         engine.respond("4")
     assert engine.said()[0] == "Category: correct (confidence 91%)"
     assert "categorize" not in engine.model.kinds()
-    assert cat.call_args.args == (
-        "What is 2+2?",
-        "4",
-        ["correct", "incorrect", "wrong", "hint", "partial_understanding"],
-        "Grade it.",
-    )
+    question, said, buckets, instructions = cat.call_args.args
+    assert (question, said) == ("What is 2+2?", "4")
+    assert buckets == [
+        "correct",
+        "incorrect",
+        "wrong",
+        "hint",
+        "partial_understanding",
+        "asking_clarifying_questions",
+    ]
+    assert instructions.startswith("Grade it.\n\n- asking_clarifying_questions:")
     assert engine.state().step_id == "q2"
 
 

@@ -73,6 +73,71 @@ socket.on("activity_status", (data) => {
     }
 });
 
+// A multiple-choice question's choices as buttons under it (ids & texts
+// only; our server holds the answer & grades). One pick sends its id; a
+// pick-every-one-that-fits question toggles ids, then Send sends them.
+// The question already lists them, so typing an id works too.
+function clearActivityChoices() {
+    document.querySelectorAll(".activity-choices").forEach((row) => row.remove());
+}
+
+function sendActivityAnswer(text) {
+    clearActivityChoices();
+    const textarea = document.getElementById("message");
+    textarea.value = text;
+    sendMessage();
+}
+
+socket.on("activity_choices", (data) => {
+    const messages = document.querySelectorAll('#chat [id^="message-"]');
+    const question = messages[messages.length - 1];
+    if (!question || !(data.choices || []).length) return;
+    clearActivityChoices();
+    const row = document.createElement("div");
+    row.className = "followups activity-choices";
+    row.setAttribute("role", "group");
+    row.setAttribute("aria-label", data.multiple ? "Pick every one that fits" : "Pick one");
+    const picked = new Set();
+    data.choices.forEach((choice) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "followup-chip";
+        button.textContent = `${choice.id}: ${choice.text}`;
+        if (data.multiple) {
+            button.setAttribute("aria-pressed", "false");
+            button.onclick = () => {
+                const on = !picked.has(choice.id);
+                if (on) picked.add(choice.id); else picked.delete(choice.id);
+                button.setAttribute("aria-pressed", String(on));
+                send.disabled = !picked.size;
+            };
+        } else {
+            button.onclick = () => sendActivityAnswer(choice.id);
+        }
+        row.appendChild(button);
+    });
+    const send = document.createElement("button");
+    if (data.multiple) {
+        send.type = "button";
+        send.className = "btn activity-choices-send";
+        send.textContent = "Send";
+        send.disabled = true;
+        send.onclick = () => sendActivityAnswer(
+            data.choices.map((c) => c.id).filter((id) => picked.has(id)).join(", "));
+        row.appendChild(send);
+    }
+    question.appendChild(row);
+    if (!userHasScrolledUp) {
+        document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+    }
+});
+
+// A later message (an answer typed instead, someone else's turn) moves our
+// activity past these choices.
+socket.on("chat_message", (data) => {
+    if (!data || data.username !== "System") clearActivityChoices();
+});
+
 // Load activities on page load
 document.addEventListener('DOMContentLoaded', () => {
     refreshActivityList();
