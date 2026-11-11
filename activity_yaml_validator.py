@@ -17,11 +17,95 @@ from pathlib import Path
 
 from activity_gallery import KINDS as GALLERY_KINDS
 
+# Every key our engine reads, per level (activity_engine.py, activity.py).
+# A key outside these is ignored at runtime, so a typo (`transitons`,
+# `metadata_ad`) would pass silently: the validator warns on it.
+KNOWN_KEYS = {
+    "activity": {
+        "sections",
+        "default_max_attempts_per_step",
+        "tokens_for_ai_rubric",
+        "classifier_model",
+        "feedback_model",
+        "title",
+        "description",
+        "kind",
+        "listed",
+        "allow_clarifying_questions",
+        "subject",
+    },
+    "section": {"section_id", "title", "steps"},
+    "step": {
+        "step_id",
+        "title",
+        "content_blocks",
+        "question",
+        "tokens_for_ai",
+        "feedback_tokens_for_ai",
+        "buckets",
+        "transitions",
+        "processing_script",
+        "pre_script",
+        "post_script",
+        "hints",
+        "random_buckets",
+        "feedback_prompts",
+        "classifier_model",
+        "feedback_model",
+        "next_section_and_step",
+        "bucket_criteria",
+        "required_elements",
+        "allow_clarifying_questions",
+        "question_type",
+        "choices",
+        "answer",
+        "answer_mode",
+        "mc_correct",
+        "mc_incorrect",
+        "mc_ai_feedback",
+    },
+    "transition": {
+        "content_blocks",
+        "ai_feedback",
+        "next_section_and_step",
+        "counts_as_attempt",
+        "metadata_add",
+        "metadata_tmp_add",
+        "metadata_remove",
+        "metadata_clear",
+        "metadata_random",
+        "metadata_tmp_random",
+        "metadata_weighted_random",
+        "metadata_tmp_weighted_random",
+        "metadata_append",
+        "metadata_tmp_append",
+        "metadata_conditions",
+        "metadata_feedback_filter",
+        "run_processing_script",
+        "run_post_script",
+    },
+}
+
+# Multiple-choice steps (unyaml's question_type): graded by comparing the
+# chosen option id(s) to `answer`, no model asked.
+MULTIPLE_CHOICE_TYPES = ("multiple_choice", "multiple-choice", "mc")
+ANSWER_MODES = ("one", "any", "all")
+MC_DEFAULT_BUCKETS = ["correct", "incorrect"]
+
 
 class ValidationError(Exception):
     """Custom exception for validation errors"""
 
     pass
+
+
+def step_buckets(step):
+    """A step's buckets: as listed, else a multiple-choice step's default."""
+    if "buckets" in step:
+        return step["buckets"] if isinstance(step["buckets"], list) else []
+    if step.get("question_type") in MULTIPLE_CHOICE_TYPES:
+        return list(MC_DEFAULT_BUCKETS)
+    return []
 
 
 class ActivityYAMLValidator:
@@ -113,6 +197,9 @@ class ActivityYAMLValidator:
 
             # Validate structure
             self._validate_structure(data)
+            if isinstance(data, dict) and not file_path.endswith("SPEC.yaml"):
+                # SPEC.yaml holds examples at its root, not an activity's keys.
+                self._validate_vocabulary(data)
 
             # Validate sections
             if "sections" in data:
@@ -177,6 +264,10 @@ class ActivityYAMLValidator:
                 not isinstance(data[field], str) or not data[field].strip()
             ):
                 self.errors.append(f"{field} must be a non-empty string")
+        if "allow_clarifying_questions" in data and not isinstance(
+            data["allow_clarifying_questions"], bool
+        ):
+            self.errors.append("allow_clarifying_questions must be true or false")
         if "listed" in data and not isinstance(data["listed"], bool):
             self.errors.append("listed must be true or false")
         if isinstance(data.get("kind"), str) and data["kind"].strip():
@@ -293,6 +384,26 @@ class ActivityYAMLValidator:
         if has_question:
             self._validate_question_step(step, section_id, step_id)
 
+        if "next_section_and_step" in step:
+            where = f"Section {section_id}, step {step_id}"
+            if has_question:
+                self.warnings.append(
+                    f"{where}: 'next_section_and_step' on a question step is ignored;"
+                    " put it on each transition"
+                )
+            elif isinstance(step["next_section_and_step"], list):
+                self._validate_conditional_navigation(
+                    step["next_section_and_step"], "(step)", section_id, step_id
+                )
+            elif not (
+                isinstance(step["next_section_and_step"], str)
+                and ":" in step["next_section_and_step"]
+            ):
+                self.errors.append(
+                    f"{where}: 'next_section_and_step' must be 'section_id:step_id'"
+                    " or a conditional list"
+                )
+
     def _validate_content_blocks(
         self, content_blocks: List[str], section_id: str, step_id: str
     ):
@@ -387,6 +498,8 @@ class ActivityYAMLValidator:
         if "hints" in step:
             self._validate_hints(step["hints"], section_id, step_id)
 
+        self._validate_grading(step, section_id, step_id)
+
         # Validate buckets and transitions
         if "buckets" in step:
             self._validate_buckets(step["buckets"], section_id, step_id)
@@ -399,8 +512,142 @@ class ActivityYAMLValidator:
 
         if "transitions" in step:
             self._validate_transitions(
-                step["transitions"], step.get("buckets", []), section_id, step_id
+                step["transitions"], step_buckets(step), section_id, step_id
             )
+
+    def _validate_vocabulary(self, data: Dict[str, Any]):
+        """Warn on a key our engine never reads (KNOWN_KEYS): a typo there
+        is otherwise ignored without a word."""
+
+        def check(node, level, where):
+            if not isinstance(node, dict):
+                return
+            for key in node:
+                if key not in KNOWN_KEYS[level]:
+                    self.warnings.append(
+                        f"{where}: unknown {level} key '{key}' (ignored by our engine)"
+                    )
+
+        check(data, "activity", "Activity")
+        for section in data.get("sections") or []:
+            if not isinstance(section, dict):
+                continue
+            section_id = section.get("section_id", "?")
+            check(section, "section", f"Section {section_id}")
+            for step in section.get("steps") or []:
+                if not isinstance(step, dict):
+                    continue
+                where = f"Section {section_id}, step {step.get('step_id', '?')}"
+                check(step, "step", where)
+                transitions = step.get("transitions")
+                if isinstance(transitions, dict):
+                    for bucket, transition in transitions.items():
+                        check(transition, "transition", f"{where}, bucket {bucket}")
+
+    def _validate_grading(self, step: Dict[str, Any], section_id: str, step_id: str):
+        """bucket_criteria, required_elements, allow_clarifying_questions &
+        multiple choice (unyaml's grading primitives)."""
+        where = f"Section {section_id}, step {step_id}"
+        buckets = step_buckets(step)
+
+        if "allow_clarifying_questions" in step and not isinstance(
+            step["allow_clarifying_questions"], bool
+        ):
+            self.errors.append(
+                f"{where}: allow_clarifying_questions must be true or false"
+            )
+
+        criteria = step.get("bucket_criteria")
+        if criteria is not None:
+            if not isinstance(criteria, dict) or not criteria:
+                self.errors.append(f"{where}: bucket_criteria must map buckets to text")
+            else:
+                for bucket, text in criteria.items():
+                    if bucket not in buckets:
+                        self.errors.append(
+                            f"{where}: bucket_criteria names '{bucket}', not one of its buckets"
+                        )
+                    if not isinstance(text, str) or not text.strip():
+                        self.errors.append(
+                            f"{where}: bucket_criteria['{bucket}'] must be non-empty text"
+                        )
+
+        elements = step.get("required_elements")
+        if elements is not None:
+            if (
+                not isinstance(elements, list)
+                or not elements
+                or not all(isinstance(e, str) and e.strip() for e in elements)
+            ):
+                self.errors.append(
+                    f"{where}: required_elements must be a list of non-empty text"
+                )
+
+        if "question_type" not in step:
+            for key in (
+                "choices",
+                "answer",
+                "answer_mode",
+                "mc_correct",
+                "mc_incorrect",
+            ):
+                if key in step:
+                    self.warnings.append(
+                        f"{where}: '{key}' is read only on a multiple-choice step"
+                        " (question_type: multiple_choice)"
+                    )
+            return
+
+        if step["question_type"] not in MULTIPLE_CHOICE_TYPES:
+            self.errors.append(
+                f"{where}: question_type must be one of {', '.join(MULTIPLE_CHOICE_TYPES)}"
+            )
+            return
+        choices = step.get("choices")
+        ids = []
+        if not isinstance(choices, list) or len(choices) < 2:
+            self.errors.append(f"{where}: a multiple-choice step needs 2+ choices")
+        else:
+            for i, choice in enumerate(choices):
+                if not (
+                    isinstance(choice, dict)
+                    and isinstance(choice.get("id"), (str, int))
+                    and not isinstance(choice.get("id"), bool)
+                    and isinstance(choice.get("text"), str)
+                    and choice["text"].strip()
+                ):
+                    self.errors.append(f"{where}: choices[{i}] must be {{id, text}}")
+                    continue
+                ids.append(str(choice["id"]))
+            if len(set(ids)) != len(ids):
+                self.errors.append(f"{where}: choice ids must be unique")
+        answer = step.get("answer")
+        answers = answer if isinstance(answer, list) else [answer]
+        if answer is None or answer == []:
+            self.errors.append(f"{where}: a multiple-choice step needs an answer")
+        elif ids:
+            for one in answers:
+                if str(one) not in ids:
+                    self.errors.append(f"{where}: answer '{one}' is not a choice id")
+        mode = step.get("answer_mode")
+        if mode is not None:
+            if mode not in ANSWER_MODES:
+                self.errors.append(
+                    f"{where}: answer_mode must be one of {', '.join(ANSWER_MODES)}"
+                )
+            elif mode == "one" and isinstance(answer, list) and len(answer) > 1:
+                self.errors.append(
+                    f"{where}: answer_mode 'one' takes one answer; use 'any' or 'all'"
+                )
+        for key in ("mc_correct", "mc_incorrect"):
+            if key in step and step[key] not in buckets:
+                self.errors.append(
+                    f"{where}: {key} '{step[key]}' is not one of its buckets"
+                )
+        if "mc_ai_feedback" in step and not isinstance(step["mc_ai_feedback"], bool):
+            self.errors.append(f"{where}: mc_ai_feedback must be true or false")
+        if "transitions" not in step:
+            self.errors.append(f"{where}: a multiple-choice step needs transitions")
 
     def _validate_feedback_prompts(
         self, feedback_prompts: List[Dict[str, Any]], section_id: str, step_id: str
@@ -1068,6 +1315,18 @@ class ActivityYAMLValidator:
 
             for step in section["steps"]:
                 step_id = step.get("step_id")
+                own = step.get("next_section_and_step")
+                if step_id and "question" not in step and own:
+                    targets = (
+                        [own]
+                        if isinstance(own, str)
+                        else [b.get("goto") for b in own if isinstance(b, dict)]
+                    )
+                    for target in targets:
+                        if target and target not in all_steps:
+                            self.errors.append(
+                                f"Section {section_id}, step {step_id}: Invalid next_section_and_step '{target}'"
+                            )
                 if not step_id or "transitions" not in step:
                     continue
 
