@@ -14,7 +14,7 @@ blob_store (SQLite today). Limits: OPENCOMPLETION_UPLOAD_MAX_MB per file
 
 from urllib.parse import quote
 
-from flask import Blueprint, Response, jsonify, redirect, request
+from flask import Blueprint, Response, jsonify, redirect, render_template, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
 import auth
@@ -96,8 +96,22 @@ def serve_attachment(public_id, filename):
     if attachment is None:
         return jsonify({"error": "File not found"}), 404
     room = db.session.get(Room, attachment.room_id)
-    if room is None or room_access_denied(room, auth.get_current_user()):
+    if room is None:
         return jsonify({"error": "File not found"}), 404
+    if room_access_denied(room, auth.get_current_user()):
+        # A real file's random id, held by someone who may not open its
+        # solo chat: say that, as the chat's own page does, so its owner
+        # signed out (or whoever they sent the link to) is not told a file
+        # that exists is missing (fox, 2026-11-10). The same answer for any
+        # name, so nothing about the chat's files can be tried.
+        return (
+            render_template(
+                "not_found.html",
+                heading="This file is in someone's solo chat",
+                detail="Only its owner can open it. If it is yours, sign in.",
+            ),
+            403,
+        )
     if attachment.filename != filename:
         # A model writing links to several files it shared sometimes gives
         # one file's id to another's name (fox, 2026-11-10: phone_ring.mp3
