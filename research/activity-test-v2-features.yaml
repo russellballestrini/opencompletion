@@ -1,3 +1,4 @@
+listed: false  # a test fixture for v2 features, not one to play
 default_max_attempts_per_step: 3
 classifier_model: "MODEL_0"
 feedback_model: "MODEL_0"

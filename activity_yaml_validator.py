@@ -177,6 +177,8 @@ class ActivityYAMLValidator:
                 not isinstance(data[field], str) or not data[field].strip()
             ):
                 self.errors.append(f"{field} must be a non-empty string")
+        if "listed" in data and not isinstance(data["listed"], bool):
+            self.errors.append("listed must be true or false")
         if isinstance(data.get("kind"), str) and data["kind"].strip():
             if data["kind"].strip().lower() not in GALLERY_KINDS:
                 self.errors.append(

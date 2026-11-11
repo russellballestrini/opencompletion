@@ -131,9 +131,12 @@ def activities_page():
     """Our Activities gallery: a card per activity, Play opens a new
     public chatroom running it (static/js/activities.js). Only files named
     activity* are shown: research/SPEC.yaml is our format's reference, not
-    something to play, though `/activity` still starts it."""
+    something to play, though `/activity` still starts it. `listed: false`
+    in a YAML keeps it off too (test fixtures)."""
     cards = [
-        card for card in activity_cards() if card["name"].lower().startswith("activity")
+        card
+        for card in activity_cards()
+        if card["name"].lower().startswith("activity") and card.get("listed", True)
     ]
     cards.sort(key=lambda card: card["title"].lower())
     counts = {kind: 0 for kind, _ in ACTIVITY_KINDS}

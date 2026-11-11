@@ -1,3 +1,5 @@
+title: "Escape Room: Key, Book & Safe"
+description: "Wake in a locked room & find a way out: a key under a rug, a password in a book, a safe on a wall."
 # What our Activities gallery shows for this activity (optional: see SPEC.yaml).
 kind: "game"
 default_max_attempts_per_step: 30

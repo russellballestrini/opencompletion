@@ -26,6 +26,8 @@
 #                else "lesson"
 # Say them here when the derived ones read badly. kind must be "game",
 # "lesson" or "tool"; "tool" is never derived.
+#   listed       false keeps an activity off our gallery (a test fixture, a
+#                draft); `/activity <path>` still starts it. Default: true.
 title: "Activity Specification"
 description: "Our reference for every mechanic an activity YAML may use."
 kind: "lesson"

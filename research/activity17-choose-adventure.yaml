@@ -1,3 +1,5 @@
+title: "Prize Room & Temple Pit"
+description: "Win a random prize, offer it to a temple god & face a shadow beast or a fire drake."
 default_max_attempts_per_step: 30
 
 tokens_for_ai_rubric: |

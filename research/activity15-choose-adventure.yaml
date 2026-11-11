@@ -1,3 +1,5 @@
+title: "Escape Room II: A Secret Compartment"
+description: "A longer escape: explore a locked room, open its safe, then decide whether to crack a second one."
 # What our Activities gallery shows for this activity (optional: see SPEC.yaml).
 kind: "game"
 default_max_attempts_per_step: 30

@@ -207,6 +207,7 @@ def names_only(path):
         "description": "",
         "kind": None,
         "readable": False,
+        "listed": True,
     }
 
 
@@ -229,6 +230,9 @@ def card(path, content):
         or derive_description(content),
         "kind": kind if kind in KINDS else derive_kind(content),
         "readable": True,
+        # `listed: false` keeps an activity off our gallery (a test
+        # fixture, a draft); `/activity <path>` still starts it.
+        "listed": content.get("listed") is not False,
     }
 
 

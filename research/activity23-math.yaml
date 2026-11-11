@@ -1,3 +1,5 @@
+title: "Math Quiz: From Basics to Algebra"
+description: "Nine questions from addition to algebra; show our work & get feedback on each."
 default_max_attempts_per_step: 3
 sections:
   - section_id: "section_1"

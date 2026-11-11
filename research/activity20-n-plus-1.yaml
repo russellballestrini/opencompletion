@@ -1,3 +1,5 @@
+title: "History Quiz Challenge"
+description: "Five quick history questions; each right answer adds one to our score."
 default_max_attempts_per_step: 3
 sections:
   - section_id: "section_1"

@@ -1,3 +1,4 @@
+listed: false  # a test fixture for Battleship, not one to play
 # What our Activities gallery shows for this activity (optional: see SPEC.yaml).
 description: "Battleship with a one-square fleet: a quick game for testing its flow."
 default_max_attempts_per_step: 9
