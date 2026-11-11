@@ -457,6 +457,18 @@ function removeOldestPlaceholder() {
     if (placeholder) placeholder.remove();
 }
 
+// A join says how many replies stream now. None: a placeholder still on
+// our page lost its reply while we were away (it ended before a first
+// chunk reached us), & nothing else would ever take it.
+let joinedJustNow = false;
+socket.on("joined", () => { joinedJustNow = true; });
+socket.on("replies_streaming", (data) => {
+    if (joinedJustNow && !(data && data.count)) {
+        document.querySelectorAll('#chat [id^="message-processing-"]').forEach((el) => el.remove());
+    }
+    joinedJustNow = false;
+});
+
 socket.on("delete_processing_message", (msg_id) => {
     // A reply has ended: its placeholder goes now unless its first chunk
     // took it already.
@@ -562,6 +574,7 @@ function streamOf(id) {
             keepThinkingOpen: false,
             complete: null,     // its completion event, once it came
             renderAfter: 0,     // no markdown render before this (ms)
+            thinkAfter: 0,      // no thinking write before this (ms)
         };
     }
     return streams[id];
@@ -668,9 +681,20 @@ function flushStreams(force) {
             forgetStream(stream.id);
             continue;
         }
+        // Thinking is one growing block of text: appending to it & laying
+        // it out costs more the longer it gets (42 ms a write at 15k
+        // characters; on a slow phone that took our whole page & its
+        // socket timed out, 2026-11-10). So, like the answer below, it
+        // waits a few times what its last write cost. An answer beginning,
+        // or the reply's end, never waits.
         if (stream.thinking) {
-            showThinking(messageWrapper, stream);
-            wrote = true;
+            const due = force || stream.complete || stream.words || now >= stream.thinkAfter;
+            if (due) {
+                showThinking(messageWrapper, stream);
+                wrote = true;
+            } else {
+                wait = Math.max(wait, stream.thinkAfter - now);
+            }
         }
         if (!stream.words) continue;
         // Markdown is rendered whole each time: a long answer waits a few
@@ -718,8 +742,14 @@ function showThinking(messageWrapper, stream) {
             body.insertBefore(details, body.firstChild);
         }
     }
-    details.querySelector(".message-thinking-body").firstChild.appendData(stream.thinking);
+    const started = performance.now();
+    const body = details.querySelector(".message-thinking-body");
+    body.firstChild.appendData(stream.thinking);
     stream.thinking = "";
+    // Lay it out now, inside what we time (our scroll below would anyway).
+    void body.offsetHeight;
+    const cost = performance.now() - started;
+    stream.thinkAfter = performance.now() + Math.min(1000, cost * 4);
 }
 
 function showWords(messageWrapper, stream) {

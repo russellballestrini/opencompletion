@@ -354,3 +354,71 @@ LOOK_PROBE = probe(r"""
 
 def test_a_reply_looks_alike_live_and_from_history(page, tmp_path):
     passed(run_probe(page, LOOK_PROBE, tmp_path, 1280))
+
+
+# Found re-testing against a real model: a connection lost after a reply's
+# "Processing..." line but before its first chunk, the reply ending while
+# we were away, left that line on our page for good.
+STALE_PLACEHOLDER_PROBE = probe(r"""
+    const placeholders = () => document.querySelectorAll('#chat [id^="message-processing-"]').length;
+    deliver('chat_message', {id: 50, username: 'ada', content: 'hello?'});
+    deliver('chat_message', {id: 'processing-abc', content: "<span id='processing'>Processing...</span>"});
+    check(placeholders() === 1, 'a reply is on its way');
+    // While a reply still streams, a count never takes its placeholder.
+    deliver('replies_streaming', {count: 1});
+    deliver('replies_streaming', {count: 0});
+    check(placeholders() === 1, 'a count alone leaves it (another reply may have ended): ' + placeholders());
+
+    testSocket.drop();
+    testSocket.land();
+    deliver('joined', {room_name: 'lobby'});
+    deliver('replies_streaming', {count: 0});
+    deliver('previous_messages', {id: 50, username: 'ada', content: 'hello?'});
+    deliver('previous_messages', {id: 51, username: 'qwen', from_model: true, content: 'Hello!'});
+    check(placeholders() === 0, 'a join with nothing streaming takes a placeholder left behind: ' + placeholders());
+    check(document.querySelector('#message-51 .button-container'), 'its reply is there, whole');
+
+    // A join while a reply does stream keeps that reply's placeholder.
+    deliver('chat_message', {id: 'processing-def', content: "<span id='processing'>Processing...</span>"});
+    testSocket.drop();
+    testSocket.land();
+    deliver('joined', {room_name: 'lobby'});
+    deliver('replies_streaming', {count: 1});
+    check(placeholders() === 1, 'a reply still on its way keeps its line: ' + placeholders());
+""")
+
+
+def test_a_join_with_nothing_streaming_clears_a_placeholder_left_behind(page, tmp_path):
+    passed(run_probe(page, STALE_PLACEHOLDER_PROBE, tmp_path, 1280))
+
+
+# Found on a slow phone against a real model: thinking was written every
+# frame however long each write took, until our page had no time left & its
+# socket timed out. A write now waits a few times what the last one cost.
+THINKING_THROTTLE_PROBE = probe(r"""
+    testSocket.frames = true;   // our page's own frames & timers draw
+    const text = () => {
+        const body = document.querySelector('#message-70 .message-thinking-body');
+        return body ? body.textContent : '';
+    };
+    deliver('message_chunk', {id: 70, reasoning_content: 'a', username: 'ada', model_name: 'qwen', is_first_chunk: true});
+    flushStreamNow();
+    check(text() === 'a', 'thinking begins: ' + text());
+    // As if its last write had been costly: nothing more is written yet.
+    streamOf(70).thinkAfter = performance.now() + 60000;
+    const before = streamWrites;
+    for (let i = 0; i < 200; i++) deliver('message_chunk', {id: 70, reasoning_content: 'b'});
+    flushStreamNow(false);
+    check(text() === 'a' && streamWrites === before, 'a costly write makes the next wait: ' + text().length + ' chars, ' + (streamWrites - before) + ' writes');
+    // An answer beginning never waits: every thought lands first, in order.
+    deliver('message_chunk', {id: 70, content: 'Done.'});
+    flushStreamNow(false);
+    check(text() === 'a' + 'b'.repeat(200), 'the answer brings every thought with it: ' + text().length);
+    check(/Done\./.test(document.querySelector('#message-70').textContent), '& shows');
+    // & a write does set how long the next waits, from what it cost.
+    check(streamOf(70).thinkAfter < performance.now() + 5000, 'the wait follows the real cost, at most a second');
+""")
+
+
+def test_thinking_waits_on_what_its_last_write_cost(page, tmp_path):
+    passed(run_probe(page, THINKING_THROTTLE_PROBE, tmp_path, 1280))
