@@ -59,6 +59,7 @@ def test_each_activity_carries_derived_title_description_and_kind(research, http
             "description": "Pair our socks. Then fold.",
             "kind": "lesson",
             "readable": True,
+            "listed": True,
         }
     ]
 
@@ -142,3 +143,21 @@ def test_a_title_cannot_break_out_of_its_card(research, http):
     )
     page = http.get("/activities").get_data(as_text=True)
     assert "<script>alert(1)" not in page
+
+
+def test_our_gallery_leaves_out_fixtures_and_gives_every_card_its_own_title(test_app):
+    from collections import Counter
+
+    test_app.config["LOCAL_ACTIVITIES"] = True
+    try:
+        html = test_app.test_client().get("/activities").get_data(as_text=True)
+        details = test_app.test_client().get("/api/activities").json["details"]
+    finally:
+        test_app.config["LOCAL_ACTIVITIES"] = False
+    # Our two test fixtures say `listed: false`: on our API, off our page.
+    assert "activity29-testship" not in html and "activity-test-v2-features" not in html
+    assert any(d["name"] == "activity29-testship" and not d["listed"] for d in details)
+    listed = [d for d in details if d["listed"] and d["name"].startswith("activity")]
+    twice = [t for t, n in Counter(d["title"] for d in listed).items() if n > 1]
+    assert twice == [], twice
+    assert "Escape Room: Key, Book &amp; Safe" in html

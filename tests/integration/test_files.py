@@ -152,7 +152,10 @@ def test_a_solo_chats_files_are_its_owners_alone(test_app):
     url = mine.json["url"]
     stranger = make_user("x@example.test", "x")
     for client in (client_for(test_app), client_for(test_app, stranger)):
-        assert client.get(url).status_code == 404
+        # Told whose it is, never handed a byte of it.
+        refused = client.get(url)
+        assert refused.status_code == 403 and b"solo chat" in refused.data
+        assert b"diary" not in refused.data.replace(b"diary.txt", b"")
         assert upload(client, "secret", b"spam", "spam.txt").status_code == 404
     assert client_for(test_app, owner).get(url).data == b"diary"
 
@@ -206,10 +209,23 @@ def test_a_solo_chats_file_names_cannot_be_tried_by_anyone_else(test_app):
     room.is_private, room.owner_id = True, 4242
     db.session.commit()
     assert Attachment.query.count() == 2
-    # Not its owner: a right name & a wrong one read the same, as missing.
-    assert client.get(f"/attachments/{wav['id']}/ring.mp3").status_code == 404
-    assert client.get(f"/attachments/{wav['id']}/ring.wav").status_code == 404
-    assert client.get(f"/attachments/{wav['id']}/nope").status_code == 404
+    # Not its owner: a right name & a wrong one read exactly the same. Each
+    # says whose it is & what to do, never a byte or another file's name.
+    names = ("ring.mp3", "ring.wav", "nope")
+    answers = [client.get(f"/attachments/{wav['id']}/{name}") for name in names]
+    assert [a.status_code for a in answers] == [403, 403, 403]
+    # Each page differs only by the address asked for (where Sign in
+    # returns to): take that out & all three are one page.
+    pages = {
+        a.get_data(as_text=True).replace(name, "NAME")
+        for a, name in zip(answers, names)
+    }
+    assert len(pages) == 1
+    page = pages.pop()
+    assert "solo chat" in page and "sign in" in page and 'name="viewport"' in page
+    assert "RIFF" not in page and "ring" not in page
+    # An id no file has stays a plain 404: nothing to say about nothing.
+    assert client.get(f"/attachments/{'0' * 32}/ring.wav").status_code == 404
 
 
 def test_every_file_reads_as_the_markdown_our_composer_writes(test_app):
@@ -547,6 +563,104 @@ def test_stop_ends_a_streaming_reply(test_app, monkeypatch):
     assert "stoppable" not in app_module.stop_requests
     assert "stoppable" not in app_module.streaming_replies
     assert sent.count("replies_streaming") == 2  # one up, one down
+
+
+def test_stop_while_it_still_thinks_says_so_and_never_waits_on_a_title(
+    test_app, monkeypatch
+):
+    """Stop pressed before any answer left a name over nothing; & a room's
+    first reply kept Stop on screen while its title was being made."""
+    import app as app_module
+    from models import Message
+
+    make_room("thinker")
+
+    def thinking_forever():
+        while True:
+            delta = SimpleNamespace(
+                reasoning_content="hmm ", reasoning=None, content=None
+            )
+            yield SimpleNamespace(
+                choices=[SimpleNamespace(delta=delta, finish_reason=None)]
+            )
+
+    sent = []
+
+    def emit(event, data=None, **kwargs):
+        sent.append((event, data))
+        if event == "message_chunk" and len(sent) > 5:
+            app_module.stop_requests.add("thinker")
+
+    stream = thinking_forever()
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: stream))
+    )
+    monkeypatch.setattr(
+        app_module, "get_openai_client_and_model", lambda n: (client, n)
+    )
+    monkeypatch.setattr(app_module.socketio, "emit", emit)
+    monkeypatch.setattr(app_module.socketio, "sleep", lambda s: None)
+    titled, beside = [], []
+    monkeypatch.setattr(app_module, "title_untitled_room", titled.append)
+    monkeypatch.setattr(
+        app_module.gevent, "spawn", lambda fn, *a, **k: beside.append((fn, a))
+    )
+
+    app_module.stoppable_reply(app_module.chat_gpt, "ada", "thinker", model_name="m")
+
+    reply = Message.query.filter_by(username="m").one()
+    assert reply.content.strip() == "_Stopped before it answered._"
+    assert reply.thinking.startswith("hmm ")
+    # Its last words on our page are that note, its thinking left open.
+    notes = [d for e, d in sent if e == "message_chunk" and d.get("content")]
+    assert notes[-1]["content"].strip() == "_Stopped before it answered._"
+    assert notes[-1]["keep_thinking_open"] is True
+    # Titling was handed off, never run inside the reply: by the time our
+    # count dropped (Stop goes), no title had been asked for.
+    assert titled == []
+    assert (app_module.title_untitled_room, ("thinker",)) in beside
+    assert "thinker" not in app_module.streaming_replies
+
+
+def test_a_reply_stopped_mid_answer_keeps_its_words_and_gets_no_note(
+    test_app, monkeypatch
+):
+    import app as app_module
+    from models import Message
+
+    make_room("halfway")
+
+    def endless():
+        while True:
+            delta = SimpleNamespace(
+                reasoning_content=None, reasoning=None, content="la "
+            )
+            yield SimpleNamespace(
+                choices=[SimpleNamespace(delta=delta, finish_reason=None)]
+            )
+
+    count = []
+
+    def emit(event, data=None, **kwargs):
+        count.append(event)
+        if event == "message_chunk" and len(count) > 5:
+            app_module.stop_requests.add("halfway")
+
+    stream = endless()
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: stream))
+    )
+    monkeypatch.setattr(
+        app_module, "get_openai_client_and_model", lambda n: (client, n)
+    )
+    monkeypatch.setattr(app_module.socketio, "emit", emit)
+    monkeypatch.setattr(app_module.socketio, "sleep", lambda s: None)
+    monkeypatch.setattr(app_module, "title_untitled_room", lambda name: None)
+
+    app_module.stoppable_reply(app_module.chat_gpt, "ada", "halfway", model_name="m")
+
+    reply = Message.query.filter_by(username="m").one().content
+    assert reply.startswith("la ") and "Stopped" not in reply
 
 
 def test_stop_needs_access_to_the_room(test_app):

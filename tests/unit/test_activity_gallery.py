@@ -172,6 +172,7 @@ def test_a_file_we_cannot_read_gets_its_name_only(tmp_path):
         "description": "",
         "kind": None,
         "readable": False,
+        "listed": True,
     }
     not_an_activity = tmp_path / "activity4-list.yaml"
     not_an_activity.write_text("- just\n- a list\n")
@@ -217,3 +218,20 @@ def test_showpieces_say_their_own_words():
     assert "shared tries" in made["description"]
     plotter = gallery.local_card(str(ROOT / "research" / "activity24-math-plot.yaml"))
     assert plotter["kind"] == "tool"  # never derived: its YAML says so
+
+
+def test_an_activity_can_keep_itself_off_our_gallery():
+    """`listed: false` (a test fixture, a draft): a card says so & our page
+    leaves it out; anything else is listed."""
+    import activity_gallery
+
+    sections = [{"section_id": "s", "title": "S", "steps": []}]
+    hidden = activity_gallery.card(
+        "research/activityX.yaml", {"listed": False, "sections": sections}
+    )
+    shown = activity_gallery.card("research/activityY.yaml", {"sections": sections})
+    odd = activity_gallery.card(
+        "research/activityZ.yaml", {"listed": "no", "sections": sections}
+    )
+    assert (hidden["listed"], shown["listed"], odd["listed"]) == (False, True, True)
+    assert activity_gallery.names_only("research/broken.yaml")["listed"] is True

@@ -400,6 +400,26 @@ sections:
         finally:
             os.unlink(temp_file)
 
+    def test_listed_must_be_true_or_false(self):
+        bad = """
+listed: "no"
+sections:
+  - section_id: "section_1"
+    title: "Test"
+    steps:
+      - step_id: "step_1"
+        title: "Only"
+        content_blocks:
+          - "Done"
+"""
+        temp_file = self.create_temp_yaml(bad)
+        try:
+            is_valid, errors, warnings = self.validator.validate_file(temp_file)
+            self.assertFalse(is_valid)
+            self.assertTrue(any("listed must be true or false" in e for e in errors))
+        finally:
+            os.unlink(temp_file)
+
     def test_invalid_transitions(self):
         """Test validation of transition references"""
         invalid_transitions = """
