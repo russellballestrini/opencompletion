@@ -585,7 +585,7 @@ def _resolve_metadata_value(turn, key, value):
         range_values = value[9:-1].split(",")
         if len(range_values) == 2:
             x, y = map(int, range_values)
-            return current.get(key, 0) + random.randint(x, y)
+            return _number(current.get(key), key) + random.randint(x, y)
         return value
     # Check if this is string concatenation (n+,value) or numeric operation (n+5)
     if value.startswith("n+,") or value.startswith("n-,"):
@@ -612,16 +612,37 @@ def _comma_list_operation(existing_value, value):
     return existing_value
 
 
+def _number(existing, key):
+    """A stored value to count from: missing, None or blank is 0, & a number
+    written as text ('0', "2.5", what a YAML author quoted or a script
+    stored) is that number. Anything else counts from 0, said so, rather
+    than raise mid-turn (an activity used to die on its first `n+1`)."""
+    if existing is None or existing == "":
+        return 0
+    if isinstance(existing, bool):
+        return int(existing)
+    if isinstance(existing, (int, float)):
+        return existing
+    try:
+        return int(str(existing).strip())
+    except ValueError:
+        pass
+    try:
+        return float(str(existing).strip())
+    except ValueError:
+        print(f"Warning: {key}={existing!r} is not a number; counting from 0")
+        return 0
+
+
 def _numeric_operation(current, key, value):
-    """Numeric operation: extract the numeric part c and apply the operation +/-"""
+    """n+c / n-c: c added to or taken from the key's number (_number)."""
     try:
         c = int(value[2:])
-        if value.startswith("n+"):
-            return current.get(key, 0) + c
-        return current.get(key, 0) - c
     except ValueError:
         print(f"Warning: Invalid numeric operation '{value}' for key '{key}'")
         return value
+    base = _number(current.get(key), key)
+    return base + c if value.startswith("n+") else base - c
 
 
 def _append_metadata(turn, items, tmp):

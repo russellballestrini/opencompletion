@@ -158,3 +158,36 @@ def test_an_answer_that_stays_asks_again_and_counts():
     activity_engine.answer(activity, state, "eh", "ada", io)
     assert io.said[-2:] == ["A number, please.", "A number?"]
     assert state.step_id == "q1"
+
+
+# A number kept as text ('0' in a YAML, a script's str) or nothing at all is
+# counted from, never raised on: 7 of our activities died on their first
+# scored answer (activity_walk.py, 2026-11-11).
+import pytest  # noqa: E402
+
+import activity_engine as _engine  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    "stored, op, expected",
+    [
+        ("0", "n+1", 1),
+        ("10", "n-3", 7),
+        (" 4 ", "n+1", 5),
+        ("2.5", "n+1", 3.5),
+        (None, "n+2", 2),
+        ("", "n+2", 2),
+        (5, "n+1", 6),
+        ("lots", "n+1", 1),
+    ],
+)
+def test_numeric_operation_counts_from_text_and_nothing(stored, op, expected):
+    assert _engine._numeric_operation({"score": stored}, "score", op) == expected
+
+
+def test_numeric_operation_on_a_missing_key_starts_at_zero():
+    assert _engine._numeric_operation({}, "score", "n-1") == -1
+
+
+def test_a_bad_operation_is_kept_as_written():
+    assert _engine._numeric_operation({"score": 1}, "score", "n+x") == "n+x"

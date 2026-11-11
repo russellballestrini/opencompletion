@@ -27,6 +27,7 @@ help:
 	@echo "  test-guarded-ai      - research/guarded_ai.py tests"
 	@echo "  test-multiple-files  - Integration tests across every activity file"
 	@echo "  validate-yaml        - Validate every YAML file in research/"
+	@echo "  activity-walk        - Play every activity with dice, no model: crashes, raw names, dead ends"
 	@echo ""
 	@echo "Lint & CI:"
 	@echo "  lint                 - black --check & flake8 (syntax, undefined names)"
@@ -169,6 +170,11 @@ test-multiple-files: venv
 validate-yaml: venv
 	@echo "📋 Validating all YAML files..."
 	venv/bin/python activity_yaml_validator.py research/*.yaml
+
+.PHONY: activity-walk
+activity-walk: venv
+	@echo "Walking every activity with dice (no model): scripts run, every bucket taken..."
+	MPLBACKEND=Agg venv/bin/python activity_walk.py research/activity*.yaml
 
 # ============================================================================
 # LINT & CI
