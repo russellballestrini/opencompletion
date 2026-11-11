@@ -333,14 +333,16 @@ sections:
             metadata_add:
               language: "the-users-response"
             counts_as_attempt: false      # Don't penalize language changes
-            next_section_and_step: "introduction:question_example"  # Retry same question
+            # No next_section_and_step: set_language is a stay bucket, so the
+            # question is asked again (now in their language)
 
           # Off-topic response (retry pattern)
           off_topic:
             content_blocks:
               - "I didn't understand that. Could you try again?"
-            next_section_and_step: "introduction:question_example"  # Retry
-            # counts_as_attempt: true (default) - wrong answers count
+            # Stays & asks again; counts_as_attempt: true (default), so after
+            # max attempts the step moves on. Pointing a stay bucket at its own
+            # step does the same.
 
           # Random event transitions
           emergency:

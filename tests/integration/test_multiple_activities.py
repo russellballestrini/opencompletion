@@ -389,13 +389,14 @@ class TestMultipleActivityFiles(unittest.TestCase):
                                 "transitions"
                             ].items():
 
-                                # Check metadata_remove format
+                                # Check metadata_remove format: a key or a
+                                # list of keys (SPEC.yaml; metadata_keys()).
                                 if "metadata_remove" in transition:
                                     metadata_remove = transition["metadata_remove"]
-                                    if not isinstance(metadata_remove, list):
+                                    if not isinstance(metadata_remove, (list, str)):
                                         errors.append(
                                             f"Section {section['section_id']} Step {step['step_id']} "
-                                            f"Transition {transition_name}: metadata_remove should be a list, "
+                                            f"Transition {transition_name}: metadata_remove should be a key or a list, "
                                             f"got {type(metadata_remove).__name__}"
                                         )
 

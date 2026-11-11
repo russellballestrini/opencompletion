@@ -173,3 +173,16 @@ def test_every_activity_we_ship_still_validates():
     for path in sorted(glob.glob("research/activity*.yaml")):
         ok, errors, _ = ActivityYAMLValidator().validate_file(path)
         assert ok, (path, errors)
+
+
+def test_a_bare_yes_bucket_warns(tmp_path):
+    step = copy.deepcopy(QUESTION)
+    step["buckets"] = [True, False]
+    step["transitions"] = {True: {}, False: {}}
+    _, warnings = check(tmp_path, activity(step))
+    assert any("YAML reads a bare yes/no" in w for w in warnings)
+
+
+def test_a_long_description_warns(tmp_path):
+    _, warnings = check(tmp_path, activity(QUESTION, description="x" * 141))
+    assert any("141 characters" in w for w in warnings)

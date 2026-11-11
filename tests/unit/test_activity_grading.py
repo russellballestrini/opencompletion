@@ -283,3 +283,131 @@ def test_a_content_step_follows_a_conditional_target():
     texts = [text for _, text in io.said]
     assert "Low score" in texts and "Gap" not in texts
     assert first
+
+
+def test_a_wrong_pick_asks_again_with_its_choices():
+    content = activity(CHOICE)
+    state, io = start(content)
+    activity_engine.answer(content, state, "b", "Ann", io)
+    assert "- **a**: Carbon dioxide" in io.said[-1][1]
+    assert len(io.offers) == 2
+
+
+HINTED = {
+    **FREE,
+    "hints": [
+        {"attempt": 1, "text": "Hint one", "counts_as_attempt": False},
+        {"attempt": 2, "text": "Hint two"},
+    ],
+    "transitions": {
+        **FREE["transitions"],
+        "correct": {"content_blocks": ["Yes"], "next_section_and_step": "s:end"},
+    },
+}
+
+
+def hints_said(io):
+    return [text for who, text in io.said if who == "System (Hint)"]
+
+
+def test_hints_follow_misses_and_never_a_right_answer():
+    content = activity(HINTED)
+    content["default_max_attempts_per_step"] = 5
+    state, io = start(content)
+    state.max_attempts = 5
+    io.next_bucket = "correct"
+    activity_engine.answer(content, state, "12", "Ann", io)
+    assert hints_said(io) == []
+
+
+def test_each_counted_miss_shows_the_next_hint_once():
+    content = activity(HINTED)
+    state, io = start(content)
+    state.max_attempts = 5
+    io.next_bucket = "partial_understanding"
+    activity_engine.answer(content, state, "12?", "Ann", io)
+    assert hints_said(io) == ["Hint one"] and state.attempts == 1
+    activity_engine.answer(content, state, "twelve-ish", "Ann", io)
+    assert hints_said(io) == ["Hint one", "Hint two"] and state.attempts == 2
+    io.next_bucket = grading.CLARIFYING  # costs nothing: no hint
+    activity_engine.answer(content, state, "what?", "Ann", io)
+    assert hints_said(io) == ["Hint one", "Hint two"] and state.attempts == 2
+
+
+def test_show_if_reads_attempt_built_ins():
+    from activity_utils import create_template_context, filter_content_blocks
+
+    context = create_template_context(
+        metadata={},
+        current_attempt=2,
+        max_attempts=3,
+        current_section="s",
+        current_step="ask",
+        username="Ann",
+    )
+    blocks = [{"text": "Second try", "show_if": {"current_attempt": 2}}, "Always"]
+    assert filter_content_blocks(blocks, {}, context) == ["Second try", "Always"]
+    context["current_attempt"] = 1
+    assert filter_content_blocks(blocks, {}, context) == ["Always"]
+
+
+def test_a_wrong_answer_pointed_at_its_own_step_counts_and_moves_on():
+    step = copy.deepcopy(FREE)
+    step["transitions"]["partial_understanding"] = {"next_section_and_step": "s:ask"}
+    content = activity(step)
+    state, io = start(content)
+    state.max_attempts = 2
+    io.next_bucket = "partial_understanding"
+    activity_engine.answer(content, state, "12?", "Ann", io)
+    assert (state.step_id, state.attempts) == ("ask", 1)
+    activity_engine.answer(content, state, "12??", "Ann", io)
+    assert io.done  # max attempts moved it on, to the end
+
+
+def test_a_loop_on_purpose_still_re_runs():
+    step = copy.deepcopy(FREE)
+    step["buckets"] = ["ask_again", "off_topic"]
+    step["transitions"] = {
+        "ask_again": {
+            "content_blocks": ["The 8 ball says yes."],
+            "next_section_and_step": "s:ask",
+        },
+        "off_topic": {},
+    }
+    content = activity(step)
+    state, io = start(content)
+    state.max_attempts = 1
+    io.next_bucket = "ask_again"
+    for _ in range(3):
+        activity_engine.answer(content, state, "Will it rain?", "Ann", io)
+    assert state.step_id == "ask" and not io.done
+
+
+def test_graders_read_the_question_with_its_templates_filled():
+    step = {
+        **FREE,
+        "question": "What is {{metadata.a}} x 4?",
+        "tokens_for_ai": "a is {{metadata.a}}",
+    }
+    content = activity(step)
+    first = content["sections"][0]
+    state = activity_engine.MemoryState("s", "ask", metadata={"a": 3})
+    io = FakeIO()
+    activity_engine.show_until_question(content, state, io, "Ann")
+    io.next_bucket = "off_topic"
+    seen = {}
+    io.feedback = (
+        lambda transition, bucket, question, *rest: seen.update(
+            q=question, t=transition
+        )
+        or "ok"
+    )
+    step["transitions"]["off_topic"] = {
+        "ai_feedback": {"tokens_for_ai": "Remind them a is {{metadata.a}}"}
+    }
+    activity_engine.answer(content, state, "huh", "Ann", io)
+    buckets, instructions = io.categorized[-1]
+    assert instructions.startswith("a is 3")
+    assert seen["q"] == "What is 3 x 4?"
+    assert seen["t"]["ai_feedback"]["tokens_for_ai"] == "Remind them a is 3"
+    assert first

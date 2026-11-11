@@ -800,11 +800,12 @@ transitions:
   hint:
     content_blocks: ["Here's a hint..."]
     counts_as_attempt: false  # Doesn't count toward max
-    next_section_and_step: "current:step"  # Retry
+    # No next_section_and_step: a stay bucket stays & asks again
   incorrect:
     content_blocks: ["Try again!"]
-    next_section_and_step: "current:step"  # Retry (counts)
+    # Stays & counts; after max attempts the step moves on in order
 ```
+A stay bucket (`incorrect`, `partial_understanding`, `off_topic`, `limited_effort`, `asking_clarifying_questions`, `set_language`) with no `next_section_and_step` stays on its step & counts the answer (unless `counts_as_attempt: false`). Pointing one at its own step does the same; any other bucket pointed at its own step re-runs it on purpose (an 8 ball's "ask another"), attempts reset.
 
 **CRITICAL Termination Rule**: Use `metadata_add: activity_completed: "true"` in your final transitions to mark completion!
 
@@ -998,13 +999,15 @@ feedback_tokens_for_ai: |
 
 7. **Provide Multiple Difficulty Paths**
    ```yaml
-   # Allow users to request hints
+   # Asking for help is built in (the clarifying bucket, never an attempt);
+   # for set hints that follow misses, give the step `hints:`. A bucket of
+   # your own that is not a stay bucket moves on unless pointed back:
    buckets: [correct, incorrect, need_hint]
    transitions:
      need_hint:
        content_blocks: ["Hint: Think about..."]
        counts_as_attempt: false
-       next_section_and_step: "current:question"  # Retry
+       next_section_and_step: "quiz:question"  # back to this step
    ```
 
 8. **Support Language Switching**
@@ -1018,7 +1021,7 @@ feedback_tokens_for_ai: |
        metadata_add:
          language: "the-users-response"
        counts_as_attempt: false
-       next_section_and_step: "current:step"  # Retry in new language
+       # (stays: asked again in the new language)
    ```
 
 9. **Write Engaging Content Blocks**

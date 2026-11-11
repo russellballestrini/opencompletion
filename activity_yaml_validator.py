@@ -268,6 +268,12 @@ class ActivityYAMLValidator:
             data["allow_clarifying_questions"], bool
         ):
             self.errors.append("allow_clarifying_questions must be true or false")
+        description = data.get("description")
+        if isinstance(description, str) and len(description.strip()) > 140:
+            self.warnings.append(
+                f"description is {len(description.strip())} characters; our"
+                " gallery cards show one line of 140 at most"
+            )
         if "listed" in data and not isinstance(data["listed"], bool):
             self.errors.append("listed must be true or false")
         if isinstance(data.get("kind"), str) and data["kind"].strip():
@@ -739,6 +745,11 @@ class ActivityYAMLValidator:
             return
 
         for i, bucket in enumerate(buckets):
+            if isinstance(bucket, bool):
+                self.warnings.append(
+                    f"Section {section_id}, step {step_id}: buckets[{i}] is {bucket}:"
+                    " YAML reads a bare yes/no/on/off as true/false; quote it"
+                )
             if not isinstance(bucket, (str, int, bool)):
                 self.errors.append(
                     f"Section {section_id}, step {step_id}: buckets[{i}] must be a string, integer, or boolean"

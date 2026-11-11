@@ -214,8 +214,10 @@ def filter_content_blocks(
             text = block.get("text", "")
             show_if = block.get("show_if", {})
 
-            # Check if conditions are met
-            if check_conditions(metadata, show_if):
+            # Conditions read metadata & the built-ins (current_attempt,
+            # max_attempts, attempts_remaining…); metadata wins a clash.
+            builtins = {k: v for k, v in context.items() if k != "metadata"}
+            if check_conditions({**builtins, **metadata}, show_if):
                 rendered = render_template(text, context)
                 result.append(rendered)
 

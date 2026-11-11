@@ -366,18 +366,21 @@ def test_counts_as_attempt_false_on_stay_bucket(engine):
     assert engine.said()[-1] == "Answer?"
 
 
-def test_stay_bucket_with_next_section_and_step_moves_and_resets(engine):
-    engine.load(TWO_QUESTIONS, attempts=2)
+def test_stay_bucket_pointed_at_its_own_step_counts_like_staying(engine):
+    # A partial_understanding transition naming its own step is staying
+    # (2026-11-11): the answer counts, so max attempts moves it on. As a
+    # fresh visit it reset attempts to 0 & a learner could never leave.
+    engine.load(TWO_QUESTIONS, attempts=1)
     engine.respond("4ish", "partial_understanding")
-    # A partial_understanding transition naming its own step re-enters it
-    # through navigation: attempts reset to 0 & the question is asked again.
     st = engine.state()
-    assert (st.step_id, st.attempts) == ("q1", 0)
+    assert (st.step_id, st.attempts) == ("q1", 2)
     assert engine.said() == [
         "Category: partial_understanding",
         "Almost.",
         "What is 2+2?",
     ]
+    engine.respond("4ish", "partial_understanding")
+    assert engine.state().step_id == "q2"
 
 
 def test_non_stay_bucket_without_target_advances_in_order(engine):
@@ -1315,7 +1318,9 @@ def test_feedback_prompts_with_llms_response_saves_it(engine):
     assert st.step_id == "q2" and st.dict_metadata["saved"] == "FEEDBACK 1"
 
 
-def test_progressive_hint_shown_and_not_counted(engine):
+def test_progressive_hint_follows_a_counted_miss(engine):
+    # A hint never undoes the miss before it (2026-11-11): one that did
+    # held the learner on hint 1 forever, its attempt never moving.
     engine.load(
         one_step(
             """          incorrect:
@@ -1331,7 +1336,7 @@ def test_progressive_hint_shown_and_not_counted(engine):
     )
     engine.respond("x", "incorrect")
     assert engine.said() == ["Category: incorrect", "no", "Hint for try 1", "Answer?"]
-    assert engine.state().attempts == 0
+    assert engine.state().attempts == 1
     assert ("System (Hint)", "Hint for try 1") in engine.stored()
 
 

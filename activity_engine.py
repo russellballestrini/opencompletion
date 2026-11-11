@@ -359,11 +359,15 @@ def _answer_question(turn):
     if activity_grading.is_multiple_choice(step):
         category = activity_grading.grade_choice(step, turn.user_response)
     else:
+        # The grader reads what the learner read: templates filled in.
+        context = _template_context(turn)
         category = turn.io.categorize(
-            step["question"],
+            render_template(step["question"], context),
             turn.user_response,
             activity_grading.buckets_for(turn.content, step),
-            activity_grading.grading_instructions(turn.content, step),
+            render_template(
+                activity_grading.grading_instructions(turn.content, step), context
+            ),
             turn.classifier_model,
         )
     _announce_category(turn, category)
@@ -408,14 +412,15 @@ def _answer_question(turn):
         _drop_tmp_metadata(turn)
         return
 
-    # Check for progressive hints (v2.0)
-    hint = _progressive_hint(turn)
-    if hint:
-        _post_hint(turn, hint, user_language)
-
     # This answer counts toward max attempts before we compare, so a max
     # of 3 means 3 answers, not 4.
     attempts = state.attempts + (1 if turn.counts_as_attempt else 0)
+    # A wrong answer pointed back at its own step is staying, not leaving &
+    # coming back: its attempt counts & max attempts moves it on (as
+    # written, the jump reset attempts to 0, so a learner could never
+    # leave). A loop on purpose (an 8 ball's "ask another") still re-runs.
+    if category in _STAY_ON_STEP_BUCKETS and _targets_here(turn):
+        turn.next_target = None
     if (
         category not in _STAY_ON_STEP_BUCKETS
         or attempts >= state.max_attempts
@@ -425,6 +430,11 @@ def _answer_question(turn):
     else:
         # the user response is any bucket other than correct.
         _count_attempt(turn)
+        # A step's hint for the miss just counted (hints: attempt N shows
+        # after the Nth): never on an answer that moved on or cost nothing.
+        hint = _progressive_hint(turn) if turn.counts_as_attempt else None
+        if hint:
+            _post_hint(turn, hint, user_language)
         _ask_question_again(turn, user_language)
 
     _drop_tmp_metadata(turn)
@@ -821,20 +831,36 @@ def _post_feedback(turn, bucket_name, transition, user_language, new_metadata):
     feedback_messages = []
     if not turn.model_feedback:
         return
+    # The feedback model reads what the learner read: templates filled in.
+    context = _template_context(turn)
+    question = render_template(step["question"], context)
+    legacy_tokens = render_template(turn.feedback_tokens_for_ai or "", context)
+    if isinstance(transition.get("ai_feedback"), dict) and isinstance(
+        transition["ai_feedback"].get("tokens_for_ai"), str
+    ):
+        transition = {
+            **transition,
+            "ai_feedback": {
+                **transition["ai_feedback"],
+                "tokens_for_ai": render_template(
+                    transition["ai_feedback"]["tokens_for_ai"], context
+                ),
+            },
+        }
 
     if "feedback_prompts" in step:
         # New multi-prompt system - pass full metadata, let each prompt filter
         multi_feedback_messages = turn.io.feedback_prompts(
             transition,
             bucket_name,  # Use bucket_name instead of category
-            step["question"],
+            question,
             step["feedback_prompts"],
             turn.user_response,
             user_language,
             turn.username,
             json.dumps(state.dict_metadata),  # Pass full metadata
             json.dumps(new_metadata),
-            turn.feedback_tokens_for_ai,  # Pass legacy tokens to be combined
+            legacy_tokens,  # Pass legacy tokens to be combined
             turn.feedback_model,
         )
         feedback_messages.extend(multi_feedback_messages)
@@ -851,8 +877,8 @@ def _post_feedback(turn, bucket_name, transition, user_language, new_metadata):
         feedback = turn.io.feedback(
             transition,
             bucket_name,  # Use bucket_name instead of category
-            step["question"],
-            turn.feedback_tokens_for_ai,
+            question,
+            legacy_tokens,
             turn.user_response,
             user_language,
             turn.username,
@@ -887,19 +913,17 @@ def _progressive_hint(turn):
     """The step's hint for the next attempt (v2.0), or None."""
     if "hints" not in turn.step:
         return None
-    context = _template_context(turn, attempt_offset=1)  # Next attempt
-    return get_progressive_hint(turn.step["hints"], turn.state.attempts + 1, context)
+    context = _template_context(turn)
+    return get_progressive_hint(turn.step["hints"], turn.state.attempts, context)
 
 
 def _post_hint(turn, hint, user_language):
     translated_hint = turn.io.translate(
         hint["text"], user_language, turn.feedback_model
     )
+    # Showing a hint never changes counting: the miss before it counted,
+    # & a hint that undid it held the learner on one hint forever.
     _post_message(turn, translated_hint, username="System (Hint)")
-
-    # If hint doesn't count as attempt, don't increment
-    if not hint["counts_as_attempt"]:
-        turn.counts_as_attempt = False
 
 
 # ── advance, ask again & persist ─────────────────────────────────────
@@ -924,6 +948,15 @@ def _advance(turn):
     show_until_question(
         turn.content, state, turn.io, turn.username, turn.feedback_model
     )
+
+
+def _targets_here(turn):
+    if not turn.next_target:
+        return False
+    resolved = resolve_conditional_navigation(
+        turn.next_target, turn.state.dict_metadata
+    )
+    return resolved == f"{turn.section['section_id']}:{turn.step['step_id']}"
 
 
 def _next_section_and_step(turn):
@@ -954,13 +987,26 @@ def _count_attempt(turn):
 
 def _ask_question_again(turn, user_language):
     """Emit the question again (v2.0 with templates)"""
-    question_content = render_template(turn.step["question"], _template_context(turn))
+    question_content = turn.io.translate(
+        render_template(turn.step["question"], _template_context(turn)),
+        user_language,
+        turn.feedback_model,
+    )
+    choices = activity_grading.is_multiple_choice(turn.step)
+    if choices:
+        question_content += "\n\n" + turn.io.translate(
+            activity_grading.choices_markdown(turn.step),
+            user_language,
+            turn.feedback_model,
+        )
     _post_message(
         turn,
-        turn.io.translate(question_content, user_language, turn.feedback_model),
+        question_content,
         username="System (Question)",
         shown_as="System",
     )
+    if choices:
+        turn.io.offer_choices(activity_grading.choices_for_page(turn.step))
 
 
 def _drop_tmp_metadata(turn):
