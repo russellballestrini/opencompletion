@@ -394,7 +394,9 @@ HOME_LIST_ARRIVES_PROBE = HOME_MODELS_HEAD + r"""
     await wait(60);
     check(created.length === 1, 'one room once the list is in: ' + created.length);
     check(pending() && pending().model === 'hermes', 'a first visit gets a model that answers: ' + JSON.stringify(pending()));
-    check(!picker.disabled && shown() === 'hermes', 'the picker shows it: ' + shown());
+    // It shows the model, locked with the rest of our box while the new
+    // chat opens (home.js showPending).
+    check(picker.disabled && shown() === 'hermes', 'the picker shows it: ' + shown());
     check(![...picker.options].some(o => o.textContent === 'Loading models…'), 'the loading line is gone');
     check(recentChats()[0] && recentChats()[0].id === 9 && recentChats()[0].anyoneMayRetitle === true, 'the new room is recorded with its id');
     finish();
