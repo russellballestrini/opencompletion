@@ -17,6 +17,9 @@ const modelSelect = document.getElementById('composer-model');
 const sendButton = document.getElementById('composer-send');
 const hint = document.getElementById('mode-hint');
 const errorEl = document.getElementById('composer-error');
+const statusEl = document.getElementById('composer-status');
+// True from Send until the new chat's page takes over (showPending).
+let pending = false;
 const modeButtons = [...document.querySelectorAll('.mode-btn')];
 // Attach & speak (static/js/composer.js), in our message box.
 const homeTools = composerTools(composer, input);
@@ -43,6 +46,11 @@ function hintLine(lead, rest) {
 // A guest may pick Solo to see what it is, but can't start one: our
 // message box, model & Send lock until they sign in or pick Chatroom.
 function showMode() {
+    // A model list landing mid-send must not unlock a second send.
+    if (pending) {
+        modelSelect.disabled = true;
+        return;
+    }
     modeButtons.forEach(button => {
         button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
     });
@@ -111,24 +119,58 @@ voiceSelect.addEventListener('change', () => {
     try { localStorage.setItem('selectedVoice', voiceSelect.value); } catch (e) {}
 });
 
+// Making a room & opening it takes a second or three: from the click
+// until the chat page takes over, our box lifts into a pending card that
+// keeps your words in view, Send spins & everything that could start a
+// second chat is locked. A failure gives the box back, words intact.
+function showPending(on) {
+    pending = on;
+    composer.classList.toggle('composer-pending', on);
+    composer.setAttribute('aria-busy', String(on));
+    sendButton.setAttribute('aria-busy', String(on));
+    sendButton.setAttribute('aria-label', on ? 'Creating your chat' : 'Send');
+    input.readOnly = on;  // readable, not greyed: still your words
+    statusEl.hidden = !on;
+    statusEl.textContent = on ? 'Creating your chat…' : '';
+    if (on) {
+        sendButton.disabled = modelSelect.disabled = true;
+        composer.querySelectorAll('.composer-tool').forEach(tool => { tool.disabled = true; });
+        modeButtons.forEach(button => { button.disabled = true; });
+    } else {
+        modeButtons.forEach(button => { button.disabled = false; });
+        showMode();
+    }
+}
+
+function failPending(message) {
+    showPending(false);
+    errorEl.textContent = message;
+    input.focus();
+}
+
+// Back from the new chat (a page kept in memory): our box is ours again.
+window.addEventListener('pageshow', event => {
+    if (event.persisted && pending) showPending(false);
+});
+
 async function startChat() {
     // Enter can arrive again while a room is being made: one chat per send.
-    if (sendButton.disabled) return;
+    if (pending || sendButton.disabled) return;
     let message = input.value.trim();
     errorEl.textContent = '';
     if (!message && !homeTools.hasFiles()) {
         input.focus();
         return;
     }
-    sendButton.disabled = true;
+    // Seen at once, before any answer: no click that seems to do nothing.
+    showPending(true);
     // A Send faster than our model list waits for it; a list that never
     // comes sends with the model picked before, never silently with none.
     let model = modelSelect.value;
     if (homeModels.loading()) {
         model = await homeModels.wait() ? modelSelect.value : savedModel();
         if (!model) {
-            errorEl.textContent = MODELS_NOT_LOADED;
-            sendButton.disabled = false;
+            failPending(MODELS_NOT_LOADED);
             return;
         }
     }
@@ -142,21 +184,21 @@ async function startChat() {
         }
         // Without this handoff the new chat would open without our message.
         if (!keepPendingMessage(room, message, model)) {
-            errorEl.textContent = 'This browser would not keep your message (storage blocked or full), so the chat was not opened. Allow site storage & try again.';
-            sendButton.disabled = false;
+            failPending('This browser would not keep your message (storage blocked or full), so the chat was not opened. Allow site storage & try again.');
             return;
         }
         try { localStorage.setItem('selectedModel', model); } catch (e) {}
         if (mode !== 'private') rememberRecentChat(room, null, {id: made.id, anyoneMayRetitle: made.anyone_may_retitle});
         homeDraft.clear();  // sent: it lives in its chat now
         // tests/functional/test_home.py records the address instead of leaving.
+        // Our pending card stays up until the chat page replaces this one.
+        statusEl.textContent = 'Opening your chat…';
         const open = window.startChatNavigate || (url => { window.location.href = url; });
         open(`/chat/${encodeURIComponent(room)}`);
     } catch (error) {
-        errorEl.textContent = error instanceof TypeError
+        failPending(error instanceof TypeError
             ? 'Network error: your chat was not started. Please try again.'
-            : error.message;
-        sendButton.disabled = false;
+            : error.message);
     }
 }
 

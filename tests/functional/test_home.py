@@ -590,3 +590,114 @@ def test_a_chat_can_start_from_files(client, tmp_path):
     html = client.get("/").get_data(as_text=True)
     out = run_probe(html, FILES_PROBE, tmp_path, 1280)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+PENDING_PROBE = r"""
+<script>
+window.addEventListener('load', async () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    window.onunhandledrejection = (e) => { document.body.dataset.probe = 'failed: ' + e.reason; };
+    // Our server answers only when the probe says so: each create waits.
+    const answers = [];
+    window.fetch = (url, options) => {
+        if (String(url) === '/api/rooms/create') {
+            const body = JSON.parse(options.body);
+            return new Promise(resolve => answers.push(ok => resolve(ok
+                ? {ok: true, json: () => Promise.resolve({room: {name: body.name}})}
+                : {ok: false, json: () => Promise.resolve({error: 'Our server is busy'})})));
+        }
+        return Promise.reject(new TypeError('offline'));
+    };
+    let opened = null;
+    window.startChatNavigate = url => { opened = url; };
+    const tick = () => new Promise(r => setTimeout(r, 20));
+    await tick();  // our model list (offline) has settled
+
+    const composer = document.getElementById('composer');
+    const input = document.getElementById('composer-input');
+    const send = document.getElementById('composer-send');
+    const status = document.getElementById('composer-status');
+    const error = document.getElementById('composer-error');
+    const words = 'Plan a garden\nwith three beds';
+    input.value = words;
+    send.click();
+    // The same frame as the click, before any answer: busy, & says so.
+    check(composer.classList.contains('composer-pending'), 'our box turns pending at once');
+    check(composer.getAttribute('aria-busy') === 'true' && send.getAttribute('aria-busy') === 'true', 'aria-busy on box & Send');
+    check(send.disabled && send.getAttribute('aria-label') === 'Creating your chat', 'Send is busy & named so');
+    check(!status.hidden && status.textContent === 'Creating your chat…' && status.getAttribute('aria-live') === 'polite', 'status line says what is happening');
+    check(input.value === words && input.readOnly && !input.disabled, 'your words stay in view');
+    check(getComputedStyle(send, '::after').animationName === 'ttsSpin', 'Send spins');
+    check([...document.querySelectorAll('.mode-btn')].every(b => b.disabled), 'mode cannot change mid-send');
+    // A second click & Enter while it waits: still one room.
+    send.click();
+    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
+    composer.dispatchEvent(new Event('submit', {cancelable: true}));
+    await tick();
+    check(answers.length === 1, 'double submit makes one room: ' + answers.length);
+
+    // A failure gives our box back, words intact, & says why.
+    answers[0](false);
+    await tick();
+    check(!composer.classList.contains('composer-pending') && composer.getAttribute('aria-busy') === 'false', 'pending ends on failure');
+    check(!send.disabled && send.getAttribute('aria-label') === 'Send', 'Send is back');
+    check(input.value === words && !input.readOnly, 'words kept & editable');
+    check(status.hidden, 'status line gone');
+    check(error.textContent === 'Our server is busy', 'error shown: ' + error.textContent);
+    check(!opened, 'nothing opened');
+
+    // Again, & this time it works: pending holds through the hand-over.
+    send.click();
+    await tick();
+    check(answers.length === 2, 'a retry asks again');
+    answers[1](true);
+    await tick();
+    check(opened && opened.startsWith('/chat/plan-a-garden'), 'opens the new chat: ' + opened);
+    check(composer.classList.contains('composer-pending') && send.disabled, 'still pending while the chat page loads');
+    check(status.textContent === 'Opening your chat…', 'status says it is opening: ' + status.textContent);
+    check(error.textContent === '', 'no stale error');
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
+@pytest.mark.parametrize("width", [320, 1280])
+def test_sending_shows_a_pending_chat_until_it_opens(client, tmp_path, width):
+    """Making a room takes a second or three: the click shows at once,
+    blocks a second room, & a failure gives the words back."""
+    html = client.get("/").get_data(as_text=True)
+    out = run_probe(html, PENDING_PROBE, tmp_path, width)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+def test_reduced_motion_keeps_the_pending_card_still(client, tmp_path):
+    """No lift & no spin under prefers-reduced-motion; the busy state &
+    the words stay."""
+    probe = r"""
+<script>
+window.addEventListener('load', async () => {
+    window.fetch = (url) => String(url) === '/api/rooms/create'
+        ? new Promise(() => {}) : Promise.reject(new TypeError('offline'));
+    await new Promise(r => setTimeout(r, 20));
+    const input = document.getElementById('composer-input');
+    input.value = 'still please';
+    document.getElementById('composer-send').click();
+    const composer = document.getElementById('composer');
+    const send = document.getElementById('composer-send');
+    const problems = [];
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) problems.push('reduced motion not forced');
+    if (!composer.classList.contains('composer-pending') || !send.disabled) problems.push('busy state');
+    if (getComputedStyle(composer).animationName !== 'none') problems.push('box moves');
+    if (getComputedStyle(send, '::after').animationName !== 'none') problems.push('Send spins');
+    if (input.value !== 'still please') problems.push('words lost');
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+    html = client.get("/").get_data(as_text=True)
+    out = run_probe(
+        html, probe, tmp_path, 1280, extra_flags=["--force-prefers-reduced-motion"]
+    )
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)

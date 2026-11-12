@@ -2313,6 +2313,83 @@ button.sidebar-more {
     text-align: center;
 }
 
+/* A first message making its room (home.js showPending): our box lifts
+   into a pending card that keeps your words in view, Send spins & a line
+   under it says what is happening, until the chat page takes over.
+   Reduced motion (our global rule) keeps the card & words, still. */
+.composer-pending {
+    border-color: var(--button-primary);
+    box-shadow: var(--shadow-lg);
+    animation: composer-lift 0.25s ease-out both;
+}
+
+.composer-pending textarea {
+    color: var(--text-primary);
+    cursor: progress;
+}
+
+@keyframes composer-lift {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-6px); }
+}
+
+.composer-send[aria-busy="true"],
+.composer-send[aria-busy="true"]:disabled {
+    background-color: var(--button-primary);
+    color: #ffffff;
+    opacity: 1;
+}
+
+.composer-send[aria-busy="true"] svg {
+    display: none;
+}
+
+.composer-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* One spinner for every "working on it" (a chat being made or removed):
+   the TTS button's ring, at the size of the text around it. */
+.composer-send[aria-busy="true"]::after,
+.composer-status::before,
+.room-removing::after,
+.btn[aria-busy="true"]::before {
+    content: "";
+    display: inline-block;
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: ttsSpin 0.7s linear infinite;
+}
+
+/* A busy .btn (Delete in a room's controls) puts the ring before its
+   words, on one line. */
+.btn[aria-busy="true"] {
+    grid-auto-flow: column;
+    gap: var(--space-2);
+    align-items: center;
+    cursor: progress;
+}
+
+.btn[aria-busy="true"]:disabled {
+    opacity: 0.85;
+    cursor: progress;
+}
+
+.composer-send[aria-busy="true"]::after {
+    width: 18px;
+    height: 18px;
+}
+
 @media (max-width: 768px) {
     .app-shell,
     .app-shell.chat-shell {
