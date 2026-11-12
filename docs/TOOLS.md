@@ -50,10 +50,20 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   Only files saved under **`/tmp/artifacts/`** come back (unsandbox
   collects nothing else); they become attachments in the chat
   (`blob_store`), so its tool line links them & the model can show an
-  image inline. A run that returns none tells the model where files go.
+  image inline. A run that returns none tells the model where files go,
+  & that each run is a fresh container: files an earlier run or turn
+  made are not there & must be made again in this code.
+- A program that exits non-zero (`run_code`, `sandbox_shell`,
+  `sandbox_write_file`) is an **error**, not done: `exited with code N:`
+  & the end of its stderr, a red line in the chat & `status: error` on its
+  chain event; the model still gets stdout, stderr & exit code whole, &
+  any files it saved before it failed (2026-11-12: six crashed runs showed
+  "done" in green & the model read them as success).
 - Every code tool's line folds open to **code & output** (its code or
   command, stdout, stderr, exit code; kept in `tool_trail`, cut to 6k/4k). Guests
-  get it unless `OPENCOMPLETION_GUEST_CODE_EXEC=off`.
+  get it unless `OPENCOMPLETION_GUEST_CODE_EXEC=off`. The JSON download
+  (`opencompletion-transcript/1`) carries it too, as each tool's `detail`
+  under the same cuts.
 - **A sandbox per chat** (`sandbox_shell`, `sandbox_write_file`): an
   unsandbox service (`oc-<room>-<random>`, table `sandbox`, migration
   `2026102902`) made on first use from unsandbox's default image,

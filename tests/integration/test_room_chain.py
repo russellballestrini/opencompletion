@@ -68,6 +68,23 @@ def test_a_tool_result_is_chained_before_the_reply_that_cites_it(harness, monkey
     assert report["ok"] and report["entries"] == 2
 
 
+def test_a_run_that_crashed_is_chained_as_an_error(harness, monkeypatch):
+    from tools import sandbox
+
+    crashed = sandbox._finished(
+        {"status": "completed", "exit_code": 1, "stderr": "NameError: qr"}
+    )
+    monkeypatch.setattr(tools, "run", lambda context, name, arguments: crashed)
+    harness.model.scripts = [search_call("qr"), [chunk(content="Done.")]]
+    room = make_room("tacos")
+    harness.app.chat_gpt(
+        "ada", "tacos", model_name="qwen", tool_context=tools.ToolContext(sid="s")
+    )
+    tool, _reply = bodies(room)
+    assert tool["status"] == "error"
+    assert tool["error"] == "exited with code 1: NameError: qr"
+
+
 def socket_for(test_app, room_name="lobby", username="ada"):
     import app as app_module
 

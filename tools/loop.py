@@ -449,6 +449,9 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
             done["detail"] = shown
         if result.get("error"):
             done.update(status="error", error=str(result["error"])[:200])
+            # A run that crashed may still have saved files before it did.
+            if result.get("artifacts"):
+                done["sources"] = sources_of(result)
         else:
             done.update(status="done", sources=sources_of(result))
         # Exactly what the model is handed, & its digest for our chain
@@ -553,14 +556,15 @@ def _arguments_of(entry):
 
 def _result_of(entry):
     """What a past call came back with, as far as its trail kept it."""
-    if entry.get("status") == "error":
-        return {"error": str(entry.get("error") or "failed")}
     detail = entry.get("detail") or {}
     result = {
         k: detail[k]
         for k in ("stdout", "stderr", "exit_code")
         if detail.get(k) not in (None, "")
     }
+    if entry.get("status") == "error":
+        # A program that exited non-zero: its error & what it printed.
+        return {"error": str(entry.get("error") or "failed"), **result}
     urls = [s.get("url") for s in entry.get("sources") or [] if isinstance(s, dict)]
     if entry["tool"] == "sandbox_share_file" and urls:
         name = str(entry.get("label") or "").rsplit("/", 1)[-1]

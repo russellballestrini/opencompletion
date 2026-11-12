@@ -126,7 +126,23 @@ def _finished(result):
         shaped["error"] = str(result["error"])[:500]
     elif result.get("status") not in ("completed", None):
         shaped["error"] = f"the run ended {result.get('status')}"
+    elif result.get("exit_code") not in (0, None):
+        # The job ran; the program in it failed. A run that crashed read
+        # as "done" (green card) & models took it for success (2026-11-12).
+        shaped["error"] = exit_error(result.get("exit_code"), result.get("stderr"))
     return shaped
+
+
+# How much of stderr's end an exit error quotes (the trail keeps 200 chars
+# of an error; the model gets stderr whole beside it).
+EXIT_ERROR_STDERR_CHARS = 160
+
+
+def exit_error(code, stderr):
+    """A short error naming a program's exit code & the end of its stderr:
+    `exited with code 1: NameError: name 'x' is not defined`."""
+    tail = " ".join(str(stderr or "").split())[-EXIT_ERROR_STDERR_CHARS:]
+    return f"exited with code {code}" + (f": {tail}" if tail else "")
 
 
 def token_hash(token):
@@ -176,8 +192,17 @@ def _run_result(context, result):
     shaped = _finished(result)
     shaped["artifacts"] = keep_artifacts(context, result.get("artifacts") or [])
     if not shaped["artifacts"]:
-        shaped["note"] = "no files came back: only files saved under /tmp/artifacts/ do"
+        shaped["note"] = NO_FILES_NOTE
     return shaped
+
+
+# Six run_code calls in one chat (2026-11-12) each expected a file an
+# earlier run had made: every run is a fresh container.
+NO_FILES_NOTE = (
+    "no files came back. Each run_code call is a fresh container: files an "
+    "earlier run or turn made are not in it, so regenerate them in this "
+    "code. Only files this run saves under /tmp/artifacts/ come back"
+)
 
 
 def keep_artifacts(context, artifacts):
@@ -1156,7 +1181,10 @@ class _DelegateRun:
             or not (started.get("stdout") or "").strip()
         ):
             result = _finished(started)
-            result.setdefault("error", "uncloseai-cli did not start")
+            cause = result.get("error")
+            result["error"] = "uncloseai-cli did not start" + (
+                f" ({cause})" if cause else ""
+            )
             return result
         return None
 

@@ -835,6 +835,9 @@ def test_a_run_without_files_tells_the_model_where_files_must_go(unsandbox, room
     result = tools.run(fox_in(room), "run_code", {"language": "python", "code": "1"})
     assert result["artifacts"] == []
     assert "/tmp/artifacts/" in result["note"]
+    # 2026-11-12: six runs each expected a file an earlier run had made.
+    assert "fresh container" in result["note"]
+    assert "earlier run or turn" in result["note"] and "regenerate" in result["note"]
     assert "/tmp/artifacts/" in tools.RUN_CODE["function"]["description"]
 
 
@@ -2232,3 +2235,85 @@ def test_a_delegate_tells_the_model_which_files_it_wrote(unsandbox, room):
     assert "sandbox_share_file" in result["files_note"]
     shell = tools.SANDBOX_SHELL["function"]["description"]
     assert "stay there until you share them" in shell
+
+
+# A program that exits non-zero failed, though its job ran: on 2026-11-12
+# such runs showed "done" in green & the model read them as success.
+CRASHED = {
+    "status": "completed",
+    "exit_code": 1,
+    "stdout": "making the code\n",
+    "stderr": 'Traceback (most recent call last):\n  File "<stdin>", line 3\n'
+    "FileNotFoundError: [Errno 2] No such file or directory: 'qr.png'\n",
+}
+
+
+def test_a_run_that_exits_non_zero_is_an_error_with_its_output(unsandbox, room):
+    unsandbox.next_result = dict(CRASHED)
+    result = tools.run(fox_in(room), "run_code", {"language": "python", "code": "x"})
+    assert result["error"].startswith("exited with code 1: ")
+    assert result["error"].endswith("No such file or directory: 'qr.png'")
+    assert len(result["error"]) < 200  # the trail keeps 200 chars
+    # The model still gets everything the run said.
+    assert result["exit_code"] == 1 and result["stdout"] == "making the code\n"
+    assert "Traceback" in result["stderr"]
+    assert "fresh container" in result["note"]
+
+
+def test_a_crashed_runs_line_says_error_and_keeps_its_detail(unsandbox, room):
+    unsandbox.next_result = dict(CRASHED)
+    events = []
+    calls = [
+        {
+            "id": "c1",
+            "name": "run_code",
+            "arguments": json.dumps({"language": "python", "code": "open('qr.png')"}),
+        }
+    ]
+    messages = tools.run_round(fox_in(room), calls, "", events.append)
+    (done,) = [e for e in events if e["status"] != "running"]
+    assert done["status"] == "error" and "exited with code 1" in done["error"]
+    assert done["detail"]["exit_code"] == 1 and "qr.png" in done["detail"]["stderr"]
+    handed = json.loads(messages[-1]["content"])
+    assert handed["exit_code"] == 1 and handed["stdout"] == "making the code\n"
+    # Read back in a later turn's history, it still carries its output.
+    from tools.loop import _result_of
+
+    later = _result_of(done)
+    assert later["error"] == done["error"] and later["exit_code"] == 1
+    assert "qr.png" in later["stderr"]
+
+
+def test_a_shell_command_that_exits_non_zero_is_an_error(unsandbox, room):
+    unsandbox.next_result = {"status": "completed", "exit_code": 2, "stderr": ""}
+    result = tools.run(fox_in(room), "sandbox_shell", {"command": "make nope"})
+    assert result["error"] == "exited with code 2" and result["exit_code"] == 2
+    unsandbox.next_result = {"status": "completed", "exit_code": 0, "stdout": "ok"}
+    assert "error" not in tools.run(fox_in(room), "sandbox_shell", {"command": "ls"})
+
+
+def test_a_crashed_run_keeps_the_files_it_saved_first(unsandbox, room):
+    import base64
+
+    unsandbox.next_result = dict(
+        CRASHED,
+        artifacts=[
+            {
+                "filename": "half.png",
+                "mime_type": "image/png",
+                "content_base64": base64.b64encode(b"png").decode(),
+            }
+        ],
+    )
+    events = []
+    calls = [
+        {
+            "id": "c1",
+            "name": "run_code",
+            "arguments": json.dumps({"language": "python", "code": "x"}),
+        }
+    ]
+    tools.run_round(fox_in(room), calls, "", events.append)
+    (done,) = [e for e in events if e["status"] != "running"]
+    assert done["status"] == "error"
+    assert [s["title"] for s in done["sources"]] == ["half.png"]
