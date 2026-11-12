@@ -1508,13 +1508,19 @@ def stoppable_reply(reply, username, room_name, **kwargs):
 @socketio.on("stop_replies")
 def on_stop_replies(data):
     """Our Stop button: end every reply streaming in this room now. What
-    was written so far stays."""
+    was written so far stays. The one who pressed it hears `stop_received`
+    with how many replies are still streaming: 0 means nothing is left to
+    stop, so their button stops waiting; otherwise it waits for
+    `replies_streaming` to reach 0. A room they may not use answers
+    nothing, as before."""
     room_name = (data or {}).get("room_name")
     room = Room.query.filter_by(name=room_name).first()
     if room is None or room_access_denied(room, auth.get_current_user()):
         return
-    if streaming_replies.get(room_name):
+    count = streaming_replies.get(room_name, 0)
+    if count:
         stop_requests.add(room_name)
+    emit("stop_received", {"count": count}, room=request.sid)
 
 
 def message_in_room(message_id, room_name, deleted=False):

@@ -680,6 +680,67 @@ def test_stop_needs_access_to_the_room(test_app):
         app_module.stop_requests.discard("secret")
 
 
+def stop_client(test_app):
+    import app as app_module
+
+    return app_module.socketio.test_client(
+        app_module.app, flask_test_client=test_app.test_client()
+    )
+
+
+def acks(client):
+    return [m["args"][0] for m in client.get_received() if m["name"] == "stop_received"]
+
+
+def test_stop_answers_the_one_who_pressed_it(test_app):
+    """Our page shows "Stopping…" from the click; the server says it got
+    the stop, & how many replies are still to end, to that socket alone."""
+    import app as app_module
+
+    make_room("busy")
+    app_module.streaming_replies["busy"] = 2
+    try:
+        presser, onlooker = stop_client(test_app), stop_client(test_app)
+        presser.get_received(), onlooker.get_received()
+        presser.emit("stop_replies", {"room_name": "busy"})
+        assert acks(presser) == [{"count": 2}]
+        assert acks(onlooker) == []
+        assert "busy" in app_module.stop_requests
+    finally:
+        app_module.streaming_replies.pop("busy", None)
+        app_module.stop_requests.discard("busy")
+
+
+def test_stop_with_nothing_streaming_says_so(test_app):
+    """A stop that lands after the last reply ended: nothing is marked to
+    stop (a later reply would end at once), & the answer says 0 so our
+    button stops waiting."""
+    import app as app_module
+
+    make_room("quiet")
+    presser = stop_client(test_app)
+    presser.get_received()
+    presser.emit("stop_replies", {"room_name": "quiet"})
+    assert acks(presser) == [{"count": 0}]
+    assert "quiet" not in app_module.stop_requests
+
+
+def test_stop_in_a_room_one_may_not_use_answers_nothing(test_app):
+    import app as app_module
+
+    owner = make_user("owner@example.test", "owner")
+    make_room("secret", owner=owner, private=True)
+    app_module.streaming_replies["secret"] = 1
+    try:
+        guest = stop_client(test_app)
+        guest.get_received()
+        guest.emit("stop_replies", {"room_name": "secret"})
+        assert acks(guest) == []
+    finally:
+        app_module.streaming_replies.pop("secret", None)
+        app_module.stop_requests.discard("secret")
+
+
 # --- voice input ----------------------------------------------------------
 
 
