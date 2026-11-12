@@ -23,8 +23,9 @@ fox, 2026-11-02: a model said a 404 repo was live; its tool's 404 is now
 evidence chained before the claim, & a chain outlives its room so abuse
 of our system can be looked into.
 
-A chain is one room's life, `<room id>@<created_at>`: SQLite may give a
-deleted room's id to a new room, which starts its own chain.
+A chain is one room's life, `<room id>@<created_at>`: until migration
+2026111201 (AUTOINCREMENT) SQLite gave a deleted room's id to the next
+room, which starts its own chain.
 
 Best effort, never in the way: a failure to chain logs & the action it
 records goes on. Callers commit their own change first (append commits).

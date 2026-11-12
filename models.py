@@ -92,6 +92,11 @@ class OTPToken(db.Model):
 
 
 class Room(db.Model):
+    # AUTOINCREMENT on SQLite: a deleted room's id is never given to a new
+    # one (exports, links & chain lines name rooms by id; migration
+    # 2026111201). Message, Attachment & Sandbox likewise.
+    __table_args__ = {"sqlite_autoincrement": True}
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False, unique=True)
     title = db.Column(db.String(128), nullable=True)
@@ -162,6 +167,8 @@ class Message(db.Model):
     restores it (app.handle_restore_message). Only deleting its room
     removes a row. Read a room through Message.visible().
     """
+
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(128), nullable=False)
@@ -300,8 +307,9 @@ class RoomEvent(db.Model):
     a fork, a deletion. `line` is the exact unfirehose-chain-v1 bytes its
     `hash` covers. Insert-only. No foreign key on room_id: a room's chain
     outlives the room, as forensics (fox, 2026-11-02). `chain` names one
-    room's life (id @ created_at): SQLite may hand a deleted room's id to
-    a new room, which must start its own chain, not continue the old one."""
+    room's life (id @ created_at): before migration 2026111201 SQLite
+    handed a deleted room's id to the next room, which must start its own
+    chain, not continue the old one."""
 
     __table_args__ = (db.UniqueConstraint("chain", "seq", name="uq_room_event_seq"),)
 
@@ -334,6 +342,8 @@ class Attachment(db.Model):
     """One file as posted in one room: who, what name & type, which bytes.
     Served at /attachments/<public_id>/<filename> under the room's access
     rule."""
+
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id = db.Column(db.Integer, primary_key=True)
     # What its address carries instead of `id`: random, so knowing one
@@ -369,6 +379,8 @@ class Sandbox(db.Model):
     hash of the token its uncloseai-cli uses for our model proxy
     (routes/sandbox_proxy.py); the token itself lives only in the sandbox's
     env vault."""
+
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id = db.Column(db.Integer, primary_key=True)
     # Empty only for a deleted chat's sandbox whose destroy failed: kept as

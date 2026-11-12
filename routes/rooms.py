@@ -528,8 +528,9 @@ def retitle_room(room_id):
     data = request.get_json(silent=True) or {}
     if not isinstance(data, dict):
         data = {}
-    # A browser's remembered id may outlive its room (SQLite reuses ids):
-    # a name sent along must still be this room's, or nothing is renamed.
+    # A browser's remembered id may outlive its room (SQLite reused ids
+    # until migration 2026111201): a name sent along must still be this
+    # room's, or nothing is renamed.
     if data.get("name") and data.get("name") != room.name:
         return jsonify({"error": "Room not found"}), 404
     if data.get("generate"):
