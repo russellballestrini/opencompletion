@@ -23,7 +23,7 @@ from models import ActivityState, Message, Room, UserSession, db
 from routes import DEPS
 from blob_store import copy_attachments, delete_room_attachments
 from throttle import Throttle, client_ip
-from tools.loop import trail_lines
+from tools.loop import bounded_detail, trail_lines
 import chain
 
 bp = Blueprint("rooms", __name__)
@@ -613,7 +613,19 @@ def _trail(message):
     except ValueError:
         return []
     keep = ("tool", "label", "where", "status", "error", "sources")
-    return [{k: e[k] for k in keep if k in e} for e in trail if isinstance(e, dict)]
+    entries = []
+    for e in trail if isinstance(trail, list) else []:
+        if not isinstance(e, dict):
+            continue
+        entry = {k: e[k] for k in keep if k in e}
+        # What a code tool ran & what came back (code, stdout, stderr,
+        # exit code): an export without it can't show what a run did, &
+        # deleting the room deletes the only other copy (2026-11-12).
+        detail = bounded_detail(e.get("detail"))
+        if detail:
+            entry["detail"] = detail
+        entries.append(entry)
+    return entries
 
 
 @bp.route("/api/rooms/<int:room_id>/chain.jsonl")

@@ -168,3 +168,55 @@ def test_a_dead_link_is_said_plainly(monkeypatch):
     error = web_fetch.fetch_page("https://github.com/rockrms/Rock")["error"]
     assert error.startswith("HTTP 404: no page at this address")
     assert "never describe it as if you read it" in error
+
+
+def test_a_transcript_carries_what_each_run_did_bounded(test_app, monkeypatch):
+    """2026-11-12: a deleted room's export was the only copy left, & it
+    held no code, output or exit code for any of its runs."""
+    import app as app_module
+    from models import Message, Room, db
+    from tools.loop import DETAIL_CODE_CHARS, DETAIL_OUTPUT_CHARS
+
+    monkeypatch.setattr(app_module, "SYSTEM_USERS", ["qwen"])
+    run = {
+        "tool": "run_code",
+        "label": "python",
+        "status": "error",
+        "error": "exited with code 1: NameError: name 'qr' is not defined",
+        "asker": "ada",
+        "result_sha256": "x",
+        "detail": {
+            "language": "python",
+            "input": "import qrcode\n" + "#" * (DETAIL_CODE_CHARS + 50),
+            "stdout": "s" * (DETAIL_OUTPUT_CHARS + 50) + "END",
+            "stderr": "Traceback ...\nNameError: name 'qr' is not defined",
+            "exit_code": 1,
+            "log": "a delegate's log stays out",
+        },
+    }
+    for name, private in (("tacos", False), ("secret", True)):
+        room = Room(name=name, is_private=private)
+        db.session.add(room)
+        db.session.commit()
+        reply = Message(username="qwen", content="Here is your QR.", room_id=room.id)
+        reply.tool_trail = json.dumps([run])
+        db.session.add(reply)
+    db.session.commit()
+
+    client = test_app.test_client()
+    data = client.get(
+        "/download_chat_history", query_string={"room_name": "tacos"}
+    ).get_json()
+    (tool,) = data["messages"][0]["tools"]
+    assert tool["status"] == "error" and "asker" not in tool
+    detail = tool["detail"]
+    assert set(detail) == {"language", "input", "stdout", "stderr", "exit_code"}
+    assert detail["exit_code"] == 1 and detail["language"] == "python"
+    assert detail["input"].startswith("import qrcode")
+    assert len(detail["input"]) == DETAIL_CODE_CHARS
+    assert len(detail["stdout"]) == DETAIL_OUTPUT_CHARS
+    assert detail["stdout"].endswith("END")
+    assert detail["stderr"].endswith("NameError: name 'qr' is not defined")
+    # The room's access rule still holds: a private room is not found.
+    hidden = client.get("/download_chat_history", query_string={"room_name": "secret"})
+    assert hidden.status_code == 404

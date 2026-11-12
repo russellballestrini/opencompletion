@@ -498,6 +498,23 @@ def detail_of(name, arguments, result):
     return detail
 
 
+def bounded_detail(detail):
+    """A stored detail cut to the bounds detail_of keeps (code head,
+    output tails, a short language), for what leaves us (a transcript);
+    None when it is not a detail."""
+    if not isinstance(detail, dict):
+        return None
+    kept = {"language": str(detail.get("language") or "")[:40]}
+    kept["input"] = str(detail.get("input") or "")[:DETAIL_CODE_CHARS]
+    for field in ("stdout", "stderr", "answer"):
+        if detail.get(field):
+            kept[field] = str(detail[field])[-DETAIL_OUTPUT_CHARS:]
+    code = detail.get("exit_code")
+    if isinstance(code, int) and not isinstance(code, bool):
+        kept["exit_code"] = code
+    return kept
+
+
 def sources_of(result):
     """The pages a result came from, as [{url, title}] for the room."""
     if result.get("artifacts"):
