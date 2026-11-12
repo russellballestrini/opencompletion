@@ -51,12 +51,16 @@
                 </label>
                 <button type="button" id="stop-button" class="composer-stop" onclick="stopReplies()" aria-label="Stop the reply" title="Stop: end the reply that is streaming in; what it wrote so far stays" hidden>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
+                    {# Shown while our server ends the replies (3-room.js showStopping). #}
+                    <span class="composer-stop-label" aria-hidden="true">Stopping…</span>
                 </button>
                 <button type="button" id="send-button" class="composer-send" onclick="sendMessage()" aria-label="Send">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
                 </button>
             </div>
         </form>
+        {# Said while Stop waits on our server, & when a stop seems lost (3-room.js). #}
+        <p id="stop-status" class="stop-status" role="status" aria-live="polite"></p>
     </main>
 
     <aside class="utility-belt" aria-label="Room controls">

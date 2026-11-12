@@ -2236,6 +2236,73 @@ button.sidebar-more {
     display: none;
 }
 
+/* Stop pressed, our server not done yet (3-room.js showStopping): the
+   square gives way to the ring & "Stopping…", one line, a pill as tall
+   as before. Reduced motion (our global rule) keeps the ring, still. */
+.composer-stop-label {
+    display: none;
+}
+
+.composer-stop[aria-busy="true"],
+.composer-stop[aria-busy="true"]:disabled {
+    grid-auto-flow: column;
+    gap: var(--space-2);
+    width: auto;
+    padding: 0 var(--space-3);
+    border-radius: 20px;
+    border-color: var(--button-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    white-space: nowrap;
+    opacity: 1;
+    cursor: progress;
+}
+
+.composer-stop[aria-busy="true"] svg {
+    display: none;
+}
+
+.composer-stop[aria-busy="true"] .composer-stop-label {
+    display: inline;
+}
+
+/* Said to screen readers while Stop waits; shown, quietly, only when a
+   stop seems lost & Stop is back to be pressed again. */
+.stop-status:not(.is-note) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+.stop-status.is-note {
+    margin: var(--space-2) 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+/* Each reply being stopped: what it wrote (& a tool it runs) dims, its
+   pulse stills, & a note says it is ending. A reply that ends drops
+   data-streaming & comes back to full colour on its own. */
+#chat.replies-stopping .message-wrapper[data-streaming] > * {
+    opacity: 0.55;
+}
+
+#chat.replies-stopping .message-wrapper[data-streaming] .message-tool.is-running::before {
+    animation: none;
+}
+
+#chat.replies-stopping .message-wrapper[data-streaming]::after {
+    content: "stopping…";
+    font-size: 13px;
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
 /* Files waiting to go with the next message, each removable. */
 .composer-files {
     display: flex;
@@ -2354,12 +2421,14 @@ button.sidebar-more {
     color: var(--text-secondary);
 }
 
-/* One spinner for every "working on it" (a chat being made or removed):
-   the TTS button's ring, at the size of the text around it. */
+/* One spinner for every "working on it" (a chat being made or removed,
+   replies being stopped): the TTS button's ring, at the size of the text
+   around it. */
 .composer-send[aria-busy="true"]::after,
 .composer-status::before,
 .room-removing::after,
-.btn[aria-busy="true"]::before {
+.btn[aria-busy="true"]::before,
+.composer-stop[aria-busy="true"]::before {
     content: "";
     display: inline-block;
     flex: none;

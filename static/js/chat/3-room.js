@@ -394,6 +394,10 @@ let streamingSince = null;
 const CHIME_AFTER_MS = 15000;
 socket.on("replies_streaming", (data) => {
     const count = data && data.count;
+    // Every reply here has ended (stopped or finished on its own): a stop
+    // waiting on them is done, & a note that one seemed lost is moot.
+    if (!count && stopping) endStopping("Stopped.");
+    else if (!count) stopStatus("");
     document.getElementById("stop-button").hidden = !count;
     if (count && streamingSince === null) streamingSince = Date.now();
     if (!count && streamingSince !== null) {
@@ -403,9 +407,62 @@ socket.on("replies_streaming", (data) => {
     }
 });
 
+// Stopping takes our server a second or three. From the click, in the
+// same frame: Stop spins & reads "Stopping…" (busy & disabled, so a second
+// press sends nothing), each streaming reply dims with a "stopping…" note
+// (#chat.replies-stopping), & a polite status says it. It ends when every
+// reply here has ended (replies_streaming 0), or at once when our server
+// answers that nothing was left (stop_received 0). With no end within
+// stopConfirmMs (a dropped socket, a lost stop) Stop comes back, with a
+// quiet note, to be pressed again: never stuck on "Stopping…".
+let stopping = null;  // {timer, received} while a stop waits on our server
+let stopConfirmMs = 8000;  // tests/functional/test_stop_ui.py shortens it
+
+function stopStatus(text, note) {
+    const status = document.getElementById("stop-status");
+    status.textContent = text;
+    status.classList.toggle("is-note", Boolean(note));
+}
+
+function showStopping(on) {
+    const button = document.getElementById("stop-button");
+    button.disabled = on;
+    button.setAttribute("aria-busy", String(on));
+    button.setAttribute("aria-label", on ? "Stopping…" : "Stop the reply");
+    document.getElementById("chat").classList.toggle("replies-stopping", on);
+}
+
 function stopReplies() {
+    if (stopping) return;
+    showStopping(true);
+    const replies = document.querySelectorAll("#chat .message-wrapper[data-streaming]").length;
+    stopStatus(replies > 1 ? `Stopping ${replies} replies…` : "Stopping the reply…");
+    stopping = {received: false, timer: setTimeout(stopUnconfirmed, stopConfirmMs)};
     socket.emit("stop_replies", {"room_name": room_name});
 }
+
+function endStopping(said, note) {
+    if (!stopping) return;
+    clearTimeout(stopping.timer);
+    stopping = null;
+    showStopping(false);
+    stopStatus(said, note);
+}
+
+function stopUnconfirmed() {
+    endStopping(stopping.received
+        ? "Our server has the stop, but a reply has not ended yet. Press Stop again if it keeps going."
+        : "Stop may not have reached our server. Press Stop to try again.", true);
+}
+
+socket.on("stop_received", (data) => {
+    if (!stopping) return;
+    stopping.received = true;
+    if (!(data && data.count)) {
+        endStopping("Stopped.");
+        document.getElementById("stop-button").hidden = true;
+    }
+});
 
 // Function to handle deleting a message
 function deleteMessage(messageId, room_name) {
