@@ -43,13 +43,91 @@ function showRoomTitle(room, title) {
     });
 }
 
-// A room archived or deleted leaves this page (& the open chat, for home).
-function dropRoom(room) {
-    if (location.pathname === `/chat/${encodeURIComponent(room.name)}`) {
-        window.location.href = '/';
+// Archiving or deleting a chat takes our server a second or three, so it
+// shows at once: every row & card for that chat dims, strikes through &
+// spins (.room-removing, inert so nothing in it is clicked twice), & a
+// polite status says it for a screen reader. When the server agrees the
+// rows fold away (or, for the open chat, home opens); when it does not,
+// they come back as they were.
+const LEAVE_MS = 260;  // style.css .room-leaving's transition, & a little
+
+function roomRows(room) {
+    return [...document.querySelectorAll(`[data-room-name="${CSS.escape(room.name)}"]`)];
+}
+
+// The chat this page shows (chat.html's CHAT_CONFIG), if it is `room`.
+function isOpenRoom(room) {
+    return (window.CHAT_CONFIG && CHAT_CONFIG.roomName === room.name)
+        || location.pathname === `/chat/${encodeURIComponent(room.name)}`;
+}
+
+function announceRoomStatus(text) {
+    let region = document.getElementById('room-action-status');
+    if (!region) {
+        region = document.createElement('p');
+        region.id = 'room-action-status';
+        region.className = 'visually-hidden';
+        region.setAttribute('role', 'status');
+        region.setAttribute('aria-live', 'polite');
+        document.body.appendChild(region);
+    }
+    region.textContent = text;
+}
+
+// `doing` says what is happening ("Deleting"). Returns the undo for a failure.
+function markRoomRemoving(room, doing) {
+    const rows = roomRows(room);
+    rows.forEach(row => {
+        row.classList.add('room-removing');
+        row.setAttribute('aria-busy', 'true');
+        row.inert = true;
+    });
+    const leavingPage = isOpenRoom(room);
+    if (leavingPage) document.body.classList.add('room-leaving-page');
+    announceRoomStatus(`${doing} “${room.title || room.name}”…`);
+    return () => {
+        rows.forEach(row => {
+            row.classList.remove('room-removing');
+            row.removeAttribute('aria-busy');
+            row.inert = false;
+        });
+        if (leavingPage) document.body.classList.remove('room-leaving-page');
+        announceRoomStatus('');
+    };
+}
+
+// Our server agreed (`done`: "Deleted"): the rows fold away, or home opens
+// in place of the chat that is gone (its rows stay marked until it does).
+function roomRemoved(room, done) {
+    announceRoomStatus(`${done} “${room.title || room.name}”.`);
+    if (isOpenRoom(room)) {
+        // tests/functional record the address instead of leaving.
+        (window.roomLeftNavigate || (url => { window.location.href = url; }))('/');
         return;
     }
-    document.querySelectorAll(`[data-room-name="${CSS.escape(room.name)}"]`).forEach(row => row.remove());
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    roomRows(room).forEach(row => {
+        if (still) {
+            row.remove();
+            return;
+        }
+        row.style.height = `${row.offsetHeight}px`;
+        void row.offsetHeight;  // lay that height out, so the fold animates from it
+        row.classList.add('room-leaving');
+        setTimeout(() => row.remove(), LEAVE_MS);
+    });
+}
+
+// Archive & Delete both: mark at once, ask our server, finish or undo.
+async function removeRoom(room, url, method, doing, done) {
+    const undo = markRoomRemoving(room, doing);
+    try {
+        await roomAction(url, method);
+    } catch (error) {
+        undo();
+        throw error;
+    }
+    roomRemoved(room, done);
 }
 
 async function roomAction(url, method, body) {
@@ -89,8 +167,7 @@ const CHAT_ACTIONS = [
         show: room => room.canRemove,
         run: async room => {
             if (!confirm('Archive this chat? It leaves every list & search, but nothing is deleted.')) return;
-            await roomAction(`/api/rooms/${room.id}/archive`, 'POST');
-            dropRoom(room);
+            await removeRoom(room, `/api/rooms/${room.id}/archive`, 'POST', 'Archiving', 'Archived');
         },
     },
     {
@@ -99,8 +176,7 @@ const CHAT_ACTIONS = [
         show: room => room.canRemove,
         run: async room => {
             if (!confirm('Delete this chat & every message in it? This cannot be undone.')) return;
-            await roomAction(`/api/rooms/${room.id}/delete`, 'DELETE');
-            dropRoom(room);
+            await removeRoom(room, `/api/rooms/${room.id}/delete`, 'DELETE', 'Deleting', 'Deleted');
         },
     },
 ];
