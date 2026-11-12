@@ -762,13 +762,19 @@ def get_openai_client_and_model(model_name=None):
 
 HELP_MESSAGE = """
 **Talking to a model**
-- Pick a model in our message box, beside Send. **People only (no model)** sends your message to people alone.
+- Pick a model beside Send. **People only (no model)** sends your message to people alone.
 - Models are listed live from this server's endpoints, so the list changes as they come & go.
+- The voice beside the model picker speaks **Play** & read-aloud replies.
+- **Stop** (the square beside Send) ends a reply streaming in; what it wrote stays.
+
+**Each message**
+- **Copy**, **Play** & **Delete** (anyone here may **Restore** it). **Edit** on yours: **Save & resend** asks the models again from there.
+- A model's reply also offers **Fork**: a new chat holding everything up to that reply.
 
 **Your chats**
 - **New chat** (top of our sidebar) starts one: **Solo** is only you (sign in first), **Chatroom** is public & anyone with its link can join.
-- Your chats & public chats are listed in our sidebar; **Rooms** shows them all.
-- Room controls (fork, voice, activities, downloads, who is here) sit beside our chat; on a phone, tap ⚙.
+- Your chats & public chats are listed in our sidebar; **Rooms** shows them all & **Activities** starts a game or lesson.
+- This room's controls (downloads, read replies aloud, thinking, activities, who is here) sit beside our chat; on a phone, tap ⚙.
 
 **Commands**
 - `/title new`: write a new title for this chat from the conversation so far.
