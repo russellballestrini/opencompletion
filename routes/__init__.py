@@ -17,7 +17,8 @@ def register(app, **deps):
     deps: get_openai_client_and_model (model client lookup), system_users
     (the live list of names whose messages are system/assistant turns),
     retitle_room(room) & set_room_title(room, title) (save & announce a
-    room's title).
+    room's title), trail_as_of_now(saved, room_name, resuming) (a saved
+    tool trail as the page shows it, a restart's cut-off lines interrupted).
     """
     DEPS.update(deps)
     from routes import (

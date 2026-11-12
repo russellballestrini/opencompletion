@@ -606,15 +606,31 @@ def delete_room(room_id):
     return jsonify({"success": True})
 
 
-def _trail(message):
-    """A message's tool calls for a transcript, or [] when unreadable."""
+def _saved_trail(message, room_name):
+    """A message's saved tool lines as the room's page shows them: a line a
+    restart (a deploy) cut off while it ran reads "interrupted", not
+    "running" forever (app.trail_as_of_now). An export used to carry the
+    raw row, so a reply killed mid-tool downloaded as still running
+    (2026-11-12). [] when unreadable."""
+    as_of_now = DEPS.get("trail_as_of_now")
     try:
-        trail = json.loads(message.tool_trail or "[]")
+        if as_of_now:
+            trail = as_of_now(
+                message.tool_trail, room_name, resuming=bool(message.resume_state)
+            )
+        else:
+            trail = json.loads(message.tool_trail or "[]")
     except ValueError:
         return []
+    return trail if isinstance(trail, list) else []
+
+
+def _trail(message, room_name):
+    """A message's tool calls for a transcript, or [] when unreadable."""
+    trail = _saved_trail(message, room_name)
     keep = ("tool", "label", "where", "status", "error", "sources")
     entries = []
-    for e in trail if isinstance(trail, list) else []:
+    for e in trail:
         if not isinstance(e, dict):
             continue
         entry = {k: e[k] for k in keep if k in e}
@@ -684,7 +700,7 @@ def download_chat_history():
             "username": message.username,
             "role": "assistant" if message.username in DEPS["system_users"] else "user",
             "content": message.content,
-            **({"tools": _trail(message)} if message.tool_trail else {}),
+            **({"tools": _trail(message, room.name)} if message.tool_trail else {}),
             "chain": proofs.get(message.id),
         }
         for message in messages
@@ -743,7 +759,8 @@ def download_chat_history_md():
             )
             # What its tools did, under the reply they served
             tools_md = "".join(
-                f"\n- {line}" for line in trail_lines(message.tool_trail)
+                f"\n- {line}"
+                for line in trail_lines(json.dumps(_saved_trail(message, room.name)))
             )
             if tools_md:
                 tools_md = f"\n\n**Tools:**{tools_md}"

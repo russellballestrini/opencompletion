@@ -839,6 +839,9 @@ routes.register(
     system_users=SYSTEM_USERS,
     retitle_room=lambda room: retitle_room(room),
     set_room_title=lambda room, title: set_room_title(room, title),
+    trail_as_of_now=lambda saved, room_name, resuming=False: trail_as_of_now(
+        saved, room_name, resuming=resuming
+    ),
 )
 
 

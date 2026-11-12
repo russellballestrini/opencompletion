@@ -220,3 +220,47 @@ def test_a_transcript_carries_what_each_run_did_bounded(test_app, monkeypatch):
     # The room's access rule still holds: a private room is not found.
     hidden = client.get("/download_chat_history", query_string={"room_name": "secret"})
     assert hidden.status_code == 404
+
+
+def test_a_transcript_says_a_run_a_restart_cut_off_was_interrupted(
+    test_app, monkeypatch
+):
+    """2026-11-12: a deploy stopped a reply mid sandbox_share_file. Its
+    page read "interrupted" (trail_as_of_now) while both downloads still
+    said "running", the raw row, with no way to tell it would never end."""
+    import app as app_module
+    from models import Message, Room, db
+
+    monkeypatch.setattr(app_module, "SYSTEM_USERS", ["qwen"])
+    room = Room(name="cut-off")
+    db.session.add(room)
+    db.session.commit()
+    reply = Message(username="qwen", content="", room_id=room.id)
+    reply.tool_trail = json.dumps(
+        [
+            {"tool": "run_code", "label": "python", "status": "done"},
+            {"tool": "sandbox_share_file", "label": "/tmp/qr.png", "status": "running"},
+        ]
+    )
+    db.session.add(reply)
+    db.session.commit()
+
+    client = test_app.test_client()
+    data = client.get(
+        "/download_chat_history", query_string={"room_name": "cut-off"}
+    ).get_json()
+    done, cut = data["messages"][0]["tools"]
+    assert done["status"] == "done"
+    assert cut["status"] == "error"
+    assert cut["error"] == "interrupted: the server restarted while it ran"
+    md = client.get(
+        "/download_chat_history_md", query_string={"room_name": "cut-off"}
+    ).get_data(as_text=True)
+    assert "sandbox_share_file /tmp/qr.png → failed: interrupted" in md
+
+    # A reply streaming in its room right now is still running.
+    monkeypatch.setitem(app_module.streaming_replies, "cut-off", object())
+    data = client.get(
+        "/download_chat_history", query_string={"room_name": "cut-off"}
+    ).get_json()
+    assert data["messages"][0]["tools"][1]["status"] == "running"
