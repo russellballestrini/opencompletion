@@ -135,6 +135,13 @@ sections:
       about practicality and economic impacts.
 
       '
+    bucket_criteria:
+      sustainable_choice: Recommends option B (public transit) or C (bike lanes and pedestrian zones) and backs the choice with environmental reasoning about emissions and long-term effects.
+      mixed_thinking: Recommends option D (mixed approach) and shows awareness of the tradeoffs between the options instead of a single strong case.
+      unsustainable: Recommends option A (more highways), accepting its environmental costs.
+      thoughtful_tradeoff: Recommends any option but weighs the tradeoffs in a sophisticated, systemic way that goes beyond the case for one option.
+      limited_effort: A one-word or bare answer with no reasoning.
+      off_topic: Does not engage the transportation question.
     buckets:
     - sustainable_choice
     - mixed_thinking
@@ -256,6 +263,13 @@ sections:
       meet long-term climate goals.
 
       '
+    bucket_criteria:
+      renewable_choice: Recommends option A (solar farm) or B (wind turbines) and backs the choice with climate reasoning.
+      efficiency_focus: Recommends option D (energy efficiency program), understanding that cutting total energy demand is itself sustainable.
+      transitional_thinking: Recommends option C (natural gas) as a bridge fuel between coal and a renewable future.
+      systems_thinking: Shows understanding of energy grid complexity, such as balancing renewable supply with reliability and storage.
+      limited_effort: A one-word or bare answer with no reasoning.
+      off_topic: Does not engage the energy question.
     buckets:
     - renewable_choice
     - efficiency_focus
@@ -358,6 +372,14 @@ sections:
       If development, discuss the irreversibility of habitat loss and the concept of ecosystem services.
 
       '
+    bucket_criteria:
+      conservation_priority: Recommends option A (nature reserve) and backs the choice with ecological reasoning about carbon storage, habitat, and ecosystem services.
+      balanced_approach: Recommends option C (mixed-use development), recognizing the need to balance environmental protection with community needs.
+      housing_priority: Recommends option B (affordable housing), emphasizing social needs over the land's environmental value.
+      development_focus: Recommends option D (commercial development), putting jobs and tax revenue above the natural area.
+      sophisticated_tradeoff: Recommends any option with a nuanced weighing of the competing values of ecology, economics, and community needs.
+      limited_effort: A one-word or bare answer with no reasoning.
+      off_topic: Does not engage the land use question.
     buckets:
     - conservation_priority
     - balanced_approach
@@ -468,6 +490,13 @@ sections:
       than landfill but not as good as preventing waste.
 
       '
+    bucket_criteria:
+      circular_economy: Recommends option A (mandatory recycling & composting) or D (producer responsibility laws) with an understanding of keeping materials in use rather than disposing of them.
+      pollution_prevention: Recommends option B (ban single-use plastics), focusing on eliminating the source of plastic waste and ocean pollution.
+      technical_solution: Recommends option C (waste-to-energy incinerator), treating the problem as one to manage with technology rather than prevent.
+      systems_thinking: Shows understanding of upstream versus downstream solutions, weighing root-cause fixes like prevention and producer responsibility against end-of-pipe measures.
+      limited_effort: A one-word or bare answer with no reasoning.
+      off_topic: Does not engage the waste management question.
     buckets:
     - circular_economy
     - pollution_prevention
@@ -594,6 +623,13 @@ sections:
       biodiversity, and resource use.
 
       '
+    bucket_criteria:
+      climate_focused: Recommends option C (plant-based diets) and backs the choice with emissions reasoning about animal agriculture.
+      waste_reduction: Recommends option D (reduce food waste), understanding how large the problem of wasted food is.
+      local_food: Recommends option A (local organic farms) or B (urban farming) for the benefits of a shorter food supply chain.
+      holistic_thinking: Shows understanding of the interconnected issues of climate, food security, water, and biodiversity in food systems.
+      limited_effort: A one-word or bare answer with no reasoning.
+      off_topic: Does not engage the food systems question.
     buckets:
     - climate_focused
     - waste_reduction
@@ -701,6 +737,12 @@ sections:
       for environmental protection in their communities.
 
       '
+    bucket_criteria:
+      specific_commitment: Identifies a concrete action they plan to take to reduce their own environmental impact.
+      thoughtful_reflection: Meaningful reflection on what they learned, connecting decisions and sustainability principles together.
+      basic_reflection: Brief but genuine reflection that engages the question without deep connection to the activity's themes.
+      limited_effort: A one-word or bare answer with no reasoning.
+      off_topic: Does not engage the reflection question.
     buckets:
     - specific_commitment
     - thoughtful_reflection
