@@ -2,6 +2,8 @@
 menu: POST /api/rooms/<id>/title."""
 
 import re
+from pathlib import Path
+
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -151,7 +153,12 @@ def test_deleting_or_archiving_the_open_room_goes_home(test_app):
     page = client_for(test_app, ada).get("/chat/adas-room").get_data(as_text=True)
     assert "deleteRoom(" in page and "archiveRoom(" in page
     assert "window.location.href = '/browse'" not in page
-    assert page.count("window.location.href = '/';") >= 2
+    # Both finish through chat-actions.js roomRemoved, which opens '/' for
+    # the open chat (tests/functional/test_room_remove_ui.py watches it go).
+    assert page.count("return leaveRoom(roomId, button,") == 2
+    assert "roomRemoved(room, done)" in page
+    actions = (Path(__file__).parents[2] / "static/js/chat-actions.js").read_text()
+    assert "window.location.href = url" in actions and "('/')" in actions
 
 
 def test_the_rooms_page_filters_yours_solo_and_public(test_app):

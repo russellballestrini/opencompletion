@@ -66,8 +66,8 @@
         <section class="room-actions-section">
             <h3>Room</h3>
             <div class="button-row">
-                <button type="button" class="btn btn-secondary" onclick="archiveRoom({{ current_room.id }})">Archive</button>
-                <button type="button" class="btn btn-danger" onclick="deleteRoom({{ current_room.id }})">Delete</button>
+                <button type="button" class="btn btn-secondary" onclick="archiveRoom({{ current_room.id }}, this)">Archive</button>
+                <button type="button" class="btn btn-danger" onclick="deleteRoom({{ current_room.id }}, this)">Delete</button>
             </div>
         </section>
         {% endif %}

@@ -106,36 +106,50 @@
         if (button) button.disabled = false;
     }
 
-    async function archiveRoom(roomId) {
-        if (!confirm('Archive this room? It leaves every room list & search, but nothing is deleted.')) {
-            return;
+    // Archive or delete the open chat from our room controls. It shows at
+    // once, before our server answers: the button spins & says so, the
+    // page & its sidebar row dim (chat-actions.js markRoomRemoving), & home
+    // opens once the server agrees. A failure gives everything back.
+    async function leaveRoom(roomId, button, url, method, doing, done, failed) {
+        const name = CHAT_CONFIG.roomName;
+        const row = document.querySelector(`[data-room-name="${CSS.escape(name)}"]`);
+        const room = {id: roomId, name, title: row ? rowRoom(row).title : ''};
+        const buttons = button ? [...button.parentElement.querySelectorAll('button')] : [];
+        const label = button ? button.textContent : '';
+        buttons.forEach(b => { b.disabled = true; });
+        if (button) {
+            button.setAttribute('aria-busy', 'true');
+            button.textContent = `${doing}…`;
         }
+        const undo = markRoomRemoving(room, doing);
+        let failure;
         try {
-            const [response, data] = await roomRequest(`/api/rooms/${roomId}/archive`, 'POST');
+            const [response, data] = await roomRequest(url, method);
             if (response.ok) {
-                window.location.href = '/';
-            } else {
-                alert(data.error || 'Failed to archive room');
+                roomRemoved(room, done);
+                return;
             }
+            failure = data.error || failed;
         } catch (error) {
-            alert('Network error. Please try again.');
+            failure = 'Network error. Please try again.';
         }
+        undo();
+        buttons.forEach(b => { b.disabled = false; });
+        if (button) {
+            button.removeAttribute('aria-busy');
+            button.textContent = label;
+        }
+        alert(failure);
     }
 
-    async function deleteRoom(roomId) {
-        if (!confirm('Delete this room & every message in it? This cannot be undone.')) {
-            return;
-        }
-        try {
-            const [response, data] = await roomRequest(`/api/rooms/${roomId}/delete`, 'DELETE');
-            if (response.ok) {
-                window.location.href = '/';
-            } else {
-                alert(data.error || 'Failed to delete room');
-            }
-        } catch (error) {
-            alert('Network error. Please try again.');
-        }
+    function archiveRoom(roomId, button) {
+        if (!confirm('Archive this room? It leaves every room list & search, but nothing is deleted.')) return;
+        return leaveRoom(roomId, button, `/api/rooms/${roomId}/archive`, 'POST', 'Archiving', 'Archived', 'Failed to archive room');
+    }
+
+    function deleteRoom(roomId, button) {
+        if (!confirm('Delete this room & every message in it? This cannot be undone.')) return;
+        return leaveRoom(roomId, button, `/api/rooms/${roomId}/delete`, 'DELETE', 'Deleting', 'Deleted', 'Failed to delete room');
     }
 </script>
 {% endblock %}

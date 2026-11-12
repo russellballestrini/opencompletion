@@ -2565,6 +2565,63 @@ button.sidebar-more {
     }
 }
 
+/* A chat being archived or deleted (chat-actions.js markRoomRemoving):
+   dimmed & struck through with a spinner where its ⋯ was, untouchable,
+   until our server answers; then it folds away (.room-leaving) or, on a
+   failure, comes back as it was. */
+.room-removing {
+    opacity: 0.55;
+    pointer-events: none;
+    cursor: progress;
+}
+
+.room-removing .chat-list-name,
+.room-removing .room-card-name {
+    text-decoration: line-through;
+}
+
+.room-removing > .chat-actions-btn {
+    visibility: hidden;
+}
+
+.room-removing::after {
+    position: absolute;
+    top: 50%;
+    right: var(--space-3);
+    margin-top: -7px;
+    color: var(--text-secondary);
+}
+
+.room-card-wrap.room-removing::after {
+    top: var(--space-4);
+    margin-top: 0;
+}
+
+.chat-list li.room-leaving {
+    overflow: hidden;
+    height: 0 !important;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    transition: height 0.25s ease, margin 0.25s ease, padding 0.25s ease, opacity 0.2s ease;
+}
+
+.room-card-wrap.room-leaving {
+    opacity: 0;
+    transform: scale(0.96);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* Leaving the chat that is open (deleted or archived from inside it):
+   its page dims & stops taking input until home opens. */
+.room-leaving-page main {
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
 .chat-actions-menu {
     position: fixed;
     /* Above a phone's drawers (1001): a sidebar chat's menu opens over the
