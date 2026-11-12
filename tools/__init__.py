@@ -75,8 +75,10 @@ RUN_CODE = {
     "function": {
         "name": "run_code",
         "description": (
-            "Run a program once in a fresh sandbox with no network. Files "
-            "saved under /tmp/artifacts/ come back with markdown to paste."
+            "Run a program in a fresh container, no network, nothing kept "
+            "after it ends: the first choice for running code. One bash "
+            "program can write several files, then build, test & run them. "
+            "Files saved under /tmp/artifacts/ come back with markdown to paste."
         ),
         "parameters": {
             "type": "object",
@@ -99,9 +101,11 @@ SANDBOX_SHELL = {
     "function": {
         "name": "sandbox_shell",
         "description": (
-            "Run one command in this chat's sandbox (kept between turns, "
-            "has network, shared with delegate): for a quick look or check. "
-            "Files it makes stay there until you share them."
+            "Run one command in this chat's sandbox, a container kept between "
+            "turns with network (shared with delegate): only for what "
+            "run_code's fresh, offline container cannot do (the network, an "
+            "install, files kept for later). Files it makes stay there until "
+            "you share them."
         ),
         "parameters": {
             "type": "object",
@@ -153,8 +157,8 @@ DELEGATE = {
         "description": (
             "Hand a multi-step coding task, setup included, to "
             "uncloseai-cli, an agent that works in this chat's sandbox "
-            "until done. Say what done means. Files it makes stay there "
-            "until you share them."
+            "until done: for work too big for one run_code program. Say "
+            "what done means. Files it makes stay there until you share them."
         ),
         "parameters": {
             "type": "object",
