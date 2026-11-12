@@ -1335,9 +1335,11 @@ def test_progressive_hint_follows_a_counted_miss(engine):
         )
     )
     engine.respond("x", "incorrect")
-    assert engine.said() == ["Category: incorrect", "no", "Hint for try 1", "Answer?"]
+    # Hint 1 follows the first miss & prepares the second try, so its
+    # {{current_attempt}} reads 2 (the try the learner is on, from 1).
+    assert engine.said() == ["Category: incorrect", "no", "Hint for try 2", "Answer?"]
     assert engine.state().attempts == 1
-    assert ("System (Hint)", "Hint for try 1") in engine.stored()
+    assert ("System (Hint)", "Hint for try 2") in engine.stored()
 
 
 def test_progressive_hint_that_counts(engine):

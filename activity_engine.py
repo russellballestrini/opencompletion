@@ -191,7 +191,7 @@ def show_until_question(content, state, io, username, feedback_model="MODEL_0"):
 
         context = create_template_context(
             metadata=state.dict_metadata,
-            current_attempt=state.attempts,
+            current_attempt=state.attempts + 1,  # the try they are on, from 1
             max_attempts=state.max_attempts,
             current_section=state.section_id,
             current_step=state.step_id,
@@ -1021,7 +1021,9 @@ def _template_context(turn, attempt_offset=0):
     state = turn.state
     return create_template_context(
         metadata=state.dict_metadata,
-        current_attempt=state.attempts + attempt_offset,
+        # The try a learner is on, from 1 (state.attempts counts misses):
+        # after one miss the question reads "Attempt 2 of 3".
+        current_attempt=state.attempts + 1 + attempt_offset,
         max_attempts=state.max_attempts,
         current_section=state.section_id,
         current_step=state.step_id,

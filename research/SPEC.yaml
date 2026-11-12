@@ -822,7 +822,7 @@ sections:
 
 # Built-in Variables:
 # -------------------
-# {{current_attempt}}        → Current attempt number (1, 2, 3...)
+# {{current_attempt}}        → The try a learner is on, from 1 (after one miss: 2)
 # {{max_attempts}}           → Maximum attempts allowed for this step
 # {{attempts_remaining}}     → How many attempts left (max - current)
 # {{current_section}}        → Current section_id

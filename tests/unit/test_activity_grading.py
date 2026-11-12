@@ -420,3 +420,17 @@ def test_contains_reads_appended_lists_and_comma_text():
     assert check_conditions({"bag": "rope,lamp"}, {"bag_contains": "lamp"})
     assert check_conditions({"bag": ["rope"]}, {"bag_not_contains": "lamp"})
     assert not check_conditions({"bag": ["rope"]}, {"bag_contains": "lamp"})
+
+
+def test_current_attempt_counts_tries_from_one():
+    step = {
+        **FREE,
+        "question": "Attempt {{current_attempt}} of {{max_attempts}}: what is 3 x 4?",
+    }
+    content = activity(step)
+    state, io = start(content)
+    state.max_attempts = 3
+    assert io.said[-1][1].startswith("Attempt 1 of 3")
+    io.next_bucket = "partial_understanding"
+    activity_engine.answer(content, state, "12?", "Ann", io)
+    assert io.said[-1][1].startswith("Attempt 2 of 3")
