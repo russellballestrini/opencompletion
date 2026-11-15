@@ -544,15 +544,21 @@ def sweep(app=None):
 
 
 SWEEP_EVERY_S = 3600
+# Our first sweep runs soon after start, not an hour in: a server restarted
+# more often than hourly (a run of deploys) otherwise never swept, & frozen
+# sandboxes past retention waited until the restarts stopped (2026-11-15).
+# The short wait lets startup (migrations, resumed replies) finish first.
+SWEEP_FIRST_S = 60
 
 
 def _sweep_forever():
+    gevent.sleep(SWEEP_FIRST_S)
     while True:
-        gevent.sleep(SWEEP_EVERY_S)
         try:
             sweep()
         except Exception as e:  # noqa: BLE001 — try again next hour
             print(f"[WARN] sandbox sweep failed: {e}")
+        gevent.sleep(SWEEP_EVERY_S)
 
 
 _app = None

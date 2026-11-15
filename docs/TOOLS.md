@@ -160,7 +160,8 @@ base64 inside one command, & a sandbox fetches the rest itself (git, pip).
 **What ends a sandbox.** Idle, it freezes (disk kept, RAM freed) & wakes
 on the next call. We destroy it when its chat is deleted, or once frozen &
 unused for `OPENCOMPLETION_SANDBOX_RETENTION_DAYS` (default 14, 0 = never;
-an hourly sweep). Its row stays, state `destroyed`, & that chat's next
+a sweep a minute after our server starts, then hourly, so frequent
+restarts never skip it). Its row stays, state `destroyed`, & that chat's next
 sandbox call makes a new one, whose first result carries `sandbox_note`:
 the sandbox is new & empty, plus the steps that set up the old one (each
 succeeding shell command & file written, from the chat's own tool lines),

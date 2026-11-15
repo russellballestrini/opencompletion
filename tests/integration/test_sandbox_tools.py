@@ -2317,3 +2317,54 @@ def test_a_crashed_run_keeps_the_files_it_saved_first(unsandbox, room):
     (done,) = [e for e in events if e["status"] != "running"]
     assert done["status"] == "error"
     assert [s["title"] for s in done["sources"]] == ["half.png"]
+
+
+def test_the_sweep_runs_soon_after_start_not_an_hour_in(monkeypatch):
+    # A server restarted more often than hourly never swept (2026-11-15).
+    events = []
+
+    class Stop(Exception):
+        pass
+
+    def fake_sleep(seconds):
+        events.append(("sleep", seconds))
+        if len(events) > 3:
+            raise Stop
+
+    monkeypatch.setattr(tool_sandbox.gevent, "sleep", fake_sleep)
+    monkeypatch.setattr(tool_sandbox, "sweep", lambda: events.append(("sweep",)))
+
+    with pytest.raises(Stop):
+        tool_sandbox._sweep_forever()
+
+    assert events[:4] == [
+        ("sleep", tool_sandbox.SWEEP_FIRST_S),
+        ("sweep",),
+        ("sleep", tool_sandbox.SWEEP_EVERY_S),
+        ("sweep",),
+    ]
+    assert tool_sandbox.SWEEP_FIRST_S < tool_sandbox.SWEEP_EVERY_S
+
+
+def test_a_failed_sweep_still_waits_for_the_next_hour(monkeypatch, capsys):
+    sleeps = []
+
+    class Stop(Exception):
+        pass
+
+    def fake_sleep(seconds):
+        sleeps.append(seconds)
+        if len(sleeps) > 1:
+            raise Stop
+
+    def broken_sweep():
+        raise RuntimeError("unsandbox down")
+
+    monkeypatch.setattr(tool_sandbox.gevent, "sleep", fake_sleep)
+    monkeypatch.setattr(tool_sandbox, "sweep", broken_sweep)
+
+    with pytest.raises(Stop):
+        tool_sandbox._sweep_forever()
+
+    assert sleeps == [tool_sandbox.SWEEP_FIRST_S, tool_sandbox.SWEEP_EVERY_S]
+    assert "sandbox sweep failed: unsandbox down" in capsys.readouterr().out
