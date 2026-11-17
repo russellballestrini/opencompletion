@@ -202,6 +202,13 @@ Here are some free endpoint for research only!::
     export MODEL_ENDPOINT_2=https://qwen.ai.unturf.com/v1
     export MODEL_ENDPOINT_3=https://gpt-oss.ai.unturf.com/v1
 
+Each ``MODEL_ENDPOINT_n`` (``n`` = 1, 2, 3…) may carry ``MODEL_API_KEY_n``
+and ``MODEL_NAME_n``: the model a ``MODEL_n`` reference means (an activity's
+``classifier_model: "MODEL_1"``, say), needed where an endpoint lists many
+models or wants a deployment named (Gemini, Azure); unset, it is the first
+model that endpoint lists. ``MODEL_1`` is always configured and is the
+default for activities' ``classifier_model`` and ``feedback_model``.
+
 Two endpoints may serve one model: the lowest ``n`` listing it is its pin &
 the others back it up, in order. A pin that is down (or fails while its
 stream is opened) hands the reply to the next copy of the same model; only when
@@ -227,6 +234,8 @@ and ``make classifier-check``::
     export MODEL_CLASSIFIER_API_KEY_0=your-typesafe-api-key
     export MODEL_CLASSIFIER_ID_0=jev-latest        # optional
     export OPENCOMPLETION_CLASSIFIER=auto          # auto | on | off
+    export OPENCOMPLETION_CLASSIFIER_TIMEOUT_S=8   # a learner waits this long before the chat fallback
+    export OPENCOMPLETION_CLASSIFIER_MIN_P=0       # below this probability, the chat model decides
 
 Optional SMTP for email OTP authentication::
 
