@@ -2808,6 +2808,7 @@ class ReplyStream:
                     if isinstance(s, dict)
                 ],
                 resultSha256=event.get("result_sha256"),
+                **tools.loop.repair_marks(event),
             )
             if digest:
                 self.tool_events.append(digest)
@@ -4208,6 +4209,8 @@ if __name__ == "__main__":
     if args.harvest:
         import harvest
 
+        from models import RoomEvent
+
         with app.app_context():
             messages = (
                 db.session.query(
@@ -4216,7 +4219,20 @@ if __name__ == "__main__":
                 .filter(Message.tool_trail.isnot(None))
                 .yield_per(500)
             )
-            summary = harvest.harvest(messages, args.harvest)
+            events = (
+                db.session.query(
+                    RoomEvent.chain,
+                    RoomEvent.room_id,
+                    RoomEvent.message_id,
+                    RoomEvent.type,
+                    RoomEvent.line,
+                )
+                .filter(RoomEvent.type.in_(["tool", "assistant"]))
+                .order_by(RoomEvent.id)
+                .yield_per(500)
+            )
+            live = {chain.chain_of(room) for room in Room.query}
+            summary = harvest.harvest(messages, events, live, args.harvest)
         print("\n".join(harvest.report(summary)))
         raise SystemExit(0)
 

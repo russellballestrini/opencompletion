@@ -310,6 +310,10 @@ def test_a_round_runs_each_call_and_tells_the_room(monkeypatch):
     # a mended call keeps what it was before, to replay its repair later
     assert events[5]["repaired"] and events[5]["repaired_from"] == '{"query": "elmo",}'
     assert "repaired_from" not in events[1]
+    # & what its chain event records: names & a flag, never the arguments
+    assert loop.repair_marks(events[5]) == {"repaired": events[5]["repaired"]}
+    assert loop.repair_marks(events[3]) == {"unparsed": True}
+    assert loop.repair_marks(events[1]) == {}
     assert events[1]["label"] == "elmo"
 
 

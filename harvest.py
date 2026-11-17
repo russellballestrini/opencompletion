@@ -1,10 +1,13 @@
-"""Our tool-call repair evidence, harvested from every reply's tool trail.
+"""Our tool-call repair evidence, harvested from tool trails & room chains.
 
-Each finished tool call is kept in its reply's `Message.tool_trail`
-(tools/loop.py): `repaired` & `repaired_from` when toolcall_repair mended
-its arguments, `unparsed` when nothing could read them, `status: error` &
-`error` when the tool failed. That trail is our record; this module only
-reads it, so a harvest is derived & regenerable, never a second copy to
+Each finished tool call is kept twice. Its reply's `Message.tool_trail`
+(tools/loop.py) holds `repaired` & `repaired_from` when toolcall_repair
+mended its arguments, `unparsed` when nothing could read them, `status:
+error` & `error` when the tool failed. Its room's chain (chain.py,
+`room_event`) holds a `tool` event with its status, error & repair marks
+(`repaired` names, `unparsed: true`; never the arguments). A deleted
+room's messages go, trails with them; its chain stays. This module only
+reads both, so a harvest is derived & regenerable, never a second copy to
 keep in step.
 
 `make harvest` writes three lanes, shaped like uncloseai-cli's repair lane
@@ -14,13 +17,14 @@ keep in step.
     unparsed.jsonl   a call no repair could read: tool, raw
     errors.jsonl     a call whose tool failed: tool, error
 
-& prints a report: what our repairs save, which unparsed calls today's
-toolcall_repair would now read (salvaged since they landed), the shapes
-of the rest (what to mine the next repair from) & the commonest failures.
-Every room counts, solo rooms & superseded or deleted messages too: a
-defect is evidence whoever saw it. A deleted ROOM's messages are gone,
-trails with them; its chain (room_event) keeps each call's status & error
-only.
+Errors come from the chains, so deleted rooms count (& from trails only
+for replies older than our chains). Repairs come from trails, which keep
+the raw arguments, plus a deleted room's chain marks with `raw: null`.
+Every row says `room_alive`. Then a report: what our repairs save, which
+unparsed calls today's toolcall_repair would now read (salvaged since they
+landed), the shapes of the rest (what to mine the next repair from) & the
+commonest failures. Every room counts, solo rooms & superseded or deleted
+messages too: a defect is evidence whoever saw it.
 """
 
 from __future__ import annotations
@@ -50,6 +54,7 @@ def rows_of(message_id, room_id, model, trail_text):
             "message": message_id,
             "call": index,
             "tool": event.get("tool"),
+            "result_sha256": event.get("result_sha256"),
         }
         if event.get("repaired"):
             # raw is None for a call kept before repaired_from was
@@ -61,6 +66,43 @@ def rows_of(message_id, room_id, model, trail_text):
             continue  # its error is "not a JSON object", already said
         if event.get("status") == "error":
             yield "errors", dict(base, error=str(event.get("error") or "")[:200])
+
+
+def chain_rows(events, live_chains):
+    """(lane, row) from the room chains. events: (chain, room_id,
+    message_id, type, line) for `tool` & `assistant` events; live_chains:
+    the chains whose room still exists (their repairs come from trails)."""
+    models, calls = {}, []
+    for chain, room_id, message_id, kind, line in events:
+        try:
+            body = json.loads(line)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(body, dict):
+            continue
+        if kind == "assistant":
+            models[(chain, message_id)] = body.get("model")
+        elif kind == "tool":
+            calls.append((chain, room_id, message_id, body))
+    for chain, room_id, message_id, body in calls:
+        alive = chain in live_chains
+        base = {
+            "model": models.get((chain, message_id)),
+            "room": room_id,
+            "chain": chain,
+            "message": message_id,
+            "tool": body.get("tool"),
+            "result_sha256": body.get("resultSha256"),
+            "room_alive": alive,
+        }
+        if body.get("status") == "error" and not body.get("unparsed"):
+            yield "errors", dict(base, error=str(body.get("error") or "")[:200])
+        if alive:
+            continue  # its trail holds the repair, raw arguments too
+        if body.get("repaired"):
+            yield "repaired", dict(base, repairs=list(body["repaired"]), raw=None)
+        elif body.get("unparsed"):
+            yield "unparsed", dict(base, raw=None)
 
 
 def shape(raw):
@@ -85,6 +127,8 @@ def replay(rows):
 
     salvaged, still = [], []
     for row in rows:
+        if row["raw"] is None:
+            continue  # a deleted room's: its chain keeps no arguments
         arguments, _ = parse_arguments(row["raw"], row["tool"])
         (salvaged if arguments is not None else still).append(row)
     return salvaged, still
@@ -100,13 +144,23 @@ def _write_lane(path, rows):
     os.replace(tmp, path)
 
 
-def harvest(messages, out_dir):
-    """messages: (id, room_id, username, tool_trail) tuples. Writes the
-    lanes under out_dir/repair/ & returns a summary for report()."""
+def harvest(messages, events, live_chains, out_dir):
+    """messages: (id, room_id, username, tool_trail) tuples; events &
+    live_chains: as chain_rows takes them. Writes the lanes under
+    out_dir/repair/ & returns a summary for report()."""
     lanes = {lane: [] for lane in LANES}
+    chained = set()  # a live room's calls its chain filed, one per result
+    for lane, row in chain_rows(events, live_chains):
+        if row["room_alive"]:
+            chained.add((row["room"], row["message"], row["result_sha256"]))
+        lanes[lane].append(row)
     for message_id, room_id, model, trail_text in messages:
         for lane, row in rows_of(message_id, room_id, model, trail_text):
-            lanes[lane].append(row)
+            # a call is one row: its chain filed this error already
+            key = (room_id, message_id, row["result_sha256"])
+            if lane == "errors" and row["result_sha256"] and key in chained:
+                continue
+            lanes[lane].append(dict(row, room_alive=True))
     repair_dir = os.path.join(out_dir, "repair")
     os.makedirs(repair_dir, mode=0o700, exist_ok=True)
     for d in (out_dir, repair_dir):  # makedirs' mode is masked; say it outright
@@ -130,10 +184,20 @@ def report(summary):
     if repairs:
         lines.append("repairs that saved a call:")
         lines += [f"  {n:>5}  {name}" for name, n in repairs.most_common()]
+    gone = Counter(
+        lane for lane, rows in lanes.items() for row in rows if not row["room_alive"]
+    )
+    if gone:
+        lines.append(
+            "  from deleted rooms (their chains): "
+            + ", ".join(f"{lane} {gone[lane]}" for lane in LANES)
+        )
     if lanes["unparsed"]:
+        blind = sum(row["raw"] is None for row in lanes["unparsed"])
         lines.append(
             f"unparsed: {len(summary['salvaged'])} read by today's repair, "
             f"{len(summary['still'])} still unreadable"
+            + (f", {blind} with no arguments kept" if blind else "")
         )
     clusters = defaultdict(list)
     for row in summary["still"]:

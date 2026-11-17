@@ -302,6 +302,18 @@ def parse_arguments(raw, name=None):
     return (arguments or None), repairs
 
 
+def repair_marks(done):
+    """What a finished call's repair did, for its chain event: the repairs
+    that mended it, or that none could read it. Names & a flag, never the
+    arguments: a chain carries digests, not words, & outlives its room, so
+    `make harvest` still counts a deleted room's repairs."""
+    if done.get("repaired"):
+        return {"repaired": list(done["repaired"])}
+    if "unparsed" in done:
+        return {"unparsed": True}
+    return {}
+
+
 OUT_OF_ROUNDS = (
     "(You have used all {rounds} tool rounds this reply may take, so no "
     "more tools now. Answer with what you have: say what you did, what "
