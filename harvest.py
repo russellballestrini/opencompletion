@@ -18,7 +18,9 @@ keep in step.
 toolcall_repair would now read (salvaged since they landed), the shapes
 of the rest (what to mine the next repair from) & the commonest failures.
 Every room counts, solo rooms & superseded or deleted messages too: a
-defect is evidence whoever saw it.
+defect is evidence whoever saw it. A deleted ROOM's messages are gone,
+trails with them; its chain (room_event) keeps each call's status & error
+only.
 """
 
 from __future__ import annotations
@@ -107,7 +109,8 @@ def harvest(messages, out_dir):
             lanes[lane].append(row)
     repair_dir = os.path.join(out_dir, "repair")
     os.makedirs(repair_dir, mode=0o700, exist_ok=True)
-    os.chmod(repair_dir, 0o700)
+    for d in (out_dir, repair_dir):  # makedirs' mode is masked; say it outright
+        os.chmod(d, 0o700)
     for lane, rows in lanes.items():
         _write_lane(os.path.join(repair_dir, lane + ".jsonl"), rows)
     salvaged, still = replay(lanes["unparsed"])

@@ -62,6 +62,7 @@ def test_a_harvest_writes_owner_only_lanes_and_reports(tmp_path):
         mode = os.stat(tmp_path / "repair" / f"{lane}.jsonl").st_mode
         assert stat.S_IMODE(mode) == 0o600
     assert stat.S_IMODE(os.stat(tmp_path / "repair").st_mode) == 0o700
+    assert stat.S_IMODE(os.stat(tmp_path).st_mode) == 0o700
 
     # kept before a trailing-comma repair existed: today's repair reads it
     assert [r["raw"] for r in summary["salvaged"]] == ['{"url": "x",}']
