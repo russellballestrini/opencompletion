@@ -178,13 +178,13 @@ def schema(database):
     return indexes, keys, cols
 
 
-def downgrade_one(database):
+def downgrade_to(database, revision):
     run(
         database,
-        """
+        f"""
         from flask_migrate import downgrade
         with app.app.app_context():
-            downgrade(revision="-1")
+            downgrade(revision="{revision}")
         """,
     )
 
@@ -225,7 +225,7 @@ def old_head_with_a_deleted_chat(database):
     """A database at the head before AUTOINCREMENT, holding two rooms & a
     deleted one (id 634) whose chain names its ids, as the 3090's did."""
     up(database)
-    downgrade_one(database)
+    downgrade_to(database, "2026111001")  # newer migrations came after it
     assert stamp(database) == "2026111001"
     assert autoincrement(database) == {t: False for t in NEVER_REUSED}
     lines = [
@@ -270,6 +270,11 @@ def old_head_with_a_deleted_chat(database):
             )
 
 
+# What migrations newer than 2026111201 add, appended to their tables.
+ADDED_SINCE = {"room": ("creator_key",)}
+ADDED_INDEXES = ("ix_room_creator_key",)
+
+
 def test_an_upgrade_seeds_ids_past_every_one_the_chain_ever_saw(tmp_path):
     database = tmp_path / "chat.db"
     old_head_with_a_deleted_chat(database)
@@ -284,13 +289,21 @@ def test_an_upgrade_seeds_ids_past_every_one_the_chain_ever_saw(tmp_path):
     assert autoincrement(database) == {t: True for t in NEVER_REUSED}
 
     # Every row, index & foreign key kept; only the id columns' DDL moved.
+    # Migrations after it only add (room.creator_key, 2026111701): set aside.
     indexes, keys, cols = schema(database)
+    added = len(ADDED_SINCE["room"])
+    indexes = [i for i in indexes if i[0] not in ADDED_INDEXES]
+    cols = {
+        t: [c for c in v if c[1] not in ADDED_SINCE.get(t, ())] for t, v in cols.items()
+    }
     assert indexes == before[0] and keys == before[1] and cols == before[2]
     with sqlite3.connect(database) as con:
-        assert rows == {
+        after = {
             t: con.execute(f"SELECT * FROM {t} ORDER BY id").fetchall()
             for t in NEVER_REUSED + ("room_event",)
         }
+        after["room"] = [r[:-added] for r in after["room"]]
+        assert rows == after
         seqs = dict(con.execute("SELECT name, seq FROM sqlite_sequence"))
         assert con.execute("pragma integrity_check").fetchone() == ("ok",)
     assert seqs["room"] == 634 and seqs["message"] == 4101

@@ -34,13 +34,13 @@ function recentChats() {
     }
 }
 
-// `facts` ({id, anyoneMayRetitle}) come from our server: a room just made
+// `facts` ({id, anyoneMayRetitle, mayRemove}) come from our server: a room just made
 // (createChatRoom), else the open chat's own page (CHAT_CONFIG), else
 // what this browser recorded before.
 function rememberRecentChat(name, title, facts) {
     const previous = recentChats().find(c => c.name === name);
     const page = window.CHAT_CONFIG && window.CHAT_CONFIG.roomName === name && window.CHAT_CONFIG.roomId
-        ? {id: window.CHAT_CONFIG.roomId, anyoneMayRetitle: window.CHAT_CONFIG.anyoneMayRetitle}
+        ? {id: window.CHAT_CONFIG.roomId, anyoneMayRetitle: window.CHAT_CONFIG.anyoneMayRetitle, mayRemove: window.CHAT_CONFIG.mayRemove}
         : null;
     const known = facts || page || previous || {};
     const entry = {
@@ -49,6 +49,8 @@ function rememberRecentChat(name, title, facts) {
         public: true,
         id: known.id || null,
         anyoneMayRetitle: known.anyoneMayRetitle === true,
+        // This browser made it, so may archive or delete it (our server checks)
+        mayRemove: known.mayRemove === true,
     };
     const list = [entry, ...recentChats().filter(c => c.name !== name)].slice(0, RECENT_CHATS_MAX);
     try { localStorage.setItem(RECENT_CHATS_KEY, JSON.stringify(list)); } catch (e) {}
@@ -124,14 +126,16 @@ function fillGuestChats(current) {
     const chats = recentChats();
     const publicRows = [...document.querySelectorAll('#public-chats li[data-room-name]')];
     chats.forEach(chat => {
-        // What a guest may do with a room: rename one anyone may rename.
-        // Our server's own row for it, when this page has one, knows best.
+        // What a guest may do with a room: rename one anyone may rename,
+        // archive or delete one this browser made. Our server's own row
+        // for it, when this page has one, knows best.
         const row = publicRows.find(r => r.dataset.roomName === chat.name);
         const item = chatListItem({
             name: chat.name,
             title: (row && row.dataset.roomTitle) || chat.title,
             id: row ? Number(row.dataset.roomId) : chat.id,
             canRetitle: row ? row.dataset.canRetitle === 'true' : chat.anyoneMayRetitle === true,
+            canRemove: row ? row.dataset.canRemove === 'true' : chat.mayRemove === true,
         });
         if (chat.name === current) item.querySelector('a').setAttribute('aria-current', 'page');
         list.appendChild(item);
@@ -189,7 +193,7 @@ function newRoomName(words) {
 // Make a new room named after `words` (home's first message, an
 // activity's title): solo (only its owner, needs sign in) or a public
 // chatroom. Resolves to our server's {id, name, is_private,
-// anyone_may_retitle}.
+// anyone_may_retitle, may_remove}.
 async function createChatRoom(words, isPrivate) {
     for (let attempt = 0; attempt < 3; attempt++) {
         const name = newRoomName(words);

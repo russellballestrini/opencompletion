@@ -188,7 +188,7 @@ async function startChat() {
             return;
         }
         try { localStorage.setItem('selectedModel', model); } catch (e) {}
-        if (mode !== 'private') rememberRecentChat(room, null, {id: made.id, anyoneMayRetitle: made.anyone_may_retitle});
+        if (mode !== 'private') rememberRecentChat(room, null, {id: made.id, anyoneMayRetitle: made.anyone_may_retitle, mayRemove: made.may_remove});
         homeDraft.clear();  // sent: it lives in its chat now
         // tests/functional/test_home.py records the address instead of leaving.
         // Our pending card stays up until the chat page replaces this one.

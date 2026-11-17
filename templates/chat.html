@@ -66,7 +66,7 @@
     <aside class="utility-belt" aria-label="Room controls">
         <button type="button" class="icon-btn drawer-close" onclick="closeDrawer()" aria-label="Close controls">×</button>
         {# Forking lives on each model reply (Fork, 5-messages.js), not here. #}
-        {% if current_room and user and current_room.owner_id == user.id %}
+        {% if current_room and may_remove_room(current_room, user) %}
         <section class="room-actions-section">
             <h3>Room</h3>
             <div class="button-row">
@@ -135,7 +135,9 @@
         signedIn: {{ 'true' if user else 'false' }},
         isPrivate: {{ 'true' if current_room and current_room.is_private else 'false' }},
         roomId: {{ current_room.id|tojson if current_room else 'null' }},
-        anyoneMayRetitle: {{ 'true' if current_room and not current_room.is_private and not current_room.owner_id else 'false' }}
+        anyoneMayRetitle: {{ 'true' if current_room and not current_room.is_private and not current_room.owner_id else 'false' }},
+        // This browser may archive or delete it (auth.may_remove)
+        mayRemove: {{ 'true' if current_room and may_remove_room(current_room, user) else 'false' }}
     };
 </script>
 <script src="{{ url_for('static', filename='js/composer.js') }}"></script>

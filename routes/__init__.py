@@ -32,6 +32,12 @@ def register(app, **deps):
         status,
     )
 
+    import auth
+
+    # Templates ask who may archive or delete a room (its owner, or the
+    # guest browser that made it): _room_actions_data.html, chat.html.
+    app.jinja_env.globals["may_remove_room"] = auth.may_remove
+
     for module in (
         pages,
         accounts,

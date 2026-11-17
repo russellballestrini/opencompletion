@@ -110,6 +110,10 @@ class Room(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     updated_at = db.Column(db.Integer, default=epoch_now, nullable=False)
     forked_from_id = db.Column(db.Integer, db.ForeignKey("room.id"), nullable=True)
+    # A guest's room: sha256 of the key kept in the session of the browser
+    # that made it (auth.guest_room_key), which may archive or delete it &
+    # claims it on signing in. Never set once a room has an owner.
+    creator_key = db.Column(db.String(64), nullable=True, index=True)
 
     def add_user(self, username):
         active_users = set(self.active_users.split(",")) if self.active_users else set()

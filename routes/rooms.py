@@ -256,7 +256,7 @@ def create_room_api():
     new_room = Room()
     new_room.name = room_name
     new_room.is_private = is_private
-    new_room.owner_id = user.id if user else None
+    auth.mark_new_room(new_room, user)
 
     db.session.add(new_room)
     db.session.commit()
@@ -281,6 +281,8 @@ def create_room_api():
                 "name": new_room.name,
                 "is_private": new_room.is_private,
                 "anyone_may_retitle": anyone_may_retitle(new_room),
+                # This browser may archive or delete it (auth.may_remove)
+                "may_remove": auth.may_remove(new_room, user),
             },
         }
     )
@@ -332,7 +334,7 @@ def fork_conversation(source_room, up_to=None, rows=None, **origin):
     new_room.name = new_name
     new_room.title = f"Fork of {source_room.title or source_room.name}"
     new_room.is_private = make_private
-    new_room.owner_id = user.id if user else None
+    auth.mark_new_room(new_room, user)
     new_room.forked_from_id = source_room.id
     db.session.add(new_room)
     db.session.commit()
@@ -395,6 +397,8 @@ def fork_conversation(source_room, up_to=None, rows=None, **origin):
                 "name": new_room.name,
                 "title": new_room.title,
                 "is_private": new_room.is_private,
+                "anyone_may_retitle": anyone_may_retitle(new_room),
+                "may_remove": auth.may_remove(new_room, user),
             },
         }
     )
@@ -546,16 +550,15 @@ def retitle_room(room_id):
 
 
 @bp.route("/api/rooms/<int:room_id>/archive", methods=["POST"])
-@auth.require_auth
 def archive_room(room_id):
-    """Archive a room (owner only)"""
+    """Archive a room: its owner, or the browser that made a guest's room"""
     user = auth.get_current_user()
     room = db.session.get(Room, room_id)
 
     if not room:
         return jsonify({"error": "Room not found"}), 404
 
-    if room.owner_id != user.id:
+    if not auth.may_remove(room, user):
         return jsonify({"error": "Only room owner can archive rooms"}), 403
 
     room.is_archived = True
@@ -565,21 +568,23 @@ def archive_room(room_id):
 
 
 @bp.route("/api/rooms/<int:room_id>/delete", methods=["DELETE"])
-@auth.require_auth
 def delete_room(room_id):
-    """Delete a room (owner only)"""
+    """Delete a room: its owner, or the browser that made a guest's room"""
     user = auth.get_current_user()
     room = db.session.get(Room, room_id)
 
     if not room:
         return jsonify({"error": "Room not found"}), 404
 
-    if room.owner_id != user.id:
+    if not auth.may_remove(room, user):
         return jsonify({"error": "Only room owner can delete rooms"}), 403
 
-    # Its chain outlives it (forensics): say who deleted it, & close it on a
-    # root, while the room is still here to name its chain.
-    chain.append(room.id, room.name, "room_deleted", deletedBy=user.id)
+    # Its chain outlives it (forensics): say who deleted it (an account, or
+    # null for the guest browser that made it), & close it on a root, while
+    # the room is still here to name its chain.
+    chain.append(
+        room.id, room.name, "room_deleted", deletedBy=user.id if user else None
+    )
     chain.checkpoint(room.id)
 
     # Delete all messages in the room
@@ -878,6 +883,8 @@ def search_messages(keywords, user=None):
                 "id": room.id,
                 "room_id": room.id,
                 "owner_id": room.owner_id,
+                # Only auth.may_remove reads it (never shown, never sent)
+                "creator_key": room.creator_key,
                 "name": room.name,
                 "title": room.title,
                 "room_name": room.name,

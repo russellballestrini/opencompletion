@@ -1,5 +1,6 @@
 """Authentication module for email OTP-based authentication"""
 
+import hashlib
 import os
 import secrets
 import smtplib
@@ -9,7 +10,7 @@ from email.mime.multipart import MIMEMultipart
 from functools import wraps
 
 from flask import session, jsonify, request
-from models import db, User, OTPToken, utcnow
+from models import db, Room, User, OTPToken, utcnow
 
 
 def load_secret_key(instance_path, environ=os.environ):
@@ -259,12 +260,78 @@ def create_user(email, display_name):
     return user, None
 
 
+# A guest's rooms: their session holds a random key, a room they make keeps
+# its sha256 (Room.creator_key), so the browser that made a room may archive
+# or delete it & claims it on signing in. Only a digest reaches our database.
+GUEST_KEY = "guest_room_key"
+
+
+def guest_room_key(create=False):
+    """sha256 of this browser's guest key, made when `create` (a guest
+    making a room); None when it has none."""
+    raw = session.get(GUEST_KEY)
+    if not raw and create:
+        raw = secrets.token_hex(32)
+        session[GUEST_KEY] = raw
+        session.permanent = True  # outlives a browser restart, as sign in does
+    return hashlib.sha256(raw.encode()).hexdigest() if raw else None
+
+
+def mark_new_room(room, user):
+    """A room someone just made: theirs when signed in, else this browser's."""
+    if user:
+        room.owner_id = user.id
+        room.creator_key = None
+    else:
+        room.owner_id = None
+        room.creator_key = guest_room_key(create=True)
+
+
+def _room_field(room, name):
+    # A Room, or a search result's dict (routes.rooms.search_messages)
+    return room.get(name) if isinstance(room, dict) else getattr(room, name, None)
+
+
+def made_here(room):
+    """True for an unowned room this browser made."""
+    key = _room_field(room, "creator_key") if room else None
+    if not key or _room_field(room, "owner_id"):
+        return False
+    return secrets.compare_digest(key, guest_room_key() or "")
+
+
+def may_remove(room, user):
+    """Who may archive or delete a room: its owner, or for a guest's room
+    the browser that made it."""
+    if not room:
+        return False
+    owner_id = _room_field(room, "owner_id")
+    if owner_id:
+        return bool(user) and user.id == owner_id
+    return made_here(room)
+
+
+def claim_guest_rooms(user):
+    """Signing in: the rooms this browser made as a guest become `user`'s."""
+    key = guest_room_key()
+    if not key:
+        return 0
+    rooms = Room.query.filter_by(owner_id=None, creator_key=key).all()
+    for room in rooms:
+        room.owner_id = user.id
+        room.creator_key = None
+    return len(rooms)
+
+
 def login_user(user):
     """Create session for authenticated user"""
     session["user_id"] = user.id
     session["user_email"] = user.email
     session["display_name"] = user.display_name
     session.permanent = True  # Use permanent session
+
+    claim_guest_rooms(user)
+    session.pop(GUEST_KEY, None)
 
     # Update last login
     user.last_login = utcnow()

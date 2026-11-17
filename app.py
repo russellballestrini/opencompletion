@@ -969,6 +969,12 @@ def chat(room_name):
             403,
         )
 
+    # A guest opening a room that doesn't exist yet makes it when they join:
+    # give this browser its key now, since a socket can't write our cookie
+    # (on_join's auth.mark_new_room reads it from the session it connected with).
+    if room is None and not user:
+        auth.guest_room_key(create=True)
+
     # Use authenticated user's display name, or None (will prompt on client side)
     username = user.display_name if user else None
 
@@ -1087,12 +1093,13 @@ def on_join(data):
     username = resolve_username(data.get("username"))
     room = get_room(room_name)
 
-    # Set owner for newly created rooms (if room has no owner and user is authenticated)
-    if room.owner_id is None:
-        if user:
-            room.owner_id = user.id
-            db.session.add(room)
-            db.session.commit()
+    # A room this join made (a /chat/<name> typed in) is its maker's: theirs
+    # signed in, else this browser's (auth.mark_new_room). Joining a room
+    # that already exists never claims it, so a passerby can't delete a
+    # guest's chatroom; its maker claims it by signing in.
+    if existing is None:
+        auth.mark_new_room(room, user)
+        db.session.commit()
 
     # Add the user to the active users list
     room.add_user(username)
