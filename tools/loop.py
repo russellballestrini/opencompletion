@@ -432,6 +432,9 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
         done = {"tool": call["name"], "label": label, "where": where}
         if repairs:
             done["repaired"] = repairs  # its arguments were mended (our save rate)
+            # & what they were before, so `make harvest` can replay the
+            # pair through a later repair (raw -> what it reads as now)
+            done["repaired_from"] = str(call["arguments"])[:2000]
         elif arguments is None:
             # What no repair could read, kept to mine the next repair from
             done["unparsed"] = str(call["arguments"])[:2000]

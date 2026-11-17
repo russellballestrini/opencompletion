@@ -4161,6 +4161,13 @@ if __name__ == "__main__":
         action="store_true",
         help="Verify every room's hash chain (deleted rooms' too), then exit",
     )
+    parser.add_argument(
+        "--harvest",
+        nargs="?",
+        const=os.path.join("instance", "harvest"),
+        metavar="DIR",
+        help="Write our tool calls' repair evidence as lane files, report, exit",
+    )
     args = parser.parse_args()
 
     # A deploy is a restart: our database follows our code before anything
@@ -4197,6 +4204,21 @@ if __name__ == "__main__":
         bad = sum(not r["ok"] for r in reports)
         print(f"{len(reports)} chain(s), {bad} with a problem.")
         raise SystemExit(1 if bad else 0)
+
+    if args.harvest:
+        import harvest
+
+        with app.app_context():
+            messages = (
+                db.session.query(
+                    Message.id, Message.room_id, Message.username, Message.tool_trail
+                )
+                .filter(Message.tool_trail.isnot(None))
+                .yield_per(500)
+            )
+            summary = harvest.harvest(messages, args.harvest)
+        print("\n".join(harvest.report(summary)))
+        raise SystemExit(0)
 
     if args.backfill_blobs:
         moved, changed = backfill_blobs()

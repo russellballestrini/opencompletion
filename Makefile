@@ -48,6 +48,7 @@ help:
 	@echo "  backfill-titles      - Title untitled rooms for our sidebars (network)"
 	@echo "  backfill-blobs       - Move base64 images inside messages into our blob store"
 	@echo "  chain-check          - Verify every room's hash chain, deleted rooms' too (fails on any break)"
+	@echo "  harvest              - Our tool calls' repair evidence as lane files + a report (instance/harvest/)"
 	@echo "  jev-bench            - Self-play Jev Reasoner's probability grid (no network)"
 	@echo "  arena                - Every battleship mode plays every other (network)"
 	@echo "  test-artifact        - Compile C on a code executor & run the binary (network)"
@@ -307,6 +308,17 @@ chain-check: venv
 	@echo "🔗 Verifying every room's hash chain (deleted rooms' too)..."
 	@if [ -f vars.sh ]; then \
 		. ./vars.sh && OPENCOMPLETION_SKIP_MODEL_MAP=1 venv/bin/python app.py --chain-check; \
+	else \
+		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \
+		exit 1; \
+	fi
+
+# Our tool calls' repair evidence, from every reply's tool trail (no network)
+.PHONY: harvest
+harvest: venv
+	@echo "⛏️  Harvesting our tool-call repair evidence..."
+	@if [ -f vars.sh ]; then \
+		. ./vars.sh && OPENCOMPLETION_SKIP_MODEL_MAP=1 venv/bin/python app.py --harvest; \
 	else \
 		echo "❌ Error: vars.sh not found. Please create it from vars.sh.sample"; \
 		exit 1; \

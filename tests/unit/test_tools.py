@@ -266,6 +266,7 @@ def test_a_round_runs_each_call_and_tells_the_room(monkeypatch):
     calls = [
         {"id": "c1", "name": "web_search", "arguments": '{"query": "elmo"}'},
         {"id": "c2", "name": "web_fetch", "arguments": "not json"},
+        {"id": "c3", "name": "web_search", "arguments": '{"query": "elmo",}'},
     ]
     messages = loop.run_round(FOX, calls, "Let me look.", events.append)
 
@@ -283,9 +284,14 @@ def test_a_round_runs_each_call_and_tells_the_room(monkeypatch):
                 "type": "function",
                 "function": {"name": "web_fetch", "arguments": "not json"},
             },
+            {
+                "id": "c3",
+                "type": "function",
+                "function": {"name": "web_search", "arguments": '{"query": "elmo",}'},
+            },
         ],
     }
-    assert [m["tool_call_id"] for m in messages[1:]] == ["c1", "c2"]
+    assert [m["tool_call_id"] for m in messages[1:]] == ["c1", "c2", "c3"]
     assert json.loads(messages[1]["content"])["results"][0]["url"] == "https://a.org/"
     assert json.loads(messages[2]["content"]) == {
         "error": "arguments were not a JSON object"
@@ -295,10 +301,15 @@ def test_a_round_runs_each_call_and_tells_the_room(monkeypatch):
         ("web_search", "done", "server"),
         ("web_fetch", "running", "server"),
         ("web_fetch", "error", "server"),
+        ("web_search", "running", "server"),
+        ("web_search", "done", "server"),
     ]
     assert events[1]["sources"] == [{"url": "https://a.org/", "title": "A"}]
     # what no repair could read is kept, to mine the next repair from
     assert events[3]["unparsed"] == "not json"
+    # a mended call keeps what it was before, to replay its repair later
+    assert events[5]["repaired"] and events[5]["repaired_from"] == '{"query": "elmo",}'
+    assert "repaired_from" not in events[1]
     assert events[1]["label"] == "elmo"
 
 

@@ -39,6 +39,7 @@ include =
     battleship_modes.py
     battleship_arena.py
     chain.py
+    harvest.py
     fade.py
     db_migrate.py
     gevent_asyncio.py
