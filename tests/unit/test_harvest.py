@@ -39,7 +39,14 @@ MESSAGES = [
             # kept before a trailing-comma repair existed: today's reads it
             {"tool": "web_fetch", "status": "error", "unparsed": '{"url": "x",}'},
             {"tool": "web_fetch", "status": "error", "unparsed": '{"url",, 7}'},
-            # filed by its chain too: one row, not two
+            # filed by its chain too: one row, not two; the identical call
+            # after it the chain missed (a chain write failed) still counts
+            {
+                "tool": "run_code",
+                "status": "error",
+                "error": "exit 1",
+                "result_sha256": "r5",
+            },
             {
                 "tool": "run_code",
                 "status": "error",
@@ -143,6 +150,7 @@ def test_a_harvest_reads_trails_and_chains_one_row_a_call(tmp_path):
         (r["tool"], r["error"], r["model"], r["room_alive"]) for r in lanes["errors"]
     ) == [
         ("run_code", "exit 1", "qwen", True),
+        ("run_code", "exit 1", "qwen", True),
         ("sandbox_run", "boom", "hermes", True),
         ("sandbox_shell", "exited with code 1", "hermes", False),
     ]
@@ -156,7 +164,7 @@ def test_a_harvest_reads_trails_and_chains_one_row_a_call(tmp_path):
     assert [r["raw"] for r in summary["salvaged"]] == ['{"url": "x",}']
     assert [r["raw"] for r in summary["still"]] == ['{"url",, 7}']
     text = "\n".join(harvest.report(summary))
-    assert "repaired 3, unparsed 3, errors 3 call(s)" in text
+    assert "repaired 3, unparsed 3, errors 4 call(s)" in text
     assert "from deleted rooms (their chains): repaired 1, unparsed 1, errors 1" in text
     assert (
         "1 read by today's repair, 1 still unreadable, 1 with no arguments kept" in text

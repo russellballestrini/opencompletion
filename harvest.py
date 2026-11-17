@@ -149,16 +149,18 @@ def harvest(messages, events, live_chains, out_dir):
     live_chains: as chain_rows takes them. Writes the lanes under
     out_dir/repair/ & returns a summary for report()."""
     lanes = {lane: [] for lane in LANES}
-    chained = set()  # a live room's calls its chain filed, one per result
+    # a live room's errors its chain filed, counted: identical calls share
+    # a result digest, so one chain row answers for one trail row
+    chained = Counter()
     for lane, row in chain_rows(events, live_chains):
-        if row["room_alive"]:
-            chained.add((row["room"], row["message"], row["result_sha256"]))
+        if lane == "errors" and row["room_alive"]:
+            chained[(row["room"], row["message"], row["result_sha256"])] += 1
         lanes[lane].append(row)
     for message_id, room_id, model, trail_text in messages:
         for lane, row in rows_of(message_id, room_id, model, trail_text):
-            # a call is one row: its chain filed this error already
             key = (room_id, message_id, row["result_sha256"])
-            if lane == "errors" and row["result_sha256"] and key in chained:
+            if lane == "errors" and row["result_sha256"] and chained[key] > 0:
+                chained[key] -= 1  # a call is one row: its chain filed it
                 continue
             lanes[lane].append(dict(row, room_alive=True))
     repair_dir = os.path.join(out_dir, "repair")
