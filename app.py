@@ -106,6 +106,8 @@ live_replies = {}
 import openai
 from openai import OpenAI
 import activity
+import activity_engine
+import activity_gallery
 import aside
 import auth
 
@@ -1540,21 +1542,99 @@ def running_reply(room_name, model):
     return running[-1] if running else None
 
 
-def answer_aside(room_name, question, model):
-    """One ask, no tools & no thinking, of the running reply's model (else
-    the picked one), over a copy of what that reply knows right now: its
-    conversation, its rounds so far & the tool it is running; the answer
-    goes to the room as an aside & is kept nowhere."""
-    reply = running_reply(room_name, model)
-    try:
-        if reply is not None:
-            client, model_name = reply.openai_client, reply.model_name
-            now = aside.running_now(
-                model_name,
+def aside_now(room_name):
+    """Every reply running in room_name, in words: what each is doing &
+    what was sent to it unread; None when none is."""
+    said = []
+    for reply in [r for r in live_replies.values() if r.room_name == room_name]:
+        said.append(
+            aside.running_now(
+                reply.model_name,
                 time.monotonic() - reply.started_at,
                 reply.buffer[reply.round_start :],
                 reply.shown_trail,
             )
+        )
+        said.append(aside.waiting([(e[2], e[1]) for e in reply.steering]))
+    return "\n\n".join(part for part in said if part) or None
+
+
+def aside_facts(room_name):
+    """What an aside knows of a chat besides its conversation: the room &
+    who is in it, its running activity (as learners see it) & its
+    sandbox. Each part best effort: one that fails is left out."""
+    from models import Sandbox
+
+    facts = []
+    with app.app_context():
+        room = Room.query.filter_by(name=room_name).first()
+        if room is None:
+            return facts
+        try:
+            people = {
+                s.username
+                for s in UserSession.query.filter_by(room_id=room.id).all()
+                if s.username
+            }
+            facts.append(
+                aside.room_facts(
+                    room.title,
+                    room.is_private,
+                    people,
+                    Message.visible(room.id).count(),
+                )
+            )
+        except Exception as e:  # noqa: BLE001 — an aside answers without it
+            print(f"[WARN] aside: room facts skipped: {e}")
+        try:
+            state = ActivityState.query.filter_by(room_id=room.id).first()
+            if state:
+                content = activity.get_activity_content(state.s3_file_path)
+                step = activity_engine.current_step(content, state) or {}
+                facts.append(
+                    aside.activity_facts(
+                        activity_gallery.derive_title(state.s3_file_path, content),
+                        state.section_id,
+                        state.step_id,
+                        step.get("question"),
+                        state.attempts,
+                        state.max_attempts,
+                    )
+                )
+        except Exception as e:  # noqa: BLE001
+            print(f"[WARN] aside: activity facts skipped: {e}")
+        try:
+            sandbox = Sandbox.query.filter_by(room_id=room.id).first()
+            if sandbox:
+                last = sandbox.last_used_at
+                facts.append(
+                    aside.sandbox_facts(
+                        sandbox.state,
+                        f"{sandbox.created_at:%Y-%m-%d %H:%M} UTC",
+                        (
+                            time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(last))
+                            if last
+                            else None
+                        ),
+                        bool(sandbox.delegate_session_id),
+                        sandbox.model,
+                    )
+                )
+        except Exception as e:  # noqa: BLE001
+            print(f"[WARN] aside: sandbox facts skipped: {e}")
+    return facts
+
+
+def answer_aside(room_name, question, model):
+    """One ask, no tools & no thinking, of the running reply's model (else
+    the picked one), over a copy of what that reply knows right now (its
+    conversation & rounds so far), every reply running in the room & what
+    the chat holds (aside_facts: room, activity, sandbox), else the room's
+    history; the answer goes to the room as an aside & is kept nowhere."""
+    reply = running_reply(room_name, model)
+    try:
+        if reply is not None:
+            client, model_name = reply.openai_client, reply.model_name
             turns = list(reply.with_tools)
         elif model in (None, "None"):
             socketio.emit(
@@ -1570,12 +1650,12 @@ def answer_aside(room_name, question, model):
         else:
             client, model_name = get_openai_client_and_model(model)
             _, turns = reply_history(room_name, model_name)
-            now = None
+        now = aside_now(room_name)
         ask = dict(chat_sampling(model_name), max_tokens=aside.MAX_TOKENS)
         response = create_completion_skip_thinking(
             client,
             model=model_name,
-            messages=aside.messages(question, turns, now),
+            messages=aside.messages(question, turns, now, aside_facts(room_name)),
             **ask,
         )
         answer = (strip_reasoning(response.choices[0].message.content) or "").strip()

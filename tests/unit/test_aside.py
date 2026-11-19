@@ -78,3 +78,16 @@ def test_the_ask_ends_with_the_question():
     assert asked[0]["role"] == "system"
     assert asked[-1]["content"].endswith("Aside question: what now?")
     assert "No reply is running" in asked[-1]["content"]
+
+
+def test_facts_come_before_the_chat():
+    asked = aside.messages("q?", [], facts=["FACT ONE", "", "FACT TWO"])
+    body = asked[-1]["content"]
+    assert body.startswith("FACT ONE\n\nFACT TWO\n\n---\n\nThe chat so far:")
+
+
+def test_room_facts_say_solo_or_public_and_who_is_here():
+    assert aside.room_facts("Plans", True, {"bob", "ada"}, 4) == (
+        'This is "Plans", a solo chat, holding 4 messages. Here now: ada, bob.'
+    )
+    assert "a public chatroom" in aside.room_facts(None, False, set(), 0)

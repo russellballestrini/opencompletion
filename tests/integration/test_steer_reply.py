@@ -260,3 +260,66 @@ def test_a_btw_message_is_shown_and_never_stored(harness, monkeypatch, test_app)
     assert question["id"].startswith("aside-")
     assert answer["content"] == "Nothing is running."
     assert Message.query.count() == 0
+
+
+def test_an_aside_knows_the_activity_but_never_its_hidden_state(harness, monkeypatch):
+    from models import ActivityState, Room, Sandbox, db
+
+    asked = aside_harness(harness, monkeypatch, answer="Step two.")
+    room = Room.query.filter_by(name="lobby").one()
+    state = ActivityState(
+        room_id=room.id,
+        section_id="vault",
+        step_id="guess",
+        attempts=1,
+        max_attempts=3,
+        s3_file_path="research/activity52-vault-heist.yaml",
+    )
+    state.dict_metadata = {"vault_code": "4417"}
+    db.session.add(state)
+    db.session.add(
+        Sandbox(room_id=room.id, service_id="svc", name="sbx", state="frozen")
+    )
+    db.session.commit()
+    content = {
+        "sections": [
+            {
+                "section_id": "vault",
+                "title": "The Vault",
+                "steps": [
+                    {
+                        "step_id": "guess",
+                        "question": "What is the four-digit code?",
+                        "tokens_for_ai": "The code is 4417.",
+                    }
+                ],
+            }
+        ]
+    }
+    monkeypatch.setattr(harness.app.activity, "get_activity_content", lambda p: content)
+
+    harness.app.answer_aside("lobby", "where are we?", "qwen")
+    body = asked[0]["messages"][-1]["content"]
+    assert "section vault, step guess; attempts on this step: 1 of 3" in body
+    assert "What is the four-digit code?" in body
+    assert "4417" not in body  # neither its metadata nor its grading notes
+    assert "This chat has a sandbox (state: frozen" in body
+    assert "a public chatroom" in body
+
+
+def test_an_aside_sees_what_waits_for_a_running_reply(harness, monkeypatch):
+    asked = aside_harness(harness, monkeypatch)
+    harness.scripts.append(
+        [
+            delta("All "),
+            harness.send("and z?", 46),
+            lambda: harness.app.answer_aside("lobby", "status?", "qwen"),
+            delta("done."),
+        ]
+    )
+    harness.app.chat_gpt(
+        "ada", "lobby", "qwen", tool_context=harness.tools.context("sid-ada")
+    )
+    body = asked[0]["messages"][-1]["content"]
+    assert "Sent to it while it works, not yet read:\n- bob: and z?" in body
+    assert "It has written this round so far:\nAll" in body

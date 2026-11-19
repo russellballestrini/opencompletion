@@ -80,11 +80,58 @@ def running_now(model, seconds, writing, trail):
     return "\n\n".join(lines)
 
 
-def messages(question, turns, now=None):
-    """The one ask an aside makes: our rule, what the work shows, then
-    the question."""
+def waiting(messages):
+    """Messages sent to a running reply it has not read yet (steering)."""
+    if not messages:
+        return ""
+    lines = "\n".join(f"- {username}: {words}" for username, words in messages)
+    return f"Sent to it while it works, not yet read:\n{lines}"
+
+
+def room_facts(title, solo, people, message_count):
+    """Which chat this is & who is in it now."""
+    kind = "a solo chat" if solo else "a public chatroom"
+    named = f' "{title}"' if title else ""
+    lines = [f"This is{named}, {kind}, holding {message_count} messages."]
+    if people:
+        lines.append("Here now: " + ", ".join(sorted(people)) + ".")
+    return " ".join(lines)
+
+
+def activity_facts(title, section, step, question, attempts, max_attempts):
+    """The activity running in this chat, as its learners see it. Never its
+    metadata, grading notes, buckets or scripts: a game's hidden state
+    (a vault's code, an enemy fleet) is no aside's to tell."""
+    lines = [
+        f'An activity is running here: "{title}".',
+        f"It is at section {section}, step {step}; "
+        f"attempts on this step: {attempts} of {max_attempts}.",
+    ]
+    if question:
+        lines.append(f"Its current question:\n{str(question).strip()[:2000]}")
+    lines.append("Its answers & hidden state are not shown to you; never guess them.")
+    return "\n".join(lines)
+
+
+def sandbox_facts(state, created, last_used, has_session, model):
+    """This chat's sandbox: an unsandbox service its replies run in."""
+    lines = [f"This chat has a sandbox (state: {state}, made {created})."]
+    if last_used:
+        lines.append(f"It was last used {last_used}.")
+    if model:
+        lines.append(f"Its delegates answer with {model}.")
+    if has_session:
+        lines.append("Its delegates share one uncloseai-cli session.")
+    return " ".join(lines)
+
+
+def messages(question, turns, now=None, facts=()):
+    """The one ask an aside makes: our rule, what the chat holds (facts:
+    the room, its activity & sandbox), what the work shows, then the
+    question."""
     shown = transcript(turns) or "(nothing yet)"
-    body = f"The chat so far:\n\n{shown}"
+    body = "\n\n".join(fact for fact in facts if fact)
+    body = (body + "\n\n---\n\n" if body else "") + f"The chat so far:\n\n{shown}"
     if now:
         body += f"\n\n---\n\n{now}"
     else:
