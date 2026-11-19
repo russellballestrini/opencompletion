@@ -174,11 +174,14 @@ def test_help_message_names_only_real_commands():
     documented = set(re.findall(r"`(/[a-z0-9]+)", app_module.HELP_MESSAGE))
     source = (ROOT / "app.py").read_text()
     handled = set(re.findall(r'command\.startswith\("(/[a-z0-9]+)', source))
+    # /btw is caught before a message is stored (handle_message), never
+    # dispatched: an aside is kept nowhere.
+    handled |= set(re.findall(r're\.match\(r"(/[a-z0-9]+)\(', source))
     assert documented and documented <= handled, documented - handled
     assert not re.search(r"\bAI\b", app_module.HELP_MESSAGE)
     # Activities start from our room controls; /activity & /s3 still work
     # but go unlisted. /help names only what people type.
-    assert documented == {"/title", "/cancel", "/help"}, documented
+    assert documented == {"/title", "/cancel", "/btw", "/help"}, documented
 
 
 def test_sign_in_says_where_the_code_went(client):
