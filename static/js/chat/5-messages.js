@@ -186,7 +186,7 @@ function earlierVersionPanel(rows, shown, count, messageId) {
 // "Processing..." placeholder) carries an id of its own, notice-… or
 // processing-… (activity_utils.notice_id): its own element, no actions.
 function isNoticeId(id) {
-    return typeof id === "string" && /^(notice|processing)-/.test(id);
+    return typeof id === "string" && /^(notice|processing|aside)-/.test(id);
 }
 
 socket.on("chat_message", (data) => {
@@ -196,6 +196,8 @@ socket.on("chat_message", (data) => {
     const messageWrapper = document.createElement("div");
     messageWrapper.className = "message-wrapper";
     messageWrapper.id = "message-" + data.id;
+    // A /btw aside & its answer: shown to the room, kept nowhere (aside.py).
+    if (data.aside) messageWrapper.classList.add("is-aside");
     if (stored && data.username) markSender(messageWrapper, data.username, data.from_model);
 
     const newMessage = document.createElement("div");
@@ -903,6 +905,28 @@ socket.on("followup_suggestions", (data) => {
     if (!userHasScrolledUp) {
         document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }
+});
+
+// A message sent while a model was already replying joins that reply
+// (app.steer_running_reply): one quiet line under it says where it went:
+// queued, read mid-reply, or being answered by the reply after it.
+const STEER_WORDS = {
+    queued: (model) => `Sent to ${model}'s reply in progress`,
+    read: (model) => `${model} read this mid-reply`,
+    answering: (model) => `${model} answers this next`,
+};
+
+socket.on("message_steered", (data) => {
+    const message = document.getElementById("message-" + data.message_id);
+    const words = STEER_WORDS[data.status];
+    if (!message || !words) return;
+    let note = message.querySelector(".message-steer");
+    if (!note) {
+        note = document.createElement("div");
+        note.className = "message-steer";
+        message.appendChild(note);
+    }
+    note.textContent = words(data.model_name || "The model");
 });
 
 // Put a message, or a deleted message's line, where its id belongs in our

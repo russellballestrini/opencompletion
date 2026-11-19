@@ -310,6 +310,24 @@ body.chat-page {
     text-align: center;
 }
 
+/* A /btw aside & its answer (aside.py): set apart from our conversation,
+   since no reply reads them & a refresh drops them. */
+.message-wrapper.is-aside {
+    border-left: 2px dashed var(--border-color);
+    padding-left: var(--space-3);
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Where a message sent mid-reply went (5-messages.js message_steered):
+   queued for, read by, or answered next by a model's running reply. */
+.message-steer {
+    margin-top: var(--space-1);
+    font-size: 13px;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
 /* A deleted message's place: who wrote it, who deleted it & Restore
    (5-messages.js deletedLine). Quiet like presence, never its words. */
 .deleted-line {

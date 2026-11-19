@@ -138,6 +138,13 @@ style.css): show & hide with the attribute, never a display rule.
   keeps its words whole & scrolls inside itself when wide, never the
   page. **(tested)** A single newline is a line break (marked's `breaks`):
   verse & addresses keep their lines. **(tested)**
+- **Steer note** `.message-steer` (`message_steered` in `5-messages.js`):
+  one small `--text-secondary` line under a message sent while its model
+  was already replying: "Sent to qwen's reply in progress", "qwen read
+  this mid-reply" or "qwen answers this next".
+- **Aside** `.message-wrapper.is-aside` (`/btw`, `aside.py`): a question
+  about the work in progress & its answer, set apart by a dashed left rule
+  in `--text-secondary`, since no reply reads them & a refresh drops them.
 - **Deleted line** `.deleted-line` (`deletedLine` in `5-messages.js`)
   takes a deleted message's place for everyone in the room: one quiet,
   dashed, centred line, "A message from ada was deleted by bob." & a

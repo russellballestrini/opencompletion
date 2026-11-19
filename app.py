@@ -106,6 +106,7 @@ live_replies = {}
 import openai
 from openai import OpenAI
 import activity
+import aside
 import auth
 
 # Session cookies are signed with SECRET_KEY, else a random key kept in
@@ -779,6 +780,7 @@ HELP_MESSAGE = """
 **Commands**
 - `/title new`: write a new title for this chat from the conversation so far.
 - `/cancel`: stop the reply that is streaming in.
+- `/btw <question>`: ask about the work in progress (what a running reply or its sandbox is doing) without steering it; everyone here sees the aside, nothing keeps it. A plain message sent while a model replies joins that reply instead.
 - `/help`: show this message.
 """
 
@@ -1353,6 +1355,10 @@ def handle_message(data):
     username = resolve_username(data.get("username"))
     message = data["message"].strip()
     model = data.get("model", "None")
+    if re.match(r"/btw(\s|$)", message):
+        # An aside is never stored: no reply reads it (aside.py).
+        ask_aside(room.name, username, message, model)
+        return
 
     new_message = Message(
         username=username,
@@ -1395,16 +1401,25 @@ def handle_message(data):
         [model],
         data.get("enable_thinking", True),
         tool_context=tools.context(request.sid, auth.get_current_user()),
+        message_id=new_message.id,
     )
 
 
 def dispatch_message(
-    room, username, message, models, enable_thinking=True, tool_context=None
+    room,
+    username,
+    message,
+    models,
+    enable_thinking=True,
+    tool_context=None,
+    message_id=None,
 ):
     """What a posted message sets off: a slash command, the room's running
     activity, or a reply from each of `models` ("None" = people only).
     `tool_context` (tools.context: the asker's socket & sign in) decides
-    which tools a reply may call; None offers none."""
+    which tools a reply may call; None offers none. A model already
+    replying in this room takes the message (`message_id`, stored) into
+    that reply instead (steer_running_reply)."""
     room_name = room.name
     commands = message.splitlines()
     for command in commands:
@@ -1458,6 +1473,10 @@ def dispatch_message(
     for model in models:
         if model in (None, "None"):
             continue
+        if steer_running_reply(
+            room_name, model, message_id, message, username, tool_context
+        ):
+            continue
         emit(
             "chat_message",
             {
@@ -1485,6 +1504,145 @@ def dispatch_message(
                 enable_thinking=enable_thinking,
                 tool_context=tool_context,
             )
+
+
+def ask_aside(room_name, username, message, model):
+    """`/btw <question>`: shown to the room as an aside, answered beside
+    any running reply (answer_aside), stored nowhere."""
+    question = message[len("/btw") :].strip()
+    if not question:
+        emit(
+            "chat_message",
+            {"id": notice_id(), "content": "_Usage: `/btw <question>`_"},
+            room=request.sid,
+        )
+        return
+    socketio.emit(
+        "chat_message",
+        {
+            "id": notice_id("aside"),
+            "username": username,
+            "content": message,
+            "aside": True,
+        },
+        room=room_name,
+    )
+    gevent.spawn(answer_aside, room_name, question, model)
+
+
+def running_reply(room_name, model):
+    """The reply streaming in room_name an aside is about: model's, else
+    the newest one, else None."""
+    running = [r for r in live_replies.values() if r.room_name == room_name]
+    for reply in running:
+        if model in reply.asked_as:
+            return reply
+    return running[-1] if running else None
+
+
+def answer_aside(room_name, question, model):
+    """One ask, no tools & no thinking, of the running reply's model (else
+    the picked one), over a copy of what that reply knows right now: its
+    conversation, its rounds so far & the tool it is running; the answer
+    goes to the room as an aside & is kept nowhere."""
+    reply = running_reply(room_name, model)
+    try:
+        if reply is not None:
+            client, model_name = reply.openai_client, reply.model_name
+            now = aside.running_now(
+                model_name,
+                time.monotonic() - reply.started_at,
+                reply.buffer[reply.round_start :],
+                reply.shown_trail,
+            )
+            turns = list(reply.with_tools)
+        elif model in (None, "None"):
+            socketio.emit(
+                "chat_message",
+                {
+                    "id": notice_id("aside"),
+                    "content": "_Pick a model to ask an aside; nothing is replying here now._",
+                    "aside": True,
+                },
+                room=room_name,
+            )
+            return
+        else:
+            client, model_name = get_openai_client_and_model(model)
+            _, turns = reply_history(room_name, model_name)
+            now = None
+        ask = dict(chat_sampling(model_name), max_tokens=aside.MAX_TOKENS)
+        response = create_completion_skip_thinking(
+            client,
+            model=model_name,
+            messages=aside.messages(question, turns, now),
+            **ask,
+        )
+        answer = (strip_reasoning(response.choices[0].message.content) or "").strip()
+        answer = answer or "_It had nothing to say._"
+    except Exception as e:  # noqa: BLE001 — said in the room
+        model_name = locals().get("model_name") or model
+        answer = f"_Could not answer this aside: {e}_"
+    socketio.emit(
+        "chat_message",
+        {
+            "id": notice_id("aside"),
+            "username": f"{model_name} (aside)",
+            "content": answer,
+            "aside": True,
+        },
+        room=room_name,
+    )
+
+
+def steer_running_reply(room_name, model, message_id, message, username, context):
+    """A message sent while `model` is replying in this room joins that
+    reply instead of starting one of its own beside it: the model reads it
+    after its current tool round (ReplyStream.steer_turns), & one it can no
+    longer read (its reply was already answering) is answered by one reply
+    once it ends (follow_steering). Read mid-reply only when the reply runs
+    no tool its sender could not call themselves, so nobody steers another
+    person's sandbox or our network; else it waits for that next reply.
+    The reply that took it, or None: then it gets a reply of its own."""
+    if message_id is None or context is None:
+        return None
+    for reply in list(live_replies.values()):
+        if reply.room_name != room_name or model not in reply.asked_as:
+            continue
+        own = set(tools.offered(dataclasses.replace(context, model=reply.model_name)))
+        readable = set(reply.offered) <= own
+        if reply.take_steer(message_id, message, username, context, readable):
+            return reply
+    return None
+
+
+def follow_steering(reply, enable_thinking):
+    """Messages a reply took but never read (steer_running_reply) get one
+    reply of its model's after it, with the last sender's tools; they are
+    in the room, so its history holds them all. Stop drops it."""
+    pending = reply.close_steering()
+    if not pending or reply.room_name in stop_requests:
+        return
+    message_id, _, username, context = pending[-1]
+    for waiting in pending:
+        reply.emit_steered(waiting[0], "answering")
+    socketio.emit(
+        "chat_message",
+        {
+            "id": notice_id("processing"),
+            "content": "<span id='processing'>Processing...</span>",
+        },
+        room=reply.room_name,
+    )
+    gevent.spawn(
+        stoppable_reply,
+        chat_gpt,
+        username,
+        reply.room_name,
+        model_name=reply.model_name,
+        enable_thinking=enable_thinking,
+        tool_context=context,
+    )
 
 
 def emit_streaming(room_name, to=None):
@@ -2502,6 +2660,48 @@ class ReplyStream:
         self.notice = ""
         # The tool lines the room sees now: tool_trail plus one still running.
         self.shown_trail = list(self.tool_trail)
+        # Messages sent to this reply while it runs (steer_running_reply):
+        # (message_id, words, sender, their tool context, readable mid-reply).
+        # The names it was asked for by (MODEL_n or its id), to match them.
+        self.steering, self.steerable = [], True
+        self.started_at = time.monotonic()  # for an aside (/btw)
+        self.asked_as = {model_name}
+
+    def take_steer(self, message_id, content, username, context, readable):
+        if not self.steerable:
+            return False
+        self.steering.append((message_id, content, username, context, readable))
+        self.emit_steered(message_id, "queued")
+        return True
+
+    def steer_turns(self):
+        """The readable messages sent since its last round, as user turns,
+        for its next ask; each sender sees it was read."""
+        taken = [entry for entry in self.steering if entry[4]]
+        if not taken:
+            return []
+        self.steering = [entry for entry in self.steering if not entry[4]]
+        with app.app_context():
+            turns = [
+                {"role": "user", "content": attachment_context(entry[1], self.room_id)}
+                for entry in taken
+            ]
+        for entry in taken:
+            self.emit_steered(entry[0], "read")
+        return turns
+
+    def close_steering(self):
+        """It takes no more: what it never read, (id, words, sender, context)."""
+        self.steerable = False
+        pending, self.steering = self.steering, []
+        return [entry[:4] for entry in pending]
+
+    def emit_steered(self, message_id, status):
+        socketio.emit(
+            "message_steered",
+            {"message_id": message_id, "model_name": self.model_name, "status": status},
+            room=self.room_name,
+        )
 
     def snapshot(self):
         """This reply as it stands, for a client joining while it streams
@@ -2910,6 +3110,8 @@ class ReplyStream:
             if room_name in stop_requests:  # Stop pressed while a tool ran
                 break
             self.round_start = len(self.buffer)
+            # What people sent while that round ran, read before its next ask.
+            self.with_tools = self.with_tools + self.steer_turns()
             if not self._ask_after_tools(self.with_tools, self.rounds):
                 break
 
@@ -3162,6 +3364,7 @@ def chat_gpt(
     resume_interrupted_replies) carries on a reply our server restarted in
     the middle of: same message, its words so far, its conversation, at
     the tool call it was waiting on."""
+    asked_as = model_name
     openai_client, model_name = get_openai_client_and_model(model_name)
     room_id, chat_history = reply_history(room_name, model_name, resume)
     started = start_reply_message(model_name, room_id, resume)
@@ -3178,6 +3381,7 @@ def chat_gpt(
         openai_client,
         chat_history,
     )
+    reply.asked_as.add(asked_as)
     reply.prepare(tool_context, resume)
     live_replies[reply.msg_id] = reply
     finished = False
@@ -3185,7 +3389,8 @@ def chat_gpt(
         finished = stream_reply(reply, resume)
     finally:
         # However it ended (finish & fail drop it themselves, an exception
-        # must too), it streams no more.
+        # must too), it streams no more & takes no more messages.
+        follow_steering(reply, enable_thinking)
         if live_replies.get(reply.msg_id) is reply:
             del live_replies[reply.msg_id]
     if finished:
