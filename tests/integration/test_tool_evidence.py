@@ -170,6 +170,25 @@ def test_a_dead_link_is_said_plainly(monkeypatch):
     assert "never describe it as if you read it" in error
 
 
+@pytest.mark.parametrize("failure", [
+    {"type": "bot_challenge", "details": "Anubis bot challenge instead of the page",
+     "challenge": "Anubis"},
+    {"type": "refused", "status_code": 200, "retry_in": 600, "challenge": "Anubis",
+     "details": "Anubis bot challenge from this site; not asked again for 600s"},
+])
+def test_a_bot_challenge_is_said_plainly(monkeypatch, failure):
+    """Anubis answers a bot with status 200 and a puzzle: the model hears
+    it met a challenge, never that the site 'refused us (HTTP 200)'."""
+    async def fake(url):
+        web_fetch.crawler.LAST_FETCH_ERROR = dict(failure)
+        return None
+
+    monkeypatch.setattr(web_fetch, "_fetch", fake)
+    error = web_fetch.fetch_page("https://wiki.example.org/Removed_cards")["error"]
+    assert "Anubis bot challenge" in error and "HTTP 200" not in error
+    assert "give the person the link" in error
+
+
 def test_a_transcript_carries_what_each_run_did_bounded(test_app, monkeypatch):
     """2026-11-12: a deleted room's export was the only copy left, & it
     held no code, output or exit code for any of its runs."""

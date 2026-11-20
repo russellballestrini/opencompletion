@@ -525,3 +525,52 @@ def test_without_pypdf_installed_extraction_yields_nothing(monkeypatch):
     not an import error at startup."""
     monkeypatch.setattr(mod, "PDF_SUPPORT", False)
     assert mod.extract_text_from_pdf(b"%PDF") is None
+
+
+# --------------------------------------------------------------------
+# Bot challenges: a 200 that is a puzzle, not the page
+# --------------------------------------------------------------------
+
+# Trimmed from what wiki.dominionstrategy.com served our user agent on
+# 2026-11-20 (HTTP 200, 7,297 bytes), down to the markup that marks it.
+ANUBIS_PAGE = (
+    '<!doctype html><html><head><title>Making sure you&#39;re not a bot!</title>'
+    '<script id="anubis_version" type="application/json">"v1.28.2"</script>'
+    '<script id="anubis_challenge" type="application/json">{"rules":{}}</script>'
+    '</head><body><main id="anubis-main"><h1>Making sure you&#39;re not a bot!</h1>'
+    '<p>Protected by Anubis From Techaro.</p></main></body></html>'
+)
+
+
+@pytest.mark.parametrize("vendor, html", [
+    ("Anubis", ANUBIS_PAGE),
+    ("Cloudflare", '<html><head><title>Just a moment...</title></head></html>'),
+    ("Cloudflare", '<script>(function(){window._cf_chl_opt={cvId:"3"};})();</script>'),
+    ("DDoS-Guard", '<html><head><title>DDoS-Guard</title></head></html>'),
+    ("Vercel", '<html><head><title>Vercel Security Checkpoint</title></head></html>'),
+    ("Sucuri", '<title>Sucuri WebSite Firewall - Access Denied</title>'),
+    ("DataDome", '<script src="https://ct.captcha-delivery.com/c.js"></script>'),
+    ("PerimeterX", '<div id="px-captcha"></div>'),
+])
+def test_a_challenge_page_names_its_vendor(vendor, html):
+    assert mod.bot_challenge(html) == vendor
+
+
+def test_a_real_page_is_no_challenge():
+    assert mod.bot_challenge("<html><head><title>Removed cards</title></head>"
+                             "<body><p>Woodcutter was removed.</p></body></html>") == ""
+    assert mod.bot_challenge("") == "" and mod.bot_challenge(None) == ""
+
+
+def test_a_page_quoting_a_challenge_is_no_challenge():
+    """An article about Anubis carries its markup escaped, and only a
+    real challenge carries the attribute with its literal quotes."""
+    article = ('<html><body><p>Anubis pages hold a script with '
+               '<code>id=&quot;anubis_challenge&quot;</code> and the title '
+               '&lt;title&gt;Just a moment...&lt;/title&gt;.</p></body></html>')
+    assert mod.bot_challenge(article) == ""
+
+
+def test_a_large_page_is_never_read_as_a_challenge():
+    big = ANUBIS_PAGE + "<p>" + "x" * mod.BOT_CHALLENGE_MAX_BYTES + "</p>"
+    assert mod.bot_challenge(big) == ""

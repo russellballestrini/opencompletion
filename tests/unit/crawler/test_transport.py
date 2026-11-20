@@ -535,6 +535,35 @@ def test_retry_after_may_be_an_http_date():
     assert mod.active_refusal(OTHER, now=301) is None
 
 
+CHALLENGE = ('<html><head><title>Making sure you&#39;re not a bot!</title>'
+             '<script id="anubis_challenge" type="application/json">{}</script>'
+             '</head><body>Protected by Anubis</body></html>')
+
+
+def test_a_bot_challenge_is_not_the_page():
+    """Anubis answers a bot with status 200 and a JavaScript puzzle; its
+    text is not the site's content, so the fetch fails and says why."""
+    fetcher, transport = wired({HOME: html_reply(CHALLENGE)})
+    assert run(fetcher.fetch_webpage(HOME)) == (None, [])
+    err = mod.get_last_fetch_error()
+    assert err["type"] == "bot_challenge" and err["challenge"] == "Anubis"
+    assert "browser" in err["details"]
+    assert HOME not in fetcher.page_cache
+
+
+def test_a_bot_challenge_holds_the_whole_host():
+    """A challenge gates the site, not one page: a crawl does not walk
+    the rest of the host collecting the same puzzle."""
+    fetcher, transport = wired({HOME: html_reply(CHALLENGE),
+                                OTHER: html_reply(page(body="behind the wall"))})
+    run(fetcher.fetch_webpage(HOME))
+    assert run(fetcher.fetch_webpage(OTHER)) == (None, [])
+    err = mod.get_last_fetch_error()
+    assert err["type"] == "refused" and err["challenge"] == "Anubis"
+    assert "Anubis bot challenge" in err["details"]
+    assert OTHER not in transport.requests
+
+
 def test_other_failures_are_not_held():
     mod.remember_refusal(HOME, 404, now=0)
     mod.remember_refusal(HOME, 500, now=0)

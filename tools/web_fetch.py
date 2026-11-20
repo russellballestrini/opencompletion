@@ -126,6 +126,12 @@ def _refusal(failure, host):
     for any other failure (a timeout, a bad certificate)."""
     hand_over = "Don't retry; give the person the link to open themselves."
     status = failure.get("status_code")
+    challenge = failure.get("challenge")
+    if challenge:
+        return (
+            f"the site answers automated readers with a {challenge} bot "
+            f"challenge instead of the page; we don't get around that. {hand_over}"
+        )
     if failure.get("type") == "refused":
         return (
             f"this site refused us (HTTP {status}) & we don't ask again for "

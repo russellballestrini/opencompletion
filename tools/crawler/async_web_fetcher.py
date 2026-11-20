@@ -273,7 +273,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CRAWL_DELAY = 2.0
 
 # Global last error storage (for error reporting without log parsing)
-# Format: {'type': 'robots_txt'|'refused'|'http_error'|'timeout'|'dns'|'ssl'|'unknown', 'details': str, 'uri': str}
+# Format: {'type': 'robots_txt'|'refused'|'http_error'|'bot_challenge'|'timeout'|'dns'|'ssl'|'unknown', 'details': str, 'uri': str}
 LAST_FETCH_ERROR = None
 
 
@@ -290,7 +290,7 @@ def get_last_fetch_error() -> Optional[Dict]:
 # site & fails as type 'refused'. We never work around a refusal.
 REFUSAL_HOLD_S = 600
 REFUSAL_MAX_S = 3600
-_REFUSALS: Dict[str, Tuple[float, int]] = {}
+_REFUSALS: Dict[str, Tuple[float, int, str]] = {}
 _REFUSALS_LOCK = threading.Lock()
 
 
@@ -313,10 +313,13 @@ def _retry_after_s(value: Optional[str], now: float) -> Optional[float]:
 
 
 def remember_refusal(uri: str, status: int, retry_after: Optional[str] = None,
-                     now: Optional[float] = None) -> None:
-    """Hold a uri (401/403) or its host (429/503) after the site said no."""
+                     now: Optional[float] = None, challenge: str = "") -> None:
+    """Hold a uri (401/403) or its host (429/503, or a bot challenge) after
+    the site said no."""
     now = time.time() if now is None else now
-    if status in (401, 403):
+    if challenge:
+        key, hold = "host:" + _host_of(uri), REFUSAL_HOLD_S
+    elif status in (401, 403):
         key, hold = "uri:" + uri, REFUSAL_HOLD_S
     elif status in (429, 503):
         asked = _retry_after_s(retry_after, now)
@@ -326,7 +329,7 @@ def remember_refusal(uri: str, status: int, retry_after: Optional[str] = None,
         return
     hold = min(max(hold, 1.0), REFUSAL_MAX_S)
     with _REFUSALS_LOCK:
-        _REFUSALS[key] = (now + hold, status)
+        _REFUSALS[key] = (now + hold, status, challenge)
 
 
 def active_refusal(uri: str, now: Optional[float] = None) -> Optional[Dict]:
@@ -334,18 +337,53 @@ def active_refusal(uri: str, now: Optional[float] = None) -> Optional[Dict]:
     now = time.time() if now is None else now
     with _REFUSALS_LOCK:
         for key in ("uri:" + uri, "host:" + _host_of(uri)):
-            until, status = _REFUSALS.get(key, (0.0, 0))
+            until, status, challenge = _REFUSALS.get(key, (0.0, 0, ""))
             if now < until:
                 wait = int(until - now) + 1
-                return {
+                said = f'{challenge} bot challenge' if challenge else f'HTTP {status}'
+                refusal = {
                     'type': 'refused',
-                    'details': f'HTTP {status} from this site; not asked again for {wait}s',
+                    'details': f'{said} from this site; not asked again for {wait}s',
                     'uri': uri,
                     'status_code': status,
                     'retry_in': wait,
                 }
+                if challenge:
+                    refusal['challenge'] = challenge
+                return refusal
             _REFUSALS.pop(key, None)
     return None
+
+
+# A 200 whose body is a "prove you are a browser" page instead of the
+# page: Anubis, Cloudflare's interstitial and their kin answer a bot with
+# a JavaScript puzzle and status 200, so the status check above passes it
+# and a caller reads the puzzle's text as the site's content (a model
+# "verified" card texts against Anubis's "Making sure you're not a bot!",
+# 2026-11-20). Each marker is markup a challenge emits and a page merely
+# QUOTING one cannot: an attribute with its literal quotes or a whole
+# <title> element, which an article's code sample would carry escaped.
+# Challenge pages are small, so a large body is never read as one.
+BOT_CHALLENGE_MAX_BYTES = 262144
+BOT_CHALLENGES: Tuple[Tuple[str, "re.Pattern[str]"], ...] = (
+    ("Anubis", re.compile(r'id="anubis_challenge"')),
+    ("Cloudflare", re.compile(r'window\._cf_chl_opt\b|<title>Just a moment\.\.\.</title>')),
+    ("DDoS-Guard", re.compile(r'<title>DDoS-Guard</title>')),
+    ("Vercel", re.compile(r'<title>Vercel Security Checkpoint</title>')),
+    ("Sucuri", re.compile(r'<title>Sucuri WebSite Firewall')),
+    ("DataDome", re.compile(r'//(?:geo|ct)\.captcha-delivery\.com/')),
+    ("PerimeterX", re.compile(r'id="px-captcha"')),
+)
+
+
+def bot_challenge(html: Optional[str]) -> str:
+    """The vendor whose bot challenge this page is, or '' for a real page."""
+    if not html or len(html) > BOT_CHALLENGE_MAX_BYTES:
+        return ""
+    for vendor, marker in BOT_CHALLENGES:
+        if marker.search(html):
+            return vendor
+    return ""
 
 
 def clear_refusals() -> None:
@@ -2233,6 +2271,19 @@ class AsyncWebFetcher:
                         return None, []
                 else:
                     html = await response.text()
+                    challenge = bot_challenge(html)
+                    if challenge:
+                        LAST_FETCH_ERROR = {
+                            'type': 'bot_challenge',
+                            'details': (f'{challenge} bot challenge instead of the page: '
+                                        'the site serves it only to a browser that runs '
+                                        'its JavaScript'),
+                            'uri': uri,
+                            'challenge': challenge,
+                        }
+                        logger.warning(f"{challenge} bot challenge at {uri}")
+                        remember_refusal(uri, response.status, challenge=challenge)
+                        return None, []
                 logger.info(f"Successfully fetched {uri} ({len(html)} bytes)")
 
                 # Extract links if requested. lxml parsing releases the
