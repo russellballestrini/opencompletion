@@ -120,6 +120,7 @@ export MODEL_API_KEY_1="your-api-key"
 #export OPENCOMPLETION_ROOM_LIMIT=30/600      # new rooms per address per seconds; 0 = off
 #export OPENCOMPLETION_CODE_LIMIT=30/600      # code runs (the play button; fix-code & artifact names too) per address per seconds; 0 = off
 #export OPENCOMPLETION_SPEECH_LIMIT=60/600    # read-aloud requests (/speech/audio) per address per seconds; 0 = off
+#export OPENCOMPLETION_SEARCH_LIMIT=60/600    # message searches (/browse?q=) per address per seconds; 0 = off
 #export OPENCOMPLETION_DELETED_RETENTION_HOURS=24   # how long a deleted message can be restored
 
 # ── Room chains ───────────────────────────────────────────────────────────

@@ -198,3 +198,56 @@ def test_the_rooms_page_filters_yours_solo_and_public(test_app):
         'data-show="public"\n                aria-checked="true"' in guest
     )  # a guest sees public
     assert "ada-solo" not in guest
+
+
+# ── Search stays cheap ────────────────────────────────────────────────────
+
+
+def _say(room_name, *lines):
+    from models import Message, Room, db
+
+    room = Room(name=room_name)
+    db.session.add(room)
+    db.session.commit()
+    for line in lines:
+        db.session.add(Message(username="ada", content=line, room_id=room.id))
+    db.session.commit()
+    return room
+
+
+def test_a_short_word_searches_no_messages(test_app):
+    from routes.rooms import search_messages
+
+    _say("muppets", "an owl and a pussycat")
+    assert search_messages("an") == []
+    assert search_messages("a an") == []
+    assert [r["name"] for r in search_messages("owl")] == ["muppets"]
+    # Our page still answers, with no message hits.
+    assert test_app.test_client().get("/browse?q=an").status_code == 200
+
+
+def test_a_search_reads_only_its_newest_matches(test_app, monkeypatch):
+    from routes import rooms
+
+    monkeypatch.setattr(rooms, "SEARCH_MATCH_LIMIT", 2)
+    _say("old", "owl", "owl", "owl")
+    _say("new", "owl owl", "owl")
+    found = rooms.search_messages("owl")
+    assert [(r["name"], r["score"]) for r in found] == [("new", 3)]
+
+
+@pytest.mark.parametrize("path", ["/browse?q=owl", "/search?keywords=owl"])
+def test_searches_are_limited_per_address(test_app, monkeypatch, path):
+    from routes import rooms
+
+    rooms.SEARCH_THROTTLE.reset()
+    monkeypatch.setattr(rooms.SEARCH_THROTTLE, "count", 1)
+    monkeypatch.setattr(rooms.SEARCH_THROTTLE, "seconds", 600)
+    client = test_app.test_client()
+    assert client.get(path).status_code in (200, 302)
+    refused = client.get(path)
+    assert refused.status_code == 429
+    assert int(refused.headers["Retry-After"]) > 0
+    # Our Rooms page without a search is never counted.
+    assert client.get("/browse").status_code == 200
+    rooms.SEARCH_THROTTLE.reset()
