@@ -82,16 +82,6 @@ def states(report):
     return [(r["state"], r["why"]) for r in report["results"]]
 
 
-@pytest.fixture
-def quiet(monkeypatch):
-    import app as app_module
-    from routes import DEPS
-
-    monkeypatch.setattr(app_module.gevent, "spawn", lambda *a, **k: None)
-    monkeypatch.setattr(app_module, "SYSTEM_USERS", ["qwen"])
-    monkeypatch.setitem(DEPS, "system_users", ["qwen"])
-
-
 def say(test_app, room_name, words, username="ada"):
     import app as app_module
 

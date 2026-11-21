@@ -193,6 +193,9 @@ socket.on("chat_message", (data) => {
     // A stored message has actions & ends the suggestions; a notice neither.
     const stored = Boolean(data.id) && !isNoticeId(data.id);
     if (stored) clearFollowups();
+    // Our server refused what we just sent (over a limit): its words go
+    // back into our message box, a draft again, to send once the wait is up.
+    if (data.refused) chatDraft.giveBack();
     const messageWrapper = document.createElement("div");
     messageWrapper.className = "message-wrapper";
     messageWrapper.id = "message-" + data.id;

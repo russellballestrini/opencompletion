@@ -671,11 +671,11 @@ def _shell(context, command):
         )
         return _finished(result)
     sandbox = ready(context)
-    on_job = None
-    if context.checkpoint:
 
-        def on_job(job_id):
-            context.checkpoint({"sandbox_id": sandbox.id, "job_id": job_id})
+    def checkpoint_job(job_id):
+        context.checkpoint({"sandbox_id": sandbox.id, "job_id": job_id})
+
+    on_job = checkpoint_job if context.checkpoint else None
 
     return _with_fresh_note(
         sandbox,
