@@ -16,7 +16,9 @@ socket.on("set_background", (data) => {
 });
 
 // Activity management functions
-function refreshActivityList() {
+// `quiet`: our own load of the list as a page opens. Its failure is
+// logged, never shown: nobody asked for it. A click on Refresh says so.
+function refreshActivityList(quiet) {
     fetch('/api/activities')
         .then(response => response.json())
         .then(data => {
@@ -34,7 +36,7 @@ function refreshActivityList() {
         })
         .catch(error => {
             console.error('Error fetching activities:', error);
-            toast('Failed to fetch activities', {error: true});
+            if (quiet !== true) toast('Failed to fetch activities', {error: true});
         });
 }
 
@@ -140,7 +142,7 @@ socket.on("chat_message", (data) => {
 
 // Load activities on page load
 document.addEventListener('DOMContentLoaded', () => {
-    refreshActivityList();
+    refreshActivityList(true);
     
     // Request current activity status
     socket.emit("get_activity_status", {"room_name": room_name});
