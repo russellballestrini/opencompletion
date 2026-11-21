@@ -33,6 +33,25 @@ from blob_store import (
     max_bytes as max_upload_bytes,
     save_attachment,
 )
+from followups import FOLLOWUP_PROMPT, followups_enabled, parse_followups
+from images import (
+    extract_base64_from_img_tag,
+    extract_external_image_url,
+    image_request,
+    is_image_model,
+)
+from reply_notes import answer_from_notes, without_echoed_notes
+from sampling import (
+    _env_float,
+    _env_int,
+    answer_room,
+    answer_tokens,
+    chat_sampling,
+    prompt_chars,
+    shrink_history,
+    stream_retries,
+    thinking_budget,
+)
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -339,38 +358,6 @@ def get_client_for_model(model_name: str):
     if model_name in MODEL_CLIENT_MAP:
         print(f"Completion Endpoint Processing: {MODEL_CLIENT_MAP[model_name][1]}")
         return MODEL_CLIENT_MAP[model_name][0]
-
-
-def extract_base64_from_img_tag(content: str) -> tuple[str, str] | None:
-    """Extract base64 data and media type from an HTML img tag.
-
-    Returns (media_type, base64_data) or None if not found.
-    """
-    import re
-
-    # Match data:image/TYPE;base64,DATA patterns in img src
-    pattern = r'<img[^>]*src="data:image/(jpeg|png|gif|webp);base64,([^"]+)"'
-    match = re.search(pattern, content)
-    if match:
-        media_type = f"image/{match.group(1)}"
-        base64_data = match.group(2)
-        return (media_type, base64_data)
-    return None
-
-
-def extract_external_image_url(content: str) -> str | None:
-    """Extract external image URL from an HTML img tag.
-
-    Returns the URL or None if not found.
-    """
-    import re
-
-    # Match external URLs in img src (http/https)
-    pattern = r'<img[^>]*src="(https?://[^"]+)"'
-    match = re.search(pattern, content)
-    if match:
-        return match.group(1)
-    return None
 
 
 # Cache for fetched external images (URL -> base64 data URL)
@@ -2150,78 +2137,8 @@ def handle_get_activity_status(data):
     activity.handle_get_activity_status(data)
 
 
-def _env_float(name, default):
-    try:
-        return float(os.environ[name])
-    except (KeyError, ValueError):
-        return default
-
-
-# One request's thinking & answer together; a loop that a hang-up can't
-# stop ends here. Qwen suggests 32k for thinking mode; ours is a thinking
-# budget plus an answer.
-DEFAULT_MAX_TOKENS = 24576
-# Thinking past this many tokens with no answer begun: hang up & have the
-# model answer from its notes (chat_gpt), in up to DEFAULT_ANSWER_TOKENS.
-DEFAULT_THINKING_BUDGET = 16384
-DEFAULT_ANSWER_TOKENS = 8192
-# Qwen's thinking-mode top_k; sent as an extra body field, which servers
-# that don't know it reject (open_completion then drops it).
-DEFAULT_TOP_K = 20
 # Thinking is counted in characters as it streams; ~4 per token.
 CHARS_PER_TOKEN = 4
-
-
-def _env_int(name, default):
-    return int(_env_float(name, default))
-
-
-def chat_sampling(model_name):
-    """Sampling for a chat reply. Greedy decoding (temperature 0, our old
-    default) sends reasoning models such as Qwen3 into endless repetition
-    in their thinking, so chat samples at Qwen's thinking-mode settings:
-    OPENCOMPLETION_TEMPERATURE (0.6), OPENCOMPLETION_TOP_P (0.95) &
-    OPENCOMPLETION_TOP_K (20; 0 = not sent), plus
-    OPENCOMPLETION_PRESENCE_PENALTY when set (Qwen suggests up to 1.5 for
-    quantized models that repeat).
-
-    OPENCOMPLETION_MAX_TOKENS (24576; 0 = no cap) bounds every reply in the
-    request itself: hanging up on a looping model (RepetitionGuard) stops
-    the generation only where a disconnect reaches the server & aborts it,
-    which not every GPU host or proxy does, while a server always stops at
-    max_tokens. OpenAI's o-series take temperature 1 only & no top_p (o3:
-    neither)."""
-    if any(tag in model_name for tag in ("o1-", "o3", "o4-")):
-        return {} if "o3" in model_name else {"temperature": 1}
-    sampling = {
-        "temperature": _env_float("OPENCOMPLETION_TEMPERATURE", 0.6),
-        "top_p": _env_float("OPENCOMPLETION_TOP_P", 0.95),
-    }
-    top_k = _env_int("OPENCOMPLETION_TOP_K", DEFAULT_TOP_K)
-    if top_k > 0:
-        sampling["extra_body"] = {"top_k": top_k}
-    presence = _env_float("OPENCOMPLETION_PRESENCE_PENALTY", None)
-    if presence is not None:
-        sampling["presence_penalty"] = presence
-    max_tokens = _env_int("OPENCOMPLETION_MAX_TOKENS", DEFAULT_MAX_TOKENS)
-    if max_tokens > 0:
-        sampling["max_tokens"] = max_tokens
-    return sampling
-
-
-def thinking_budget():
-    """OPENCOMPLETION_THINKING_BUDGET in tokens (16384; 0 = no budget)."""
-    return max(0, _env_int("OPENCOMPLETION_THINKING_BUDGET", DEFAULT_THINKING_BUDGET))
-
-
-DEFAULT_STREAM_RETRIES = 2
-
-
-def stream_retries():
-    """OPENCOMPLETION_STREAM_RETRIES (2; 0 = off): how often a reply whose
-    stream breaks while it is read asks again, carrying on where it
-    stopped (ReplyStream.carry_on)."""
-    return max(0, _env_int("OPENCOMPLETION_STREAM_RETRIES", DEFAULT_STREAM_RETRIES))
 
 
 # What a reply whose stream broke is told when it is asked to carry on.
@@ -2229,12 +2146,6 @@ STREAM_BROKE_NOTE = (
     "(Your reply was cut off by a network error. Continue exactly where it "
     "stopped, without repeating anything.)"
 )
-
-
-def answer_tokens():
-    """OPENCOMPLETION_ANSWER_TOKENS (8192; 0 = no cap): the answer a model
-    writes from its notes once its thinking ran past its budget."""
-    return max(0, _env_int("OPENCOMPLETION_ANSWER_TOKENS", DEFAULT_ANSWER_TOKENS))
 
 
 # Words a server's 400 uses when it is the tools it refuses (llama.cpp:
@@ -2255,13 +2166,6 @@ MIN_ANSWER_TOKENS = 512
 # Characters a token holds before a server has told us (more tokens than
 # most text holds, so the guess errs short of the window).
 CHARS_PER_TOKEN = 3.0
-
-
-def prompt_chars(kwargs):
-    """How long an ask's prompt is: its messages & tool schemas as sent."""
-    return len(json.dumps(kwargs.get("messages") or [], ensure_ascii=False)) + len(
-        json.dumps(kwargs.get("tools") or [], ensure_ascii=False)
-    )
 
 
 def fit_max_tokens(kwargs):
@@ -2316,45 +2220,6 @@ def room_from_refusal(kwargs, text):
     else:
         room = window - used - CONTEXT_MARGIN
     return room if room >= MIN_ANSWER_TOKENS else None
-
-
-def shrink_history(kwargs):
-    """Make an ask's prompt smaller when it alone is past the model's
-    context: drop the oldest whole turn of history (from the first message
-    after the system ones up to the next message from a person), keeping
-    the last person's message & all after it; with no older turn left,
-    halve the longest tool result. False when nothing more can go."""
-    messages = list(kwargs.get("messages") or [])
-    people = [i for i, m in enumerate(messages) if m.get("role") == "user"]
-    first = next((i for i, m in enumerate(messages) if m.get("role") != "system"), None)
-    if first is not None and people and first < people[-1]:
-        cut = next(i for i in people if i > first)
-        kwargs["messages"] = messages[:first] + messages[cut:]
-        return True
-    results = [
-        i
-        for i, m in enumerate(messages)
-        if m.get("role") == "tool" and len(str(m.get("content") or "")) > 2000
-    ]
-    if not results:
-        return False
-    longest = max(results, key=lambda i: len(str(messages[i]["content"])))
-    text = str(messages[longest]["content"])
-    messages[longest] = dict(
-        messages[longest],
-        content=text[: len(text) // 2] + " …(cut to fit the model's context)",
-    )
-    kwargs["messages"] = messages
-    return True
-
-
-DEFAULT_ANSWER_ROOM = 8192
-
-
-def answer_room():
-    """OPENCOMPLETION_ANSWER_ROOM (8192; 0 = off): the tokens an ask keeps
-    free for its answer; past that the conversation fades (fade.py)."""
-    return max(0, _env_int("OPENCOMPLETION_ANSWER_ROOM", DEFAULT_ANSWER_ROOM))
 
 
 def fade_to_fit(kwargs):
@@ -2443,31 +2308,6 @@ def open_completion(client, kwargs, skip_thinking=False, refusals=None, sent=Non
     if skip_thinking:
         return create_completion_skip_thinking(client, **kwargs)
     return client.chat.completions.create(**kwargs)
-
-
-ANSWER_FROM_NOTES = (
-    "\n\n(Your thinking ran past its budget, so it was stopped. Your notes "
-    "so far:\n\n{notes}\n\nNow, without thinking any further, write your "
-    "final answer to the message above, based on these notes.)"
-)
-
-
-def answer_from_notes(chat_history, notes):
-    """chat_history with the model's unfinished thinking handed back under
-    our last message, asking for the answer it would have written. The
-    notes ride on that message, so roles keep alternating for templates
-    that need it."""
-    history = [dict(message) for message in chat_history]
-    ask = ANSWER_FROM_NOTES.format(notes=notes.strip())
-    if history and history[-1]["role"] == "user":
-        content = history[-1]["content"]
-        if isinstance(content, list):  # a vision turn: add a text part
-            history[-1]["content"] = content + [{"type": "text", "text": ask}]
-        else:
-            history[-1]["content"] = f"{content}{ask}"
-    else:
-        history.append({"role": "user", "content": ask.strip()})
-    return history
 
 
 def newest_image_id(last_messages, room_id):
@@ -2574,20 +2414,6 @@ def reply_history(room_name, model_name, resume=None):
                 continue
             chat_history.append({"role": role, "content": content})
     return room_id, chat_history
-
-
-ECHOED_TOOL_NOTE = re.compile(
-    r"\n*^\(tools in (?:this|your last) reply:[^\n]*\)[ \t]*$", re.M
-)
-
-
-def without_echoed_notes(content):
-    """A past reply minus "(tools in this reply: ...)" lines. We once put
-    that note in a reply's history text & models copied it into their own
-    replies; left in, those copies teach the next reply the same habit."""
-    if not isinstance(content, str) or "(tools in " not in content:
-        return content
-    return ECHOED_TOOL_NOTE.sub("", content).rstrip()
 
 
 def start_reply_message(model_name, room_id, resume=None):
@@ -3504,40 +3330,6 @@ DEAD_LINKS_NOTE = (
 )
 
 
-# Follow-up suggestions: after a reply, 2-3 short next questions as chips
-# below it. OPENCOMPLETION_FOLLOWUPS=off turns them off (one small extra
-# completion per reply, on the model that answered).
-FOLLOWUP_PROMPT = (
-    "Suggest three short follow-up questions the person might ask next in "
-    "this conversation. Write them as they would, in their language. One "
-    "per line, each under 12 words, no numbering, nothing else."
-)
-FOLLOWUP_MAX = 3
-FOLLOWUP_CHARS = 120
-
-
-def followups_enabled():
-    return os.environ.get("OPENCOMPLETION_FOLLOWUPS", "on").lower() not in (
-        "0",
-        "off",
-        "false",
-        "no",
-    )
-
-
-def parse_followups(text):
-    """A model's suggestions, one per line, as up to FOLLOWUP_MAX clean
-    questions: list markers & quotes stripped, duplicates & blanks gone."""
-    suggestions = []
-    for line in (text or "").splitlines():
-        line = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", line).strip(" \"'“”")
-        if line and len(line) <= FOLLOWUP_CHARS and line not in suggestions:
-            suggestions.append(line)
-        if len(suggestions) == FOLLOWUP_MAX:
-            break
-    return suggestions
-
-
 DELEGATE_SUMMARY_PROMPT = (
     "You watch a coding agent work in a sandbox. From its earlier summary & "
     "the new lines of its log, say in one or two plain sentences what it "
@@ -3855,41 +3647,6 @@ def generate_new_title(room_name, username):
             },
             room=room_name,
         )
-
-
-# Models that draw instead of chat, by id. OpenAI's /v1/models lists them
-# beside its chat models (gpt-image-2, ...; dall-e-2 & dall-e-3 left its API
-# on 2026-05-12), so our picker offers whichever exist today & no id is
-# written here. OPENCOMPLETION_IMAGE_MODELS (a regex) names another server's.
-IMAGE_MODELS = re.compile(
-    os.environ.get("OPENCOMPLETION_IMAGE_MODELS")
-    or r"^(gpt-image|chatgpt-image|dall-e)",
-    re.I,
-)
-
-
-def is_image_model(model):
-    return bool(model and IMAGE_MODELS.search(model))
-
-
-def image_request(model, prompt):
-    """What we send /images/generations for `model`: one image at
-    OPENCOMPLETION_IMAGE_SIZE (1024x1024) & OPENCOMPLETION_IMAGE_QUALITY
-    (unset: the model's own default; low, medium or high price an image
-    very differently). GPT image models always answer base64 & refuse
-    response_format; a DALL-E still served elsewhere must be asked for it."""
-    request = {
-        "model": model,
-        "prompt": prompt,
-        "n": 1,
-        "size": os.environ.get("OPENCOMPLETION_IMAGE_SIZE") or "1024x1024",
-    }
-    quality = os.environ.get("OPENCOMPLETION_IMAGE_QUALITY")
-    if quality:
-        request["quality"] = quality
-    if model.lower().startswith("dall-e"):
-        request["response_format"] = "b64_json"
-    return request
 
 
 def generate_image(room_name, message, username, model):
