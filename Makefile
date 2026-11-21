@@ -30,7 +30,7 @@ help:
 	@echo "  activity-walk        - Play every activity with dice, no model: crashes, raw names, dead ends"
 	@echo ""
 	@echo "Lint & CI:"
-	@echo "  lint                 - black --check & flake8 (syntax, undefined names)"
+	@echo "  lint                 - black --check & flake8 (syntax, undefined & unused names)"
 	@echo "  format               - black the tree"
 	@echo "  ci                   - lint + test, exactly what GitHub Actions runs"
 	@echo ""
@@ -186,7 +186,7 @@ activity-walk: venv
 lint: venv
 	@echo "🔍 Linting code..."
 	venv/bin/black --check .
-	venv/bin/flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+	venv/bin/flake8 . --count --select=E9,F63,F7,F82,F401,F811,F841 --show-source --statistics
 
 .PHONY: format
 format: venv

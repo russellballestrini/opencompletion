@@ -31,13 +31,16 @@ git remote -v
 - Verify changes work as expected
 
 ## Linting
-- **ALWAYS run lint before committing**: `make lint` (black --check plus `flake8 --select=E9,F63,F7,F82`)
+- **ALWAYS run lint before committing**: `make lint` (black --check plus `flake8 --select=E9,F63,F7,F82,F401,F811,F841`; `.flake8` holds its excludes & the per-file ignores for vendored files)
 - Fix all lint errors before pushing - GitHub CI will fail on lint errors
 - Key error codes checked:
   - E9: Runtime errors (syntax errors, IO errors)
   - F63: Invalid print syntax
   - F7: Syntax errors in type comments
   - F82: Undefined names, unused globals (F824)
+  - F401: Imported but unused (a re-export or an import for its side effect carries `# noqa: F401` & why)
+  - F811: A name redefined before it was used
+  - F841: A local variable assigned & never used
 
 ## Documentation
 - Update relevant documentation when making significant changes
@@ -65,7 +68,7 @@ git remote -v
 - `make upgrade-db` - Apply migrations to an existing database (`FLASK_APP=app.py venv/bin/flask db upgrade`, needs vars.sh). It & `init-db` set `OPENCOMPLETION_SKIP_MODEL_MAP=1`, so no model endpoint is asked for its list (a dead one can't stall them); the app lists each endpoint once, no retries
 - `make test` - Unit, integration, functional tests & YAML validation (no network)
 - `make test-ui` - Page contract & mobile layouts in headless Chromium
-- `make lint` - black --check & flake8 (syntax, undefined names)
+- `make lint` - black --check & flake8 (syntax, undefined & unused names)
 - `make ci` - lint + test, exactly what GitHub Actions runs
 - `make backfill-titles` - Title every untitled room holding a conversation (network: a chat model)
 - `make backfill-blobs` - Move base64 images kept inside messages (old DALL-E & vision replies) into our blob store (no network)
