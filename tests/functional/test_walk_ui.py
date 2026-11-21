@@ -67,7 +67,6 @@ window.addEventListener('load', async () => {"""
         calls.push([url, options && options.method, options && options.body]);
         return new Response(JSON.stringify({title: 'Far away'}), {status: 200, headers: {'Content-Type': 'application/json'}});
     };
-    window.prompt = () => 'Far away';
 
     // Someone else's room offers a guest nothing: no ⋯ at all.
     const theirs = document.querySelector('#public-chats li[data-room-name="adas-room"]');
@@ -97,7 +96,13 @@ window.addEventListener('load', async () => {"""
     check(labels === 'Rename,Refresh title', 'a guest is offered what anyone may do: ' + labels);
     check(menu && document.activeElement === menu.querySelector('button'), 'focus moves into the menu');
     if (menu) [...menu.querySelectorAll('button')].find(b => b.textContent === 'Rename').click();
-    await wait(20);
+    const renameField = document.querySelector('dialog.ask-dialog[open] input');
+    check(renameField && renameField.value === 'Elsewhere', 'rename asks in our page, starting from its title: ' + (renameField && renameField.value));
+    if (renameField) {
+        renameField.value = 'Far away';
+        document.querySelector('dialog.ask-dialog [data-ask="confirm"]').click();
+    }
+    await wait(40);
     const post = calls.find(([url, method]) => url === '/api/rooms/999/title' && method === 'POST');
     check(post && JSON.parse(post[2]).name === 'elsewhere', 'rename names the room it means: ' + JSON.stringify(calls));
     check(row('elsewhere').querySelector('.chat-list-name').textContent === 'Far away', 'the row takes its new title');

@@ -34,14 +34,14 @@ function refreshActivityList() {
         })
         .catch(error => {
             console.error('Error fetching activities:', error);
-            alert('Failed to fetch activities');
+            toast('Failed to fetch activities', {error: true});
         });
 }
 
 function loadSelectedActivity() {
     const selectedActivity = document.getElementById('activity-select').value;
     if (!selectedActivity) {
-        alert('Please choose an activity');
+        toast('Please choose an activity');
         return;
     }
     closeDrawer();
@@ -53,8 +53,8 @@ function loadSelectedActivity() {
     });
 }
 
-function cancelActivity() {
-    if (confirm('Cancel the running activity? Its progress in this room is deleted.')) {
+async function cancelActivity() {
+    if (await askConfirm({title: 'Cancel the running activity?', body: 'Its progress in this room is deleted.', confirmLabel: 'Cancel activity', danger: true})) {
         socket.emit("chat_message", {
             "username": username,
             "message": "/activity cancel",

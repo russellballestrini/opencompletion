@@ -70,6 +70,17 @@
     </form>
 </section>
 
+<section class="card" aria-labelledby="sg-asks">
+    <h2 id="sg-asks">Asks & toasts</h2>
+    <p class="muted">We ask & tell in our page, never with a browser's own dialogs. A confirm says what happens; one that can't be undone is red & starts on Cancel. A toast says what happened & leaves by itself.</p>
+    <div class="button-row">
+        <button type="button" class="btn btn-secondary" id="sg-ask-confirm" onclick="askConfirm({title: 'Delete this chat?', body: 'Every message in it is deleted too. This cannot be undone.', confirmLabel: 'Delete', danger: true}).then(yes => toast(yes ? 'Confirmed.' : 'Cancelled.'))">Ask to confirm</button>
+        <button type="button" class="btn btn-secondary" id="sg-ask-text" onclick="askText({title: 'Rename this chat', label: 'Title', value: 'Garden plans', confirmLabel: 'Rename'}).then(text => toast(text === null ? 'Cancelled.' : 'Renamed to ' + text))">Ask for text</button>
+        <button type="button" class="btn btn-secondary" id="sg-toast" onclick="toast('Saved.')">Toast</button>
+        <button type="button" class="btn btn-secondary" id="sg-toast-error" onclick="toast('Network error. Please try again.', {error: true})">Error toast</button>
+    </div>
+</section>
+
 <section class="card" aria-labelledby="sg-data">
     <h2 id="sg-data">Stats, tabs & rooms</h2>
     <div class="stats-grid">

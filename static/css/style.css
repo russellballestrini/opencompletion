@@ -1480,6 +1480,107 @@ textarea:focus {
     box-sizing: border-box;
 }
 
+/* In-page asks (askConfirm, askText in utils.js): a native <dialog> */
+.ask-dialog {
+    width: min(420px, calc(100vw - 2 * var(--space-4)));
+    max-height: 90vh;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-lg);
+    box-sizing: border-box;
+}
+
+.ask-dialog::backdrop {
+    background-color: var(--modal-overlay);
+}
+
+.ask-form {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-6);
+}
+
+.ask-title {
+    margin: 0;
+    font-size: 18px;
+    overflow-wrap: anywhere;
+}
+
+.ask-body {
+    margin: 0;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.ask-form .form-group {
+    margin: 0;
+}
+
+.ask-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-2);
+}
+
+/* Toasts (toast in utils.js): what happened, said without stopping anyone */
+.toasts {
+    position: fixed;
+    top: var(--space-4);
+    left: 50%;
+    transform: translateX(-50%);
+    /* Above drawers, chat's sign-in dialog & a chat's actions menu. */
+    z-index: 1004;
+    display: grid;
+    gap: var(--space-2);
+    width: min(480px, calc(100vw - 2 * var(--space-4)));
+    pointer-events: none;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-lg);
+    pointer-events: auto;
+}
+
+.toast.is-error {
+    border-color: var(--button-danger);
+    color: var(--text-error);
+}
+
+.toast-text {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.toast-close {
+    flex: none;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: none;
+    color: inherit;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.toast-close:hover {
+    background-color: var(--bg-hover);
+}
+
 .icon-btn {
     display: inline-grid;
     place-items: center;

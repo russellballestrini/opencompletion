@@ -553,7 +553,7 @@ function displayExecutionResults(result, resultsContainer, language, code) {
                     URL.revokeObjectURL(url);
                 } catch (error) {
                     console.error('Error downloading binary:', error);
-                    alert('Failed to download binary: ' + error.message);
+                    toast('Failed to download binary: ' + error.message, {error: true});
                 }
             };
         }
@@ -592,7 +592,7 @@ async function downloadArtifact(artifact) {
 
         if (!base64Data) {
             console.error('No base64 data in artifact:', artifact);
-            alert('Artifact data not available');
+            toast('Artifact data not available', {error: true});
             return;
         }
 
@@ -618,7 +618,7 @@ async function downloadArtifact(artifact) {
         URL.revokeObjectURL(url);
     } catch (error) {
         console.error('Error downloading artifact:', error);
-        alert('Failed to download artifact: ' + error.message);
+        toast('Failed to download artifact: ' + error.message, {error: true});
     }
 }
 
@@ -629,7 +629,7 @@ async function viewArtifact(artifact, artifactItem, isImage, isVideo) {
         const base64Data = artifact.content_base64 || artifact.data || artifact.content;
         if (!base64Data) {
             console.error('No base64 data in artifact:', artifact);
-            alert('Artifact data not available');
+            toast('Artifact data not available', {error: true});
             return;
         }
 
@@ -708,7 +708,7 @@ async function viewArtifact(artifact, artifactItem, isImage, isVideo) {
         artifactItem.appendChild(viewerDiv);
     } catch (error) {
         console.error('Error viewing artifact:', error);
-        alert('Failed to view artifact: ' + error.message);
+        toast('Failed to view artifact: ' + error.message, {error: true});
     }
 }
 

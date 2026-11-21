@@ -634,7 +634,10 @@ window.addEventListener('load', () => {
     check(![...document.querySelectorAll('.utility-belt button')].some(b => /fork/i.test(b.textContent)), 'no Fork in room controls');
     const forkCalls = [];
     let forkAlert = null;
-    window.alert = message => { forkAlert = message; };
+    const forkSaid = setInterval(() => {
+        const line = document.querySelector('.toast.is-error .toast-text');
+        if (line) { forkAlert = line.textContent; clearInterval(forkSaid); }
+    }, 20);
     const fetchBeforeFork = window.fetch;
     window.fetch = (url, options) => {
         if (String(url).includes('/fork')) {
@@ -788,7 +791,6 @@ window.addEventListener('load', async () => {
         calls.push([url, options && options.method, options && options.body]);
         return new Response(JSON.stringify({title: 'Garden plans'}), {status: 200, headers: {'Content-Type': 'application/json'}});
     };
-    window.prompt = () => 'Garden plans';
 
     const card = document.querySelector('.room-card-wrap[data-room-name="lobby"]');
     check(card && card.querySelector('[data-chat-actions]'), 'room cards carry ⋯');
@@ -813,7 +815,13 @@ window.addEventListener('load', async () => {
     // Rename: every place showing the chat takes its new title
     menu = open(row.querySelector('[data-chat-actions]'));
     [...menu.querySelectorAll('button')].find(b => b.textContent === 'Rename').click();
-    await new Promise(r => setTimeout(r, 20));
+    const renameField = document.querySelector('dialog.ask-dialog[open] input');
+    check(renameField && document.activeElement === renameField, 'rename asks in our page, its field focused');
+    if (renameField) {
+        renameField.value = 'Garden plans';
+        document.querySelector('dialog.ask-dialog [data-ask="confirm"]').click();
+    }
+    await new Promise(r => setTimeout(r, 40));
     check(calls.some(([url, method]) => url.endsWith('/title') && method === 'POST'), 'rename posts its title');
     check(row.querySelector('.chat-list-name').textContent === 'Garden plans', 'sidebar row renamed');
     check(card.querySelector('.room-card-name').textContent === 'Garden plans', 'room card renamed');

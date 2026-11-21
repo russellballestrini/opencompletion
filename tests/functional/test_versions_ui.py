@@ -98,7 +98,9 @@ window.addEventListener('load', async () => {
     const said = [];
     const opened = [];
     let refuse = true;
-    window.alert = (text) => said.push(text);
+    new MutationObserver(() => document.querySelectorAll('.toast.is-error .toast-text').forEach(line => {
+        if (!line.dataset.seen) { line.dataset.seen = '1'; said.push(line.textContent); }
+    })).observe(document.documentElement, {childList: true, subtree: true});
     window.openChat = (name) => opened.push(name);
     window.fetch = (url, options) => {
         const reply = (ok, body) => Promise.resolve({ok, status: ok ? 200 : 429, json: () => Promise.resolve(body)});
