@@ -118,7 +118,7 @@ export MODEL_API_KEY_1="your-api-key"
 #export OPENCOMPLETION_OTP_EMAIL_LIMIT=3/900  # sign-in code emails per target email per seconds, whoever asks; 0 = off
 #export OPENCOMPLETION_OTP_VERIFY_LIMIT=20/600 # sign-in code tries (/auth/verify-otp) per address per seconds; 0 = off
 #export OPENCOMPLETION_ROOM_LIMIT=30/600      # new rooms per address per seconds; 0 = off
-#export OPENCOMPLETION_CODE_LIMIT=30/600      # code runs (the play button) per address per seconds; 0 = off
+#export OPENCOMPLETION_CODE_LIMIT=30/600      # code runs (the play button; fix-code & artifact names too) per address per seconds; 0 = off
 #export OPENCOMPLETION_SPEECH_LIMIT=60/600    # read-aloud requests (/speech/audio) per address per seconds; 0 = off
 #export OPENCOMPLETION_DELETED_RETENTION_HOURS=24   # how long a deleted message can be restored
 
