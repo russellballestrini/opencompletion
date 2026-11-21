@@ -103,6 +103,13 @@ os.environ["OPENCOMPLETION_DELEGATE_SUMMARIES"] = "off"
 # tests/unit/test_tools.py & tests/integration/test_tools_chat.py turn them on.
 os.environ["OPENCOMPLETION_WEB_SEARCH"] = "off"
 os.environ["OPENCOMPLETION_WEB_CRAWL"] = "off"
+# Limits per address: our whole suite is one address, so its messages,
+# rooms, sign-in codes & code runs would run into them.
+# tests/integration/test_message_limits.py sets each throttle's count.
+os.environ["OPENCOMPLETION_MESSAGE_LIMIT"] = "0"
+os.environ["OPENCOMPLETION_OTP_LIMIT"] = "0"
+os.environ["OPENCOMPLETION_ROOM_LIMIT"] = "0"
+os.environ["OPENCOMPLETION_CODE_LIMIT"] = "0"
 
 
 @pytest.fixture(scope="session", autouse=True)

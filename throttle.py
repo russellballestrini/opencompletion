@@ -19,7 +19,7 @@ import threading
 import time
 from collections import OrderedDict, deque
 
-from flask import request
+from flask import jsonify, request
 
 # At most this many clients are tracked; the stalest is forgotten first,
 # so a flood of addresses can't grow our memory without bound.
@@ -87,3 +87,31 @@ class Throttle:
     def reset(self):
         with self._lock:
             self._hits.clear()
+
+
+def over_limit(throttle, what):
+    """Count one of `what` ("new rooms", "code runs") for this request's
+    client. None when it is allowed, else (what to tell them, seconds to
+    wait). Works in a Socket.IO handler too: flask-socketio hands it the
+    request its socket connected with, proxy headers included."""
+    retry_after = throttle.hit(client_ip())
+    if not retry_after:
+        return None
+    minutes = -(-retry_after // 60)
+    return (
+        f"Too many {what} from your address: {throttle.count} per "
+        f"{throttle.seconds // 60} minutes. Try again in {minutes} minute"
+        f"{'' if minutes == 1 else 's'}.",
+        retry_after,
+    )
+
+
+def too_many(throttle, what):
+    """over_limit() as an HTTP answer: None when allowed, else a 429 with
+    Retry-After."""
+    over = over_limit(throttle, what)
+    if not over:
+        return None
+    response = jsonify({"error": over[0]})
+    response.headers["Retry-After"] = str(over[1])
+    return response, 429
