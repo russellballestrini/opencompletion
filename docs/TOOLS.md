@@ -74,6 +74,18 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   `OPENCOMPLETION_SANDBOX_IDLE_S` it is **frozen**, never deleted, & the
   next call unfreezes it. A command counts as in use until its time limit,
   so a long one is never frozen under itself.
+- **One call at a time.** Replies from different models run at once in
+  a room & share its sandbox, so each chat has two locks in memory
+  (`_in_turn` in `tools/sandbox.py`; we are one process). The **turn**
+  lock is held for one shell, file write or share, & for a delegate's
+  start (making or waking the sandbox, arming its token, launching). The
+  **delegate** lock is held for a delegate's whole run: a sandbox has one
+  proxy token & one uncloseai-cli session, so a second delegate waits for
+  the first to end, while another reply's quick command still runs beside
+  a delegate that works for an hour. A call that waits says "Waiting for
+  its turn" on its line; Stop ends its wait; a call that fails or whose
+  reply dies gives its turn back. Without them two first calls each made
+  a service (one leaked) & a second delegate cut off the first's model.
 - **`sandbox_share_file`**: hands the person a file from that sandbox (a
   deck, a build, an image; a folder is zipped first), since nobody can
   browse a sandbox's disk. It is read as base64 on stdout,
@@ -280,7 +292,7 @@ around a refusal. Each fetch runs in a native thread with its own event loop
   headless Chromium, every vendor a stubbed fetch
 - `tests/integration/test_sandbox_tools.py`: who gets which unsandbox
   tool, runs & artifacts, one sandbox per chat (made once, woken, frozen
-  when idle, never while busy), `delegate`'s token & the proxy (refused
+  when idle, never while busy, one call at a time), `delegate`'s token & the proxy (refused
   without a live token, pinned to its model, streams, limited); a fake
   unsandbox, so no test spends the account
 - `tests/unit/test_keyless_search.py`, `tests/unit/crawler/`: the vendored

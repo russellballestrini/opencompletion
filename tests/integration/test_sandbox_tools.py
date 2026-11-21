@@ -2368,3 +2368,197 @@ def test_a_failed_sweep_still_waits_for_the_next_hour(monkeypatch, capsys):
 
     assert sleeps == [tool_sandbox.SWEEP_FIRST_S, tool_sandbox.SWEEP_EVERY_S]
     assert "sandbox sweep failed: unsandbox down" in capsys.readouterr().out
+
+
+# -- one sandbox, one call at a time -------------------------------------------
+
+
+def pause(seconds=0.02):
+    """Yield to other greenlets (the fixture's gevent.sleep does not)."""
+    from gevent.event import Event
+
+    Event().wait(seconds)
+
+
+def overlapping(unsandbox, monkeypatch, name="execute_in_service"):
+    """Make a fake unsandbox call take a moment; {"peak": the most of them
+    that ever ran at once}."""
+    import un
+
+    real, seen = getattr(unsandbox, name), {"now": 0, "peak": 0}
+
+    def slow(*args, **kwargs):
+        seen["now"] += 1
+        seen["peak"] = max(seen["peak"], seen["now"])
+        try:
+            pause()
+            return real(*args, **kwargs)
+        finally:
+            seen["now"] -= 1
+
+    monkeypatch.setattr(un, name, slow)
+    return seen
+
+
+def as_a_reply(call):
+    """call(), in an app context of its own, as each reply's tools run."""
+    import app as app_module
+
+    with app_module.app.app_context():
+        return call()
+
+
+def together(*calls):
+    import gevent
+
+    jobs = [gevent.spawn(as_a_reply, call) for call in calls]
+    gevent.joinall(jobs, timeout=30, raise_error=True)
+    assert all(job.ready() for job in jobs), "a call never got its turn"
+    return [job.value for job in jobs]
+
+
+def test_two_replies_take_turns_in_one_chats_sandbox(unsandbox, room, monkeypatch):
+    creating = overlapping(unsandbox, monkeypatch, "create_service")
+    running = overlapping(unsandbox, monkeypatch)
+    qwen, llama = fox_in(room, "qwen"), fox_in(room, "llama")
+    results = together(
+        lambda: tools.run(qwen, "sandbox_shell", {"command": "make a"}),
+        lambda: tools.run(llama, "sandbox_shell", {"command": "make b"}),
+    )
+    assert [r["exit_code"] for r in results] == [0, 0]
+    assert creating["peak"] == 1 and running["peak"] == 1
+    # & its first use made one sandbox, not one each (the second leaked).
+    assert len([c for c in unsandbox.calls if c[0] == "create"]) == 1
+
+
+def test_another_chats_sandbox_never_waits(unsandbox, room, monkeypatch):
+    from models import Room, db
+
+    other = Room(name="annex")
+    db.session.add(other)
+    db.session.commit()
+    running = overlapping(unsandbox, monkeypatch)
+    here, there = fox_in(room), fox_in(other)
+    results = together(
+        lambda: tools.run(here, "sandbox_shell", {"command": "a"}),
+        lambda: tools.run(there, "sandbox_shell", {"command": "b"}),
+    )
+    assert [r["exit_code"] for r in results] == [0, 0]
+    assert running["peak"] == 2
+
+
+def held_turn(room, kind="turn"):
+    """This chat's sandbox lock, taken as another reply's call would."""
+    lock = tool_sandbox._locks.setdefault(
+        (room.id, kind), tool_sandbox.BoundedSemaphore(1)
+    )
+    assert lock.acquire(timeout=1)
+    return lock
+
+
+def test_a_waiting_call_says_so_and_stop_ends_its_wait(unsandbox, room, monkeypatch):
+    monkeypatch.setattr(tool_sandbox, "TURN_CHECK_S", 0.01)
+    lock = held_turn(room)
+    said = []
+    context = dataclasses.replace(
+        fox_in(room),
+        progress=lambda text, **k: said.append(text),
+        stopped=lambda: bool(said),  # pressed once it has said it waits
+    )
+    try:
+        result = tools.run(context, "sandbox_shell", {"command": "ls"})
+    finally:
+        lock.release()
+    assert result["status"] == "stopped" and "Stop was pressed" in result["error"]
+    assert said == ["Waiting for its turn: another reply is using this chat's sandbox."]
+    assert unsandbox.commands() == []  # it never ran
+
+
+def test_a_call_that_dies_gives_its_turn_back(unsandbox, room, monkeypatch):
+    import gevent
+    import un
+    from gevent.event import Event
+
+    real, gate = unsandbox.execute_in_service, Event()
+    context = fox_in(room)
+
+    def hangs(*args, **kwargs):
+        gate.wait(30)
+        raise AssertionError("never reached: its reply was killed")
+
+    monkeypatch.setattr(un, "execute_in_service", hangs)
+    dying = gevent.spawn(
+        as_a_reply, lambda: tools.run(context, "sandbox_shell", {"command": "a"})
+    )
+    pause()
+    dying.kill()  # its reply died mid-call
+    monkeypatch.setattr(un, "execute_in_service", real)
+    (after,) = together(lambda: tools.run(context, "sandbox_shell", {"command": "b"}))
+    assert after["exit_code"] == 0
+
+    def breaks(*args, **kwargs):
+        raise RuntimeError("unsandbox fell over")
+
+    monkeypatch.setattr(un, "execute_in_service", breaks)
+    failed = tools.run(context, "sandbox_shell", {"command": "c"})
+    assert "fell over" in failed["error"]
+    monkeypatch.setattr(un, "execute_in_service", real)
+    (after,) = together(lambda: tools.run(context, "sandbox_shell", {"command": "d"}))
+    assert after["exit_code"] == 0
+
+
+def test_a_running_delegate_keeps_delegates_waiting_but_not_commands(
+    unsandbox, room, monkeypatch
+):
+    """A delegate's run holds only the delegate lock: another reply's
+    command runs meanwhile, a second delegate (one session, one proxy
+    token) does not start."""
+    import un
+
+    monkeypatch.setattr(tool_sandbox, "TURN_CHECK_S", 0.01)
+    unsandbox.polls = ["[bash] make test"]
+    real, meanwhile = unsandbox.execute_in_service, {}
+    llama = dataclasses.replace(fox_in(room, "llama"), stopped=lambda: True)
+
+    def execute(service_id, command, timeout=30000):
+        if "__EXIT__" in command and not meanwhile:  # qwen's run is going
+            meanwhile["shell"] = tools.run(llama, "sandbox_shell", {"command": "ls"})
+            meanwhile["delegate"] = tools.run(llama, "delegate", {"task": "mine"})
+        return real(service_id, command, timeout)
+
+    monkeypatch.setattr(un, "execute_in_service", execute)
+    assert delegate(room, unsandbox)["answer"] == "Done."
+    assert meanwhile["shell"]["exit_code"] == 0
+    assert meanwhile["delegate"]["status"] == "stopped"  # Stop ended its wait
+    starts, _ = unsandbox.delegate_commands()
+    assert len(starts) == 1 and "mine" not in starts[0]
+    assert len([c for c in unsandbox.calls if c[0] == "env"]) == 1  # one token
+    # The first has ended: the next delegate goes.
+    assert delegate(room, unsandbox, task="mine", model="llama")["answer"] == "Done."
+
+
+def test_two_delegates_in_one_chat_run_one_after_the_other(
+    unsandbox, room, monkeypatch
+):
+    import un
+
+    real, seen = unsandbox.execute_in_service, {"now": 0, "peak": 0}
+
+    def execute(service_id, command, timeout=30000):
+        if "setsid nohup" in command:
+            seen["now"] += 1
+            seen["peak"] = max(seen["peak"], seen["now"])
+        pause(0.01)
+        job = real(service_id, command, timeout)
+        if "__EXIT__" in command:  # no polls queued: this one is its exit
+            seen["now"] -= 1
+        return job
+
+    monkeypatch.setattr(un, "execute_in_service", execute)
+    qwen, llama = fox_in(room, "qwen"), fox_in(room, "llama")
+    results = together(
+        lambda: delegate(room, unsandbox, task="one", context=qwen),
+        lambda: delegate(room, unsandbox, task="two", context=llama),
+    )
+    assert [r["answer"] for r in results] == ["Done.", "Done."]
+    assert seen["peak"] == 1

@@ -378,6 +378,10 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                 event.update(last.get("card") or {})  # session, oversight
                 return event
 
+            # Only a delegate is worth a model's summary: any other call's
+            # log is a line of ours (it waited for a slot, or its turn).
+            summarized = bool(context.summarize) and call["name"] == "delegate"
+
             def summarize(fresh, final=False, last=last):
                 """A sentence or two on the newest log, within
                 SUMMARY_TIMEOUT_S, or the last one kept. final: the run
@@ -413,7 +417,7 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                     last["card"] = dict(card)
                 grew = len(log) > last.get("summarized_upto", 0)
                 due = time.monotonic() - last.get("summarized_at", 0) >= SUMMARY_EVERY_S
-                if context.summarize and grew and due:
+                if summarized and grew and due:
                     fresh = "\n".join(log[last.get("summarized_upto", 0) :])[-6000:]
                     last.update(
                         summarized_upto=len(log), summarized_at=time.monotonic()
@@ -435,7 +439,7 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                     ),
                 )
             result = run(call_context, call["name"], arguments)
-            if context.summarize and log:
+            if summarized and log:
                 # A closing summary replaces the last one, written mid-run
                 # ("...it is now collecting...") & never kept: the finished
                 # card says what the run achieved & how it ended (fox,

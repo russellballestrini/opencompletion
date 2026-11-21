@@ -38,6 +38,7 @@ import shlex
 import time
 
 import gevent
+from gevent.lock import BoundedSemaphore
 
 import un
 from blob_store import attachment_json, max_bytes, save_attachment
@@ -226,6 +227,44 @@ def keep_artifacts(context, artifacts):
 
 
 # -- a sandbox per chat ------------------------------------------------------
+
+# Replies from different models run at once in a room & share its sandbox.
+# With nothing between them, two first calls each made a service (a chat is
+# allowed one row, so the other raised & its service leaked), & a second
+# delegate re-armed the sandbox's one proxy token under the first, whose
+# model calls were then refused, while both wrote one uncloseai-cli session.
+# So each chat has two locks, in memory (we are one process):
+#   turn      one shell, file write or share, or a delegate's START
+#             (making or waking the sandbox, arming its token, launching)
+#   delegate  a delegate's whole run
+# A run holds only the delegate lock while it works, so another reply's
+# quick command never waits an hour behind it; a second delegate does.
+# Taken in that order (delegate, then turn), never the other way round.
+_locks = {}
+TURN_CHECK_S = 1  # how often a waiting call looks for Stop
+STOPPED = {"status": "stopped", "error": "stopped: Stop was pressed"}
+
+
+def _in_turn(context, call, kind="turn"):
+    """call() while holding this chat's `kind` lock, released however it
+    ends. A call that has to wait says so on its line, & Stop ends its
+    wait: then call never runs."""
+    lock = _locks.setdefault((context.room_id, kind), BoundedSemaphore(1))
+    told = False
+    while not lock.acquire(timeout=TURN_CHECK_S):
+        if context.stopped and context.stopped():
+            return dict(STOPPED)
+        if not told and context.progress:
+            context.progress(
+                "Waiting for its turn: another reply "
+                + ("has a delegate running in" if kind == "delegate" else "is using")
+                + " this chat's sandbox."
+            )
+            told = True
+    try:
+        return call()
+    finally:
+        lock.release()
 
 
 def _state(service):
@@ -611,6 +650,10 @@ def _execute(sandbox, command, timeout_s, on_job=None, job_id=None):
 
 
 def shell(context, command):
+    return _in_turn(context, lambda: _shell(context, command))
+
+
+def _shell(context, command):
     """One command in this chat's sandbox. It runs as an unsandbox job, which
     finishes on unsandbox even if our server restarts, so its job id is
     checkpointed & a resumed reply collects that job's result rather than
@@ -641,6 +684,10 @@ def shell(context, command):
 
 
 def write_file(context, path, content):
+    return _in_turn(context, lambda: _write_file(context, path, content))
+
+
+def _write_file(context, path, content):
     path = str(path or "").strip()
     if not path:
         return {"error": "path required"}
@@ -663,6 +710,10 @@ SHARE_CHUNK_BYTES = 1024 * 1024
 
 
 def share_file(context, path):
+    return _in_turn(context, lambda: _share_file(context, path))
+
+
+def _share_file(context, path):
     """A file in this chat's sandbox, kept as an attachment in its chat:
     what a model hands the person (a deck, a build, an image) since the
     sandbox's disk is never theirs to browse. Read in chunks & checked
@@ -916,10 +967,15 @@ def delegate(context, task):
     its run let anything left in the sandbox keep calling our model while
     the sandbox ran, & came back to life when it was unfrozen (2026-10-30)."""
     armed = {}
-    try:
-        return _delegate(context, task, armed)
-    finally:
-        revoke_proxy(armed.get("sandbox_id"), armed.get("token_sha256"))
+
+    def run():
+        try:
+            return _delegate(context, task, armed)
+        finally:
+            revoke_proxy(armed.get("sandbox_id"), armed.get("token_sha256"))
+
+    # One delegate a chat at a time (see _locks): its whole run.
+    return _in_turn(context, run, kind="delegate")
 
 
 def files_written(vitals, limit=20):
@@ -1011,7 +1067,8 @@ def _delegate(context, task, armed):
     if not task:
         return {"error": "task required"}
     run = _DelegateRun(context, task)
-    failed = run.begin(armed)
+    # Starting it takes the sandbox's turn; following it does not.
+    failed = _in_turn(context, lambda: run.begin(armed))
     if failed:
         return failed
     return run.follow()
