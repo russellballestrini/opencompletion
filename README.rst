@@ -1,158 +1,158 @@
-Open Completion
-========================================
+OpenCompletion
+==============
 
-* repo: `opencompletion.com <https://opencompletion.com>`_
+A multiplayer chat for language models. Open a room, share its link, and
+everyone in it talks with each other and with any model your endpoints
+serve, live. Models search the web, run code and work in a sandbox as they
+answer; rooms can play games and lessons together; and every room's history
+is hash-chained, so a downloaded transcript can be checked by anyone.
 
 * demo: `demo.opencompletion.com <https://demo.opencompletion.com>`_
+* site: `opencompletion.com <https://opencompletion.com>`_
+* public domain
 
-Chatroom applicationallows users to join rooms, send messages, & interact with multiple language models in real-time. Backend written with Flask & Flask-SocketIO for real-time web socket streaming. Frontend uses minimal HTML, CSS, & JavaScript to provide an interactive user interface.
+.. image:: docs/screenshots/chat.png
+   :alt: A chatroom: a question, a model's reply with a runnable code block, & the room's controls
+   :width: 100%
 
 Features
 --------
 
-- A home page that is an empty chat: type, & your first message starts a
-  solo chat (only you, signed in) or a multiplayer chatroom anyone with the link can
-  join. Its sidebar lists your chats & public ones, you at the bottom.
-- Real-time messaging between users in a chatroom.
-- Ability to join different chatrooms with unique URLs.
-- Integration with language models for generating room titles and processing messages.
-- Syntax highlighting for code blocks within messages.
-- Markdown rendering for messages.
-- **Code execution**: Run code blocks from chat in 42+ programming languages via unsandbox.
-- **Text-to-speech**: Read model replies aloud with multiple voice options.
-- Commands to load and save code blocks to AWS S3.
-- Database storage for messages and chatrooms using SQLAlchemy.
-- Migration support with Flask-Migrate.
-- Attach files to any message (picked, dropped or pasted), up to
-  ``OPENCOMPLETION_UPLOAD_MAX_MB`` (default ``7``) each &
-  ``OPENCOMPLETION_UPLOAD_LIMIT`` per address (default ``30/600``). Models
-  read text & code files & see images (vision models). Bytes are stored
-  once per content in SQLite (``blob_store.py``, tables ``blob`` &
-  ``attachment``; run ``make upgrade-db`` on an existing database, ``make init-db`` on a new one).
-- Speak instead of typing: the mic records in the browser & our server
-  transcribes through ``SPEECH_ENDPOINT_n``'s ``/audio/transcriptions``
-  (model ``SPEECH_STT_MODEL``, default ``whisper-1``;
-  ``OPENCOMPLETION_TRANSCRIBE_LIMIT`` per address, default ``30/600``).
-- A Stop button ends the reply streaming in a chat; what it wrote stays.
-- Email OTP authentication with solo (only you) chat support
-- Fork any model reply into a new chat holding the conversation up to it,
-  limited per address (``OPENCOMPLETION_FORK_LIMIT``, default ``10/600``:
-  10 forks per 10 minutes; ``0`` turns it off). Behind a proxy set
-  ``OPENCOMPLETION_PROXY_HOPS`` to how many proxies front us (default ``1``,
-  our Caddy; ``0`` uses the socket address).
-- Edit & resend your own message: the edit replaces it & everything after it for
-  everyone in the room & the models answer again. Nothing is deleted: the
-  earlier branch is kept, hidden (run ``make upgrade-db``; see Upgrading an
-  existing database).
-- A ⋯ menu on every chat (sidebar, Rooms, Search): rename, refresh title (a
-  model titles it afresh), pin (kept in this browser), archive & delete
-  (owner only).
-- Follow-up suggestions under each reply, from the model that answered
-  (``OPENCOMPLETION_FOLLOWUPS=off`` turns them off), and a ↓ button back to
-  the newest message.
-- Models search the web & read pages as they answer (keyless search over
-  five vendors' free tiers; ``docs/TOOLS.md``). A guest's search runs in their
-  own browser, never on our network; only emails on
-  ``OPENCOMPLETION_SERVER_EGRESS_USERS`` use our server, & only they may have
-  a page fetched. ``OPENCOMPLETION_WEB_SEARCH=off`` &
-  ``OPENCOMPLETION_WEB_CRAWL=off`` turn them off.
-- Models run code as they answer, on unsandbox: one-off runs with no network
-  for anyone allowed to run code (files they make come back as attachments),
-  & for those same egress emails a sandbox per chat that keeps its files &
-  can hand a task to uncloseai-cli, which reaches our models through a token
-  made for that one sandbox, never our keys (``docs/TOOLS.md``).
-- Installable as an app on phones & desktops (``/manifest.webmanifest``,
-  named by ``OPENCOMPLETION_BRAND``).
-- Room archiving and owner management
+**Chat**
 
-Requirements
-------------
+- Your first message on our home page starts a chat: **Solo** (only you,
+  signed in) or a **Chatroom** anyone with its link can join. A room is
+  titled from its conversation.
+- Any model on any OpenAI-compatible endpoint: vLLM, llama.cpp, Ollama,
+  OpenAI, Gemini, Mistral, Groq & more, side by side. A model two endpoints
+  serve fails over between them.
+- Replies stream to everyone in the room, thinking included (collapsed);
+  **Stop** ends one & keeps what it wrote.
+- A message sent while a model is still working **steers** that reply: it
+  reads the message after its current tool call. ``/btw <question>`` asks
+  about the work in progress instead, without changing it.
+- **Edit & resend**, **Fork** a reply into a new chat, **Delete** with
+  **Restore**; nothing is ever lost, earlier versions stay readable.
+- Markdown, math (KaTeX), highlighted code with **▶ Run**, file & image
+  attachments, voice input & replies read aloud.
+- Image models (gpt-image & the like) draw instead of chat.
+- Installable as an app on phones & desktops.
 
-- Python 3.11 or newer (CI runs 3.11, 3.12, 3.13, 3.14 & 3.15)
-- ``make``; everything else installs into ``venv/`` from ``requirements.txt``
-- At least one OpenAI-compatible model endpoint (vLLM, Ollama, llama.cpp, ...)
+**Tools a model may call** (``docs/TOOLS.md``)
 
-Installation
-------------
+- Web search & page fetching. A guest's search runs in their own browser,
+  never on our network.
+- Code runs on `unsandbox <https://unsandbox.com>`_: one-off runs in 42+
+  languages, & for trusted people a sandbox per chat that keeps its files
+  and can hand a long task to uncloseai-cli, which the chat's model
+  oversees.
 
-1. Clone this repository::
+**Activities**
+
+- Games & lessons a whole room plays together: everyone sees one game &
+  anyone may answer. Written in YAML (``research/SPEC.yaml``), graded by a
+  model or a decision classifier, browsed on our **Activities** page.
+
+**Trust**
+
+- Every event in a room is one line of a hash chain. Downloads (JSON or
+  Markdown) carry Merkle proofs, & **Verify a transcript** checks one in
+  your browser with nothing uploaded.
+
+.. image:: docs/screenshots/activities.png
+   :alt: Our Activities page: cards for games & lessons, filtered by kind
+   :width: 100%
+
+.. image:: docs/screenshots/phone.png
+   :alt: A chatroom on a phone
+   :width: 260px
+
+Quick start
+-----------
+
+You need Python 3.11 or newer, ``make``, & at least one OpenAI-compatible
+model endpoint.
+
+::
 
     git clone https://github.com/russellballestrini/opencompletion.git
     cd opencompletion
+    make venv                       # venv/ with every dependency
+    cp vars.sh.sample vars.sh       # then set MODEL_ENDPOINT_1 & MODEL_API_KEY_1
+    chmod 600 vars.sh               # it holds keys: owner-only
+    source vars.sh && venv/bin/python app.py --local-activities
 
-   **Git Remotes**: This repo is configured to push to both GitHub and unturf simultaneously.
-   The ``origin`` remote has two push URLs:
+Open ``http://127.0.0.1:5001``. Our database (SQLite in ``instance/``) is
+created on first start. ``--local-activities`` lists the activities in
+``research/``; ``--port`` picks another port.
 
-   - GitHub: ``git@github.com:russellballestrini/opencompletion.git``
-   - unturf: ``ssh://git@git.unturf.com:2222/engineering/unturf/opencompletion.com.git``
+Configuration
+-------------
 
-2. Create ``venv/`` with every dependency (re-run after a pull; it only
-   reinstalls when a requirements file changed)::
+Every setting is an environment variable, & ``vars.sh.sample`` lists them
+all, grouped (models, replies, speech, tools, sandboxes, limits, sign in),
+each commented out at its default. Uncomment a line only to change it.
 
-    make venv
+A few worth knowing:
 
-3. Copy ``vars.sh.sample`` to ``vars.sh`` & fill in your endpoints and keys
-   (``vars.sh`` is gitignored; never commit it)::
+- ``MODEL_ENDPOINT_n`` / ``MODEL_API_KEY_n`` (n = 1, 2, 3 ...): each
+  endpoint's models fill the picker. ``MODEL_NAME_n`` says which model a
+  ``MODEL_n`` reference means where an endpoint lists many.
+- ``OPENCOMPLETION_SERVER_EGRESS_USERS``: the signed-in emails whose
+  models may use our server's network & get sandboxes. Default: nobody.
+- ``UNSANDBOX_PUBLIC_KEY`` / ``UNSANDBOX_SECRET_KEY``: turn on code runs &
+  sandboxes. ``OPENCOMPLETION_GUEST_CODE_EXEC=off`` keeps runs to signed-in
+  people.
+- ``SMTP_*``: sends sign-in codes by email; unset, they print to our
+  server's console.
+- ``OPENCOMPLETION_BRAND``: the name atop every page.
 
-    cp vars.sh.sample vars.sh
+Commands
+--------
 
-   Chat replies sample at temperature ``OPENCOMPLETION_TEMPERATURE`` (0.6),
-   ``OPENCOMPLETION_TOP_P`` (0.95) & ``OPENCOMPLETION_TOP_K`` (20; ``0`` =
-   not sent), never greedily (greedy decoding loops reasoning models), are
-   capped at ``OPENCOMPLETION_MAX_TOKENS`` (24576, thinking & answer
-   together; ``0`` = no cap) & stop early when a model keeps repeating
-   itself (``OPENCOMPLETION_REPEAT_LIMIT``, 8 repeats; ``0`` = off).
-   ``OPENCOMPLETION_PRESENCE_PENALTY`` is sent when set (Qwen suggests up to
-   1.5 for quantized models that repeat). Thinking that passes
-   ``OPENCOMPLETION_THINKING_BUDGET`` (16384 tokens; ``0`` = no budget) with
-   no answer begun is stopped & the model answers from its notes, without
-   thinking, in up to ``OPENCOMPLETION_ANSWER_TOKENS`` (8192). A server that
-   refuses ``top_k``, or a cap past its context, is asked again without it.
-   A model's thinking is saved with its reply (run ``make upgrade-db``).
+Typed in any chat:
 
-   ``OPENCOMPLETION_BRAND`` (optional) names the site in every header, for
-   example ``uncloseai``; unset, it says OpenCompletion.
+- ``/btw <question>``: ask about the work in progress without steering it.
+  Everyone in the room sees the aside; nothing keeps it.
+- ``/title new``: retitle this chat from its conversation.
+- ``/cancel``: stop the reply streaming in.
+- ``/help``: where everything is.
+- ``/activity <path>``, ``/activity info``, ``/activity cancel``: start,
+  grade or end an activity (our Activities page & a room's controls do the
+  same).
 
-4. Create our database tables (a SQLite file in ``instance/`` unless
-   ``SQLALCHEMY_DATABASE_URI`` says otherwise), stamped at our newest migration::
+Activities
+----------
 
-    make init-db
+An activity is a YAML file of sections & steps: content, questions, the
+buckets an answer can fall in & where each leads, plus scripts for games.
+Read ``research/SPEC.yaml`` before writing one, then::
 
-5. Run it::
+    venv/bin/python activity_yaml_validator.py research/<file>.yaml
+    make activity-walk              # plays every activity with dice, no model
+    source vars.sh && venv/bin/python research/guarded_ai.py research/<file>.yaml
 
-    source vars.sh && venv/bin/python app.py
+Good examples: ``activity26-magic-8-ball.yaml``,
+``activity31-scientific-method.yaml``, ``activity52-vault-heist.yaml`` &
+``activity29-battleship.yaml``, where five enemy admirals hunt your fleet,
+from random shots to a probability grid read by a decision model.
 
-Upgrading an existing database
-------------------------------
+Database
+--------
 
-Our app does this itself: each start (``python app.py``, ``make init-db``,
-our container) copies a SQLite database aside
-(``instance/chat.db.before-<revision>.bak``) & applies every migration it is
-behind, before anything reads it. A migration that fails stops the start &
-leaves that copy. ``OPENCOMPLETION_AUTO_MIGRATE=off`` turns this off; by
-hand it is still::
-
-    cp instance/chat.db instance/chat.db.bak
-    make upgrade-db
-
-A database made by ``make init-db`` without ``flask db stamp`` has no
-migration stamp (no ``alembic_version`` table), so ``make upgrade-db`` would
-start from our first migration & fail on tables that already exist. Stamp
-the revision its schema matches first, then upgrade. ``stamp head`` is right
-only when the schema already matches our newest migration. For example, a
-database with ``blob`` & ``attachment`` tables but no
-``message.superseded_by_id`` column (check with
-``sqlite3 instance/chat.db "pragma table_info(message)"``) matches
-``2026102701``::
-
-    source vars.sh && FLASK_APP=app.py venv/bin/flask db stamp 2026102701
-    make upgrade-db
+Each start brings our database up to date: a SQLite file is first copied
+aside (``instance/chat.db.before-<revision>.bak``), then migrated. A
+migration that fails stops the start & keeps that copy.
+``OPENCOMPLETION_AUTO_MIGRATE=off`` turns this off; then ``make
+upgrade-db`` migrates by hand. ``SQLALCHEMY_DATABASE_URI`` picks another
+database. ``/version`` says which commit is running & what its start did
+to the database; ``/health`` answers 200 while the database does.
 
 Docker
 ------
 
-Our ``Dockerfile`` runs the same app; ``vars.sh`` is mounted at run time,
-never baked into an image::
+``vars.sh`` is mounted at run time, never baked into an image; the
+container migrates its own database at start::
 
     docker build -t opencompletion .
     docker run --name opencompletion -p 5001:5001 \
@@ -160,205 +160,36 @@ never baked into an image::
         -v opencompletion-data:/opt/server/instance \
         opencompletion
 
-Migrations run inside the container, against the database in its volume
-(``make upgrade-db`` on the host would upgrade the host's
-``instance/chat.db`` instead)::
-
-    docker exec opencompletion sh -c '. ./vars.sh && FLASK_APP=app.py flask db upgrade'
-
-The container creates its tables with ``init_db.py`` & stamps nothing, so
-the first time, stamp the revision its schema matches (see Upgrading an
-existing database), for example::
-
-    docker exec opencompletion sh -c '. ./vars.sh && FLASK_APP=app.py flask db stamp 2026102701'
-
-The named volume keeps our SQLite database across containers (a host
-directory would need to be writable by the container's non-root user). CI
-builds & starts this image on every push (job ``docker``).
-
-Tests
------
-
-``make test`` runs unit, integration & functional tests plus YAML validation
-with no network; ``make test-ui`` checks every page in headless Chromium at
-phone to desktop widths; ``make ci`` is exactly what GitHub Actions runs.
-
-Usage
------
-
-Set up environment variables for your AWS, OpenAI, MistralAI, together.ai, grok, groq, google, API keys.
-
-* make a copy of ``vars.sh.sample`` and fill in your API keys!
-
-Other env vars::
-
-    export AWS_ACCESS_KEY_ID="your_access_key"
-    export AWS_SECRET_ACCESS_KEY="your_secret_key"
-    export S3_BUCKET_NAME="your_s3_bucket_name"
-
-Here are some free endpoint for research only!::
-
-    export MODEL_ENDPOINT_1=https://hermes.ai.unturf.com/v1
-    export MODEL_ENDPOINT_2=https://qwen.ai.unturf.com/v1
-    export MODEL_ENDPOINT_3=https://gpt-oss.ai.unturf.com/v1
-
-Each ``MODEL_ENDPOINT_n`` (``n`` = 1, 2, 3…) may carry ``MODEL_API_KEY_n``
-and ``MODEL_NAME_n``: the model a ``MODEL_n`` reference means (an activity's
-``classifier_model: "MODEL_1"``, say), needed where an endpoint lists many
-models or wants a deployment named (Gemini, Azure); unset, it is the first
-model that endpoint lists. ``MODEL_1`` is always configured and is the
-default for activities' ``classifier_model`` and ``feedback_model``.
-
-Two endpoints may serve one model: the lowest ``n`` listing it is its pin &
-the others back it up, in order. A pin that is down (or fails while its
-stream is opened) hands the reply to the next copy of the same model; only when
-every copy is down does another model answer. A ``MODEL_n`` reference whose
-endpoint is down looks for its model elsewhere the same way first.
-
-Text to speech endpoints, configured like models (``n`` is any number, an
-API key is optional). Our server proxies speech at ``/speech/voices`` and
-``/speech/audio``, so keys never reach the browser; voices merge across
-endpoints and a down endpoint falls through to the next one. Unset, speech
-uses ``https://speech.ai.unturf.com/v1`` without a key::
-
-    export SPEECH_ENDPOINT_1=https://speech.ai.unturf.com/v1
-    export SPEECH_API_KEY_1=your-uncloseai-api-key
-
-Optional classifier model, a decision endpoint that answers a categorization
-AS a decision (a probability per bucket, nothing to parse). Asked first by
-``categorize_response`` when configured, fails open onto the chat model.
-Same vocabulary as ``uncloseai-cli`` and ``unhomeschool``; see ``classifier.py``
-and ``make classifier-check``::
-
-    export MODEL_CLASSIFIER_ENDPOINT_0=https://api.typesafe.ai
-    export MODEL_CLASSIFIER_API_KEY_0=your-typesafe-api-key
-    export MODEL_CLASSIFIER_ID_0=jev-latest        # optional
-    export OPENCOMPLETION_CLASSIFIER=auto          # auto | on | off
-    export OPENCOMPLETION_CLASSIFIER_TIMEOUT_S=8   # a learner waits this long before the chat fallback
-    export OPENCOMPLETION_CLASSIFIER_MIN_P=0       # below this probability, the chat model decides
-
-Optional SMTP for email OTP authentication::
-
-    export SMTP_HOST=smtp.gmail.com
-    export SMTP_PORT=587
-    export SMTP_USER=your@email.com
-    export SMTP_PASSWORD=your_app_password
-
-To start the application with socket.io run::
-
-    python app.py
-
-Optionally flags ``python app.py --local-activities --profile <aws-profile-name>``::
-
-    usage: app.py [-h] [--profile PROFILE] [--local-activities] [--port PORT]
-
-    options:
-      -h, --help          show this help message and exit
-      --profile PROFILE   AWS profile name
-      --local-activities  Use local activity files instead of S3
-      --port PORT         Port number (default: 5001)
-
-
-The application will be available at ``http://127.0.0.1:5001`` by default.
-
-
-Interacting with Language Models
---------------------------------
-
-To interact with the various language models, choose from the drop down and send a message!
-
-The system will process your message and provide a response from the selected language model.
-
-Commands
---------
-
-The chatrooms support some special commands:
-
-- ``/title new``: Generates a new title which reflects conversation content for the current chatroom using our default model.
-- ``/cancel``: Cancel the most recent chat completion from streaming into the chatroom.
-- ``/help``: Shows where things are (models, chats, room controls) & these commands.
-
-Code Execution
---------------
-
-Code blocks can be executed from chat with the "▶ Run" button. Supports 42+ programming languages with automatic language detection. Code runs in isolated, self-terminating unsandbox containers, and compiled binaries can be downloaded from the interface.
-
-Set ``UNSANDBOX_PUBLIC_KEY`` & ``UNSANDBOX_SECRET_KEY`` to enable it. Anyone may run code, guests included; each run spends that account, so ``OPENCOMPLETION_GUEST_CODE_EXEC=off`` keeps runs to signed-in people.
-
-
-Structure
----------
-
-- ``app.py``: our Flask app & chat itself (the chat page, Socket.IO events, model streaming).
-- ``routes/``: HTTP blueprints: pages, accounts (email-code sign in), rooms (browse, search, downloads), code execution.
-- ``templates/``: pages extend ``layout.html``; chat extends ``base.html``. ``/styleguide`` shows every component.
-- ``static/``: ``css/style.css`` (our one stylesheet), ``js/`` (site, sign in & ``chat/``), ``vendor/`` (pinned browser libraries).
-- ``research/``: activity YAMLs & the ``guarded_ai.py`` simulator.
-- ``docs/STYLEGUIDE.md``: our UI rules, tested by ``make test-ui``.
-
-
-Activity Mode
---------------
-
-Activity mode is an interactive experience where users learn & answer questions guided by machine learning.
-
-Our model provides feedback based on the user's responses and guides them through different sections and steps of an activity.
-
-This mode is designed to be on the "rails", educational, & engaging.
-
-The server expects to load the YAML file out of the S3 bucket you specify in your environment variables.
-
-1. **Start an Activity**: Use the ``/activity`` command followed by the object path to the activity YAML file to start a new activity.
-
-    ``/activity path-to-activity.yaml``
-
-2. **Display Activity Info**: Use the ``/activity info`` command to display information about the current activity, including grading and user performance.
-
-    ``/activity info``
-
-3. **Display Activity Metadata**: Use the ``/activity metadata`` command to display metadata information collected about the activity.
-
-    ``/activity metadata``
-
-4. **Cancel an Activity**: Use the ``/activity cancel`` command to display cancel the current activity running in the room.
-
-    ``/activity cancel``
-
-
-5. **Battleship example**:
-
-    ``/activity research/activity29-battleship.yaml``
-
-    .. image:: flask-socketio-llm-completions-battleship.png
-        :align: center
-
-
-
-Ollama versus vLLM
------------------------------
-
-We prefer operating an ``vllm`` inference server but some models are packaged exclusively for ``ollama`` so here is an example::
-
- ollama run hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0
-
-then::
-
- export MODEL_ENDPOINT_1=https://localhost:11434/v1
-
-Then in the app you should be able to talk to ``NousResearch/Hermes-3-Llama-3.1-8B-GGUF:Q8_0``
-
-
-Contributing
-------------
-
-Contributions to this project are welcome. Please follow the standard fork and pull request workflow.
-
+The named volume keeps our database across containers.
+
+Development
+-----------
+
+::
+
+    make test        # unit, integration & functional tests, YAML validation; no network
+    make test-ui     # every page in headless Chromium, phone to desktop widths
+    make lint        # black --check & flake8
+    make ci          # exactly what GitHub Actions runs
+
+- ``app.py``: chat itself (the chat page, Socket.IO events, model
+  streaming) & the model map.
+- ``routes/``: HTTP blueprints: pages, sign in, rooms, files, code.
+- ``templates/`` & ``static/``: pages extend ``layout.html``; one
+  stylesheet, ``static/css/style.css``; chat's scripts in
+  ``static/js/chat/``. ``/styleguide`` shows every component &
+  ``docs/STYLEGUIDE.md`` holds our UI rules.
+- ``tools/``: what a model may call (``docs/TOOLS.md``).
+- ``research/``: activity YAMLs & ``guarded_ai.py``, which plays one in a
+  terminal.
+
+Pushing to ``origin`` pushes to GitHub & to git.unturf.com together.
+Contributions are welcome: fork, branch & open a pull request.
 
 License
 -------
 
-This project is public domain. It is free for use and distribution without any restrictions.
-
+Public domain: free for any use, without restriction.
 
 .. figure:: https://api.star-history.com/svg?repos=russellballestrini/opencompletion&type=Date
    :alt: Star History Chart

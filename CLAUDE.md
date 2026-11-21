@@ -146,7 +146,7 @@ git remote -v
 - Be specific in `tokens_for_ai` (what puts an answer in each bucket); explain concepts in content blocks & keep worked answers for feedback; reference the learner's choices through `{{metadata.x}}`
 - Learner-facing text says machine learning, never "AI"
 
-Setup & every environment variable (models, speech, the classifier, S3) live in `README.rst`.
+Setup lives in `README.rst`; every environment variable, at its default, in `vars.sh.sample` (a new variable goes there too, commented out unless it must be set).
 
 ### Classifier model: a second kind of model (gated enhancement)
 
@@ -156,7 +156,7 @@ answers with a probability per label & nothing to parse. Same shape & env
 vocabulary as `uncloseai-cli/classifier.py` & `unhomeschool/classifier.py`,
 vendor-agnostic on purpose (wire shape today: TypeSafe System One, models
 `jev-latest` / `jev-preview`, or a LiteLLM `/typesafe` proxy)
-(its environment variables: `README.rst`)
+(its environment variables: `vars.sh.sample`)
 
 Sites: `activity.categorize_response` & `research/guarded_ai.py`'s copy
 (choice over the step's buckets; `Question:` + `Response:` as state, the

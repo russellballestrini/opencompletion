@@ -1,125 +1,126 @@
 #!/bin/bash
-# vars.sh: Example configuration for dynamic endpoints
+# vars.sh: our server's configuration. Copy to vars.sh (gitignored; keep it
+# owner-only: chmod 600 vars.sh), fill in what you use, then
+#   source vars.sh && venv/bin/python app.py
+# Only a model endpoint is needed. Every commented line shows its default:
+# uncomment one only to change it.
 
-# Which MODEL_n is main. Optional; defaults to the lowest configured n.
-# A down endpoint automatically falls through to the next healthy one,
-# so this only picks the preferred first choice.
-# export DEFAULT_MODEL="MODEL_2"
+# ── Models ────────────────────────────────────────────────────────────────
+# MODEL_ENDPOINT_n: any OpenAI-compatible base URL (vLLM, llama.cpp, Ollama,
+# OpenAI, Gemini, Mistral, Groq, ...), n = 1, 2, 3 ... Every model each one
+# lists at /models fills our picker. A model two endpoints list is pinned to
+# the lower n & the other backs it up.
+export MODEL_ENDPOINT_1="https://your-endpoint.example/v1"
+export MODEL_API_KEY_1="your-api-key"
+# What a MODEL_1 reference means (an activity's classifier_model, say); set
+# it where an endpoint lists many models. Unset: the first one it lists.
+#export MODEL_NAME_1=""
+#export MODEL_ENDPOINT_2="https://generativelanguage.googleapis.com/v1beta/openai"
+#export MODEL_API_KEY_2="your-google-api-key"
+#export MODEL_NAME_2="gemini-2.5-pro"
+# Which MODEL_n answers when another model is down. Unset: the lowest n.
+#export DEFAULT_MODEL="MODEL_1"
 
-# Optional per-endpoint model pin. Without it, the endpoint's first
-# listed model is used — set this for multi-model endpoints (e.g. Gemini).
-# export MODEL_NAME_3="gemini-2.5-pro"
+# ── Replies ───────────────────────────────────────────────────────────────
+#export OPENCOMPLETION_TEMPERATURE=0.6
+#export OPENCOMPLETION_TOP_P=0.95
+#export OPENCOMPLETION_TOP_K=20               # 0 = not sent
+#export OPENCOMPLETION_PRESENCE_PENALTY=      # unset = not sent (Qwen suggests up to 1.5 for quantized models)
+#export OPENCOMPLETION_MAX_TOKENS=24576       # thinking & answer together; 0 = no cap
+#export OPENCOMPLETION_THINKING_BUDGET=16384  # thinking past this answers from its notes; 0 = no budget
+#export OPENCOMPLETION_ANSWER_TOKENS=8192     # that answer's cap
+#export OPENCOMPLETION_ANSWER_ROOM=8192       # context kept free for the answer; 0 = off
+#export OPENCOMPLETION_HISTORY_LIMIT=200      # messages a reply reads (20 while a model's window is unknown)
+#export OPENCOMPLETION_REPEAT_LIMIT=8         # hang up on a reply looping; 0 = off
+#export OPENCOMPLETION_STREAM_RETRIES=2       # a broken stream carries on this many times; 0 = off
+#export OPENCOMPLETION_FOLLOWUPS=on           # follow-up suggestions under a reply; off = none
 
-# Official OpenAI (hermes) endpoint.
-export MODEL_ENDPOINT_1="https://hermes.ai.unturf.com/v1"
-export MODEL_API_KEY_1="your-hermes-api-key"
-export MODEL_ENDPOINT_2="https://hermes2.ai.unturf.com/v1"
-export MODEL_API_KEY_2="your-hermes-api-key"
-
-# Google Gemini endpoint.
-export MODEL_ENDPOINT_3="https://generativelanguage.googleapis.com/v1beta/openai"
-export MODEL_API_KEY_3="your-google-api-key"
-
-# Grok endpoint.
-export MODEL_ENDPOINT_4="https://api.x.ai/v1"
-export MODEL_API_KEY_4=""
-
-# Groq endpoint.
-export MODEL_ENDPOINT_5="https://api.groq.com/openai/v1"
-export MODEL_API_KEY_5="gone"
-
-# Together endpoint.
-export MODEL_ENDPOINT_6="https://api.together.xyz/v1"
-export MODEL_API_KEY_6="gone"
-
-# OpenAI endpoint.
-export MODEL_ENDPOINT_7="https://api.openai.com/v1"
-# Its /models lists image models (gpt-image-...) beside chat models: pick
-# one in a chat & our message is drawn, not answered. One image costs far
-# more at high quality than low; unset, a model uses its own default.
+# ── Image models ──────────────────────────────────────────────────────────
+# A model whose id matches draws our message instead of answering it.
+#export OPENCOMPLETION_IMAGE_MODELS="^(gpt-image|chatgpt-image|dall-e)"
 #export OPENCOMPLETION_IMAGE_SIZE="1024x1024"
-#export OPENCOMPLETION_IMAGE_QUALITY="low"   # low | medium | high
-#export OPENCOMPLETION_IMAGE_MODELS="^(gpt-image|chatgpt-image|dall-e)"   # a regex over model ids
-export MODEL_API_KEY_7="gone"
-export OPENAI_API_KEY="gone"
+#export OPENCOMPLETION_IMAGE_QUALITY=         # low | medium | high; unset = the model's default
 
-# MistralAI La Platform endpoint.
-export MODEL_ENDPOINT_8="https://api.mistral.ai/v1"
-export MODEL_API_KEY_8="gone"
-
-# Anthropic Platform
-export MODEL_ENDPOINT_9="https://api.anthropic.com/v1"
-export MODEL_API_KEY_9="gone"
-
-# Text to speech endpoints, configured like models: SPEECH_ENDPOINT_n is an
-# OpenAI-style base URL, SPEECH_API_KEY_n its optional key. Our server
-# proxies speech (/speech/voices, /speech/audio) so keys stay server-side.
-# Unset, speech uses https://speech.ai.unturf.com/v1 keyless.
-export SPEECH_ENDPOINT_1="https://speech.ai.unturf.com/v1"
-export SPEECH_API_KEY_1="your-uncloseai-api-key"
-# OpenAI's API as a second speech endpoint: it has no /voices, so we offer
-# each speech model its /models lists today (none is written in our code) &
-# ask it for a transcription model it lists. Its voices can't be listed:
-# SPEECH_VOICES_n names them (unset: alloy, ash, coral, echo, fable, nova,
-# onyx, sage, shimmer). Endpoint 1 above is untouched & stays our default.
+# ── Speech ────────────────────────────────────────────────────────────────
+# Configured like models; our server proxies it, so keys stay server side.
+# Unset: https://speech.ai.unturf.com/v1 with no key.
+#export SPEECH_ENDPOINT_1="https://speech.ai.unturf.com/v1"
+#export SPEECH_API_KEY_1="your-api-key"
+# An endpoint with no /voices (OpenAI's) offers its listed speech models
+# with these voices (unset: alloy, ash, coral, echo, fable, nova, onyx,
+# sage, shimmer).
 #export SPEECH_ENDPOINT_2="https://api.openai.com/v1"
 #export SPEECH_API_KEY_2="your-openai-api-key"
 #export SPEECH_VOICES_2="alloy,marin,cedar"
+#export SPEECH_TTS_MODELS="tts"               # a regex over listed model ids
+#export SPEECH_STT_MODEL=                     # unset: the transcription model an endpoint lists, else whisper-1
+#export OPENCOMPLETION_TRANSCRIBE_LIMIT=30/600   # transcriptions per address per seconds
 
-# Enable code-generated filenames (enabled by default: "true", disabled: "false")
-# When enabled, uses Hermes AI to generate meaningful 1-3 word filenames for downloaded binaries
-export ENABLE_CODE_GEN_FILENAMES="true"
+# ── Classifier (optional decision model for activities) ───────────────────
+# Same vocabulary as uncloseai-cli & unhomeschool (classifier.py).
+#export MODEL_CLASSIFIER_ENDPOINT_0="https://api.typesafe.ai"
+#export MODEL_CLASSIFIER_API_KEY_0="your-typesafe-api-key"
+#export MODEL_CLASSIFIER_ID_0="jev-latest"
+#export MODEL_CLASSIFIER_LABEL_0=             # display label; unset: from the host
+#export OPENCOMPLETION_CLASSIFIER=auto        # auto | on | off
+#export OPENCOMPLETION_CLASSIFIER_TIMEOUT_S=8
+#export OPENCOMPLETION_CLASSIFIER_MIN_P=0     # below this probability the chat model decides
+#export OPENCOMPLETION_CLASSIFIER_COOLDOWN_S=60
+#export LLM_TIMEOUT_S=30                      # Battleship's chat-model admirals
 
-# Classifier model (optional): a decision endpoint that answers a
-# categorization AS a decision, a probability per bucket, nothing to parse.
-# Same vocabulary as uncloseai-cli & unhomeschool, so one environment
-# configures our whole mesh. See classifier.py. Wire shape today: TypeSafe
-# System One (models jev-latest / jev-preview) or a LiteLLM /typesafe proxy.
-# export MODEL_CLASSIFIER_ENDPOINT_0="https://api.typesafe.ai"
-# export MODEL_CLASSIFIER_API_KEY_0="your-typesafe-api-key"
-# export MODEL_CLASSIFIER_ID_0="jev-latest"
-# export OPENCOMPLETION_CLASSIFIER="auto"   # auto | on | off
-# export OPENCOMPLETION_CLASSIFIER_TIMEOUT_S="8"
-# export OPENCOMPLETION_CLASSIFIER_MIN_P="0"   # below this p, chat decides
-
-# Code execution through unsandbox (https://unsandbox.com). Anyone, guests
-# included, may run code; each run spends this account, so set
-# OPENCOMPLETION_GUEST_CODE_EXEC=off to keep runs to signed-in people.
-#export UNSANDBOX_PUBLIC_KEY=unsb-pk-xxxx
-#export UNSANDBOX_SECRET_KEY=unsb-sk-xxxx
-#export OPENCOMPLETION_GUEST_CODE_EXEC=off
-
-# Tools a chat model may call (docs/TOOLS.md). Both on by default. A guest's
-# search runs in their own browser; only these signed-in emails use our
-# server's network (search there & fetching pages). Default: nobody.
-#export OPENCOMPLETION_WEB_SEARCH=off
-#export OPENCOMPLETION_WEB_CRAWL=off
+# ── Tools a model may call (docs/TOOLS.md) ────────────────────────────────
+# A guest's web search runs in their own browser; only these signed-in
+# emails use our server's network (search & fetching pages) & get sandboxes.
 #export OPENCOMPLETION_SERVER_EGRESS_USERS="you@example.com"
+#export OPENCOMPLETION_WEB_SEARCH=on
+#export OPENCOMPLETION_WEB_CRAWL=on
 #export OPENCOMPLETION_TOOL_ROUNDS=100
 #export OPENCOMPLETION_TOOL_TIMEOUT_S=30
-# unsandbox tools (need the UNSANDBOX_* keys below): run_code for anyone
-# allowed to run code; a sandbox per chat & uncloseai-cli in it for the
-# egress emails above. delegate needs our address as a sandbox reaches it.
-#export OPENCOMPLETION_RUN_CODE=off
-#export OPENCOMPLETION_SANDBOX=off
-# unset, sandboxes use unsandbox's default image, unsandbox-ubuntu (with
-# uncloseai-cli); set only to a platform golden image (golden-*).
-#export OPENCOMPLETION_SANDBOX_IMAGE="golden-..."
-#export OPENCOMPLETION_DELEGATE=off
-# Frozen & unused this many days, a sandbox is destroyed (0 = never); a
-# deleted chat's goes at once. Needs sudo off for the unsandbox key.
-#export OPENCOMPLETION_SANDBOX_RETENTION_DAYS=14
-#export OPENCOMPLETION_PUBLIC_URL="https://demo.opencompletion.com"
 
-# Signs session cookies. Unset, our server makes a random key once & keeps
-# it in instance/secret_key; set it to share one key across servers.
-#export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+# ── Code execution & sandboxes (unsandbox.com) ────────────────────────────
+#export UNSANDBOX_PUBLIC_KEY="unsb-pk-xxxx"
+#export UNSANDBOX_SECRET_KEY="unsb-sk-xxxx"
+#export OPENCOMPLETION_GUEST_CODE_EXEC=on     # off keeps code runs to signed-in people
+#export OPENCOMPLETION_RUN_CODE=on
+#export OPENCOMPLETION_RUN_CODE_TIMEOUT_S=60
+#export OPENCOMPLETION_SANDBOX=on
+#export OPENCOMPLETION_SANDBOX_IMAGE=         # unset: unsandbox-ubuntu; else a golden-* image
+#export OPENCOMPLETION_SANDBOX_TIMEOUT_S=120
+#export OPENCOMPLETION_SANDBOX_IDLE_S=600     # idle this long, a sandbox is frozen
+#export OPENCOMPLETION_SANDBOX_RETENTION_DAYS=14   # frozen this long, destroyed; 0 = never
+#export OPENCOMPLETION_SANDBOX_PROXY_LIMIT=600/600 # model calls per sandbox per seconds
+#export OPENCOMPLETION_DELEGATE=on            # uncloseai-cli in a sandbox; needs OPENCOMPLETION_PUBLIC_URL
+#export OPENCOMPLETION_DELEGATE_STALL_S=600   # no progress this long, a run is stopped
+#export OPENCOMPLETION_DELEGATE_REVIEW_S=300  # how often its overseer reviews it
+#export OPENCOMPLETION_DELEGATE_TIMEOUT_S=0   # 0 = no clock limit
+#export OPENCOMPLETION_DELEGATE_SUMMARIES=on
+#export ENABLE_CODE_GEN_FILENAMES=true        # a model names downloaded binaries
 
-# Room chains (chain.py): every room's events are hash-chained in our
-# database always; set a directory to also append each line to
-# <dir>/opencompletion-<chain>.jsonl for an outside witness (unfirehose).
+# ── Site ──────────────────────────────────────────────────────────────────
+#export OPENCOMPLETION_BRAND="OpenCompletion" # the name atop every page
+#export OPENCOMPLETION_PUBLIC_URL=            # how the world reaches us, e.g. https://demo.opencompletion.com
+#export OPENCOMPLETION_PROXY_HOPS=1           # proxies in front of us (Caddy = 1); 0 = socket address
+#export SECRET_KEY=                           # unset: a random key kept in instance/secret_key
+#export SQLALCHEMY_DATABASE_URI=            # unset: SQLite at instance/chat.db
+#export OPENCOMPLETION_AUTO_MIGRATE=on        # off = migrate by hand (make upgrade-db)
+#export OPENCOMPLETION_GIT_COMMIT=            # /version's commit when deployed without .git
+
+# ── Limits ────────────────────────────────────────────────────────────────
+#export OPENCOMPLETION_UPLOAD_MAX_MB=7
+#export OPENCOMPLETION_UPLOAD_LIMIT=30/600    # uploads per address per seconds
+#export OPENCOMPLETION_FORK_LIMIT=10/600      # forks per address per seconds; 0 = off
+#export OPENCOMPLETION_DELETED_RETENTION_HOURS=24   # how long a deleted message can be restored
+
+# ── Room chains ───────────────────────────────────────────────────────────
+# Every room's events are hash-chained in our database; a directory here
+# also gets each line, for an outside witness (unfirehose).
 #export OPENCOMPLETION_CHAIN_MIRROR="$HOME/.uncloseai/unfirehose/opencompletion"
 
-# Each start brings our database up to date (a SQLite file is copied aside
-# first: <db>.before-<revision>.bak). off = migrate by hand, make upgrade-db.
-#export OPENCOMPLETION_AUTO_MIGRATE=off
+# ── Sign in by email code ─────────────────────────────────────────────────
+# Unset, codes print to our server's console.
+#export SMTP_HOST="smtp.example.com"
+#export SMTP_PORT=587
+#export SMTP_USER="you@example.com"
+#export SMTP_PASSWORD="your-app-password"
+#export SMTP_FROM_EMAIL=                      # unset: noreply@ the site's host name
+#export SMTP_FROM_NAME="OpenCompletion"
