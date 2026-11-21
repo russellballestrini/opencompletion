@@ -28,7 +28,7 @@ with patch.dict(
         "models": MagicMock(),
     },
 ):
-    import app
+    import app  # noqa: F401  importing app wires activity up
     import activity
 
 

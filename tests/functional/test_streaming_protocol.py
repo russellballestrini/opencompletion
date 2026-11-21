@@ -8,7 +8,6 @@ from content for cleaner TTS processing.
 """
 
 import unittest
-import json
 import sys
 from unittest.mock import patch, MagicMock
 from pathlib import Path
