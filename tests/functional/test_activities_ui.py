@@ -15,9 +15,8 @@ pytestmark = pytest.mark.functional
 
 
 @pytest.fixture
-def client(test_app, monkeypatch):
+def client(test_app):
     # research/*.yaml: every activity we ship.
-    monkeypatch.setitem(test_app.config, "LOCAL_ACTIVITIES", True)
     return test_app.test_client()
 
 

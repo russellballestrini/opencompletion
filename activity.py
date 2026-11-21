@@ -20,7 +20,6 @@ from models import Room, Message, ActivityState
 # Import helper functions from app.py
 # These will be imported when this module is loaded
 get_room = None
-get_s3_client = None
 get_openai_client_and_model = None
 
 # Import SYSTEM_USERS from app.py
@@ -72,41 +71,32 @@ def handle_get_activity_status(data):
 
 def get_activity_content(file_path):
     """
-    Load the activity content from either S3 or the local filesystem based on the configuration.
+    Load an activity's YAML from our research/ directory, & from nowhere
+    else: its scripts run on our server, so a file must be one we shipped.
     """
-    if app.config["LOCAL_ACTIVITIES"]:
-        # Load the activity YAML from a local file with path traversal protection
-        import os.path
+    # Normalize the path and ensure it's within the research directory
+    normalized_path = os.path.normpath(file_path)
 
-        # Normalize the path and ensure it's within the research directory
-        normalized_path = os.path.normpath(file_path)
+    # Ensure path doesn't contain dangerous patterns
+    if ".." in normalized_path or normalized_path.startswith("/"):
+        raise ValueError(f"Invalid file path: {file_path}")
 
-        # Ensure path doesn't contain dangerous patterns
-        if ".." in normalized_path or normalized_path.startswith("/"):
-            raise ValueError(f"Invalid file path: {file_path}")
+    # Ensure file is within research directory and has .yaml extension
+    if not normalized_path.startswith("research/") or not normalized_path.endswith(
+        ".yaml"
+    ):
+        raise ValueError(
+            f"File must be in research/ directory and end with .yaml: {file_path}"
+        )
 
-        # Ensure file is within research directory and has .yaml extension
-        if not normalized_path.startswith("research/") or not normalized_path.endswith(
-            ".yaml"
-        ):
-            raise ValueError(
-                f"File must be in research/ directory and end with .yaml: {file_path}"
-            )
+    # Additional safety check - ensure resolved path is still in research dir
+    full_path = os.path.abspath(normalized_path)
+    research_dir = os.path.abspath("research/")
+    if not full_path.startswith(research_dir):
+        raise ValueError(f"Path traversal attempt detected: {file_path}")
 
-        # Additional safety check - ensure resolved path is still in research dir
-        full_path = os.path.abspath(normalized_path)
-        research_dir = os.path.abspath("research/")
-        if not full_path.startswith(research_dir):
-            raise ValueError(f"Path traversal attempt detected: {file_path}")
-
-        with open(normalized_path, "r") as file:
-            activity_yaml = file.read()
-    else:
-        # Load the activity YAML from S3
-        s3_client = get_s3_client()
-        bucket_name = os.environ.get("S3_BUCKET_NAME")
-        response = s3_client.get_object(Bucket=bucket_name, Key=file_path)
-        activity_yaml = response["Body"].read().decode("utf-8")
+    with open(normalized_path, "r") as file:
+        activity_yaml = file.read()
 
     return yaml.safe_load(activity_yaml)
 
@@ -165,7 +155,7 @@ def start_activity(room_name, s3_file_path, username):
             section_id=initial_section["section_id"],
             step_id=initial_step["step_id"],
             max_attempts=activity_content.get("default_max_attempts_per_step", 3),
-            s3_file_path=s3_file_path,  # Save the S3 file path
+            s3_file_path=s3_file_path,  # a research/ path; the column keeps its old name
         )
         db.session.add(activity_state)
         db.session.commit()
@@ -964,7 +954,7 @@ def init_activity_module(
 ):
     """Initialize the activity module with dependencies from app.py"""
     global app, socketio, db
-    global get_room, get_s3_client, get_openai_client_and_model
+    global get_room, get_openai_client_and_model
     global SYSTEM_USERS
 
     app = app_instance
@@ -972,6 +962,5 @@ def init_activity_module(
     db = db_instance
 
     get_room = helper_functions["get_room"]
-    get_s3_client = helper_functions["get_s3_client"]
     get_openai_client_and_model = helper_functions["get_openai_client_and_model"]
     SYSTEM_USERS = helper_functions["SYSTEM_USERS"]

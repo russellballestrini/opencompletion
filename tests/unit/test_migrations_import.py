@@ -3,8 +3,8 @@
 Our app reads every revision at startup (db_migrate.py). A script that
 imports `app` loads a second copy of app.py as module `app` (the server runs
 as __main__), and that copy's module setup rebinds activity.py's app to one
-that never got --local-activities: Play on our Activities page started
-nothing (2026-11-11, KeyError: 'LOCAL_ACTIVITIES')."""
+whose config was never filled in: Play on our Activities page started
+nothing (2026-11-11, a KeyError on a config key since removed)."""
 
 import os
 import subprocess

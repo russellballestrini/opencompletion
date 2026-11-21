@@ -44,7 +44,6 @@ class TestFlaskAppActivityFunctions(unittest.TestCase):
         app.app.config["TESTING"] = True
         app.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
         app.app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-        app.app.config["LOCAL_ACTIVITIES"] = True  # Use local YAML files
         app.app.config["WTF_CSRF_ENABLED"] = False
 
         # Create test client and push context

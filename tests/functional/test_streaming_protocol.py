@@ -21,18 +21,6 @@ from queue import Queue
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
-def is_gevent_patched():
-    """Check if gevent has already monkey-patched the ssl module."""
-    try:
-        import gevent.monkey
-
-        return gevent.monkey.is_module_patched(
-            "ssl"
-        ) or gevent.monkey.is_module_patched("socket")
-    except ImportError:
-        return False
-
-
 class StreamingProtocolTest(unittest.TestCase):
     """Test streaming message protocol and websocket emissions"""
 
@@ -84,9 +72,7 @@ class StreamingProtocolTest(unittest.TestCase):
             {
                 "gevent": MagicMock(),
                 "flask_socketio": self.mock_socketio,
-                "boto3": MagicMock(),
                 "openai": MagicMock(),
-                "together": MagicMock(),
                 "models": MagicMock(),
             },
         ):
@@ -190,9 +176,7 @@ class StreamingProtocolTest(unittest.TestCase):
             {
                 "gevent": MagicMock(),
                 "flask_socketio": self.mock_socketio,
-                "boto3": MagicMock(),
                 "openai": MagicMock(),
-                "together": MagicMock(),
                 "models": MagicMock(),
             },
         ):
@@ -240,189 +224,6 @@ class StreamingProtocolTest(unittest.TestCase):
             [c["reasoning_content"] for c in reasoning_chunks], ["thinking..."]
         )
 
-    def test_bedrock_streaming_protocol(self):
-        """Test AWS Bedrock/Claude streaming with new protocol"""
-        # Skip if gevent has already monkey-patched (causes recursion errors with boto3)
-        if is_gevent_patched():
-            self.skipTest(
-                "Skipped: gevent monkey patching causes recursion errors with boto3"
-            )
-
-        # Mock Bedrock streaming response
-        mock_events = []
-        for content in self.test_content:
-            event = {
-                "chunk": {
-                    "bytes": json.dumps(
-                        {
-                            "type": "content_block_delta",
-                            "delta": {"type": "text_delta", "text": content},
-                        }
-                    ).encode()
-                }
-            }
-            mock_events.append(event)
-
-        mock_client = MagicMock()
-        mock_response = {"body": iter(mock_events)}
-        mock_client.invoke_model_with_response_stream.return_value = mock_response
-
-        # Import and test
-        with patch.dict(
-            "sys.modules",
-            {
-                "gevent": MagicMock(),
-                "flask_socketio": self.mock_socketio,
-                "boto3": MagicMock(),
-                "openai": MagicMock(),
-                "together": MagicMock(),
-                "models": MagicMock(),
-            },
-        ):
-            with patch.dict(
-                "os.environ",
-                {
-                    "MODEL_ENDPOINT_0": "https://test.api.com",
-                    "MODEL_API_KEY_0": "test-key",
-                },
-            ):
-                import app
-
-                # Mock message creation
-                mock_message = MagicMock()
-                mock_message.id = 456
-                mock_message.content = ""
-                mock_message.is_base64_image.return_value = False
-
-                # Create a proper mock for Message class that handles both constructor and query
-                mock_message_class = MagicMock()
-                mock_message_class.return_value = mock_message
-                # Mock the query chain: Message.query.filter_by().order_by().limit().all()
-                mock_message_class.query.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = (
-                    []
-                )
-
-                # Import boto3 to patch it directly (works even when already imported)
-                import boto3
-
-                with patch.object(app.db.session, "add"), patch.object(
-                    app.db.session, "commit"
-                ), patch.object(app.db.session, "query") as mock_query, patch.object(
-                    app, "get_room", return_value=self.mock_room
-                ), patch.object(
-                    boto3, "client", return_value=mock_client
-                ), patch.object(
-                    app, "socketio", self.mock_socketio
-                ), patch.object(
-                    # Titling a new chat (its own test in test_home.py)
-                    # reads tables this mocked session never made.
-                    app,
-                    "title_untitled_room",
-                ), patch(
-                    "app.Message", mock_message_class
-                ):
-
-                    mock_query.return_value.filter.return_value.one_or_none.return_value = (
-                        mock_message
-                    )
-
-                    # Execute Bedrock streaming
-                    app.chat_claude(self.username, self.room_name, self.model_name)
-
-                    # Update content to simulate accumulation
-                    mock_message.content = "".join(self.test_content)
-
-        # Verify Bedrock streaming protocol
-        message_chunks = [
-            msg for msg in self.emitted_messages if msg["event"] == "message_chunk"
-        ]
-
-        # Should have content chunks plus completion
-        expected_chunks = len(self.test_content) + 1
-        self.assertEqual(len(message_chunks), expected_chunks)
-
-        # First chunk verification
-        first_chunk = message_chunks[0]
-        self.assertEqual(first_chunk["data"]["username"], self.username)
-        self.assertEqual(first_chunk["data"]["model_name"], self.model_name)
-        self.assertTrue(first_chunk["data"]["is_first_chunk"])
-
-    def test_llama_streaming_protocol(self):
-        """Test Llama.cpp streaming with new protocol"""
-
-        # Mock Llama streaming response
-        mock_chunks = []
-        for content in self.test_content:
-            chunk = {"choices": [{"delta": {"content": content}}]}
-            mock_chunks.append(chunk)
-
-        mock_model = MagicMock()
-        mock_model.create_chat_completion.return_value = iter(mock_chunks)
-
-        with patch.dict(
-            "sys.modules",
-            {
-                "gevent": MagicMock(),
-                "flask_socketio": self.mock_socketio,
-                "boto3": MagicMock(),
-                "openai": MagicMock(),
-                "together": MagicMock(),
-                "models": MagicMock(),
-                "llama_cpp": MagicMock(),
-            },
-        ):
-            with patch.dict(
-                "os.environ",
-                {
-                    "MODEL_ENDPOINT_0": "https://test.api.com",
-                    "MODEL_API_KEY_0": "test-key",
-                },
-            ):
-                import app
-
-                # Mock message creation
-                mock_message = MagicMock()
-                mock_message.id = 789
-                mock_message.content = ""
-
-                with patch.object(app.db.session, "add"), patch.object(
-                    app.db.session, "commit"
-                ), patch.object(app.db.session, "query") as mock_query, patch.object(
-                    app, "get_room", return_value=self.mock_room
-                ), patch.object(
-                    app, "socketio", self.mock_socketio
-                ), patch.object(
-                    # Titling a new chat (its own test in test_home.py)
-                    # reads tables this mocked session never made.
-                    app,
-                    "title_untitled_room",
-                ), patch(
-                    "app.Message", return_value=mock_message
-                ):
-
-                    mock_query.return_value.filter.return_value.one_or_none.return_value = (
-                        mock_message
-                    )
-
-                    # Mock llama_cpp model loading
-                    with patch("llama_cpp.Llama", return_value=mock_model):
-                        app.chat_llama(self.username, self.room_name, self.model_name)
-
-                    # Update content to simulate accumulation
-                    mock_message.content = "".join(self.test_content)
-
-        # Verify Llama streaming protocol
-        message_chunks = [
-            msg for msg in self.emitted_messages if msg["event"] == "message_chunk"
-        ]
-
-        # Verify protocol consistency across all models
-        self.assertGreater(len(message_chunks), 0)
-        first_chunk = message_chunks[0]
-        self.assertEqual(first_chunk["data"]["username"], self.username)
-        self.assertEqual(first_chunk["data"]["model_name"], self.model_name)
-        self.assertTrue(first_chunk["data"]["is_first_chunk"])
-
     def test_streaming_protocol_backwards_compatibility(self):
         """Test that the new protocol maintains expected behavior"""
 
@@ -449,9 +250,7 @@ class StreamingProtocolTest(unittest.TestCase):
             {
                 "gevent": MagicMock(),
                 "flask_socketio": self.mock_socketio,
-                "boto3": MagicMock(),
                 "openai": MagicMock(),
-                "together": MagicMock(),
                 "models": MagicMock(),
             },
         ):
@@ -563,9 +362,7 @@ class StreamingProtocolTest(unittest.TestCase):
             {
                 "gevent": MagicMock(),
                 "flask_socketio": self.mock_socketio,
-                "boto3": MagicMock(),
                 "openai": MagicMock(),
-                "together": MagicMock(),
                 "models": MagicMock(),
             },
         ):
@@ -634,9 +431,7 @@ class StreamingProtocolTest(unittest.TestCase):
             {
                 "gevent": MagicMock(),
                 "flask_socketio": self.mock_socketio,
-                "boto3": MagicMock(),
                 "openai": MagicMock(),
-                "together": MagicMock(),
                 "models": MagicMock(),
             },
         ):

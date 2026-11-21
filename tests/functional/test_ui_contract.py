@@ -32,10 +32,9 @@ WIDTHS = [320, 375, 768, 1280]
 
 
 @pytest.fixture
-def client(test_app, monkeypatch):
+def client(test_app):
     # /activities lists research/*.yaml, every activity we ship, so its
     # layout & copy are checked on our real gallery, not an empty one.
-    monkeypatch.setitem(test_app.config, "LOCAL_ACTIVITIES", True)
     return test_app.test_client()
 
 
@@ -179,8 +178,8 @@ def test_help_message_names_only_real_commands():
     handled |= set(re.findall(r're\.match\(r"(/[a-z0-9]+)\(', source))
     assert documented and documented <= handled, documented - handled
     assert not re.search(r"\bAI\b", app_module.HELP_MESSAGE)
-    # Activities start from our room controls; /activity & /s3 still work
-    # but go unlisted. /help names only what people type.
+    # Activities start from our room controls; /activity still works
+    # but goes unlisted. /help names only what people type.
     assert documented == {"/title", "/cancel", "/btw", "/help"}, documented
 
 

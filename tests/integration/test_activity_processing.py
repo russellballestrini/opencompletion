@@ -24,9 +24,7 @@ with patch.dict(
     {
         "gevent": MagicMock(),
         "flask_socketio": MagicMock(),
-        "boto3": MagicMock(),
         "openai": MagicMock(),
-        "together": MagicMock(),
         "models": MagicMock(),
     },
 ):
@@ -439,17 +437,16 @@ script_result = {'status': 'error'}
 
         try:
             # Should handle YAML parsing errors
-            with patch.dict(app.app.config, {"LOCAL_ACTIVITIES": True}):
-                # Create research directory and file
-                research_dir = Path("research")
-                research_dir.mkdir(exist_ok=True)
+            # Create research directory and file
+            research_dir = Path("research")
+            research_dir.mkdir(exist_ok=True)
 
-                test_file = research_dir / "malformed.yaml"
-                with open(test_file, "w") as f:
-                    f.write(malformed_yaml)
+            test_file = research_dir / "malformed.yaml"
+            with open(test_file, "w") as f:
+                f.write(malformed_yaml)
 
-                with self.assertRaises(yaml.YAMLError):  # YAML parsing error
-                    activity.get_activity_content("research/malformed.yaml")
+            with self.assertRaises(yaml.YAMLError):  # YAML parsing error
+                activity.get_activity_content("research/malformed.yaml")
 
         finally:
             os.unlink(temp_file)

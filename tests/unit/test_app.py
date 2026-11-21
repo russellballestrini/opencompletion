@@ -23,9 +23,7 @@ with patch.dict(
     {
         "gevent": MagicMock(),
         "flask_socketio": MagicMock(),
-        "boto3": MagicMock(),
         "openai": MagicMock(),
-        "together": MagicMock(),
         "models": MagicMock(),
     },
 ):
@@ -200,13 +198,11 @@ sections:
             with open(test_file_path, "w") as f:
                 f.write(test_yaml_content)
 
-            # Set LOCAL_ACTIVITIES to True
-            with patch.dict(app.app.config, {"LOCAL_ACTIVITIES": True}):
-                result = activity.get_activity_content("research/test_activity.yaml")
+            result = activity.get_activity_content("research/test_activity.yaml")
 
-                self.assertEqual(result["default_max_attempts_per_step"], 3)
-                self.assertEqual(len(result["sections"]), 1)
-                self.assertEqual(result["sections"][0]["section_id"], "test_section")
+            self.assertEqual(result["default_max_attempts_per_step"], 3)
+            self.assertEqual(len(result["sections"]), 1)
+            self.assertEqual(result["sections"][0]["section_id"], "test_section")
 
         finally:
             os.unlink(temp_file)
@@ -215,35 +211,17 @@ sections:
 
     def test_get_activity_content_local_security(self):
         """Test that local file loading prevents path traversal"""
-        with patch.dict(app.app.config, {"LOCAL_ACTIVITIES": True}):
-            # Test various path traversal attempts
-            dangerous_paths = [
-                "../etc/passwd",
-                "/etc/passwd",
-                "research/../../../etc/passwd",
-                "research/activity.yaml../../etc/passwd",
-            ]
+        # Test various path traversal attempts
+        dangerous_paths = [
+            "../etc/passwd",
+            "/etc/passwd",
+            "research/../../../etc/passwd",
+            "research/activity.yaml../../etc/passwd",
+        ]
 
-            for path in dangerous_paths:
-                with self.assertRaises(ValueError):
-                    activity.get_activity_content(path)
-
-    def test_get_activity_content_s3(self):
-        """Test loading activity content from S3"""
-        test_yaml_content = {
-            "default_max_attempts_per_step": 5,
-            "sections": [{"section_id": "s3_section", "title": "S3 Section"}],
-        }
-
-        with patch.dict(app.app.config, {"LOCAL_ACTIVITIES": False}):
-            with patch.object(
-                activity, "get_activity_content", return_value=test_yaml_content
-            ) as mock_func:
-                result = activity.get_activity_content("path/to/activity.yaml")
-
-                self.assertEqual(result["default_max_attempts_per_step"], 5)
-                self.assertEqual(result["sections"][0]["section_id"], "s3_section")
-                mock_func.assert_called_once_with("path/to/activity.yaml")
+        for path in dangerous_paths:
+            with self.assertRaises(ValueError):
+                activity.get_activity_content(path)
 
 
 class TestActivityNavigation(unittest.TestCase):
@@ -467,100 +445,6 @@ class TestTranslationAndLanguage(unittest.TestCase):
 
             self.assertIn("Error:", result)
             mock_func.assert_called_once_with("Hello, world!", "Spanish")
-
-
-class TestS3Operations(unittest.TestCase):
-    """Test S3 related functions"""
-
-    def test_get_s3_client_with_profile(self):
-        """Test S3 client creation with profile"""
-        mock_client = MagicMock()
-
-        with patch.object(app, "get_s3_client", return_value=mock_client) as mock_func:
-            result = app.get_s3_client()
-
-            self.assertEqual(result, mock_client)
-            mock_func.assert_called_once()
-
-    def test_get_s3_client_without_profile(self):
-        """Test S3 client creation without profile"""
-        mock_client = MagicMock()
-
-        with patch.object(app, "get_s3_client", return_value=mock_client) as mock_func:
-            result = app.get_s3_client()
-
-            self.assertEqual(result, mock_client)
-            mock_func.assert_called_once()
-
-    def test_find_most_recent_code_block(self):
-        """Test finding most recent code block in messages"""
-        # This would require mocking the database and Message model
-        # For now, we'll test the logic directly
-        test_content = """Here's some code:
-
-```python
-def test_function():
-    return "Hello, World!"
-```
-
-And some more text after.
-"""
-
-        # Extract the code block manually to test the logic
-        lines = test_content.split("\n")
-        code_block_lines = []
-        code_block_started = False
-
-        for line in lines:
-            if line.startswith("```"):
-                if code_block_started:
-                    break
-                else:
-                    code_block_started = True
-                    continue
-            elif code_block_started:
-                code_block_lines.append(line)
-
-        result = "\n".join(code_block_lines)
-        expected = """def test_function():
-    return "Hello, World!\""""
-
-        self.assertEqual(result, expected)
-
-
-class TestUtilityFunctions(unittest.TestCase):
-    """Test various utility functions"""
-
-    def test_group_consecutive_roles(self):
-        """Test grouping consecutive roles in messages"""
-        messages = [
-            {"role": "user", "content": "Hello"},
-            {"role": "user", "content": "How are you?"},
-            {"role": "assistant", "content": "I'm fine"},
-            {"role": "assistant", "content": "Thanks for asking"},
-            {"role": "user", "content": "Great!"},
-        ]
-
-        result = app.group_consecutive_roles(messages)
-
-        expected = [
-            {"role": "user", "content": "Hello How are you?"},
-            {"role": "assistant", "content": "I'm fine Thanks for asking"},
-            {"role": "user", "content": "Great!"},
-        ]
-
-        self.assertEqual(result, expected)
-
-    def test_group_consecutive_roles_empty(self):
-        """Test grouping consecutive roles with empty input"""
-        result = app.group_consecutive_roles([])
-        self.assertEqual(result, [])
-
-    def test_group_consecutive_roles_single(self):
-        """Test grouping consecutive roles with single message"""
-        messages = [{"role": "user", "content": "Hello"}]
-        result = app.group_consecutive_roles(messages)
-        self.assertEqual(result, messages)
 
 
 class TestActivityManagementFunctions(unittest.TestCase):

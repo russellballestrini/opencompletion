@@ -19,7 +19,6 @@ import base64
 import os
 import re
 
-import boto3
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
 
@@ -109,6 +108,7 @@ import activity
 import activity_engine
 import activity_gallery
 import aside
+import bedrock
 import auth
 
 # Session cookies are signed with SECRET_KEY, else a random key kept in
@@ -801,16 +801,6 @@ def get_room(room_name):
         return new_room
 
 
-def get_s3_client():
-    """Utility function to get the S3 client with the appropriate profile."""
-    if app.config.get("PROFILE_NAME"):
-        session = boto3.Session(profile_name=app.config["PROFILE_NAME"])
-        s3_client = session.client("s3")
-    else:
-        s3_client = boto3.client("s3")
-    return s3_client
-
-
 # Initialize activity module after socketio and db are configured
 activity.init_activity_module(
     app,
@@ -818,7 +808,6 @@ activity.init_activity_module(
     db,
     {
         "get_room": get_room,
-        "get_s3_client": get_s3_client,
         "get_openai_client_and_model": get_openai_client_and_model,
         "SYSTEM_USERS": SYSTEM_USERS,
     },
@@ -1472,18 +1461,9 @@ def dispatch_message(
             gevent.spawn(activity.display_activity_metadata, room_name, username)
             return
         if command.startswith("/activity"):
-            s3_file_path = command.split(" ", 1)[1].strip()
-            gevent.spawn(activity.start_activity, room_name, s3_file_path, username)
+            activity_path = command.split(" ", 1)[1].strip()
+            gevent.spawn(activity.start_activity, room_name, activity_path, username)
             return
-        if command.startswith("/s3 ls"):
-            s3_file_path_pattern = command.split(" ", 2)[2].strip()
-            gevent.spawn(list_s3_files, room.name, s3_file_path_pattern, username)
-        if command.startswith("/s3 load"):
-            s3_file_path = command.split(" ", 2)[2].strip()
-            gevent.spawn(load_s3_file, room_name, s3_file_path, username)
-        if command.startswith("/s3 save"):
-            s3_key_path = command.split(" ", 2)[2].strip()
-            gevent.spawn(save_code_block_to_s3, room_name, s3_key_path, username)
         if command.startswith("/title new"):
             gevent.spawn(generate_new_title, room_name, username)
             return
@@ -1526,7 +1506,7 @@ def dispatch_message(
         elif is_image_model(model):
             gevent.spawn(generate_image, room_name, message, username, model)
         else:
-            # All other models (Groq, Together, Mistral, etc.) use OpenAI client
+            # Every other chat model answers through an OpenAI-compatible client
             gevent.spawn(
                 stoppable_reply,
                 chat_gpt,
@@ -2074,181 +2054,6 @@ def handle_get_activity_status(data):
         emit("activity_status", {"active": False}, room=request.sid)
         return
     activity.handle_get_activity_status(data)
-
-
-def group_consecutive_roles(messages):
-    if not messages:
-        return []
-
-    grouped_messages = []
-    current_role = messages[0]["role"]
-    current_content = []
-
-    for message in messages:
-        if message["role"] == current_role:
-            current_content.append(message["content"])
-        else:
-            grouped_messages.append(
-                {"role": current_role, "content": " ".join(current_content)}
-            )
-            current_role = message["role"]
-            current_content = [message["content"]]
-
-    # Append the last grouped message
-    grouped_messages.append(
-        {"role": current_role, "content": " ".join(current_content)}
-    )
-
-    return grouped_messages
-
-
-def chat_claude(
-    # username, room_name, model_name="anthropic.claude-3-5-sonnet-20240620-v1:0"
-    username,
-    room_name,
-    model_name="anthropic.claude-3-sonnet-20240229-v1:0",
-):
-    with app.app_context():
-        room = get_room(room_name)
-        # claude has a 200,000 token context window for prompts.
-        all_messages = Message.visible(room.id).order_by(Message.id.desc()).all()
-
-    chat_history = []
-    for msg in reversed(all_messages):
-        if msg.is_base64_image():
-            continue
-        role = "assistant" if msg.username in SYSTEM_USERS else "user"
-        chat_history.append({"role": role, "content": msg.content})
-
-    # only claude cares about this constrant.
-    chat_history = group_consecutive_roles(chat_history)
-
-    # Initialize the Bedrock client using boto3 and profile name.
-    if app.config.get("PROFILE_NAME"):
-        session = boto3.Session(profile_name=app.config["PROFILE_NAME"])
-        client = session.client("bedrock-runtime", region_name="us-west-2")
-    else:
-        client = boto3.client("bedrock-runtime", region_name="us-west-2")
-
-    # Define the request parameters
-    params = {
-        "modelId": model_name,
-        "contentType": "application/json",
-        "accept": "*/*",
-        "body": json.dumps(
-            {
-                "messages": chat_history,
-                "max_tokens": 4096,
-                "temperature": 0,
-                "top_k": 250,
-                "top_p": 0.999,
-                "stop_sequences": ["\n\nHuman:"],
-                "anthropic_version": "bedrock-2023-05-31",
-            }
-        ).encode(),
-    }
-
-    # Process the event stream
-    buffer = ""
-
-    # save empty message, we need the ID when we chunk the response.
-    with app.app_context():
-        new_message = Message(username=model_name, content=buffer, room_id=room.id)
-        db.session.add(new_message)
-        db.session.commit()
-        msg_id = new_message.id
-
-    try:
-        # Invoke the model with response stream
-        response = client.invoke_model_with_response_stream(**params)["body"]
-
-        first_chunk = True
-        for event in response:
-            content = ""
-
-            # Check if there has been a cancellation request, break if there is.
-            if cancellation_requests.get(msg_id) or room_name in stop_requests:
-                cancellation_requests.pop(msg_id, None)
-                # Hang up, so the model server stops generating too.
-                getattr(response, "close", lambda: None)()
-                break
-
-            if "chunk" in event:
-                chunk_data = json.loads(event["chunk"]["bytes"].decode())
-
-                if chunk_data["type"] == "content_block_delta":
-                    if chunk_data["delta"]["type"] == "text_delta":
-                        content = chunk_data["delta"]["text"]
-
-            if content:
-                buffer += content  # Accumulate content
-
-                if first_chunk:
-                    socketio.emit(
-                        "message_chunk",
-                        {
-                            "id": msg_id,
-                            "content": content,
-                            "username": username,
-                            "model_name": model_name,
-                            "is_first_chunk": True,
-                        },
-                        room=room_name,
-                    )
-                    first_chunk = False
-                else:
-                    socketio.emit(
-                        "message_chunk",
-                        {"id": msg_id, "content": content},
-                        room=room_name,
-                    )
-                socketio.sleep(0)  # Force immediate handling
-
-    except Exception as e:
-        with app.app_context():
-            message_content = f"AWS Bedrock Error: {e}"
-            new_message = (
-                db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-            )
-            if new_message:
-                new_message.content = message_content
-                new_message.count_tokens(fresh=True)
-                db.session.add(new_message)
-                db.session.commit()
-        socketio.emit(
-            "chat_message",
-            {
-                "id": msg_id,
-                "username": model_name,
-                "content": message_content,
-            },
-            room=room_name,
-        )
-        socketio.emit("delete_processing_message", msg_id, room=room_name)
-        # exit early to avoid clobbering the error message.
-        return None
-
-    # Save the entire completion to the database
-    with app.app_context():
-        new_message = (
-            db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-        )
-        if new_message:
-            new_message.content = buffer
-            new_message.count_tokens(fresh=True)
-            db.session.add(new_message)
-            db.session.commit()
-
-    socketio.emit(
-        "message_chunk",
-        {"id": msg_id, "content": "", "is_complete": True, "final": buffer},
-        room=room_name,
-    )
-
-    socketio.emit("delete_processing_message", msg_id, room=room_name)
-    # Beside us, never inside: titling asks a model, & while we wait on it
-    # this reply still counts as streaming (Stop stayed 1-2 s too long).
-    gevent.spawn(title_untitled_room, room_name)
 
 
 def _env_float(name, default):
@@ -3448,7 +3253,9 @@ class ReplyStream:
                 room = db.session.get(Room, self.room_id)
                 if room is not None:
                     emit_room_stats(room)
-        if followups_enabled() and buffer.strip() and not self.notice:
+        # A reply with no OpenAI client (chat_claude) has nobody to ask.
+        asks = self.openai_client is not None
+        if asks and followups_enabled() and buffer.strip() and not self.notice:
             if room_name not in stop_requests:
                 gevent.spawn(
                     suggest_followups,
@@ -3508,6 +3315,47 @@ def chat_gpt(
         # it this reply still counts as streaming (Stop stayed 1-2 s too long
         # on a room's first reply).
         gevent.spawn(title_untitled_room, room_name)
+
+
+def chat_claude(
+    username, room_name, model_name="anthropic.claude-3-sonnet-20240229-v1:0"
+):
+    """Stream an AWS Bedrock Claude model's reply into the room
+    (bedrock.py asks & yields its words). chat_gpt's own history, Message
+    & ReplyStream carry it, so the room hears & keeps it as any reply;
+    it calls no tools, thinks nowhere we see & is never steered or
+    resumed (it is not in live_replies)."""
+    room_id, chat_history = reply_history(room_name, model_name)
+    reply = ReplyStream(
+        username,
+        room_name,
+        model_name,
+        room_id,
+        start_reply_message(model_name, room_id),
+        None,
+        False,
+        None,
+        chat_history,
+    )
+
+    def stopped():
+        if cancellation_requests.get(reply.msg_id) or room_name in stop_requests:
+            cancellation_requests.pop(reply.msg_id, None)
+            return True
+        return False
+
+    try:
+        for words in bedrock.stream(
+            model_name, chat_history, app.config.get("PROFILE_NAME"), stopped
+        ):
+            reply.emit_content(words)
+    except Exception as e:
+        reply.fail(f"AWS Bedrock: {e}")
+        # exit early to avoid clobbering the error message.
+        return None
+    reply.finish()
+    # Beside us, never inside: see chat_gpt.
+    gevent.spawn(title_untitled_room, room_name)
 
 
 def stream_reply(reply, resume):
@@ -3705,133 +3553,6 @@ def suggest_followups(openai_client, model_name, room_name, msg_id, question, an
             {"message_id": msg_id, "suggestions": suggestions},
             room=room_name,
         )
-
-
-def chat_llama(username, room_name, model_name="mistral-7b-instruct-v0.2.Q3_K_L.gguf"):
-    import llama_cpp
-
-    # https://llama-cpp-python.readthedocs.io/en/latest/api-reference/
-    model = llama_cpp.Llama(model_name, n_gpu_layers=-1, n_ctx=32000)
-
-    limit = 15
-    with app.app_context():
-        room = get_room(room_name)
-        last_messages = (
-            Message.visible(room.id).order_by(Message.id.desc()).limit(limit).all()
-        )
-
-        chat_history = [
-            {
-                "role": "system" if msg.username in SYSTEM_USERS else "user",
-                "content": f"{msg.username}: {msg.content}",
-            }
-            for msg in reversed(last_messages)
-            if not msg.is_base64_image()
-        ]
-
-    buffer = ""  # Content buffer for accumulating the chunks
-
-    # save empty message, we need the ID when we chunk the response.
-    with app.app_context():
-        new_message = Message(username=model_name, content=buffer, room_id=room.id)
-        db.session.add(new_message)
-        db.session.commit()
-        msg_id = new_message.id
-
-    first_chunk = True
-
-    try:
-        chunks = model.create_chat_completion(
-            messages=chat_history,
-            stream=True,
-        )
-    except Exception as e:
-        with app.app_context():
-            message_content = f"LLama Error: {e}"
-            new_message = (
-                db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-            )
-            if new_message:
-                new_message.content = message_content
-                new_message.count_tokens(fresh=True)
-                db.session.add(new_message)
-                db.session.commit()
-        socketio.emit(
-            "chat_message",
-            {
-                "id": msg_id,
-                "username": model_name,
-                "content": message_content,
-            },
-            room=room_name,
-        )
-        socketio.emit("delete_processing_message", msg_id, room=room_name)
-        # exit early to avoid clobbering the error message.
-        return None
-
-    for chunk in chunks:
-        # Check if there has been a cancellation request, break if there is.
-        if cancellation_requests.get(msg_id) or room_name in stop_requests:
-            cancellation_requests.pop(msg_id, None)
-            # Hang up, so the model server stops generating too.
-            getattr(chunks, "close", lambda: None)()
-            break
-
-        delta = chunk["choices"][0]["delta"]
-        # See OpenAI-client path above for rationale on reasoning_content.
-        reasoning = delta.get("reasoning_content") or delta.get("reasoning")
-        if reasoning:
-            socketio.emit(
-                "message_chunk",
-                {"id": msg_id, "reasoning_content": reasoning},
-                room=room_name,
-            )
-            socketio.sleep(0)
-
-        content = delta.get("content")
-
-        if content:
-            buffer += content  # Accumulate content
-
-            if first_chunk:
-                socketio.emit(
-                    "message_chunk",
-                    {
-                        "id": msg_id,
-                        "content": content,
-                        "username": username,
-                        "model_name": model_name,
-                        "is_first_chunk": True,
-                    },
-                    room=room_name,
-                )
-                first_chunk = False
-            else:
-                socketio.emit(
-                    "message_chunk",
-                    {"id": msg_id, "content": content},
-                    room=room_name,
-                )
-            socketio.sleep(0)  # Force immediate handling
-
-    # Save the entire completion to the database
-    with app.app_context():
-        new_message = (
-            db.session.query(Message).filter(Message.id == msg_id).one_or_none()
-        )
-        if new_message:
-            new_message.content = buffer
-            new_message.count_tokens(fresh=True)
-            db.session.add(new_message)
-            db.session.commit()
-
-    socketio.emit(
-        "message_chunk",
-        {"id": msg_id, "content": "", "is_complete": True, "final": buffer},
-        room=room_name,
-    )
-
-    socketio.emit("delete_processing_message", msg_id, room=room_name)
 
 
 # Characters of each message a title reads: enough for the gist.
@@ -4203,224 +3924,6 @@ def backfill_blobs():
     return moved, changed
 
 
-def find_most_recent_code_block(room_name):
-    with app.app_context():
-        # Get the room object from the database
-        room = get_room(room_name)
-        if not room:
-            return None  # Room not found
-
-        # Get the most recent message for the room
-        latest_message = (
-            Message.visible(room.id).order_by(Message.id.desc()).offset(1).first()
-        )
-
-    if latest_message:
-        # Split the message content into lines
-        lines = latest_message.content.split("\n")
-        # Initialize variables to store the code block
-        code_block_lines = []
-        code_block_started = False
-        for line in lines:
-            # Check if the line starts with a code block fence
-            if line.startswith("```"):
-                # If we've already started capturing, this fence ends the block
-                if code_block_started:
-                    break
-                else:
-                    # Start capturing from the next line
-                    code_block_started = True
-                    continue
-            elif code_block_started:
-                # If we're inside a code block, capture the line
-                code_block_lines.append(line)
-
-        # Join the captured lines to form the code block content
-        code_block_content = "\n".join(code_block_lines)
-        return code_block_content
-
-    # No code block found in the latest message
-    return None
-
-
-def save_code_block_to_s3(room_name, s3_key_path, username):
-    # Initialize the S3 client
-    s3_client = get_s3_client()
-
-    # Assuming the bucket name is set in an environment variable
-    bucket_name = os.environ.get("S3_BUCKET_NAME")
-
-    # Find the most recent code block
-    code_block_content = find_most_recent_code_block(room_name)
-
-    # Initialize a variable to hold the message content
-    message_content = ""
-
-    if code_block_content:
-        try:
-            # Save the code block content to S3
-            s3_client.put_object(
-                Bucket=bucket_name, Key=s3_key_path, Body=code_block_content
-            )
-            # Set the success message content
-            message_content = f"Code block saved to S3 at {s3_key_path}"
-        except Exception as e:
-            # Set the error message content if S3 save fails
-            message_content = f"Error saving file to S3: {e}"
-    else:
-        # Set the error message content if no code block is found
-        message_content = "No code block found to save to S3."
-
-    # Save the message to the database and emit to the frontend
-    with app.app_context():
-        # Get the room object from the database
-        room = get_room(room_name)
-        if room:
-            # Create a new message object
-            new_message = Message(
-                username=username, content=message_content, room_id=room.id
-            )
-            # Add the new message to the session and commit
-            db.session.add(new_message)
-            db.session.commit()
-
-            # Emit the message to the frontend with the new message ID
-            socketio.emit(
-                "chat_message",
-                {
-                    "id": new_message.id,
-                    "username": username,
-                    "content": message_content,
-                },
-                room=room_name,
-            )
-
-
-def load_s3_file(room_name, s3_file_path, username):
-    # Initialize the S3 client
-    s3_client = get_s3_client()
-
-    # Assuming the bucket name is set in an environment variable
-    bucket_name = os.environ.get("S3_BUCKET_NAME")
-
-    # Initialize message content variable
-    message_content = ""
-
-    try:
-        # Retrieve the file content from S3
-        response = s3_client.get_object(Bucket=bucket_name, Key=s3_file_path)
-        file_content = response["Body"].read().decode("utf-8")
-
-        # Format the file content as a code block
-        message_content = f"```\n{file_content}\n```"
-
-    except Exception as e:
-        # Handle errors (e.g., file not found, access denied)
-        message_content = f"Error loading file from S3: {e}"
-
-    # Save the message to the database and emit to the chatroom
-    with app.app_context():
-        room = get_room(room_name)
-        new_message = Message(
-            username=username,
-            content=message_content,
-            room_id=room.id,
-        )
-        db.session.add(new_message)
-        db.session.commit()
-
-        # Emit the message to the chatroom with the message ID
-        socketio.emit(
-            "chat_message",
-            {
-                "id": new_message.id,
-                "username": username,
-                "content": message_content,
-            },
-            room=room_name,
-        )
-
-
-def list_s3_files(room_name, s3_file_path_pattern, username):
-    import fnmatch
-    from datetime import timezone
-
-    # Initialize the S3 client
-    s3_client = get_s3_client()
-
-    # Assuming the bucket name is set in an environment variable
-    bucket_name = os.environ.get("S3_BUCKET_NAME")
-
-    # Initialize the list to hold all file information
-    files = []
-
-    # Initialize the pagination token
-    continuation_token = None
-
-    # Loop to handle pagination
-    while True:
-        # List objects in the S3 bucket with pagination support
-        list_kwargs = {
-            "Bucket": bucket_name,
-        }
-        if continuation_token:
-            list_kwargs["ContinuationToken"] = continuation_token
-
-        response = s3_client.list_objects_v2(**list_kwargs)
-
-        # Process the current page of results
-        for obj in response.get("Contents", []):
-            key = obj["Key"]
-            if s3_file_path_pattern == "*" or fnmatch.fnmatch(
-                key, s3_file_path_pattern
-            ):
-                size = obj["Size"]
-                last_modified = obj["LastModified"]
-                # Convert last_modified to a timezone-aware datetime object
-                last_modified = (
-                    last_modified.replace(tzinfo=timezone.utc)
-                    .astimezone(tz=None)
-                    .strftime("%Y-%m-%d %H:%M:%S %Z")
-                )
-                files.append(
-                    f"{key} (Size: {size} bytes, Last Modified: {last_modified})"
-                )
-
-        # Check if there are more pages
-        if response.get("IsTruncated"):
-            continuation_token = response.get("NextContinuationToken")
-        else:
-            break  # No more pages
-
-    # Format the message content with the list of files and metadata
-    message_content = (
-        "```\n" + "\n".join(files) + "\n```" if files else "No files found."
-    )
-
-    # Save the message to the database and emit to the chatroom
-    with app.app_context():
-        room = Room.query.filter_by(name=room_name).first()
-        if room:
-            new_message = Message(
-                username=username,
-                content=message_content,
-                room_id=room.id,
-            )
-            db.session.add(new_message)
-            db.session.commit()
-
-            # Emit the message to the chatroom with the message ID
-            socketio.emit(
-                "chat_message",
-                {
-                    "id": new_message.id,
-                    "username": username,
-                    "content": message_content,
-                },
-                room=room_name,
-            )
-
-
 def cancel_generation(room_name):
     with app.app_context():
         room = get_room(room_name)
@@ -4450,11 +3953,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run the SocketIO application with optional configurations."
     )
-    parser.add_argument("--profile", help="AWS profile name", default=None)
+    parser.add_argument(
+        "--profile",
+        help="AWS profile name, for Bedrock's Claude models (bedrock.py)",
+        default=None,
+    )
+    # Still accepted, so old start commands keep working.
     parser.add_argument(
         "--local-activities",
         action="store_true",
-        help="Use local activity files instead of S3",
+        help="No longer needed: activities always load from research/; "
+        "accepted & ignored",
     )
     parser.add_argument(
         "--port",
@@ -4579,9 +4088,7 @@ if __name__ == "__main__":
         print(line)
     # Replies a restart cut off while a delegate ran pick up where they were.
     gevent.spawn_later(2, resume_interrupted_replies)
-    # Set profile_name and other configurations as global attributes of the app object
     app.config["PROFILE_NAME"] = args.profile
-    app.config["LOCAL_ACTIVITIES"] = args.local_activities
 
     # Run the SocketIO server with the specified port
     # Disable reloader to avoid gevent fork compatibility issues

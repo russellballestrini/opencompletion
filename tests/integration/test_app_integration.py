@@ -15,29 +15,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
-class TestAppUtilityFunctionsIntegration(unittest.TestCase):
-    """Integration tests for app.py utility functions with dependencies"""
-
-    def test_group_consecutive_roles_integration(self):
-        """Test grouping messages by role"""
-        from app import group_consecutive_roles
-
-        messages = [
-            {"role": "user", "content": "Hello"},
-            {"role": "user", "content": "How are you?"},
-            {"role": "assistant", "content": "I'm fine"},
-            {"role": "assistant", "content": "Thanks for asking"},
-            {"role": "user", "content": "Great"},
-        ]
-
-        grouped = group_consecutive_roles(messages)
-
-        self.assertEqual(len(grouped), 3)
-        self.assertEqual(grouped[0]["role"], "user")
-        self.assertIn("Hello", grouped[0]["content"])
-        self.assertIn("How are you?", grouped[0]["content"])
-
-
 class TestDatabaseModelsIntegration(unittest.TestCase):
     """Integration tests for database models with real Flask app"""
 

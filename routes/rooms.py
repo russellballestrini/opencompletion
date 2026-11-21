@@ -100,15 +100,11 @@ def activity_cards():
     derived from its YAML; no script is run, no model asked). One source
     for `/api/activities`, chat's chooser & our Activities page.
 
-    With --local-activities that is research/*.yaml. From S3 we have no
-    lister yet (the bucket is asked only for a file someone names with
-    `/activity <key>`), so the list is empty there & our page says so."""
-    if current_app.config.get("LOCAL_ACTIVITIES"):
-        return [
-            activity_gallery.local_card(path)
-            for path in activity_gallery.local_paths("research")
-        ]
-    return []
+    That is research/*.yaml, the only place an activity loads from."""
+    return [
+        activity_gallery.local_card(path)
+        for path in activity_gallery.local_paths("research")
+    ]
 
 
 @bp.route("/api/activities", methods=["GET"])
