@@ -452,6 +452,7 @@ def fork_from_version(message_id, version):
     if (
         not source_room
         or message.superseded_by_id is not None
+        or message.deleted_at is not None
         or room_access_denied(source_room, auth.get_current_user())
     ):
         return jsonify({"error": "Message not found"}), 404

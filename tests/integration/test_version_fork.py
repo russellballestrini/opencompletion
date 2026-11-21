@@ -385,3 +385,42 @@ def test_its_chain_says_which_version_it_came_from(test_app, app_module):
     assert chain.verify(chain.chain_of(new_room))["ok"]
     # Nothing was chained into the room it came from.
     assert chain.events(chain.chain_of(room))[-1].hash == head
+
+
+def delete(message):
+    """Mark a row deleted, as our delete_message handler does."""
+    import time
+
+    from models import db
+
+    message.deleted_at = int(time.time())
+    message.deleted_by = "mallory"
+    db.session.commit()
+
+
+def test_a_deleted_message_is_never_copied(test_app, app_module):
+    room = make_room("lobby")
+    say(room, "ada", "hello")
+    secret = say(room, "ada", "my password is hunter2")
+    ask = say(room, "ada", "list three muppets")
+    said_after = say(room, "qwen", "Elmo, Grover, Oscar")
+    # Deleted before the edit (still showing then) & inside the old branch.
+    delete(secret)
+    revision = resend(test_app, app_module, room, ask, "list two muppets")
+    delete(said_after)
+
+    response = http_for(test_app).post(path(revision, 1), json={})
+    assert continued(response) == ["hello", "list three muppets"]
+
+
+def test_a_deleted_revision_has_no_version_to_continue_from(test_app, app_module):
+    from models import Room
+
+    room = make_room("lobby")
+    ask = say(room, "ada", "list three muppets")
+    revision = resend(test_app, app_module, room, ask, "list two muppets")
+    delete(revision)
+    rooms = Room.query.count()
+
+    assert http_for(test_app).post(path(revision, 1), json={}).status_code == 404
+    assert Room.query.count() == rooms
