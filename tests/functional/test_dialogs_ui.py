@@ -130,7 +130,12 @@ window.addEventListener('load', async () => {
 
 @pytest.mark.parametrize("width", [320, 1280])
 def test_asks_and_toasts_live_in_our_page(page, tmp_path, width):
-    out = run_probe(page, PROBE, tmp_path, width)
+    # Reduced motion, as our other dialog probes ask for: with our page's
+    # animations running, 1 run in 8 was dumped before its verdict was
+    # written (every CI run failed on it, 2026-11-21).
+    out = run_probe(
+        page, PROBE, tmp_path, width, extra_flags=["--force-prefers-reduced-motion"]
+    )
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
