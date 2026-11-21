@@ -6,8 +6,9 @@ dice, to find what reading the YAML (activity_yaml_validator.py) cannot.
 
 Each walk starts an activity & answers every question: the classifier's
 place is taken by a bucket picked at random, the learner's by words one
-might type (numbers, tiles, yes/no, a word from the question). Step scripts
-really run; feedback & translation are stubs. Reported per file:
+might type (numbers, tiles, yes/no, a word from the question, a value the
+step's own scripts & transitions read from metadata or compare to). Step
+scripts really run; feedback & translation are stubs. Reported per file:
 
 - a script or the engine raising (step, bucket, answer, the error);
 - text shown to a learner with a template left unrendered (`{{`, `{%`) or
@@ -68,6 +69,16 @@ ANSWERS = [
 RAW_NAME = re.compile(r"(?<![\w.{\[])metadata\.[a-z_]\w*(?!\s*\()")
 TEMPLATE = re.compile(r"\{\{.*?\}\}|\{%.*?%\}", re.S)
 
+# What a step's scripts & transitions read from metadata, & the literals
+# its scripts compare something to (`== "open"`, `in ("red", "blue")`).
+SCRIPT_KEYS = ("pre_script", "processing_script")
+METADATA_NAME = re.compile(r"""metadata(?:\.get\(\s*["']|\[\s*["']|\.)([A-Za-z_]\w*)""")
+NEVER_AN_ANSWER = {"get", "user_response", "language"}
+LITERAL = re.compile(r"""(["'])([^"'\n]{1,40})\1""")
+COMPARED = re.compile(
+    r"""(?:[=!]=|\bin)\s*[(\[{]?\s*((?:["'][^"'\n]{1,40}["']\s*,?\s*)+)"""
+)
+
 
 class WalkIO(activity_engine.ActivityIO):
     def __init__(self, rng, findings):
@@ -112,14 +123,66 @@ class WalkIO(activity_engine.ActivityIO):
         state.completed = True
 
 
-def an_answer(rng, question, step=None):
+def condition_values(node):
+    """Every literal a transition's metadata_conditions compare to."""
+    if isinstance(node, list):
+        return [v for item in node for v in condition_values(item)]
+    if not isinstance(node, dict):
+        return []
+    found = []
+    for key, value in node.items():
+        if key == "metadata_conditions" and isinstance(value, dict):
+            found += [
+                str(v)
+                for v in value.values()
+                if isinstance(v, (str, int, float)) and not isinstance(v, bool)
+            ]
+        else:
+            found += condition_values(value)
+    return found
+
+
+def offered_answers(step, metadata):
+    """Answers a step's own data offers: the value now held by each metadata
+    name its scripts & transitions read (a vault's code, a secret word),
+    & each literal they compare something to. Dice alone never guess a
+    script's secret, so every step behind one looked unreachable."""
+    scripts = "\n".join(str(step.get(k) or "") for k in SCRIPT_KEYS)
+    reads = scripts + "\n" + yaml.safe_dump(step.get("transitions") or {})
+    offered = []
+    for name in dict.fromkeys(METADATA_NAME.findall(reads)):
+        value = (metadata or {}).get(name)
+        if name in NEVER_AN_ANSWER or isinstance(value, bool):
+            continue
+        if isinstance(value, (list, tuple)) and value:
+            if all(isinstance(v, (str, int, float)) for v in value):
+                offered.append(" ".join(str(v) for v in value))
+        elif isinstance(value, (str, int, float)) and str(value).strip():
+            offered.append(str(value))
+    for literals in COMPARED.findall(scripts):
+        offered.extend(m[1] for m in LITERAL.findall(literals))
+    offered.extend(condition_values(step.get("transitions")))
+    return list(dict.fromkeys(a for a in offered if len(a) <= 80))
+
+
+def an_answer(rng, question, step=None, metadata=None, tried=None):
     """Something a learner might type: on a multiple-choice step, a few of
-    its ids most times; else a stock answer, or a word or number lifted
+    its ids most times; an answer the step's own data offers
+    (offered_answers) some times, one not yet in `tried` (what this step
+    was already offered, any walk) before the rest, so each walk's own
+    secret gets its turn; else a stock answer, or a word or number lifted
     from the question itself."""
     if step and activity_grading.is_multiple_choice(step) and rng.random() < 0.8:
         ids = [str(c.get("id")) for c in step.get("choices") or []]
         if ids:
             return ", ".join(rng.sample(ids, rng.randint(1, len(ids))))
+    offered = offered_answers(step, metadata) if step else []
+    fresh = [a for a in offered if tried is not None and a not in tried]
+    if fresh and rng.random() < 0.5:
+        tried.add(fresh[0])
+        return fresh[0]
+    if offered and rng.random() < 0.3:
+        return rng.choice(offered)
     words = re.findall(r"[A-Za-z0-9']+", str(question))
     if words and rng.random() < 0.4:
         return rng.choice(words)
@@ -163,7 +226,10 @@ def walk(content, rng, findings, turns):
             return True
         here = (state.section_id, state.step_id)
         findings["reached"].add(here)
-        said = an_answer(rng, step.get("question", ""), step)
+        tried = findings.setdefault("tried", {}).setdefault(here, set())
+        said = an_answer(
+            rng, step.get("question", ""), step, state.dict_metadata, tried
+        )
         walker.where = f"{here[0]}:{here[1]}"
         walker.bucket = None
         try:

@@ -65,3 +65,89 @@ def yaml_copy(content):
     import copy
 
     return copy.deepcopy(content)
+
+
+# A door only its own code opens: dice never guess it, so before
+# offered_answers no walk left "door" & "inside" looked unreachable.
+LOCKED = {
+    "default_max_attempts_per_step": 1000,
+    "sections": [
+        {
+            "section_id": "s",
+            "title": "S",
+            "steps": [
+                {
+                    "step_id": "start",
+                    "title": "Start",
+                    "question": "Ready?",
+                    "buckets": ["go"],
+                    "transitions": {
+                        "go": {
+                            "metadata_add": {"secret": "4917"},
+                            "next_section_and_step": "s:door",
+                        }
+                    },
+                },
+                {
+                    "step_id": "door",
+                    "title": "Door",
+                    "question": "What is our code?",
+                    "buckets": ["guess"],
+                    "processing_script": (
+                        "said = str(metadata.get('user_response', '')).strip()\n"
+                        "script_result = {}\n"
+                        "if said == metadata['secret']:\n"
+                        "    script_result['next_section_and_step'] = 's:inside'\n"
+                    ),
+                    "transitions": {
+                        "guess": {
+                            "run_processing_script": True,
+                            "next_section_and_step": "s:door",
+                        }
+                    },
+                },
+                {"step_id": "inside", "title": "Inside", "content_blocks": ["In"]},
+            ],
+        }
+    ],
+}
+
+
+def test_a_step_wanting_a_value_from_metadata_is_passed(tmp_path, monkeypatch):
+    found = run(tmp_path, LOCKED)
+    assert not found["raised"]
+    assert not found["unreached"]
+    assert found["ended"] == 6
+    # Our dice alone never open it: the blind spot this closes.
+    monkeypatch.setattr(activity_walk, "offered_answers", lambda *a: [])
+    assert ("s", "inside") in run(tmp_path, LOCKED)["unreached"]
+
+
+def test_offered_answers_are_what_a_steps_own_data_holds():
+    step = {
+        "processing_script": (
+            "if metadata.get('user_response') == 'open sesame': pass\n"
+            "if word in ('red', \"blue\"): pass\n"
+            "x = metadata['secret'] + [metadata.get('pin')]"
+        ),
+        "transitions": {
+            "a": {"metadata_conditions": {"colour": "green"}},
+            "b": {"content_blocks": ["Was it {{metadata.shown}}?"]},
+        },
+    }
+    metadata = {
+        "secret": [4, 9, 1, 7],
+        "pin": 42,
+        "shown": "teal",
+        "user_response": "never me",
+        "flag": True,
+        "unread": "never me either",
+    }
+    offered = activity_walk.offered_answers(step, metadata)
+    assert sorted(offered) == sorted(
+        ["4 9 1 7", "42", "teal", "open sesame", "red", "blue", "green"]
+    )
+    assert activity_walk.offered_answers({"question": "Pick?"}, metadata) == []
+    assert sorted(activity_walk.offered_answers(step, None)) == sorted(
+        ["open sesame", "red", "blue", "green"]
+    )
