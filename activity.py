@@ -1,7 +1,9 @@
 import json
 import os
 import yaml
+import functools
 import threading
+import traceback
 import random  # noqa: F401  tests replace activity.random.random / .choice
 
 from flask import request
@@ -33,6 +35,28 @@ from activity_utils import (
     fold_first_token_logprobs,
     first_token_top_logprobs,
 )
+
+# What a room reads when a step or a model fails; why goes to our log.
+STEP_FAILED = "_Something went wrong with this step. Please send your answer again._"
+MODEL_FAILED = "Error: our model did not answer."
+
+# One activity turn a room at a time (a start, an answer, a cancel): two
+# answers arriving together each read the same step & both advanced it,
+# & two starts each made a state. In memory, one lock a room.
+_turns = {}
+_turns_guard = threading.Lock()
+
+
+def one_turn_a_room(turn):
+    @functools.wraps(turn)
+    def in_turn(room_name, *args, **kwargs):
+        with _turns_guard:
+            lock = _turns.setdefault(room_name, threading.RLock())
+        with lock:
+            return turn(room_name, *args, **kwargs)
+
+    return in_turn
+
 
 # Our activity engine: one learner's answer & the walk to the next question,
 # shared with research/guarded_ai.py; RoomIO below runs it in a chat room.
@@ -139,12 +163,26 @@ def complete_activity(activity_state, room_name, username, feedback_model="MODEL
     socketio.emit("activity_status", {"active": False}, room=room_name)
 
 
+@one_turn_a_room
 def start_activity(room_name, s3_file_path, username):
     activity_content = get_activity_content(s3_file_path)
 
     with app.app_context():
         # Save the initial state to the database
         room = get_room(room_name)
+        if ActivityState.query.filter_by(room_id=room.id).first():
+            # A second state beside the first left the room with two games.
+            socketio.emit(
+                "chat_message",
+                {
+                    "id": notice_id(),
+                    "username": "System",
+                    "content": "_An activity is already running here. "
+                    "`/activity cancel` ends it._",
+                },
+                room=room_name,
+            )
+            return
         initial_section = activity_content["sections"][0]
         initial_step = initial_section["steps"][0]
 
@@ -186,6 +224,7 @@ def start_activity(room_name, s3_file_path, username):
         )
 
 
+@one_turn_a_room
 def cancel_activity(room_name, username):
     with app.app_context():
         room = get_room(room_name)
@@ -277,6 +316,7 @@ def execute_processing_script(metadata, script):
     return script_env["script_result"]
 
 
+@one_turn_a_room
 def handle_activity_response(room_name, user_response, username, model="MODEL_0"):
     with app.app_context():
         room = get_room(room_name)
@@ -299,16 +339,16 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
                 default_model="MODEL_0",
             )
 
-        except Exception as e:
-            import traceback
-
-            msg = traceback.format_exc()
+        except Exception:
+            # Our log gets what broke; a room never reads a traceback or a
+            # vendor's error text.
+            traceback.print_exc()
             socketio.emit(
                 "chat_message",
                 {
                     "id": notice_id(),
                     "username": "System",
-                    "content": f"Error processing activity response: {e}\n\n{msg}",
+                    "content": STEP_FAILED,
                 },
                 room=room_name,
             )
@@ -461,18 +501,17 @@ def display_activity_info(room_name, username, model="MODEL_0"):
                 room=room_name,
             )
 
-        except Exception as e:
+        except Exception:
+            traceback.print_exc()
             socketio.emit(
                 "chat_message",
                 {
                     "id": notice_id(),
                     "username": "System",
-                    "content": f"Error displaying activity info: {e}",
+                    "content": "_Could not show this activity's info._",
                 },
                 room=room_name,
             )
-            # Debugging: Log exception
-            print(f"Exception: {e}")
 
 
 def generate_grading(chat_history, rubric, model="MODEL_0"):
@@ -503,8 +542,9 @@ def generate_grading(chat_history, rubric, model="MODEL_0"):
         )
         grading = strip_reasoning(completion.choices[0].message.content.strip())
         return grading
-    except Exception as e:
-        return f"Error generating grading: {e}"
+    except Exception:
+        traceback.print_exc()
+        return "Error generating grading."
 
 
 get_next_step = activity_engine.get_next_step
@@ -568,8 +608,9 @@ def categorize_response(question, response, buckets, tokens_for_ai, model="MODEL
             )
         )
         return category
-    except Exception as e:
-        return f"Error: {e}"
+    except Exception:
+        traceback.print_exc()
+        return MODEL_FAILED
 
 
 def _categorize_messages(question, response, buckets, tokens_for_ai):
@@ -738,8 +779,9 @@ def generate_ai_feedback(
         )
         feedback = strip_reasoning(completion.choices[0].message.content.strip())
         return feedback
-    except Exception as e:
-        return f"Error: {e}"
+    except Exception:
+        traceback.print_exc()
+        return MODEL_FAILED
 
 
 def provide_feedback(
@@ -943,8 +985,9 @@ def translate_text(text, target_language, model="MODEL_0"):
         )
         translation = strip_reasoning(completion.choices[0].message.content.strip())
         return translation
-    except Exception as e:
-        return f"Error: {e}"
+    except Exception:
+        traceback.print_exc()
+        return MODEL_FAILED
 
 
 def init_activity_module(

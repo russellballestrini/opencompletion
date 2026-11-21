@@ -278,8 +278,9 @@ def test_unknown_section_emits_error(engine):
     engine.load(TWO_QUESTIONS, section="nowhere")
     engine.respond("4", "correct")
     (msg,) = engine.said()
-    assert msg.startswith("Error processing activity response: ")
-    assert "StopIteration" in msg
+    # Our log gets the traceback; the room never reads one.
+    assert msg == engine.activity.STEP_FAILED
+    assert "StopIteration" not in msg and "Traceback" not in msg
     assert engine.model.calls == []
 
 
@@ -1111,7 +1112,7 @@ def test_invalid_navigation_target_errors(engine):
             next_section_and_step: "s1:nowhere"
 """))
     engine.respond("x", "correct")
-    assert engine.said()[-1].startswith("Error processing activity response: ")
+    assert engine.said()[-1] == engine.activity.STEP_FAILED
     assert engine.state().step_id == "q1"
 
 
@@ -1469,3 +1470,51 @@ def test_empty_transition_is_a_transition(engine):
     engine.respond("x", "correct")
     assert engine.said() == ["Category: correct", "Next?"]
     assert engine.state().step_id == "q2"
+
+
+def test_a_second_start_never_stacks_a_second_state(engine):
+    from models import ActivityState
+
+    engine.load(TWO_QUESTIONS)
+    engine.activity.start_activity(engine.room.name, "research/other.yaml", "alice")
+    assert ActivityState.query.filter_by(room_id=engine.room.id).count() == 1
+    assert engine.state().s3_file_path == "research/inline.yaml"
+    assert "already running" in engine.said()[-1]
+
+
+def test_one_turn_a_room_at_a_time():
+    """A room's turns queue; another room's never wait on them."""
+    import threading
+
+    import activity
+
+    order = []
+    inside = threading.Event()
+    release = threading.Event()
+
+    @activity.one_turn_a_room
+    def turn(room_name, label):
+        order.append(("in", label))
+        if label == "first":
+            inside.set()
+            release.wait(5)
+        order.append(("out", label))
+
+    first = threading.Thread(target=turn, args=("lobby", "first"))
+    first.start()
+    assert inside.wait(5)
+    second = threading.Thread(target=turn, args=("lobby", "second"))
+    second.start()
+    turn("elsewhere", "other")  # not held up by lobby's turn
+    assert ("in", "second") not in order
+    release.set()
+    first.join(5)
+    second.join(5)
+    assert order == [
+        ("in", "first"),
+        ("in", "other"),
+        ("out", "other"),
+        ("out", "first"),
+        ("in", "second"),
+        ("out", "second"),
+    ]

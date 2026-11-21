@@ -131,3 +131,9 @@ def too_many(throttle, what, key=None, whose="from your address"):
     response = jsonify({"error": over[0]})
     response.headers["Retry-After"] = str(over[1])
     return response, 429
+
+
+# Code runs on unsandbox, each spending our account: POST /api/code/execute
+# & the model calls beside it (routes/code.py), & a model's own run_code
+# calls (tools/), counted against the address that asked for its reply.
+CODE_THROTTLE = Throttle("OPENCOMPLETION_CODE_LIMIT", default=(30, 600))
