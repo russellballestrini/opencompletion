@@ -364,6 +364,9 @@ def test_audio_is_limited_per_address(client, two_endpoints, monkeypatch):
     # A request we refuse for its shape never counts.
     speech.SPEECH_THROTTLE.reset()
     for _ in range(3):
-        assert speak(client, input="a" * 5000)[0].status_code == 400
+        assert (
+            speak(client, input="a" * (speech.SPEECH_INPUT_MAX + 1))[0].status_code
+            == 400
+        )
     assert speak(client)[0].status_code == 200
     speech.SPEECH_THROTTLE.reset()
