@@ -22,6 +22,7 @@ with patch.dict(
     "sys.modules",
     {
         "gevent": MagicMock(),
+        "gevent.lock": MagicMock(),  # tools/sandbox.py takes turns with it
         "flask_socketio": MagicMock(),
         "boto3": MagicMock(),
         "openai": MagicMock(),
