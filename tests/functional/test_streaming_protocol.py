@@ -8,14 +8,10 @@ from content for cleaner TTS processing.
 """
 
 import unittest
-import tempfile
 import json
 import sys
-import threading
-import time
-from unittest.mock import Mock, patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 from pathlib import Path
-from queue import Queue
 
 # Add parent directory to path to import the app
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

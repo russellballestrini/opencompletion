@@ -8,11 +8,10 @@ It validates structure, syntax, Python code blocks, and logical consistency.
 """
 
 import yaml
-import ast
 import re
 import sys
 import argparse
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Tuple
 from pathlib import Path
 
 from activity_gallery import KINDS as GALLERY_KINDS

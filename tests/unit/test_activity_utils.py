@@ -12,7 +12,6 @@ Tests cover:
 """
 
 import pytest
-import re
 from activity_utils import (
     resolve_bucket,
     fold_first_token_logprobs,

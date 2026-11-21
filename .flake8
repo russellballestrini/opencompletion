@@ -1,3 +1,20 @@
 [flake8]
 exclude = .git,__pycache__,venv,env,reports,migrations
 max-line-length = 127
+# Vendored files stay byte for byte what upstream ships (pyproject.toml's
+# black excludes name the same ones), so their unused names are upstream's
+# to fix. tools/sandbox.py binds on_job to None & then defines it under an
+# if, which is no redefinition. test_room_chain & test_undo_delete take
+# pytest fixtures imported by name, which pyflakes reads as redefined.
+per-file-ignores =
+    un.py:F401,F811,F841
+    provenance.py:F401,F811,F841
+    toolcall_repair.py:F401,F811,F841
+    tools/crawler/*:F401,F811,F841
+    tools/keyless_search.py:F401,F811,F841
+    tools/mcp_wire.py:F401,F811,F841
+    tests/unit/crawler/test_*:F401,F811,F841
+    tests/unit/test_keyless_search.py:F401,F811,F841
+    tools/sandbox.py:F811
+    tests/integration/test_room_chain.py:F811
+    tests/integration/test_undo_delete.py:F811

@@ -11,7 +11,6 @@ Tests complete workflows with real Flask environment:
 """
 
 import unittest
-import json
 import tempfile
 import os
 from unittest.mock import patch, MagicMock
@@ -83,7 +82,7 @@ class TestActivityIntegration(unittest.TestCase):
         self.db.session.remove()
         try:
             self.db.drop_all()
-        except Exception as e:
+        except Exception:
             # Drop all may fail if db is already cleaned up
             pass
         self.app_context.pop()
@@ -104,7 +103,6 @@ class TestActivityIntegration(unittest.TestCase):
     def create_test_activity_file(self):
         """Create a test activity YAML file"""
         from models import Room
-        import activity
         import os
 
         # Create a test room
@@ -471,7 +469,7 @@ class TestActivityMetadataOperations(unittest.TestCase):
         self.db.session.remove()
         try:
             self.db.drop_all()
-        except Exception as e:
+        except Exception:
             # Drop all may fail if db is already cleaned up
             pass
         self.app_context.pop()

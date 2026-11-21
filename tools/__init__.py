@@ -20,7 +20,7 @@ may call, `ToolCallCollector` & `run_round` (tools/loop.py) do the rest.
 Adding a tool: a schema, a branch in `run`, & a line in `offered`.
 """
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from tools import browser, policy

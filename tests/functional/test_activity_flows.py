@@ -10,8 +10,7 @@ import unittest
 import os
 import sys
 import tempfile
-import json
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 # Add research directory to path

@@ -12,11 +12,9 @@ Tests the core activity processing functions:
 """
 
 import unittest
-import os
-import tempfile
 import json
 import yaml
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 import sys
 from pathlib import Path
 
@@ -403,7 +401,7 @@ class TestGenerateAIFeedback(unittest.TestCase):
 
         metadata = json.dumps({"score": 100, "level": 5})
 
-        result = generate_ai_feedback(
+        generate_ai_feedback(
             "correct", "Question", "Answer", "Tokens", "alice", metadata, "{}"
         )
 

@@ -6,8 +6,6 @@ from datetime import datetime, timedelta, timezone
 import time
 import uuid
 
-import os
-
 try:
     import tiktoken
 

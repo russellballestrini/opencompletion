@@ -278,7 +278,7 @@ def initialize_model_map():
             # One try: a dead endpoint costs 10 s, not 10 s per retry.
             response = client.with_options(timeout=10.0, max_retries=0).models.list()
             model_list = response.data  # Assume each model object has an 'id' attribute
-            print(f"[DEBUG] {base_url} returned models: {[m.id for m in model_list]}")
+            print(f"[DEBUG] {base_url} listed {len(model_list)} models")
         except Exception as e:
             print(f"[WARN] Could not list models for endpoint '{base_url}': {e}")
             continue
@@ -309,7 +309,18 @@ def initialize_model_map():
     for name in list(MODEL_CLIENT_MAP.keys()) + ["system"]:
         if name not in SYSTEM_USERS:
             SYSTEM_USERS.append(name)
-    print("Loaded models:", list(MODEL_CLIENT_MAP.keys()))
+    print(loaded_models_line(MODEL_CLIENT_MAP))
+
+
+def loaded_models_line(ids, show=5):
+    """Our log's line for a model map: how many, & its first few ids. An
+    endpoint may list hundreds (OpenAI's does); /models has every one."""
+    ids = list(ids)
+    line = f"Loaded models: {len(ids)}"
+    if not ids:
+        return line
+    more = f", & {len(ids) - show} more" if len(ids) > show else ""
+    return f"{line} ({', '.join(ids[:show])}{more})"
 
 
 # Creating & migrating tables (make init-db, make upgrade-db) needs no models:
@@ -4080,7 +4091,9 @@ if __name__ == "__main__":
         classifier_bases = classifier.instances()
         for label, listed in classifier.list_models().items():
             base = classifier_bases[label]["base"]
-            print(f"[DEBUG] {base} returned classifier models: {listed}")
+            if isinstance(listed, list):
+                listed = f"{len(listed)} models"
+            print(f"[DEBUG] {base} listed classifier models: {listed}")
         print("Loaded", classifier_line)
     else:
         print("Loaded classifier: none configured")

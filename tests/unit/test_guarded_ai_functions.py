@@ -11,10 +11,9 @@ Tests the core feedback generation functions including:
 """
 
 import unittest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 import sys
 from pathlib import Path
-import json
 
 # Add parent directory to path to import guarded_ai
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "research"))
@@ -158,16 +157,6 @@ class TestGuardedAI(unittest.TestCase):
         tokens_arg = call_args[3]
         self.assertIn("English", tokens_arg)
         self.assertIn("Additional transition-specific instructions", tokens_arg)
-
-        # Check metadata was filtered
-        filtered_metadata = call_args[4]
-        expected_filtered = {
-            k: v
-            for k, v in self.sample_metadata.items()
-            if k in transition["metadata_feedback_filter"]
-        }
-        # Since our test metadata doesn't have the filtered keys, it should be empty or contain only matching keys
-        # But the function should have passed what it received
 
     @patch("guarded_ai.generate_ai_feedback")
     def test_provide_feedback_prompts(self, mock_generate_feedback):

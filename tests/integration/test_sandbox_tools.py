@@ -1119,7 +1119,7 @@ def test_a_new_sandbox_for_an_old_chat_brings_its_setup_steps(unsandbox, room):
 
 
 def test_delegate_in_a_remade_sandbox_hands_uncloseai_cli_the_history(unsandbox, room):
-    from models import Sandbox, db
+    from models import db
 
     sandbox = make_sandbox(unsandbox, room)
     sandbox.state = "destroyed"
@@ -2050,7 +2050,7 @@ def test_its_overseer_steers_a_run_with_a_note(unsandbox, room, monkeypatch):
 
 
 def test_a_chats_delegates_share_one_session(unsandbox, room):
-    from models import Sandbox, db
+    from models import Sandbox
 
     vitals = '__VITALS__ {"schema": "unclose-vitals/1", "session_id": "sess-42"}\n'
     unsandbox.polls = [vitals + "[bash] git clone"]

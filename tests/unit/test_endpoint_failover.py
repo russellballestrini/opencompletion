@@ -65,6 +65,21 @@ def load(monkeypatch, clients):
     app_module.initialize_model_map()
 
 
+def test_startup_says_how_many_models_never_every_id(endpoints, monkeypatch, capsys):
+    ids = [f"model-{n}" for n in range(300)]
+    load(monkeypatch, {A: fake_client(A, ids), B: fake_client(B, ["qwen"])})
+    out = capsys.readouterr().out
+    assert f"[DEBUG] {A} listed 300 models" in out
+    assert f"[DEBUG] {B} listed 1 models" in out
+    assert (
+        "Loaded models: 301 (model-0, model-1, model-2, model-3, model-4, & 296 more)"
+        in out
+    )
+    assert "model-299" not in out
+    assert app_module.loaded_models_line([]) == "Loaded models: 0"
+    assert app_module.loaded_models_line(["a", "b"]) == "Loaded models: 2 (a, b)"
+
+
 def test_the_lowest_endpoint_is_the_pin_and_the_rest_back_it_up(endpoints, monkeypatch):
     a, b = fake_client(A, ["qwen", "hermes"]), fake_client(B, ["qwen"])
     load(monkeypatch, {A: a, B: b})

@@ -31,13 +31,16 @@ git remote -v
 - Verify changes work as expected
 
 ## Linting
-- **ALWAYS run lint before committing**: `make lint` (black --check plus `flake8 --select=E9,F63,F7,F82`)
+- **ALWAYS run lint before committing**: `make lint` (black --check plus `flake8 --select=E9,F63,F7,F82,F401,F811,F841`; `.flake8` holds its excludes & the per-file ignores for vendored files)
 - Fix all lint errors before pushing - GitHub CI will fail on lint errors
 - Key error codes checked:
   - E9: Runtime errors (syntax errors, IO errors)
   - F63: Invalid print syntax
   - F7: Syntax errors in type comments
   - F82: Undefined names, unused globals (F824)
+  - F401: Imported but unused (a re-export or an import for its side effect carries `# noqa: F401` & why)
+  - F811: A name redefined before it was used
+  - F841: A local variable assigned & never used
 
 ## Documentation
 - Update relevant documentation when making significant changes
@@ -65,7 +68,7 @@ git remote -v
 - `make upgrade-db` - Apply migrations to an existing database (`FLASK_APP=app.py venv/bin/flask db upgrade`, needs vars.sh). It & `init-db` set `OPENCOMPLETION_SKIP_MODEL_MAP=1`, so no model endpoint is asked for its list (a dead one can't stall them); the app lists each endpoint once, no retries
 - `make test` - Unit, integration, functional tests & YAML validation (no network)
 - `make test-ui` - Page contract & mobile layouts in headless Chromium
-- `make lint` - black --check & flake8 (syntax, undefined names)
+- `make lint` - black --check & flake8 (syntax, undefined & unused names)
 - `make ci` - lint + test, exactly what GitHub Actions runs
 - `make backfill-titles` - Title every untitled room holding a conversation (network: a chat model)
 - `make backfill-blobs` - Move base64 images kept inside messages (old DALL-E & vision replies) into our blob store (no network)
@@ -93,7 +96,7 @@ git remote -v
 - **Image models** (`generate_image` in app.py): a model whose id matches `OPENCOMPLETION_IMAGE_MODELS` (a regex; default `^(gpt-image|chatgpt-image|dall-e)`) draws instead of chatting: `dispatch_message` sends our message as a prompt to `/images/generations` on the endpoint that lists it, & its image is kept in our blob store & posted as that model's reply. No id is written in our code: an endpoint's `/models` (OpenAI's lists its image models too) fills our picker, so a retired model (dall-e-3 left OpenAI's API 2026-05-12) drops out & its successor shows up by itself. `OPENCOMPLETION_IMAGE_SIZE` (1024x1024) & `OPENCOMPLETION_IMAGE_QUALITY` (unset: the model's default; low/medium/high price an image very differently). GPT image models refuse `response_format`; only a `dall-e*` id is sent it
 - **Migrations at startup** (`db_migrate.py`): a deploy is a restart, so `python app.py` (& `init_db.py`, what our container runs first) brings our database up to date before anything reads it: a new one is created & stamped at our newest migration; one stamped behind is copied aside (`<db>.before-<revision>.bak`, SQLite's own backup, mode 600) then migrated; tables with no stamp, or a stamp this code does not know (a database newer than its code), are left alone with a `[WARN]` saying what to do. A migration that fails stops startup, its copy kept. `/version` says what that start did (`migrations`: new, current, migrated, unstamped, unknown, off, or `not run` when we were started some way that skips it; `migration`: the revision). `OPENCOMPLETION_AUTO_MIGRATE=off` skips it; `make upgrade-db` still works by hand. A new migration needs nothing else to ship. **Ids are never reused** (migration `2026111201`): `room`, `message`, `attachment` & `sandbox` are AUTOINCREMENT (`sqlite_autoincrement` in models.py), their sequences seeded past every id the chain ever recorded, deleted rooms' too; `room_event`/`room_checkpoint` are insert-only, `activity_state`/`user_session` ids never leave us
 - `SQLALCHEMY_DATABASE_URI` overrides our default `instance/chat.db`
-- Startup prints, beside `Loaded models`: speech voices, the transcription model, the classifier, then `startup_summary()` (tools & who gets them, chat sampling & budgets, brand, public url, database & its migration); counts & names only, never a key, an email or a database password
+- Startup prints, per endpoint, how many models it listed (never their ids: an endpoint may list hundreds) & `Loaded models: <count> (<first five ids>, & N more)` (`loaded_models_line`), then: speech voices, the transcription model, the classifier, then `startup_summary()` (tools & who gets them, chat sampling & budgets, brand, public url, database & its migration); counts & names only, never a key, an email or a database password
 - `gevent_asyncio.py`: `wake_executor_jobs()`, called beside `monkey.patch_all()` (app.py, `tests/unit/test_tools.py`). Under gevent's patch, CPython 3.13.12+, 3.14.3+ & 3.15 never wake an event loop when an executor job ends, so a loop's second `asyncio.to_thread` / `run_in_executor` hung (our crawler's tests on CI; gevent 26.9.0 has no fix). `tests/unit/test_gevent_asyncio.py` proves the fix & that this Python still needs it: when its last test fails, the module can go
 - `SECRET_KEY` signs session cookies; unset, `auth.load_secret_key` keeps a random one in `instance/secret_key` (never a built-in default)
 - CI tests CPython 3.11, 3.12, 3.13, 3.14 & 3.15 (every release still receiving fixes)

@@ -11,7 +11,7 @@ import tempfile
 import json
 import sys
 import os
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 # Add parent directory to path to import the app
@@ -57,7 +57,6 @@ class TestAppUtilityFunctions(unittest.TestCase):
     def test_get_client_for_model_existing(self):
         """Test getting client for existing model"""
         test_client = MagicMock()
-        test_base_url = "https://test.api"
 
         # Mock the function directly since MODEL_CLIENT_MAP is populated at import time
         with patch.object(

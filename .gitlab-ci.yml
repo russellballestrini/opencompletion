@@ -55,7 +55,8 @@ validate_yaml:
     - python activity_yaml_validator.py research/SPEC.yaml
     - python activity_yaml_validator.py research/activity*.yaml
 
-# Lint - Syntax Errors (blocking)
+# Lint - syntax errors, undefined & unused names (blocking). Our Makefile's
+# `lint` target runs this same flake8 line; .flake8 holds its excludes.
 lint_syntax:
   stage: lint
   tags:
@@ -67,7 +68,7 @@ lint_syntax:
     - pip install --require-hashes -r requirements-lint.lock
   script:
     - source venv/bin/activate
-    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=venv
+    - flake8 . --count --select=E9,F63,F7,F82,F401,F811,F841 --show-source --statistics
 
 # Lint - Style Warnings (non-blocking)
 lint_style:

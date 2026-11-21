@@ -342,7 +342,7 @@ def test_an_upload_is_chained_and_lines_can_be_mirrored(
 
 
 def test_chaining_never_breaks_what_it_records(test_app, quiet, monkeypatch):
-    room = make_room("lobby")
+    make_room("lobby")
     monkeypatch.setattr(chain.P, "chain_line", lambda *a, **k: 1 / 0)
     ada = socket_for(test_app)
     ada.emit(
