@@ -153,13 +153,6 @@ INHERITED_PROBE = probe(r"""
 """)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="5-messages.js reads STEER_WORDS[data.status] with no own-property "
-    "check: status 'constructor', 'toString', … finds Object.prototype's "
-    "function & draws a line of nonsense ('qwen', '[object Undefined]'). Our "
-    "server only sends its four statuses, so nobody sees it today.",
-)
 def test_a_status_named_like_an_object_member_draws_nothing(page, tmp_path):
     passed(run_probe(page, INHERITED_PROBE, tmp_path, 1280))
 
