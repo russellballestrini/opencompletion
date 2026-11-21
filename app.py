@@ -34,6 +34,13 @@ from blob_store import (
     save_attachment,
 )
 from followups import FOLLOWUP_PROMPT, followups_enabled, parse_followups
+from images import (
+    extract_base64_from_img_tag,
+    extract_external_image_url,
+    image_request,
+    is_image_model,
+)
+from reply_notes import answer_from_notes, without_echoed_notes
 from sampling import (
     _env_float,
     _env_int,
@@ -351,38 +358,6 @@ def get_client_for_model(model_name: str):
     if model_name in MODEL_CLIENT_MAP:
         print(f"Completion Endpoint Processing: {MODEL_CLIENT_MAP[model_name][1]}")
         return MODEL_CLIENT_MAP[model_name][0]
-
-
-def extract_base64_from_img_tag(content: str) -> tuple[str, str] | None:
-    """Extract base64 data and media type from an HTML img tag.
-
-    Returns (media_type, base64_data) or None if not found.
-    """
-    import re
-
-    # Match data:image/TYPE;base64,DATA patterns in img src
-    pattern = r'<img[^>]*src="data:image/(jpeg|png|gif|webp);base64,([^"]+)"'
-    match = re.search(pattern, content)
-    if match:
-        media_type = f"image/{match.group(1)}"
-        base64_data = match.group(2)
-        return (media_type, base64_data)
-    return None
-
-
-def extract_external_image_url(content: str) -> str | None:
-    """Extract external image URL from an HTML img tag.
-
-    Returns the URL or None if not found.
-    """
-    import re
-
-    # Match external URLs in img src (http/https)
-    pattern = r'<img[^>]*src="(https?://[^"]+)"'
-    match = re.search(pattern, content)
-    if match:
-        return match.group(1)
-    return None
 
 
 # Cache for fetched external images (URL -> base64 data URL)
@@ -2335,31 +2310,6 @@ def open_completion(client, kwargs, skip_thinking=False, refusals=None, sent=Non
     return client.chat.completions.create(**kwargs)
 
 
-ANSWER_FROM_NOTES = (
-    "\n\n(Your thinking ran past its budget, so it was stopped. Your notes "
-    "so far:\n\n{notes}\n\nNow, without thinking any further, write your "
-    "final answer to the message above, based on these notes.)"
-)
-
-
-def answer_from_notes(chat_history, notes):
-    """chat_history with the model's unfinished thinking handed back under
-    our last message, asking for the answer it would have written. The
-    notes ride on that message, so roles keep alternating for templates
-    that need it."""
-    history = [dict(message) for message in chat_history]
-    ask = ANSWER_FROM_NOTES.format(notes=notes.strip())
-    if history and history[-1]["role"] == "user":
-        content = history[-1]["content"]
-        if isinstance(content, list):  # a vision turn: add a text part
-            history[-1]["content"] = content + [{"type": "text", "text": ask}]
-        else:
-            history[-1]["content"] = f"{content}{ask}"
-    else:
-        history.append({"role": "user", "content": ask.strip()})
-    return history
-
-
 def newest_image_id(last_messages, room_id):
     """The id of the newest message carrying an image (only it gets
     base64), or None."""
@@ -2464,20 +2414,6 @@ def reply_history(room_name, model_name, resume=None):
                 continue
             chat_history.append({"role": role, "content": content})
     return room_id, chat_history
-
-
-ECHOED_TOOL_NOTE = re.compile(
-    r"\n*^\(tools in (?:this|your last) reply:[^\n]*\)[ \t]*$", re.M
-)
-
-
-def without_echoed_notes(content):
-    """A past reply minus "(tools in this reply: ...)" lines. We once put
-    that note in a reply's history text & models copied it into their own
-    replies; left in, those copies teach the next reply the same habit."""
-    if not isinstance(content, str) or "(tools in " not in content:
-        return content
-    return ECHOED_TOOL_NOTE.sub("", content).rstrip()
 
 
 def start_reply_message(model_name, room_id, resume=None):
@@ -3711,41 +3647,6 @@ def generate_new_title(room_name, username):
             },
             room=room_name,
         )
-
-
-# Models that draw instead of chat, by id. OpenAI's /v1/models lists them
-# beside its chat models (gpt-image-2, ...; dall-e-2 & dall-e-3 left its API
-# on 2026-05-12), so our picker offers whichever exist today & no id is
-# written here. OPENCOMPLETION_IMAGE_MODELS (a regex) names another server's.
-IMAGE_MODELS = re.compile(
-    os.environ.get("OPENCOMPLETION_IMAGE_MODELS")
-    or r"^(gpt-image|chatgpt-image|dall-e)",
-    re.I,
-)
-
-
-def is_image_model(model):
-    return bool(model and IMAGE_MODELS.search(model))
-
-
-def image_request(model, prompt):
-    """What we send /images/generations for `model`: one image at
-    OPENCOMPLETION_IMAGE_SIZE (1024x1024) & OPENCOMPLETION_IMAGE_QUALITY
-    (unset: the model's own default; low, medium or high price an image
-    very differently). GPT image models always answer base64 & refuse
-    response_format; a DALL-E still served elsewhere must be asked for it."""
-    request = {
-        "model": model,
-        "prompt": prompt,
-        "n": 1,
-        "size": os.environ.get("OPENCOMPLETION_IMAGE_SIZE") or "1024x1024",
-    }
-    quality = os.environ.get("OPENCOMPLETION_IMAGE_QUALITY")
-    if quality:
-        request["quality"] = quality
-    if model.lower().startswith("dall-e"):
-        request["response_format"] = "b64_json"
-    return request
 
 
 def generate_image(room_name, message, username, model):

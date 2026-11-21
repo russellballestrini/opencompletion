@@ -45,4 +45,6 @@ include =
     gevent_asyncio.py
     sampling.py
     followups.py
+    images.py
+    reply_notes.py
 show_missing = True
