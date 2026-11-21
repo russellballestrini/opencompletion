@@ -146,6 +146,17 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   note on the card as not delivered. An unreadable or failed review is a
   continue. The card shows the latest call under the task.
 
+  **People steer it too.** A message sent to a reply whose delegate is
+  running would wait for the round to end, an hour on. Each tick the run
+  asks its reply for such messages (`ToolContext.notes`,
+  `ReplyStream.forward_steering` in app.py) & passes each through the
+  same inbox, once; the page says "Passed to qwen's running delegate"
+  (`message_steered`, status `forwarded`). The chat's model still reads
+  it after the round. Only a message its sender could have steered the
+  reply with (they may call its tools themselves) is passed: a guest
+  never reaches someone's sandbox. One the inbox refused is offered again
+  next tick; an uncloseai-cli without the inbox is asked once.
+
   **One session per chat.** The first vitals carry uncloseai-cli's
   `session_id`; the sandbox keeps it (`sandbox.delegate_session_id`,
   migration `2026103104`) & the chat's next delegate resumes it

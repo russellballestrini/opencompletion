@@ -210,6 +210,11 @@ class ToolContext:
     oversee: Optional[Callable[[dict], Optional[str]]] = field(
         default=None, compare=False
     )
+    # Set by chat_gpt: notes(deliver) offers a running delegate each message
+    # people sent its reply meanwhile, deliver(words) -> True once passed on.
+    notes: Optional[Callable[[Callable[[str], bool]], None]] = field(
+        default=None, compare=False
+    )
 
     @property
     def server_egress(self):

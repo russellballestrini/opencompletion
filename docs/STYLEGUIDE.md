@@ -140,8 +140,9 @@ style.css): show & hide with the attribute, never a display rule.
   verse & addresses keep their lines. **(tested)**
 - **Steer note** `.message-steer` (`message_steered` in `5-messages.js`):
   one small `--text-secondary` line under a message sent while its model
-  was already replying: "Sent to qwen's reply in progress", "qwen read
-  this mid-reply" or "qwen answers this next".
+  was already replying: "Sent to qwen's reply in progress", "Passed to
+  qwen's running delegate", "qwen read this mid-reply" or "qwen answers
+  this next".
 - **Aside** `.message-wrapper.is-aside` (`/btw`, `aside.py`): a question
   about the work in progress & its answer, set apart by a dashed left rule
   in `--text-secondary`, since no reply reads them & a refresh drops them.

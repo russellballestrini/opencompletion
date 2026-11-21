@@ -29,7 +29,8 @@ Features
 - Replies stream to everyone in the room, thinking included (collapsed);
   **Stop** ends one & keeps what it wrote.
 - A message sent while a model is still working **steers** that reply: it
-  reads the message after its current tool call. ``/btw <question>`` asks
+  reads the message after its current tool call, & a running delegate is
+  passed it within seconds. ``/btw <question>`` asks
   about the work in progress instead, without changing it.
 - **Edit & resend**, **Fork** a reply into a new chat, **Delete** with
   **Restore**; nothing is ever lost, earlier versions stay readable.

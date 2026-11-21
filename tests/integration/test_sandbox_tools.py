@@ -2562,3 +2562,107 @@ def test_two_delegates_in_one_chat_run_one_after_the_other(
     )
     assert [r["answer"] for r in results] == ["Done.", "Done."]
     assert seen["peak"] == 1
+
+
+# -- steering a running delegate -------------------------------------------------
+
+
+def steer_commands(unsandbox):
+    return [c for c in unsandbox.commands() if "unclose --steer" in c]
+
+
+def test_a_running_delegate_is_passed_each_note_once(unsandbox, room):
+    unsandbox.polls = ["[bash] a", "[bash] b", "[bash] c"]
+    waiting, passed = ["use pytest, not unittest"], []
+
+    def notes(deliver):
+        while waiting:
+            passed.append(deliver(waiting.pop()))
+
+    context = dataclasses.replace(fox_in(room), notes=notes)
+    assert tools.run(context, "delegate", {"task": "t"})["status"] == "completed"
+    (steer,) = steer_commands(unsandbox)
+    assert "'use pytest, not unittest'" in steer and passed == [True]
+
+
+def test_an_uncloseai_cli_without_steering_is_asked_once(unsandbox, room, monkeypatch):
+    import un
+
+    unsandbox.polls = ["[bash] a", "[bash] b", "[bash] c"]
+    real, passed = unsandbox.execute_in_service, []
+
+    def execute(service_id, command, timeout=30000):
+        job = real(service_id, command, timeout)
+        if "unclose --steer" in command:
+            unsandbox.job_results[job["job_id"]] = {
+                "status": "completed",
+                "exit_code": 2,
+            }
+        return job
+
+    monkeypatch.setattr(un, "execute_in_service", execute)
+    # A note not delivered is offered again every tick.
+    context = dataclasses.replace(
+        fox_in(room), notes=lambda deliver: passed.append(deliver("faster"))
+    )
+    assert tools.run(context, "delegate", {"task": "t"})["status"] == "completed"
+    assert passed == [False] and len(steer_commands(unsandbox)) == 1
+
+
+def steer_mid_delegate(unsandbox, room, chat, monkeypatch, sender):
+    """A reply of qwen's to fox delegates; at its run's first poll `sender`
+    (a tool context) sends "use pytest" to it. The statuses that message
+    was given."""
+    import un
+    from models import Message, db
+
+    db.session.add(Message(username="fox", content="add parse()", room_id=room.id))
+    db.session.commit()
+    chat.scripts += [[delegate_call("add parse")], [model_chunk(content="Done.")]]
+    unsandbox.polls = ["[bash] a", "[bash] b"]
+    monkeypatch.setattr(chat.app.gevent, "spawn", lambda *a, **k: None)
+    real, sent = unsandbox.execute_in_service, []
+
+    def execute(service_id, command, timeout=30000):
+        if "__EXIT__" in command and not sent:
+            sent.append(
+                chat.app.steer_running_reply(
+                    room.name, "qwen", 77, "use pytest", "bob", sender
+                )
+            )
+        return real(service_id, command, timeout)
+
+    monkeypatch.setattr(un, "execute_in_service", execute)
+    chat.app.chat_gpt(
+        "fox",
+        room.name,
+        model_name="qwen",
+        enable_thinking=False,
+        tool_context=tools.ToolContext(sid="s", email=FOX),
+    )
+    assert sent and sent[0] is not None  # that reply took it
+    return [a[1]["status"] for a in chat.emitted if a[0] == "message_steered"]
+
+
+def test_a_message_sent_mid_delegate_reaches_the_run_and_then_the_model(
+    unsandbox, room, chat, monkeypatch
+):
+    statuses = steer_mid_delegate(
+        unsandbox, room, chat, monkeypatch, tools.ToolContext(sid="b", email=FOX)
+    )
+    (steer,) = steer_commands(unsandbox)  # once, though the run ticked on
+    assert "'use pytest'" in steer
+    assert statuses == ["queued", "forwarded", "read"]
+    # & the chat's model still reads it after the round.
+    assert chat.asks[1]["messages"][-1] == {"role": "user", "content": "use pytest"}
+
+
+def test_a_guest_never_steers_someones_running_delegate(
+    unsandbox, room, chat, monkeypatch
+):
+    statuses = steer_mid_delegate(
+        unsandbox, room, chat, monkeypatch, tools.ToolContext(sid="guest")
+    )
+    assert steer_commands(unsandbox) == []
+    assert statuses == ["queued", "answering"]
+    assert "use pytest" not in json.dumps(chat.asks[1]["messages"])

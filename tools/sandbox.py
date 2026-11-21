@@ -1014,29 +1014,38 @@ def _review(context, sandbox, run_dir, task, watch, vitals, log_tail):
     decision, note = oversight.parse_decision(said)
     verdict = {"decision": decision, "note": note, "at": digest["elapsed"]}
     if decision == "steer":
-        # By its session id when the vitals gave one (the durable handle),
-        # else its pid. The note joins its conversation at its next model
-        # call, as a note typed into the interactive REPL does.
-        target = (
-            shlex.quote(watch.session_id)
-            if watch.session_id
-            else f"$(cat {run_dir}/pid)"
-        )
-        steered = _execute(
-            sandbox,
-            "PATH=/root/.local/bin:$PATH unclose --steer "
-            f"{target} {shlex.quote(note)} 2>&1",
-            30,
-        )
-        code = steered.get("exit_code")
-        if code == 2:
-            # An uncloseai-cli without the steering inbox (an older image)
-            # refuses the flag: the note is shown, not delivered.
-            verdict["undelivered"] = "this sandbox's uncloseai-cli takes no notes yet"
-        elif code not in (0, None):
-            # 3: no running agent matched; 4: empty note.
-            verdict["undelivered"] = (steered.get("stdout") or "refused").strip()[:120]
+        undelivered = _steer(sandbox, run_dir, watch.session_id, note)
+        if undelivered:
+            verdict["undelivered"] = undelivered
     return verdict
+
+
+NO_STEERING = "this sandbox's uncloseai-cli takes no notes yet"
+STEER_NOTE_CHARS = 4000
+
+
+def _steer(sandbox, run_dir, session_id, note):
+    """Hand a running delegate a note (`unclose --steer`): None once it is
+    delivered, else why it was not."""
+    # By its session id when the vitals gave one (the durable handle),
+    # else its pid. The note joins its conversation at its next model
+    # call, as a note typed into the interactive REPL does.
+    target = shlex.quote(session_id) if session_id else f"$(cat {run_dir}/pid)"
+    steered = _execute(
+        sandbox,
+        "PATH=/root/.local/bin:$PATH unclose --steer "
+        f"{target} {shlex.quote(note)} 2>&1",
+        30,
+    )
+    code = steered.get("exit_code")
+    if code == 2:
+        # An uncloseai-cli without the steering inbox (an older image)
+        # refuses the flag: the note is shown, not delivered.
+        return NO_STEERING
+    if code not in (0, None):
+        # 3: no running agent matched; 4: empty note.
+        return (steered.get("stdout") or "refused").strip()[:120] or "refused"
+    return None
 
 
 def revoke_proxy(sandbox_id, armed_hash):
@@ -1161,6 +1170,7 @@ class _DelegateRun:
         self.last_vitals = None
         self.deadline = None
         self.limit = None
+        self.takes_notes = True
 
     def begin(self, armed):
         """Find its sandbox & start it (or reattach): an error result, or
@@ -1401,6 +1411,7 @@ class _DelegateRun:
         exactly what the session wrote since the last poll (a cursor
         peek), not a replay of its last rows."""
         now = time.monotonic()
+        self._pass_notes()
         if progress:
             self.recent = (f"{self.recent}\n{progress}" if new_only else progress)[
                 -4000:
@@ -1443,6 +1454,31 @@ class _DelegateRun:
                 extra["new_only"] = True
             self.context.progress(progress, card=self.card, **extra)
         return None
+
+    def _pass_notes(self):
+        """What people sent our reply since the last tick goes to the run
+        now (context.notes), not an hour on when its round ends. Best
+        effort: one not delivered is offered again next tick, & the chat's
+        model reads them all after the round either way."""
+        if not (self.context.notes and self.takes_notes):
+            return
+
+        def deliver(note):
+            try:
+                undelivered = _steer(
+                    self.sandbox,
+                    self.run_dir,
+                    self.watch.session_id,
+                    str(note)[:STEER_NOTE_CHARS],
+                )
+            except Exception as e:  # noqa: BLE001 — a note never ends a run
+                print(f"[WARN] could not pass a note to a delegate: {e}")
+                return False
+            if undelivered == NO_STEERING:
+                self.takes_notes = False  # an older uncloseai-cli: stop asking
+            return undelivered is None
+
+        self.context.notes(deliver)
 
     def _pulse(self, now):
         # Its heartbeat, for whoever waits: how long since it last moved &
