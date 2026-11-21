@@ -6,6 +6,8 @@ gevent
 gevent-websocket
 
 openai
+# app.py fetches images with it; tests raise its errors (once only here via together)
+httpx
 
 tiktoken
 

@@ -174,7 +174,7 @@ class Message(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(128), nullable=False)
-    content = db.Column(db.String(1024), nullable=False)
+    content = db.Column(db.Text, nullable=False)
     token_count = db.Column(db.Integer)
     room_id = db.Column(db.Integer, db.ForeignKey("room.id"), nullable=False)
     superseded_by_id = db.Column(db.Integer, index=True)
