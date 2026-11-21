@@ -43,4 +43,6 @@ include =
     fade.py
     db_migrate.py
     gevent_asyncio.py
+    sampling.py
+    followups.py
 show_missing = True

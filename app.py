@@ -33,6 +33,18 @@ from blob_store import (
     max_bytes as max_upload_bytes,
     save_attachment,
 )
+from followups import FOLLOWUP_PROMPT, followups_enabled, parse_followups
+from sampling import (
+    _env_float,
+    _env_int,
+    answer_room,
+    answer_tokens,
+    chat_sampling,
+    prompt_chars,
+    shrink_history,
+    stream_retries,
+    thinking_budget,
+)
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -2150,78 +2162,8 @@ def handle_get_activity_status(data):
     activity.handle_get_activity_status(data)
 
 
-def _env_float(name, default):
-    try:
-        return float(os.environ[name])
-    except (KeyError, ValueError):
-        return default
-
-
-# One request's thinking & answer together; a loop that a hang-up can't
-# stop ends here. Qwen suggests 32k for thinking mode; ours is a thinking
-# budget plus an answer.
-DEFAULT_MAX_TOKENS = 24576
-# Thinking past this many tokens with no answer begun: hang up & have the
-# model answer from its notes (chat_gpt), in up to DEFAULT_ANSWER_TOKENS.
-DEFAULT_THINKING_BUDGET = 16384
-DEFAULT_ANSWER_TOKENS = 8192
-# Qwen's thinking-mode top_k; sent as an extra body field, which servers
-# that don't know it reject (open_completion then drops it).
-DEFAULT_TOP_K = 20
 # Thinking is counted in characters as it streams; ~4 per token.
 CHARS_PER_TOKEN = 4
-
-
-def _env_int(name, default):
-    return int(_env_float(name, default))
-
-
-def chat_sampling(model_name):
-    """Sampling for a chat reply. Greedy decoding (temperature 0, our old
-    default) sends reasoning models such as Qwen3 into endless repetition
-    in their thinking, so chat samples at Qwen's thinking-mode settings:
-    OPENCOMPLETION_TEMPERATURE (0.6), OPENCOMPLETION_TOP_P (0.95) &
-    OPENCOMPLETION_TOP_K (20; 0 = not sent), plus
-    OPENCOMPLETION_PRESENCE_PENALTY when set (Qwen suggests up to 1.5 for
-    quantized models that repeat).
-
-    OPENCOMPLETION_MAX_TOKENS (24576; 0 = no cap) bounds every reply in the
-    request itself: hanging up on a looping model (RepetitionGuard) stops
-    the generation only where a disconnect reaches the server & aborts it,
-    which not every GPU host or proxy does, while a server always stops at
-    max_tokens. OpenAI's o-series take temperature 1 only & no top_p (o3:
-    neither)."""
-    if any(tag in model_name for tag in ("o1-", "o3", "o4-")):
-        return {} if "o3" in model_name else {"temperature": 1}
-    sampling = {
-        "temperature": _env_float("OPENCOMPLETION_TEMPERATURE", 0.6),
-        "top_p": _env_float("OPENCOMPLETION_TOP_P", 0.95),
-    }
-    top_k = _env_int("OPENCOMPLETION_TOP_K", DEFAULT_TOP_K)
-    if top_k > 0:
-        sampling["extra_body"] = {"top_k": top_k}
-    presence = _env_float("OPENCOMPLETION_PRESENCE_PENALTY", None)
-    if presence is not None:
-        sampling["presence_penalty"] = presence
-    max_tokens = _env_int("OPENCOMPLETION_MAX_TOKENS", DEFAULT_MAX_TOKENS)
-    if max_tokens > 0:
-        sampling["max_tokens"] = max_tokens
-    return sampling
-
-
-def thinking_budget():
-    """OPENCOMPLETION_THINKING_BUDGET in tokens (16384; 0 = no budget)."""
-    return max(0, _env_int("OPENCOMPLETION_THINKING_BUDGET", DEFAULT_THINKING_BUDGET))
-
-
-DEFAULT_STREAM_RETRIES = 2
-
-
-def stream_retries():
-    """OPENCOMPLETION_STREAM_RETRIES (2; 0 = off): how often a reply whose
-    stream breaks while it is read asks again, carrying on where it
-    stopped (ReplyStream.carry_on)."""
-    return max(0, _env_int("OPENCOMPLETION_STREAM_RETRIES", DEFAULT_STREAM_RETRIES))
 
 
 # What a reply whose stream broke is told when it is asked to carry on.
@@ -2229,12 +2171,6 @@ STREAM_BROKE_NOTE = (
     "(Your reply was cut off by a network error. Continue exactly where it "
     "stopped, without repeating anything.)"
 )
-
-
-def answer_tokens():
-    """OPENCOMPLETION_ANSWER_TOKENS (8192; 0 = no cap): the answer a model
-    writes from its notes once its thinking ran past its budget."""
-    return max(0, _env_int("OPENCOMPLETION_ANSWER_TOKENS", DEFAULT_ANSWER_TOKENS))
 
 
 # Words a server's 400 uses when it is the tools it refuses (llama.cpp:
@@ -2255,13 +2191,6 @@ MIN_ANSWER_TOKENS = 512
 # Characters a token holds before a server has told us (more tokens than
 # most text holds, so the guess errs short of the window).
 CHARS_PER_TOKEN = 3.0
-
-
-def prompt_chars(kwargs):
-    """How long an ask's prompt is: its messages & tool schemas as sent."""
-    return len(json.dumps(kwargs.get("messages") or [], ensure_ascii=False)) + len(
-        json.dumps(kwargs.get("tools") or [], ensure_ascii=False)
-    )
 
 
 def fit_max_tokens(kwargs):
@@ -2316,45 +2245,6 @@ def room_from_refusal(kwargs, text):
     else:
         room = window - used - CONTEXT_MARGIN
     return room if room >= MIN_ANSWER_TOKENS else None
-
-
-def shrink_history(kwargs):
-    """Make an ask's prompt smaller when it alone is past the model's
-    context: drop the oldest whole turn of history (from the first message
-    after the system ones up to the next message from a person), keeping
-    the last person's message & all after it; with no older turn left,
-    halve the longest tool result. False when nothing more can go."""
-    messages = list(kwargs.get("messages") or [])
-    people = [i for i, m in enumerate(messages) if m.get("role") == "user"]
-    first = next((i for i, m in enumerate(messages) if m.get("role") != "system"), None)
-    if first is not None and people and first < people[-1]:
-        cut = next(i for i in people if i > first)
-        kwargs["messages"] = messages[:first] + messages[cut:]
-        return True
-    results = [
-        i
-        for i, m in enumerate(messages)
-        if m.get("role") == "tool" and len(str(m.get("content") or "")) > 2000
-    ]
-    if not results:
-        return False
-    longest = max(results, key=lambda i: len(str(messages[i]["content"])))
-    text = str(messages[longest]["content"])
-    messages[longest] = dict(
-        messages[longest],
-        content=text[: len(text) // 2] + " …(cut to fit the model's context)",
-    )
-    kwargs["messages"] = messages
-    return True
-
-
-DEFAULT_ANSWER_ROOM = 8192
-
-
-def answer_room():
-    """OPENCOMPLETION_ANSWER_ROOM (8192; 0 = off): the tokens an ask keeps
-    free for its answer; past that the conversation fades (fade.py)."""
-    return max(0, _env_int("OPENCOMPLETION_ANSWER_ROOM", DEFAULT_ANSWER_ROOM))
 
 
 def fade_to_fit(kwargs):
@@ -3502,40 +3392,6 @@ DEAD_LINKS_NOTE = (
     "(Your reply links files that do not exist: {links}. Make & share each "
     "one, or say it is not available. Do not repeat the rest of your reply.)"
 )
-
-
-# Follow-up suggestions: after a reply, 2-3 short next questions as chips
-# below it. OPENCOMPLETION_FOLLOWUPS=off turns them off (one small extra
-# completion per reply, on the model that answered).
-FOLLOWUP_PROMPT = (
-    "Suggest three short follow-up questions the person might ask next in "
-    "this conversation. Write them as they would, in their language. One "
-    "per line, each under 12 words, no numbering, nothing else."
-)
-FOLLOWUP_MAX = 3
-FOLLOWUP_CHARS = 120
-
-
-def followups_enabled():
-    return os.environ.get("OPENCOMPLETION_FOLLOWUPS", "on").lower() not in (
-        "0",
-        "off",
-        "false",
-        "no",
-    )
-
-
-def parse_followups(text):
-    """A model's suggestions, one per line, as up to FOLLOWUP_MAX clean
-    questions: list markers & quotes stripped, duplicates & blanks gone."""
-    suggestions = []
-    for line in (text or "").splitlines():
-        line = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", line).strip(" \"'“”")
-        if line and len(line) <= FOLLOWUP_CHARS and line not in suggestions:
-            suggestions.append(line)
-        if len(suggestions) == FOLLOWUP_MAX:
-            break
-    return suggestions
 
 
 DELEGATE_SUMMARY_PROMPT = (
