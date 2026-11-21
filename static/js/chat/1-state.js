@@ -29,18 +29,25 @@ let username = CHAT_CONFIG.username;
 // to retype them. The cache is invalidated on any login/logout transition:
 // - logging in lands on a page with a server-provided username → we clear it
 // - logging out lands on a page with no server username and (after the prior
-//   clear-on-login) no cache → we prompt fresh
+//   clear-on-login) no cache → we ask fresh
+// A guest with no name yet is asked in our page (askGuestName in 3-room.js)
+// before we join: until then `username` is null & needsGuestName says so.
+// Storage that throws (a private window) asks each visit & never breaks chat.
 const GUEST_USERNAME_KEY = 'guestUsername';
+let needsGuestName = false;
 if (username) {
-    localStorage.removeItem(GUEST_USERNAME_KEY);
+    try { localStorage.removeItem(GUEST_USERNAME_KEY); } catch (e) {}
 } else {
-    const cached = localStorage.getItem(GUEST_USERNAME_KEY);
-    if (cached) {
-        username = cached;
-    } else {
-        username = prompt("Enter your username:", "guest") || "guest";
-        localStorage.setItem(GUEST_USERNAME_KEY, username);
-    }
+    let cached = null;
+    try { cached = localStorage.getItem(GUEST_USERNAME_KEY); } catch (e) {}
+    if (cached) username = cached;
+    else needsGuestName = true;
+}
+
+// What a guest typed, as the name we join under: trimmed, 50 characters at
+// most, "guest" when empty. Our server has the real rules (resolve_username).
+function guestNameFrom(typed) {
+    return String(typed || '').trim().slice(0, 50).trim() || 'guest';
 }
 
 // What DOMPurify keeps in a message. No iframe & no style attribute: a

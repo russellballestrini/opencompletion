@@ -25,6 +25,10 @@
             </button>
         </div>
 
+        {# A guest's name step: shown in our composer's place on a first
+           visit, before we join (askGuestName in 3-room.js). #}
+        {% if not user %}{% include "_name_step.html" %}{% endif %}
+
         <!-- Our composer, the same one our home page uses -->
         <form id="message-form" class="composer chat-composer" data-max-upload="{{ max_upload_bytes }}">
             <label class="visually-hidden" for="message">Message</label>

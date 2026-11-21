@@ -292,6 +292,23 @@ body.chat-page {
     margin-bottom: var(--space-4);
 }
 
+/* A guest's name step, in our composer's place until they join. */
+.name-step {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto var(--space-4);
+}
+
+.name-step .form-group {
+    margin-bottom: 0;
+}
+
+.name-step-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+}
+
 /* A message: its words, then its actions in a quiet row underneath that
    brighten on hover or focus (still there, & tappable, on touch screens). */
 .message-wrapper {
@@ -1575,6 +1592,12 @@ textarea:focus {
     .chat-composer {
         width: auto;
         margin: 0 var(--space-3) var(--space-3);
+    }
+
+    .name-step {
+        width: auto;
+        margin: 0 var(--space-3) var(--space-3);
+        padding: var(--space-4);
     }
 
     .page-topbar {

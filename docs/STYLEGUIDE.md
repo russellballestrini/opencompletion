@@ -15,6 +15,7 @@ marked **(tested)** in real headless Chromium at 320, 375, 768 & 1280px.
 | `base.html` | Chat, extends `layout.html`: vendored chat libraries, `.chat-shell` adds room controls (`.utility-belt`) as a third column, sign-in dialog. `chat.html` reuses home's `.composer`. |
 | `_head.html` | Meta, Open Graph, theme applied before first paint, our one stylesheet. |
 | `_auth_steps.html` + `static/js/auth.js` | Email-code sign in, shared by `/auth` & chat's sign-in dialog. `data-after` on `#auth-flow` decides what success does. |
+| `_name_step.html` | A guest's name step on chat, before joining (`askGuestName` in `chat/3-room.js`). |
 | `_room_card.html` | One room in a grid (browse & search). |
 | `activities.html` + `_activity_card.html` + `static/js/activities.js` | Our Activities gallery (`/activities`): a `.room-grid` of activity cards, a kind filter, a text filter & Play. |
 | `verify.html` + `static/js/verify.js` | Verify a transcript (`/verify`): a room's JSON download checked in the reader's browser, never uploaded. |
@@ -68,6 +69,14 @@ style.css): show & hide with the attribute, never a display rule.
   sits above every field; placeholders show format, never the label.
   `.choice-group` for radios. `.alert-success` / `.alert-error` report
   results; `.error-message` sits under a field.
+- **Name step** `.name-step` (`_name_step.html`, `askGuestName` in
+  `3-room.js`): a guest whose browser holds no name is asked in our page,
+  never by a browser dialog. A `.card` in our composer's place (which is
+  `hidden` meanwhile, as is starting an activity): its question is the
+  field's label, the field & one **Join** `.btn` share a `.name-step-row`,
+  a `.form-hint` says where the name lives & links to sign in. Enter
+  joins; empty joins as "guest". Our page joins its room only then, so its
+  messages arrive with the composer. **(tested)**
 - **Rooms** `.room-grid` of `.room-card`s, each in a `.room-card-wrap`:
   its title leads (`.room-card-name`), its name sits under it
   (`.room-card-slug`), `.badge-private` (Solo) or `.badge-public` &

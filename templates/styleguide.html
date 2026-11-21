@@ -56,6 +56,18 @@
     </fieldset>
     <div class="alert alert-success" role="status">Success says what changed.</div>
     <div class="alert alert-error" role="alert">Errors say what failed & what to do next.</div>
+    <h3>Name step</h3>
+    <p class="muted">What a guest sees in chat's composer's place on a first visit, before joining.</p>
+    <form class="card name-step" aria-labelledby="sg-name-step-label" onsubmit="return false">
+        <div class="form-group">
+            <label id="sg-name-step-label" for="sg-guest-name">What should we call you?</label>
+            <div class="name-step-row">
+                <input type="text" id="sg-guest-name" class="form-input" placeholder="guest" maxlength="50" autocomplete="off">
+                <button type="submit" class="btn">Join</button>
+            </div>
+            <p class="form-hint">Others in a room see this name, kept in this browser only. <a href="/auth">Sign in</a> to hold one name everywhere.</p>
+        </div>
+    </form>
 </section>
 
 <section class="card" aria-labelledby="sg-data">

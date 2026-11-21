@@ -172,6 +172,14 @@ def offline_page(html):
     return re.sub(r'(src|href)="/static/', rf'\1="{static}/', html)
 
 
+# A returning guest: chat asks a first-time guest for a name in its page &
+# joins only once they give one (askGuestName in 3-room.js), & most probes
+# mean someone already in their room. `run_probe(..., guest_name=None)` is
+# a first visit.
+GUEST_NAME = """<script>
+try { localStorage.setItem('guestUsername', %s); } catch (e) {}
+</script>"""
+
 # Runs before any page script: a blocking dialog would hang --dump-dom, and
 # a network request would too. Headless Chrome's virtual clock waits on
 # pending requests, so one slow reply (chat asks /models & a voices API on
@@ -212,12 +220,19 @@ const poll = setInterval(() => {{
 </script></body></html>"""
 
 
-def run_probe(html, probe, tmp_path, width, height=900, extra_flags=()):
+def run_probe(
+    html, probe, tmp_path, width, height=900, extra_flags=(), guest_name="guest"
+):
     """Load `html` with `probe` appended, `width` CSS pixels wide; return
-    the dumped DOM, whose <body> carries the probe's data-probe verdict."""
+    the dumped DOM, whose <body> carries the probe's data-probe verdict.
+    Our page is opened by a guest this browser already knows as
+    `guest_name`; None is a guest's first visit."""
     browser = require_browser()
     page = tmp_path / f"page-{width}.html"
-    html = offline_page(html).replace("<head>", "<head>" + DIALOG_STUBS, 1)
+    stubs = DIALOG_STUBS
+    if guest_name is not None:
+        stubs += GUEST_NAME % json.dumps(guest_name)
+    html = offline_page(html).replace("<head>", "<head>" + stubs, 1)
     html = html.replace("</body>", probe + "</body>")
     page.write_text(framed(html, width, height))
     command = [

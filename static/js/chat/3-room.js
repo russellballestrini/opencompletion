@@ -185,9 +185,42 @@ socket.on("disconnect", () => { joinedConnection = null; });
 // Called by chat.html once every chat script has loaded, so no event can
 // arrive before its handler. A socket that connected already (it never
 // should: base.html makes it with autoConnect off) joins now all the same.
+// A guest with no name yet is asked first: we join once they have one.
 function startChat() {
+    if (needsGuestName) return askGuestName();
     if (socket.connected) joinRoom();
     else socket.connect();
+}
+
+// Our name step (templates/_name_step.html) takes our composer's place:
+// nobody can send before they have a name, & a room is only heard once
+// joined. Starting an activity waits too (it posts under a name). A
+// message our home page handed over stays in sessionStorage until `joined`.
+function askGuestName() {
+    const step = document.getElementById("name-step");
+    const waiting = [document.getElementById("message-form"), document.getElementById("activity-controls")];
+    // No step on this page (it should be there for every guest): join as
+    // "guest" sooner than leave someone on a page that can do nothing.
+    if (!step) return joinAs("guest");
+    const input = document.getElementById("guest-name");
+    waiting.forEach(el => { if (el) el.hidden = true; });
+    step.hidden = false;
+    input.focus();
+    step.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (!needsGuestName) return;
+        step.hidden = true;
+        waiting.forEach(el => { if (el) el.hidden = false; });
+        joinAs(guestNameFrom(input.value));
+        document.getElementById("message").focus();
+    });
+}
+
+function joinAs(name) {
+    username = name;
+    needsGuestName = false;
+    try { localStorage.setItem(GUEST_USERNAME_KEY, username); } catch (e) {}
+    startChat();
 }
 
 // We hear our room now: remember it for our home page's "Your chats" and
@@ -211,7 +244,7 @@ socket.on("your_username", (data) => {
     if (data.username && data.username !== username) {
         username = data.username;
         if (!CHAT_CONFIG.signedIn) {
-            localStorage.setItem(GUEST_USERNAME_KEY, username);
+            try { localStorage.setItem(GUEST_USERNAME_KEY, username); } catch (e) {}
         }
     }
 });
