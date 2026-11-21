@@ -173,7 +173,7 @@ Development
     make test        # unit, integration & functional tests, YAML validation; no network
     make test-ui     # every page in headless Chromium, phone to desktop widths
     make lint        # black --check & flake8
-    make ci          # exactly what GitHub Actions runs
+    make ci          # what GitHub Actions checks, one stage after another
 
 - ``app.py``: chat itself (the chat page, Socket.IO events, model
   streaming) & the model map.
