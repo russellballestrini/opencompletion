@@ -182,8 +182,9 @@ def test_audio_keeps_a_client_error_status(client, two_endpoints):
         response = client.post(
             "/speech/audio", json={"model": "tts-1-f5", "input": "hi"}
         )
+    # Its status is kept; its words (they may name our key) are not.
     assert response.status_code == 401
-    assert response.get_json() == {"error": "bad key"}
+    assert response.get_json() == {"error": "speech request failed"}
 
 
 def test_audio_502_when_every_endpoint_is_down(client, two_endpoints):
@@ -302,3 +303,67 @@ def test_each_endpoint_is_asked_for_a_transcription_model_it_lists(
         # SPEECH_STT_MODEL still names it everywhere.
         monkeypatch.setenv("SPEECH_STT_MODEL", "my-whisper")
         assert speech.stt_model_for("https://b.test/v1") == "my-whisper"
+
+
+# ── Abuse: a limit per address, a capped input, known models only ─────────
+
+
+def speak(client, **body):
+    body = {"model": "tts-1-f5", "input": "hi", **body}
+    with patch.object(speech.requests, "get", side_effect=voices_by_url), patch.object(
+        speech.requests, "post", return_value=reply()
+    ) as post:
+        return client.post("/speech/audio", json=body), post
+
+
+def test_audio_forwards_only_what_a_speech_request_needs(client, two_endpoints):
+    response, post = speak(
+        client,
+        voice="aria",
+        response_format="mp3",
+        speed=1.25,
+        sse=True,
+        instructions="x" * 100000,
+        stream_format="audio",
+    )
+    assert response.status_code == 200
+    assert post.call_args.kwargs["json"] == {
+        "model": "tts-1-f5",
+        "input": "hi",
+        "voice": "aria",
+        "response_format": "mp3",
+        "speed": 1.25,
+        "sse": True,
+    }
+
+
+def test_audio_refuses_an_input_past_its_cap(client, two_endpoints):
+    response, post = speak(client, input="a" * (speech.SPEECH_INPUT_MAX + 1))
+    assert response.status_code == 400
+    assert not post.called
+    assert speak(client, input="a" * speech.SPEECH_INPUT_MAX)[0].status_code == 200
+    assert speak(client, input=["a"])[0].status_code == 400
+
+
+def test_audio_refuses_a_model_no_endpoint_lists(client, two_endpoints):
+    response, post = speak(client, model="gpt-5")
+    assert response.status_code == 400
+    assert not post.called
+
+
+def test_audio_is_limited_per_address(client, two_endpoints, monkeypatch):
+    speech.SPEECH_THROTTLE.reset()
+    monkeypatch.setattr(speech.SPEECH_THROTTLE, "count", 2)
+    monkeypatch.setattr(speech.SPEECH_THROTTLE, "seconds", 600)
+    assert speak(client)[0].status_code == 200
+    assert speak(client)[0].status_code == 200
+    response, post = speak(client)
+    assert response.status_code == 429
+    assert int(response.headers["Retry-After"]) > 0
+    assert not post.called
+    # A request we refuse for its shape never counts.
+    speech.SPEECH_THROTTLE.reset()
+    for _ in range(3):
+        assert speak(client, input="a" * 5000)[0].status_code == 400
+    assert speak(client)[0].status_code == 200
+    speech.SPEECH_THROTTLE.reset()

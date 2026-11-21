@@ -265,16 +265,44 @@ def speech_voices():
     return jsonify({"object": "list", "data": voices["data"]})
 
 
+# Speech costs us per character, with our key: limited per address, only
+# the fields a speech request needs go upstream, & one request's text is
+# capped (OpenAI's own cap for /audio/speech).
+SPEECH_THROTTLE = Throttle("OPENCOMPLETION_SPEECH_LIMIT", default=(60, 600))
+SPEECH_INPUT_MAX = 4096
+# `sse` is our own service's switch for per-sentence timestamps (chat's
+# sentence glow asks for it).
+SPEECH_FIELDS = ("model", "input", "voice", "response_format", "speed", "sse")
+
+
 @bp.route("/speech/audio", methods=["POST"])
 def speech_audio():
-    body = request.get_json(silent=True)
-    if not isinstance(body, dict) or not body.get("input") or not body.get("model"):
+    asked = request.get_json(silent=True)
+    if not isinstance(asked, dict) or not asked.get("input") or not asked.get("model"):
         return jsonify({"error": "model & input are required"}), 400
+    if not isinstance(asked["input"], str) or not isinstance(asked["model"], str):
+        return jsonify({"error": "model & input must be text"}), 400
+    if len(asked["input"]) > SPEECH_INPUT_MAX:
+        return (
+            jsonify({"error": f"input is over {SPEECH_INPUT_MAX} characters"}),
+            400,
+        )
+    body = {name: asked[name] for name in SPEECH_FIELDS if name in asked}
+
+    retry_after = SPEECH_THROTTLE.hit(client_ip())
+    if retry_after:
+        response = jsonify({"error": "Too many speech requests; try again soon"})
+        response.headers["Retry-After"] = str(retry_after)
+        return response, 429
 
     voices = _load_voices()
-    candidates = (voices or {}).get("routes", {}).get(body["model"])
+    if voices is None:
+        return jsonify({"error": "speech service unavailable"}), 502
+    # Only a model our voices listing knows: an unknown one is never tried
+    # on every endpoint with our keys.
+    candidates = voices.get("routes", {}).get(body["model"])
     if not candidates:
-        candidates = speech_endpoints()
+        return jsonify({"error": "unknown speech model"}), 400
 
     upstream, last_error = None, "no speech endpoint configured"
     for i, (base_url, api_key) in enumerate(candidates):
@@ -300,6 +328,14 @@ def speech_audio():
     if upstream is None:
         print(f"[WARN] speech audio failed: {last_error}")
         return jsonify({"error": "speech service unavailable"}), 502
+
+    if upstream.status_code >= 400:
+        # Our log keeps the status; an upstream's own words (which may name
+        # our account or key) never reach a browser.
+        status = upstream.status_code
+        upstream.close()
+        print(f"[WARN] speech audio refused upstream: HTTP {status}")
+        return jsonify({"error": "speech request failed"}), status
 
     def relay():
         try:

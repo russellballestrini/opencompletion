@@ -110,6 +110,7 @@ os.environ["OPENCOMPLETION_MESSAGE_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_OTP_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_ROOM_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_CODE_LIMIT"] = "0"
+os.environ["OPENCOMPLETION_SPEECH_LIMIT"] = "0"
 
 
 @pytest.fixture(scope="session", autouse=True)
