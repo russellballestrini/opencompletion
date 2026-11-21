@@ -153,7 +153,7 @@ test-functional-n-z: venv
 .PHONY: test-ui
 test-ui: venv
 	@echo "📱 Running page contract tests..."
-	venv/bin/python -m pytest tests/functional/test_ui_contract.py tests/functional/test_home.py tests/functional/test_auth_ui_regressions.py tests/functional/test_tools_ui.py tests/functional/test_notices_ui.py tests/functional/test_edit_ui.py tests/functional/test_versions_ui.py tests/functional/test_verify_ui.py tests/functional/test_composer_ui.py tests/functional/test_activities_ui.py tests/functional/test_undo_delete_ui.py tests/functional/test_room_remove_ui.py tests/functional/test_stop_ui.py tests/functional/test_walk_ui.py tests/functional/test_live_reply_ui.py tests/functional/test_activity_choices_ui.py tests/functional/test_name_step_ui.py --durations=25
+	venv/bin/python -m pytest tests/functional/test_ui_contract.py tests/functional/test_home.py tests/functional/test_auth_ui_regressions.py tests/functional/test_tools_ui.py tests/functional/test_notices_ui.py tests/functional/test_edit_ui.py tests/functional/test_versions_ui.py tests/functional/test_verify_ui.py tests/functional/test_composer_ui.py tests/functional/test_activities_ui.py tests/functional/test_undo_delete_ui.py tests/functional/test_room_remove_ui.py tests/functional/test_stop_ui.py tests/functional/test_walk_ui.py tests/functional/test_live_reply_ui.py tests/functional/test_activity_choices_ui.py tests/functional/test_name_step_ui.py tests/functional/test_steer_aside_ui.py --durations=25
 
 .PHONY: test-validator
 test-validator: venv
