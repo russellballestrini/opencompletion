@@ -146,7 +146,9 @@ migration that fails stops the start & keeps that copy.
 ``OPENCOMPLETION_AUTO_MIGRATE=off`` turns this off; then ``make
 upgrade-db`` migrates by hand. ``SQLALCHEMY_DATABASE_URI`` picks another
 database. ``/version`` says which commit is running & what its start did
-to the database; ``/health`` answers 200 while the database does.
+to the database; ``/health`` answers 200 while the database does, &
+``/health/models`` while a chat model is listed (counts & the list's age
+only, from memory: no endpoint is asked).
 
 Docker
 ------

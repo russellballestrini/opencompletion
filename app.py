@@ -846,6 +846,8 @@ routes.register(
     trail_as_of_now=lambda saved, room_name, resuming=False: trail_as_of_now(
         saved, room_name, resuming=resuming
     ),
+    model_map_status=lambda: model_map_status(),
+    refresh_stale_model_map=lambda: refresh_stale_model_map(),
 )
 
 
@@ -860,6 +862,37 @@ def refresh_model_map():
         _model_map_refreshed_at = time.time()
 
 
+def refresh_stale_model_map():
+    """Rebuild a map older than ENDPOINT_HEALTH_TTL in the background, one
+    refresh at a time; never waits. A map never built is left alone: only
+    /models builds that one, while it waits."""
+    global _model_map_refresh
+    if (
+        _model_map_refreshed_at
+        and time.time() - _model_map_refreshed_at > ENDPOINT_HEALTH_TTL
+        and (_model_map_refresh is None or _model_map_refresh.ready())
+    ):
+        _model_map_refresh = gevent.spawn(refresh_model_map)
+
+
+def model_map_status():
+    """Counts & an age from the map we have, for /health/models: memory
+    only, no endpoint asked, & nothing that names one (public)."""
+    built = bool(_model_map_refreshed_at)
+    listing = {url for copies in MODEL_ENDPOINTS.values() for _, url in copies}
+    return {
+        "built": built,
+        "endpoints": len(ENDPOINTS),
+        "endpoints_listing": len(listing),
+        "models": len(MODEL_CLIENT_MAP),
+        # Image models draw, they never chat (generate_image).
+        "chat_models": sum(1 for m in MODEL_CLIENT_MAP if not is_image_model(m)),
+        "age_seconds": (
+            max(0, int(time.time() - _model_map_refreshed_at)) if built else None
+        ),
+    }
+
+
 @app.route("/models", methods=["GET"])
 def get_models():
     """Our model list, at once, from the map we have. A map older than
@@ -868,13 +901,10 @@ def get_models():
     recovered without a restart: a page never waits on a dead endpoint's
     timeout for its picker (1.5 s with two down, 2026-11-10). Only a map
     never built (OPENCOMPLETION_SKIP_MODEL_MAP) is built while we wait."""
-    global _model_map_refresh
     if not _model_map_refreshed_at:
         refresh_model_map()
-    elif time.time() - _model_map_refreshed_at > ENDPOINT_HEALTH_TTL and (
-        _model_map_refresh is None or _model_map_refresh.ready()
-    ):
-        _model_map_refresh = gevent.spawn(refresh_model_map)
+    else:
+        refresh_stale_model_map()
     return jsonify({"models": list(MODEL_CLIENT_MAP.keys())})
 
 
