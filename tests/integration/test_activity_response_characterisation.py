@@ -1472,13 +1472,10 @@ def test_empty_transition_is_a_transition(engine):
     assert engine.state().step_id == "q2"
 
 
-def test_a_second_start_never_stacks_a_second_state(engine, monkeypatch):
+def test_a_second_start_never_stacks_a_second_state(engine):
     from models import ActivityState
 
     engine.load(TWO_QUESTIONS)
-    monkeypatch.setattr(
-        engine.activity, "get_activity_content", lambda path: engine.content
-    )
     engine.activity.start_activity(engine.room.name, "research/other.yaml", "alice")
     assert ActivityState.query.filter_by(room_id=engine.room.id).count() == 1
     assert engine.state().s3_file_path == "research/inline.yaml"
