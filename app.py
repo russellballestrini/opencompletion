@@ -830,7 +830,9 @@ activity.init_activity_module(
 import routes  # noqa: E402
 from repetition_guard import RepetitionGuard  # noqa: E402
 from routes.pages import safe_next_url  # noqa: E402,F401
+from throttle import Throttle, over_limit  # noqa: E402
 from routes.rooms import (  # noqa: E402,F401
+    ROOM_THROTTLE,
     emit_room_list_update,
     room_access_denied,
     search_messages,
@@ -1125,6 +1127,8 @@ def on_join(data):
         emit("access_denied", {"room_name": room_name}, room=request.sid)
         return
     username = resolve_username(data.get("username"))
+    if existing is None and new_room_refused():
+        return
     room = get_room(room_name)
 
     # A room this join made (a /chat/<name> typed in) is its maker's: theirs
@@ -1375,19 +1379,63 @@ def on_disconnect():
         db.session.commit()
 
 
+# Messages that cost a model call, per client: a reply, an aside, an
+# activity's grading. OPENCOMPLETION_MESSAGE_LIMIT, "count/seconds".
+MESSAGE_THROTTLE = Throttle("OPENCOMPLETION_MESSAGE_LIMIT", default=(60, 600))
+
+
+def spends_a_model_call(room, models):
+    """True when a message to `room` is one our limit counts: a model is
+    picked to answer it. People talking to people (model "None") are never
+    limited, & neither is an answer to a room's running activity: a class
+    plays one from a single address, & every learner there answers."""
+    if ActivityState.query.filter_by(room_id=room.id).first() is not None:
+        return False
+    return any(model not in (None, "None") for model in models)
+
+
+def refused_over(throttle, what):
+    """Count one action for this socket's client. Over its limit, tell
+    that socket alone how long to wait (a socket event has no response to
+    carry a 429) & answer True: our caller does nothing more."""
+    over = over_limit(throttle, what)
+    if not over:
+        return False
+    emit(
+        "chat_message",
+        {"id": notice_id(), "content": f"_{over[0]}_"},
+        room=request.sid,
+    )
+    return True
+
+
+def message_refused():
+    return refused_over(MESSAGE_THROTTLE, "messages to models")
+
+
+def new_room_refused():
+    return refused_over(ROOM_THROTTLE, "new rooms")
+
+
 @socketio.on("chat_message")
 def handle_message(data):
     room_name = data["room_name"]
     existing = Room.query.filter_by(name=room_name).first()
     if existing is None and not valid_room_name(room_name):
         return
-    if room_access_denied(existing, auth.get_current_user()):
+    user = auth.get_current_user()
+    if room_access_denied(existing, user):
+        return
+    if existing is None and new_room_refused():
         return
     room = get_room(room_name)
     username = resolve_username(data.get("username"))
     message = data["message"].strip()
     model = data.get("model", "None")
-    if re.match(r"/btw(\s|$)", message):
+    is_aside = bool(re.match(r"/btw(\s|$)", message))
+    if (is_aside or spends_a_model_call(room, [model])) and message_refused():
+        return  # neither stored nor dispatched
+    if is_aside:
         # An aside is never stored: no reply reads it (aside.py).
         ask_aside(room.name, username, message, model)
         return
@@ -1432,8 +1480,9 @@ def handle_message(data):
         message,
         [model],
         data.get("enable_thinking", True),
-        tool_context=tools.context(request.sid, auth.get_current_user()),
+        tool_context=tools.context(request.sid, user),
         message_id=new_message.id,
+        is_owner=auth.may_remove(room, user),
     )
 
 
@@ -1445,9 +1494,12 @@ def dispatch_message(
     enable_thinking=True,
     tool_context=None,
     message_id=None,
+    is_owner=False,
 ):
     """What a posted message sets off: a slash command, the room's running
     activity, or a reply from each of `models` ("None" = people only).
+    `is_owner` (auth.may_remove for whoever posted it) opens what only a
+    room's owner may ask for.
     `tool_context` (tools.context: the asker's socket & sign in) decides
     which tools a reply may call; None offers none. A model already
     replying in this room takes the message (`message_id`, stored) into
@@ -1469,10 +1521,34 @@ def dispatch_message(
             gevent.spawn(activity.display_activity_info, room_name, username)
             return
         if command.startswith("/activity metadata"):
+            # A game's hidden state (a vault's code, an enemy fleet): shown
+            # to the whole room, so only its owner may ask.
+            if not is_owner:
+                socketio.emit(
+                    "chat_message",
+                    {
+                        "id": notice_id(),
+                        "username": "System",
+                        "content": "_`/activity metadata` is for this room's owner._",
+                    },
+                    room=room_name,
+                )
+                return
             gevent.spawn(activity.display_activity_metadata, room_name, username)
             return
         if command.startswith("/activity"):
-            activity_path = command.split(" ", 1)[1].strip()
+            activity_path = command[len("/activity") :].strip()
+            if not activity_path:
+                socketio.emit(
+                    "chat_message",
+                    {
+                        "id": notice_id(),
+                        "username": "System",
+                        "content": "_Usage: `/activity <path>`_",
+                    },
+                    room=room_name,
+                )
+                return
             gevent.spawn(activity.start_activity, room_name, activity_path, username)
             return
         if command.startswith("/title new"):
@@ -1993,6 +2069,11 @@ def handle_edit_and_resend(data):
         return
 
     models = models_that_answered(message) or [data.get("model") or "None"]
+    if spends_a_model_call(room, models):
+        over = over_limit(MESSAGE_THROTTLE, "messages to models")
+        if over:
+            emit("edit_resend_refused", {"error": over[0]}, room=request.sid)
+            return
     # Deleted messages in the branch are superseded with it, so none can
     # be restored into a conversation that moved on.
     branch = (
@@ -2042,13 +2123,15 @@ def handle_edit_and_resend(data):
         room=room.name,
     )
     emit_room_stats(room)
+    user = auth.get_current_user()
     dispatch_message(
         room,
         revision.username,
         content,
         models,
         data.get("enable_thinking", True),
-        tool_context=tools.context(request.sid, auth.get_current_user()),
+        tool_context=tools.context(request.sid, user),
+        is_owner=auth.may_remove(room, user),
     )
 
 

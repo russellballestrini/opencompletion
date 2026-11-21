@@ -22,7 +22,7 @@ import auth
 from models import ActivityState, Message, Room, UserSession, db
 from routes import DEPS
 from blob_store import copy_attachments, delete_room_attachments
-from throttle import Throttle, client_ip
+from throttle import Throttle, client_ip, too_many
 from tools.loop import bounded_detail, trail_lines
 import chain
 
@@ -213,6 +213,11 @@ def emit_room_list_update(room, room_data):
         )
 
 
+# New rooms per client, however they are made (here, or a socket joining
+# a name nobody has: app.py). OPENCOMPLETION_ROOM_LIMIT, "count/seconds".
+ROOM_THROTTLE = Throttle("OPENCOMPLETION_ROOM_LIMIT", default=(30, 600))
+
+
 @bp.route("/api/rooms/create", methods=["POST"])
 def create_room_api():
     """Create a new room"""
@@ -247,6 +252,10 @@ def create_room_api():
     existing_room = Room.query.filter_by(name=room_name).first()
     if existing_room:
         return jsonify({"error": "Room name already exists"}), 400
+
+    refused = too_many(ROOM_THROTTLE, "new rooms")
+    if refused:
+        return refused
 
     # Create room
     new_room = Room()

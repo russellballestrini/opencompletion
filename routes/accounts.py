@@ -4,11 +4,16 @@ from flask import Blueprint, jsonify, request, session
 
 import auth
 from models import User, db
+from throttle import Throttle, too_many
 
 bp = Blueprint("accounts", __name__)
 
 
 # Authentication endpoints
+# Sign-in codes per client. OPENCOMPLETION_OTP_LIMIT, "count/seconds".
+OTP_THROTTLE = Throttle("OPENCOMPLETION_OTP_LIMIT", default=(5, 600))
+
+
 @bp.route("/auth/send-otp", methods=["POST"])
 def send_otp():
     """Send OTP to user's email"""
@@ -21,6 +26,12 @@ def send_otp():
     # Basic email validation
     if "@" not in email or "." not in email.split("@")[1]:
         return jsonify({"error": "Invalid email address"}), 400
+
+    # Each code is an email we send: unlimited, anyone could have us flood
+    # an inbox. Counted after validation, so a typo costs nothing.
+    refused = too_many(OTP_THROTTLE, "sign-in codes")
+    if refused:
+        return refused
 
     # Create OTP token
     otp_token = auth.create_otp_token(email)
