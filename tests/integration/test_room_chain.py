@@ -4,17 +4,15 @@ was live; its tool's result is now chained before the reply that cites it,
 & a room's chain outlives the room, for forensics."""
 
 import json
-import pytest
 
 import chain
 import provenance as P
 import tools
 from models import Message, Room, RoomEvent, db
 
-from tests.integration.test_tools_chat import (  # noqa: F401  the harness
+from tests.integration.test_tools_chat import (  # noqa: F401  tools_on is autouse
     Model,
     chunk,
-    harness,
     search_call,
     tools_on,
 )
@@ -93,17 +91,6 @@ def socket_for(test_app, room_name="lobby", username="ada"):
     )
     client.emit("join", {"room_name": room_name, "username": username})
     return client
-
-
-@pytest.fixture
-def quiet(monkeypatch):
-    import app as app_module
-
-    monkeypatch.setattr(app_module.gevent, "spawn", lambda *a, **k: None)
-    monkeypatch.setattr(app_module, "SYSTEM_USERS", ["qwen"])
-    from routes import DEPS
-
-    monkeypatch.setitem(DEPS, "system_users", ["qwen"])
 
 
 def test_an_edit_or_delete_names_who_did_it_beside_the_author(test_app, quiet):

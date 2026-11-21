@@ -10,10 +10,9 @@ import pytest
 import chain
 from models import Message, Room, User, db
 
-from tests.integration.test_room_chain import (  # noqa: F401  shared fixtures
+from tests.integration.test_room_chain import (
     bodies,
     kinds,
-    quiet,
     socket_for,
 )
 
