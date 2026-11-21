@@ -7,9 +7,7 @@ can be loaded, validated, and executed without errors after our changes.
 """
 
 import unittest
-import os
 import sys
-import glob
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 

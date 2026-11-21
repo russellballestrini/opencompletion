@@ -17,14 +17,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Import Flask and testing utilities
-import pytest
-from flask import Flask
-from flask_socketio import SocketIO
 
 # Import the main application
 import app
 import activity
-from models import db, Room, ActivityState, Message
+from models import db, Room, ActivityState
 
 
 class TestFlaskAppActivityFunctions(unittest.TestCase):

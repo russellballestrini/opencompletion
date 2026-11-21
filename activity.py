@@ -1,9 +1,7 @@
 import json
 import yaml
-import os
 import threading
-import random  # tests replace activity.random.random / .choice
-import gevent
+import random  # noqa: F401  tests replace activity.random.random / .choice
 
 from flask import request
 from sqlalchemy.exc import InvalidRequestError
@@ -15,7 +13,7 @@ socketio = None
 db = None
 
 # Import models
-from models import Room, Message, ActivityState
+from models import Message, ActivityState
 
 # Import helper functions from app.py
 # These will be imported when this module is loaded
@@ -29,7 +27,6 @@ SYSTEM_USERS = None
 # Import activity utilities for v2.0 features
 from activity_utils import (
     notice_id,
-    evaluate_condition,
     create_completion_skip_thinking,
     strip_reasoning,
     resolve_bucket,

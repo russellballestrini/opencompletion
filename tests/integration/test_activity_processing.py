@@ -12,7 +12,7 @@ import json
 import sys
 import os
 import yaml
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 # Add parent directory to path

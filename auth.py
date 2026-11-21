@@ -141,7 +141,7 @@ If you didn't request this code, you can safely ignore this email.
             server.send_message(msg)
         print(f"[INFO] OTP sent via localhost:25 to {email}")
         return "email"
-    except (ConnectionRefusedError, OSError, smtplib.SMTPException) as e:
+    except (ConnectionRefusedError, OSError, smtplib.SMTPException):
         # Localhost not available, try configured SMTP if available
         if smtp_host and smtp_user and smtp_password:
             try:

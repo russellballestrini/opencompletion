@@ -14,7 +14,7 @@ import unittest
 import random
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -397,7 +397,6 @@ class TestRandomBucketIntegration(unittest.TestCase):
         """Test complete workflow with one random event"""
         # Setup
         metadata = {"visited_sections": ""}
-        user_response = "forward"
         category = "torpedo_room"
 
         step = {

@@ -9,8 +9,7 @@ including AI behavior, game state management, and win conditions.
 import unittest
 import json
 import sys
-import random
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 # Add parent directory to path
@@ -30,7 +29,7 @@ with patch.dict(
         "matplotlib.pyplot": MagicMock(),
     },
 ):
-    import app
+    import app  # noqa: F401  activity is wired up by importing app
     import activity
 
 

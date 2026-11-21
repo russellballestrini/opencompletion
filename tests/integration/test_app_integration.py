@@ -6,8 +6,6 @@ Tests Flask routes, request handling, and basic app functionality
 """
 
 import unittest
-import json
-from unittest.mock import patch, MagicMock
 import sys
 from pathlib import Path
 
@@ -43,7 +41,6 @@ class TestDatabaseModelsIntegration(unittest.TestCase):
 
     def setUp(self):
         """Set up test database"""
-        import app as app_module
         from models import db
         from flask import Flask
 
@@ -65,7 +62,7 @@ class TestDatabaseModelsIntegration(unittest.TestCase):
         self.db.session.remove()
         try:
             self.db.drop_all()
-        except Exception as e:
+        except Exception:
             # Drop all may fail if db is already cleaned up
             pass
         self.app_context.pop()

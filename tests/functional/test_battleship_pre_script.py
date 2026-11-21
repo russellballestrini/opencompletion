@@ -4,9 +4,8 @@ Test that battleship pre_script functionality works with actual YAML files
 """
 
 import unittest
-import os
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 from pathlib import Path
 
 # Add research directory to path

@@ -230,7 +230,7 @@ def test_a_solo_chats_file_names_cannot_be_tried_by_anyone_else(test_app):
 
 def test_every_file_reads_as_the_markdown_our_composer_writes(test_app):
     from blob_store import attachment_markdown
-    from models import Attachment, db
+    from models import Attachment
 
     make_room("lobby")
     client = client_for(test_app)

@@ -443,7 +443,7 @@ window.addEventListener('load', () => {
 def test_our_sidebar_never_scrolls_sideways(client, tmp_path, path, width):
     """A long unbroken title ends in "…" inside our sidebar; it once widened
     the grid's auto track & scrolled the whole sidebar sideways."""
-    from models import Room, db
+    from models import db
 
     me = make_user("a-very-long-display-name-without-spaces@example.test", "x" * 50)
     word = "supercalifragilisticexpialidocious" * 3
