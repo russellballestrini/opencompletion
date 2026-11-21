@@ -69,9 +69,7 @@ def initialize_model_map():
                 try:
                     response = client.models.list()
                     model_list = response.data
-                    print(
-                        f"[DEBUG] {endpoint} returned models: {[m.id for m in model_list]}"
-                    )
+                    print(f"[DEBUG] {endpoint} listed {len(model_list)} models")
                     for m in model_list:
                         model_id = m.id
                         if model_id and model_id not in MODEL_CLIENT_MAP:

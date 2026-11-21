@@ -203,7 +203,7 @@ def _load_models(verbose=False):
                 print(f"[WARN] speech models from {base_url} failed: {exc}")
             continue
         if verbose:
-            print(f"[DEBUG] {base_url} returned speech models: {listed}")
+            print(f"[DEBUG] {base_url} listed {len(listed)} models")
         by_endpoint[base_url] = listed
         ids += [i for i in listed if i not in ids]
     _models_cache.update(at=time.monotonic(), ids=ids, by_endpoint=by_endpoint)
