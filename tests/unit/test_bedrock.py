@@ -195,6 +195,15 @@ def test_a_failure_becomes_the_reply(fake, room):
     assert not [d for e, d in room.emitted if e == "message_chunk"]
 
 
-def test_dispatch_sends_a_bedrock_claude_model_to_chat_claude():
+def test_only_a_named_model_is_asked_of_bedrock(monkeypatch):
+    """A model id comes from whoever posts: looking like Claude is not enough."""
+    monkeypatch.delenv("OPENCOMPLETION_BEDROCK_MODELS", raising=False)
+    assert not bedrock.allowed("anthropic.claude-x")
+    monkeypatch.setenv(
+        "OPENCOMPLETION_BEDROCK_MODELS", "us.anthropic.claude-haiku-5-5, other"
+    )
+    assert bedrock.allowed("us.anthropic.claude-haiku-5-5")
+    assert bedrock.allowed("other")
+    assert not bedrock.allowed("anthropic.claude-x")
     source = open(bedrock.__file__.replace("bedrock.py", "app.py")).read()
-    assert 'if "anthropic.claude" in model:' in source
+    assert "if bedrock.allowed(model):" in source

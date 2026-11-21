@@ -19,6 +19,9 @@ TRANSCRIPT_CHARS = 40000
 RESULT_CHARS = 2000
 ARGUMENT_CHARS = 300
 MAX_TOKENS = 1024
+# Messages waiting on a reply, as an aside reads them: the newest few, cut.
+WAITING_MAX = 20
+WAITING_CHARS = 500
 
 
 def text_of(content):
@@ -84,7 +87,10 @@ def waiting(messages):
     """Messages sent to a running reply it has not read yet (steering)."""
     if not messages:
         return ""
-    lines = "\n".join(f"- {username}: {words}" for username, words in messages)
+    lines = "\n".join(
+        f"- {username}: {str(words)[:WAITING_CHARS]}"
+        for username, words in messages[-WAITING_MAX:]
+    )
     return f"Sent to it while it works, not yet read:\n{lines}"
 
 

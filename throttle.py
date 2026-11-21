@@ -17,6 +17,7 @@ gevent process, so a limit here is the limit.
 import os
 import threading
 import time
+import ipaddress
 from collections import OrderedDict, deque
 
 from flask import jsonify, request
@@ -38,8 +39,21 @@ def client_ip():
         if part.strip()
     ]
     if hops and len(chain) >= hops:
-        return chain[-hops]
-    return request.remote_addr or "unknown"
+        return one_client(chain[-hops])
+    return one_client(request.remote_addr or "unknown")
+
+
+def one_client(address):
+    """An address as we count it: an IPv6 client is its /64, since one
+    connection is handed a whole /64 & could send from a new address in it
+    each time. Anything else, or unreadable, as given."""
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        return address
+    if ip.version == 6 and not ip.ipv4_mapped:
+        return str(ipaddress.ip_network(f"{ip}/64", strict=False))
+    return address
 
 
 def parse_limit(text, default):

@@ -182,7 +182,7 @@ def test_another_model_gets_a_reply_of_its_own(harness):
     assert taken == [None] and steered(harness) == []
 
 
-def test_stop_drops_what_was_waiting(harness):
+def test_stop_drops_what_waited_and_says_so(harness):
     def stop():
         harness.app.stop_requests.add("lobby")
 
@@ -196,6 +196,92 @@ def test_stop_drops_what_was_waiting(harness):
     finally:
         harness.app.stop_requests.discard("lobby")
     assert follow_ups(harness) == []
+    assert steered(harness) == [(45, "queued"), (45, "dropped")]
+
+
+def test_a_message_sent_after_stop_is_still_answered(harness):
+    """Stop, then "do X instead" while the stopped reply winds down."""
+
+    def stop():
+        harness.app.stop_requests.add("lobby")
+
+    harness.scripts.append(
+        [
+            delta("All "),
+            harness.send("old", 46),
+            stop,
+            harness.send("do x instead", 47),
+            delta("x"),
+        ]
+    )
+    try:
+        harness.app.chat_gpt(
+            "ada", "lobby", "qwen", tool_context=harness.tools.context("sid-ada")
+        )
+    finally:
+        harness.app.stop_requests.discard("lobby")
+    assert steered(harness)[-2:] == [(46, "dropped"), (47, "answering")]
+    ((args, kwargs),) = [
+        (a, k) for a, k in harness.spawned if harness.app.chat_gpt in a
+    ]
+    assert args[0] is harness.app.reply_once_stop_clears and args[2] == "bob"
+
+
+def test_a_search_in_a_browser_is_not_a_search_on_our_network(harness, monkeypatch):
+    """Same tool name, another place: that guest never steers mid-reply."""
+
+    def offered(context):
+        if context is None:
+            return {}
+        return {"web_search": "server" if context.email else "browser"}
+
+    monkeypatch.setattr(harness.tools, "offered", offered)
+    harness.scripts += [[search_call()], [delta("Done.")]]
+    harness.during_round.append(harness.send("search this", 48))
+    fox = harness.tools.context("sid-fox", SimpleNamespace(email="fox@example.test"))
+    harness.app.chat_gpt("fox", "lobby", "qwen", tool_context=fox)
+    assert all(m.get("content") != "search this" for m in harness.asks[1]["messages"])
+    assert steered(harness) == [(48, "queued"), (48, "answering")]
+
+
+def test_a_queued_message_deleted_before_it_is_read_is_never_read(harness):
+    import time
+
+    from models import Message, Room, db
+
+    def say_then_delete():
+        # Said while the reply works (so no history holds it), queued,
+        # then deleted before the reply's next ask.
+        room = Room.query.filter_by(name="lobby").one()
+        said = Message(username="bob", content="forget this", room_id=room.id)
+        db.session.add(said)
+        db.session.commit()
+        harness.send("forget this", said.id)()
+        said.deleted_at, said.deleted_by = int(time.time()), "bob"
+        db.session.commit()
+
+    harness.scripts += [[search_call()], [delta("Done.")]]
+    harness.during_round.append(say_then_delete)
+    harness.app.chat_gpt(
+        "ada", "lobby", "qwen", tool_context=harness.tools.context("sid-ada")
+    )
+    assert "forget this" not in json.dumps(harness.asks[1]["messages"])
+    assert follow_ups(harness) == []
+
+
+def test_a_reply_takes_only_so_many_waiting_messages(harness):
+    taken = []
+
+    def flood():
+        for i in range(harness.app.STEER_QUEUE_MAX + 1):
+            taken.append(harness.send(f"m{i}", 100 + i)())
+
+    harness.scripts += [[search_call()], [delta("Done.")]]
+    harness.during_round.append(flood)
+    harness.app.chat_gpt(
+        "ada", "lobby", "qwen", tool_context=harness.tools.context("sid-ada")
+    )
+    assert taken[-1] is None and all(taken[:-1])
 
 
 def aside_harness(harness, monkeypatch, answer="It is searching."):

@@ -1384,12 +1384,25 @@ def on_disconnect():
 MESSAGE_THROTTLE = Throttle("OPENCOMPLETION_MESSAGE_LIMIT", default=(60, 600))
 
 
+# Answers to a room's running activity (each is graded by a model), per
+# client. Far looser than messages: a class plays one from a single
+# address & every learner there answers, yet a loop must still end.
+ACTIVITY_THROTTLE = Throttle("OPENCOMPLETION_ACTIVITY_LIMIT", default=(300, 600))
+
+# Commands that ask a model whatever model is picked.
+MODEL_COMMANDS = ("/title new", "/activity info")
+
+
+def in_an_activity(room):
+    return ActivityState.query.filter_by(room_id=room.id).first() is not None
+
+
 def spends_a_model_call(room, models):
-    """True when a message to `room` is one our limit counts: a model is
-    picked to answer it. People talking to people (model "None") are never
-    limited, & neither is an answer to a room's running activity: a class
-    plays one from a single address, & every learner there answers."""
-    if ActivityState.query.filter_by(room_id=room.id).first() is not None:
+    """True when a message to `room` is one our message limit counts: a
+    model is picked to answer it. People talking to people (model "None")
+    are never limited, & an answer to a room's running activity counts
+    against ACTIVITY_THROTTLE instead (handle_message)."""
+    if in_an_activity(room):
         return False
     return any(model not in (None, "None") for model in models)
 
@@ -1417,6 +1430,18 @@ def new_room_refused():
     return refused_over(ROOM_THROTTLE, "new rooms")
 
 
+def over_a_message_limit(room, message, model, is_aside):
+    """Count this message against the limit it spends from; True when it
+    is refused (its sender was told). A slash command in an activity's
+    room is a command, never an answer."""
+    command = message.startswith("/")
+    if is_aside or message.startswith(MODEL_COMMANDS):
+        return message_refused()
+    if in_an_activity(room) and not command:
+        return refused_over(ACTIVITY_THROTTLE, "activity answers")
+    return spends_a_model_call(room, [model]) and message_refused()
+
+
 @socketio.on("chat_message")
 def handle_message(data):
     room_name = data["room_name"]
@@ -1433,7 +1458,7 @@ def handle_message(data):
     message = data["message"].strip()
     model = data.get("model", "None")
     is_aside = bool(re.match(r"/btw(\s|$)", message))
-    if (is_aside or spends_a_model_call(room, [model])) and message_refused():
+    if over_a_message_limit(room, message, model, is_aside):
         return  # neither stored nor dispatched
     if is_aside:
         # An aside is never stored: no reply reads it (aside.py).
@@ -1586,7 +1611,7 @@ def dispatch_message(
         )
         # elif: a Claude model once also fell through to chat_gpt, so two
         # replies streamed for one message.
-        if "anthropic.claude" in model:
+        if bedrock.allowed(model):
             gevent.spawn(
                 stoppable_reply, chat_claude, username, room_name, model_name=model
             )
@@ -1786,21 +1811,35 @@ def steer_running_reply(room_name, model, message_id, message, username, context
     for reply in list(live_replies.values()):
         if reply.room_name != room_name or model not in reply.asked_as:
             continue
-        own = set(tools.offered(dataclasses.replace(context, model=reply.model_name)))
-        readable = set(reply.offered) <= own
+        # Name & where it runs: a guest's search runs in their browser, an
+        # egress user's on our network, & those are not one tool.
+        own = tools.offered(dataclasses.replace(context, model=reply.model_name))
+        readable = reply.offered_where.items() <= own.items()
         if reply.take_steer(message_id, message, username, context, readable):
             return reply
     return None
 
 
+# At most this many messages wait on one reply; a delegate may run an hour.
+STEER_QUEUE_MAX = 20
+STEER_FORWARD_TRIES = 3
+
+
 def follow_steering(reply, enable_thinking):
     """Messages a reply took but never read (steer_running_reply) get one
     reply of its model's after it, with the last sender's tools; they are
-    in the room, so its history holds them all. Stop drops it."""
+    in the room, so its history holds them all. Stop drops what waited
+    when it was pressed (each is told so), never what was sent after: that
+    is answered once the room's stopped replies have ended."""
     pending = reply.close_steering()
-    if not pending or reply.room_name in stop_requests:
+    stopped = reply.room_name in stop_requests
+    if stopped:
+        for dropped in (entry for entry in pending if not entry[5]):
+            reply.emit_steered(dropped[0], "dropped")
+        pending = [entry for entry in pending if entry[5]]
+    if not pending:
         return
-    message_id, _, username, context = pending[-1]
+    _, _, username, context = pending[-1][:4]
     for waiting in pending:
         reply.emit_steered(waiting[0], "answering")
     socketio.emit(
@@ -1812,7 +1851,7 @@ def follow_steering(reply, enable_thinking):
         room=reply.room_name,
     )
     gevent.spawn(
-        stoppable_reply,
+        reply_once_stop_clears if stopped else stoppable_reply,
         chat_gpt,
         username,
         reply.room_name,
@@ -1820,6 +1859,16 @@ def follow_steering(reply, enable_thinking):
         enable_thinking=enable_thinking,
         tool_context=context,
     )
+
+
+def reply_once_stop_clears(reply, username, room_name, **kwargs):
+    """stoppable_reply, once the room's Stop is over: a reply begun while
+    stop_requests still names its room would be stopped with the rest."""
+    for _ in range(300):  # replies winding down; a minute at most
+        if room_name not in stop_requests:
+            break
+        socketio.sleep(0.2)
+    return stoppable_reply(reply, username, room_name, **kwargs)
 
 
 def emit_streaming(room_name, to=None):
@@ -2654,6 +2703,7 @@ class ReplyStream:
         self.tool_context = None
         self.tool_schemas = None
         self.offered = []
+        self.offered_where = {}  # tool name -> where it runs, for steering
         self.tool_calls = None
         # Why a server refused this reply's tools, if it did (open_completion).
         self.tool_refusals = []
@@ -2674,19 +2724,37 @@ class ReplyStream:
         # The names it was asked for by (MODEL_n or its id), to match them.
         self.steering, self.steerable = [], True
         self.forwarded = set()  # message ids its running delegate was passed
+        self.forward_tries = {}  # message id -> times its delegate refused it
         self.started_at = time.monotonic()  # for an aside (/btw)
         self.asked_as = {model_name}
 
     def take_steer(self, message_id, content, username, context, readable):
-        if not self.steerable:
+        """Queue a message for this reply; False when it takes no more (it
+        ended, or STEER_QUEUE_MAX wait already: that one gets a reply of
+        its own). One sent after Stop was pressed is marked: Stop drops
+        what waited before it, never what was said after."""
+        if not self.steerable or len(self.steering) >= STEER_QUEUE_MAX:
             return False
-        self.steering.append((message_id, content, username, context, readable))
+        after_stop = self.room_name in stop_requests
+        self.steering.append(
+            (message_id, content, username, context, readable, after_stop)
+        )
         self.emit_steered(message_id, "queued")
         return True
+
+    def still_said(self, message_id):
+        """False once a queued message was deleted or replaced by an edit:
+        what Message.visible() hides no model reads, queued or not."""
+        with app.app_context():
+            message = db.session.get(Message, message_id)
+            return message is None or (
+                message.deleted_at is None and message.superseded_by_id is None
+            )
 
     def steer_turns(self):
         """The readable messages sent since its last round, as user turns,
         for its next ask; each sender sees it was read."""
+        self.steering = [e for e in self.steering if self.still_said(e[0])]
         taken = [entry for entry in self.steering if entry[4]]
         if not taken:
             return []
@@ -2705,17 +2773,31 @@ class ReplyStream:
         delegate goes to deliver(words) -> True once it has it (a delegate
         runs for an hour; steer_turns reads only after its round). It
         stays queued: the model still reads it after the round. Unreadable
-        ones never go: nobody steers another person's sandbox."""
+        ones never go: nobody steers another person's sandbox. One the run
+        will not take is offered STEER_FORWARD_TRIES times, then left to
+        the model alone."""
         for entry in list(self.steering):
-            if entry[4] and entry[0] not in self.forwarded and deliver(entry[1]):
-                self.forwarded.add(entry[0])
-                self.emit_steered(entry[0], "forwarded")
+            message_id = entry[0]
+            if not entry[4] or message_id in self.forwarded:
+                continue
+            if not self.still_said(message_id):
+                continue
+            if deliver(entry[1]):
+                self.forwarded.add(message_id)
+                self.emit_steered(message_id, "forwarded")
+                continue
+            tries = self.forward_tries[message_id] = (
+                self.forward_tries.get(message_id, 0) + 1
+            )
+            if tries >= STEER_FORWARD_TRIES:
+                self.forwarded.add(message_id)
 
     def close_steering(self):
-        """It takes no more: what it never read, (id, words, sender, context)."""
+        """It takes no more: what it never read, (id, words, sender,
+        context, readable, sent after Stop)."""
         self.steerable = False
         pending, self.steering = self.steering, []
-        return [entry[:4] for entry in pending]
+        return [entry for entry in pending if self.still_said(entry[0])]
 
     def emit_steered(self, message_id, status):
         socketio.emit(
@@ -2784,7 +2866,8 @@ class ReplyStream:
         self.create_kwargs["tools"] = self.tool_schemas
         # Which tools it has & that it never claims a run it did not make.
         chat_history.insert(0, tools.guidance(self.tool_context))
-        self.offered = list(tools.offered(self.tool_context))
+        self.offered_where = dict(tools.offered(self.tool_context))
+        self.offered = list(self.offered_where)
         if not resume:
             print(
                 f"[INFO] {self.model_name} may call {', '.join(self.offered)} "
@@ -3414,9 +3497,9 @@ def chat_gpt(
     finally:
         # However it ended (finish & fail drop it themselves, an exception
         # must too), it streams no more & takes no more messages.
-        follow_steering(reply, enable_thinking)
         if live_replies.get(reply.msg_id) is reply:
             del live_replies[reply.msg_id]
+        follow_steering(reply, enable_thinking)
     if finished:
         # Beside us, never inside: titling asks a model, & while we wait on
         # it this reply still counts as streaming (Stop stayed 1-2 s too long
