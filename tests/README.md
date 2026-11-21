@@ -46,7 +46,7 @@ tests/
 ### Unit Tests (`tests/unit/`)
 
 **test_app.py** - Tests core app.py functions:
-- Utility functions (client management, S3 operations)  
+- Utility functions (client management)  
 - Activity processing functions (script execution, metadata operations)
 - Response categorization and feedback generation
 - Translation and language handling
@@ -92,7 +92,7 @@ tests/
 - ✅ Transition validation
 
 ### Core Application Features
-- ✅ Activity loading (local files and S3)
+- ✅ Activity loading (research/ files only)
 - ✅ Script execution with metadata manipulation
 - ✅ Response categorization using AI
 - ✅ Feedback generation
@@ -151,10 +151,10 @@ make quick             # Fast test run for development
 Tests run in an isolated virtual environment with all necessary dependencies:
 - pytest, pytest-cov, pytest-mock, pytest-flask
 - pyyaml, requests, flask, flask-socketio
-- gevent, eventlet, boto3, openai
+- gevent, eventlet, openai
 
 ### Mocking Strategy
-- External APIs (OpenAI, S3) are mocked to avoid API calls during testing
+- External APIs (OpenAI, AWS Bedrock) are mocked to avoid API calls during testing
 - Database operations are mocked to avoid needing a real database
 - Socket.IO events are mocked for testing real-time features
 

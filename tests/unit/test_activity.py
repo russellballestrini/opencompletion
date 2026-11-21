@@ -3,7 +3,7 @@
 Unit tests for activity.py core functions
 
 Tests the core activity processing functions:
-- get_activity_content: Loading activities from local/S3
+- get_activity_content: Loading activities from research/
 - execute_processing_script: Running Python scripts
 - get_next_step: Navigation between steps
 - categorize_response: AI-based response categorization
@@ -41,8 +41,6 @@ class TestGetActivityContent(unittest.TestCase):
         """Test loading activity from local file"""
         from activity import get_activity_content
 
-        self.mock_app.config = {"LOCAL_ACTIVITIES": True}
-
         # Create a temporary YAML file
         test_content = {"sections": [{"section_id": "test"}]}
 
@@ -57,8 +55,6 @@ class TestGetActivityContent(unittest.TestCase):
         """Test that path traversal is blocked"""
         from activity import get_activity_content
 
-        self.mock_app.config = {"LOCAL_ACTIVITIES": True}
-
         # Test various path traversal attempts
         with self.assertRaises(ValueError):
             get_activity_content("../etc/passwd")
@@ -70,16 +66,12 @@ class TestGetActivityContent(unittest.TestCase):
         """Test that absolute paths are blocked"""
         from activity import get_activity_content
 
-        self.mock_app.config = {"LOCAL_ACTIVITIES": True}
-
         with self.assertRaises(ValueError):
             get_activity_content("/etc/passwd")
 
     def test_get_activity_content_local_wrong_extension(self):
         """Test that non-yaml files are blocked"""
         from activity import get_activity_content
-
-        self.mock_app.config = {"LOCAL_ACTIVITIES": True}
 
         with self.assertRaises(ValueError):
             get_activity_content("research/test_activity.txt")
@@ -88,12 +80,8 @@ class TestGetActivityContent(unittest.TestCase):
         """Test that files outside research/ are blocked"""
         from activity import get_activity_content
 
-        self.mock_app.config = {"LOCAL_ACTIVITIES": True}
-
         with self.assertRaises(ValueError):
             get_activity_content("other_dir/test_activity.yaml")
-
-    # S3 test skipped due to scoping bug in activity.py (uses os.environ in S3 branch but os imported in local branch)
 
 
 class TestExecuteProcessingScript(unittest.TestCase):

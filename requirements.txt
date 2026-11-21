@@ -6,23 +6,19 @@ gevent
 gevent-websocket
 
 openai
-openai[datalib]
-together
 
 tiktoken
-
-#llama-cpp-python[server]
 
 # sqlite
 Flask-SQLAlchemy
 Flask-Migrate
 
-# used for s3/spaces or aws bedrock (claude)
+# AWS Bedrock's Claude models only (bedrock.py), imported when one is asked
 boto3
 
 pyyaml
 
-# if you want to plot charts.
+# research/*.yaml activity scripts & our Battleship admirals plot & count with these
 matplotlib
 numpy
 sympy

@@ -80,11 +80,11 @@ model endpoint.
     make venv                       # venv/ with every dependency
     cp vars.sh.sample vars.sh       # then set MODEL_ENDPOINT_1 & MODEL_API_KEY_1
     chmod 600 vars.sh               # it holds keys: owner-only
-    source vars.sh && venv/bin/python app.py --local-activities
+    source vars.sh && venv/bin/python app.py
 
 Open ``http://127.0.0.1:5001``. Our database (SQLite in ``instance/``) is
-created on first start. ``--local-activities`` lists the activities in
-``research/``; ``--port`` picks another port.
+created on first start. Activities are the YAML files in ``research/``;
+``--port`` picks another port.
 
 Configuration
 -------------

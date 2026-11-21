@@ -137,16 +137,6 @@ def mock_openai_client():
     return mock_client
 
 
-@pytest.fixture
-def mock_s3_client():
-    """Mock S3 client for testing"""
-    mock_client = MagicMock()
-    mock_response = {"Body": MagicMock()}
-    mock_response["Body"].read.return_value.decode.return_value = "test: content"
-    mock_client.get_object.return_value = mock_response
-    return mock_client
-
-
 @pytest.fixture(scope="function")
 def test_app():
     """Create a test Flask app with in-memory database"""

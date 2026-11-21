@@ -29,12 +29,11 @@ def activity(blocks, **top):
 
 @pytest.fixture
 def research(test_app, tmp_path, monkeypatch):
-    """A research/ of our own making, listed the way --local-activities
-    lists our real one (paths are relative to where our server runs)."""
+    """A research/ of our own making, listed the way our real one is
+    (paths are relative to where our server runs)."""
     folder = tmp_path / "research"
     folder.mkdir()
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setitem(test_app.config, "LOCAL_ACTIVITIES", True)
     return folder
 
 
@@ -110,13 +109,10 @@ def test_no_script_runs_to_build_our_gallery(research, http, tmp_path):
     assert not marker.exists()
 
 
-def test_without_local_activities_nothing_is_listed_and_our_page_says_so(
-    test_app, http, monkeypatch
-):
-    monkeypatch.setitem(test_app.config, "LOCAL_ACTIVITIES", False)
+def test_with_no_activity_files_nothing_is_listed_and_our_page_says_so(research, http):
     assert http.get("/api/activities").json == {"activities": [], "details": []}
     page = http.get("/activities").get_data(as_text=True)
-    assert "No activities are listed on this server" in page
+    assert "No activities on this server yet" in page
     assert "activities.js" not in page
 
 
@@ -148,12 +144,8 @@ def test_a_title_cannot_break_out_of_its_card(research, http):
 def test_our_gallery_leaves_out_fixtures_and_gives_every_card_its_own_title(test_app):
     from collections import Counter
 
-    test_app.config["LOCAL_ACTIVITIES"] = True
-    try:
-        html = test_app.test_client().get("/activities").get_data(as_text=True)
-        details = test_app.test_client().get("/api/activities").json["details"]
-    finally:
-        test_app.config["LOCAL_ACTIVITIES"] = False
+    html = test_app.test_client().get("/activities").get_data(as_text=True)
+    details = test_app.test_client().get("/api/activities").json["details"]
     # Our two test fixtures say `listed: false`: on our API, off our page.
     assert "activity29-testship" not in html and "activity-test-v2-features" not in html
     assert any(d["name"] == "activity29-testship" and not d["listed"] for d in details)

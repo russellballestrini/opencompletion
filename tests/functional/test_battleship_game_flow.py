@@ -22,9 +22,7 @@ with patch.dict(
     {
         "gevent": MagicMock(),
         "flask_socketio": MagicMock(),
-        "boto3": MagicMock(),
         "openai": MagicMock(),
-        "together": MagicMock(),
         "models": MagicMock(),
         "matplotlib": MagicMock(),
         "matplotlib.pyplot": MagicMock(),

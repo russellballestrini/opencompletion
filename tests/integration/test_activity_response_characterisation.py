@@ -158,7 +158,6 @@ def engine():
     test_app.config["TESTING"] = True
     test_app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
     test_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    test_app.config["LOCAL_ACTIVITIES"] = True
     db.init_app(test_app)
 
     saved = (activity.app, activity.db, activity.get_room, activity.SYSTEM_USERS)

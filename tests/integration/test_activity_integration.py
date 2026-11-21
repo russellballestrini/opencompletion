@@ -47,7 +47,6 @@ class TestActivityIntegration(unittest.TestCase):
         test_app.config["TESTING"] = True
         test_app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
         test_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-        test_app.config["LOCAL_ACTIVITIES"] = True
         test_app.config["WTF_CSRF_ENABLED"] = False
         test_app.config["SECRET_KEY"] = "test-secret"
 
