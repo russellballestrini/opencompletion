@@ -1,10 +1,13 @@
 """What a deploy check asks: which commit is running & what our start did
 to our database (/version), & whether we answer with our database behind
-us (/health).
+us (/health), & whether we have a chat model to answer with
+(/health/models).
 
-Neither calls a model endpoint: a dead MODEL_ENDPOINT_n must not make a
+None calls a model endpoint: a dead MODEL_ENDPOINT_n must not make a
 health check hang or fail (the app already fails over between them), and
-neither says why something failed, since both are public.
+none says why something failed, since all are public. /health/models
+reads our model map from memory, so a load balancer keeps /health & a
+monitor asks this one.
 """
 
 import os
@@ -16,6 +19,7 @@ from sqlalchemy import text
 
 import db_migrate
 from models import db
+from routes import DEPS
 
 bp = Blueprint("status", __name__)
 
@@ -86,4 +90,31 @@ def health():
     healthy = database == "ok"
     response = jsonify(status="ok" if healthy else "error", database=database)
     response.status_code = 200 if healthy else 503
+    return _no_store(response)
+
+
+@bp.route("/health/models")
+def health_models():
+    """200 while our model map lists a chat model, else 503: counts & the
+    map's age only, never an endpoint, a key or a model id. Asking nudges
+    a stale map to rebuild in the background, as /models does; a map never
+    built stays so (we never wait on an endpoint here)."""
+    DEPS["refresh_stale_model_map"]()
+    known = DEPS["model_map_status"]()
+    if not known["built"]:
+        state = "never built"
+    elif known["chat_models"]:
+        state = "ok"
+    else:
+        state = "no models"
+    response = jsonify(
+        status="ok" if state == "ok" else "error",
+        models=state,
+        endpoints_configured=known["endpoints"],
+        endpoints_listing=known["endpoints_listing"],
+        model_count=known["models"],
+        chat_model_count=known["chat_models"],
+        map_age_seconds=known["age_seconds"],
+    )
+    response.status_code = 200 if state == "ok" else 503
     return _no_store(response)

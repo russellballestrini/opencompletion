@@ -1,5 +1,5 @@
 """Our HTTP routes, as blueprints: pages, accounts, rooms, code, speech,
-files, the sandbox proxy & status (/version, /health).
+files, the sandbox proxy & status (/version, /health, /health/models).
 
 app.py keeps chat itself (the /chat page, Socket.IO events & model
 streaming) and calls register() once. The few helpers these routes share
@@ -18,7 +18,9 @@ def register(app, **deps):
     (the live list of names whose messages are system/assistant turns),
     retitle_room(room) & set_room_title(room, title) (save & announce a
     room's title), trail_as_of_now(saved, room_name, resuming) (a saved
-    tool trail as the page shows it, a restart's cut-off lines interrupted).
+    tool trail as the page shows it, a restart's cut-off lines interrupted),
+    model_map_status() (counts & age of our model map, from memory) &
+    refresh_stale_model_map() (rebuild a stale one in the background).
     """
     DEPS.update(deps)
     from routes import (
