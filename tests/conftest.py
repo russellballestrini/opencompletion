@@ -109,6 +109,7 @@ os.environ["OPENCOMPLETION_WEB_CRAWL"] = "off"
 os.environ["OPENCOMPLETION_MESSAGE_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_OTP_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_ROOM_LIMIT"] = "0"
+os.environ["OPENCOMPLETION_ACTIVITY_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_CODE_LIMIT"] = "0"
 
 

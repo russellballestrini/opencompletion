@@ -16,6 +16,16 @@ DEFAULT_REGION = "us-west-2"
 MAX_TOKENS = 4096
 
 
+def allowed(model):
+    """True for a model id we may ask Bedrock for: one named in
+    OPENCOMPLETION_BEDROCK_MODELS (comma separated; unset = none). A model
+    id comes from whoever posts a message, & what we send Bedrock is
+    asked under our AWS credentials, so never any id that merely looks
+    like one of its Claude models."""
+    named = os.environ.get("OPENCOMPLETION_BEDROCK_MODELS", "")
+    return str(model) in {name.strip() for name in named.split(",") if name.strip()}
+
+
 def text_of(content):
     """A turn's words: a vision turn's text parts, never its images."""
     if isinstance(content, str):

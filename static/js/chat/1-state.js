@@ -52,16 +52,31 @@ function guestNameFrom(typed) {
 
 // What DOMPurify keeps in a message. No iframe & no style attribute: a
 // sender could otherwise cover our page with a full-screen overlay or
-// another site. Images & video (including data: images) still render.
+// another site. No class either, for the same reason: with it a message
+// could wear any look in style.css (a `.modal` over our whole page, styled
+// as our own sign-in). Only a code block's `language-…` class stays, which
+// marked writes & highlight.js reads. No data-* or aria-*: our delegated
+// click handlers trust data-room-name & friends. Images & video (including
+// data: images) still render.
 const dompurify_config = {
   ADD_TAGS: ["img", "video"],
   FORBID_TAGS: ["form", "iframe", "style"],
+  ALLOW_DATA_ATTR: false,
+  ALLOW_ARIA_ATTR: false,
   // href: links work (attachments, your name -> /profile); DOMPurify still
   // drops javascript: & other script URLs.
   ALLOWED_ATTR: [
-    "href", "src", "width", "height", "alt", "class", "title", "controls",
+    "href", "src", "width", "height", "alt", "title", "controls",
   ]
 };
+if (typeof DOMPurify !== "undefined") {
+  DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
+    if (data.attrName === "class" && node.nodeName === "CODE"
+        && /^language-[\w+#.-]+$/.test(data.attrValue)) {
+      data.forceKeepAttr = true;
+    }
+  });
+}
 
 // keeping track of scrolling to prevent autoscrolling.
 let userHasScrolledUp = false;
