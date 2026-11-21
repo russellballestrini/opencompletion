@@ -89,27 +89,29 @@ class Throttle:
             self._hits.clear()
 
 
-def over_limit(throttle, what):
+def over_limit(throttle, what, key=None, whose="from your address"):
     """Count one of `what` ("new rooms", "code runs") for this request's
     client. None when it is allowed, else (what to tell them, seconds to
     wait). Works in a Socket.IO handler too: flask-socketio hands it the
-    request its socket connected with, proxy headers included."""
-    retry_after = throttle.hit(client_ip())
+    request its socket connected with, proxy headers included. `key`
+    counts by something else than the address (an email a code goes to),
+    with `whose` saying so."""
+    retry_after = throttle.hit(client_ip() if key is None else key)
     if not retry_after:
         return None
     minutes = -(-retry_after // 60)
     return (
-        f"Too many {what} from your address: {throttle.count} per "
+        f"Too many {what} {whose}: {throttle.count} per "
         f"{throttle.seconds // 60} minutes. Try again in {minutes} minute"
         f"{'' if minutes == 1 else 's'}.",
         retry_after,
     )
 
 
-def too_many(throttle, what):
+def too_many(throttle, what, key=None, whose="from your address"):
     """over_limit() as an HTTP answer: None when allowed, else a 429 with
     Retry-After."""
-    over = over_limit(throttle, what)
+    over = over_limit(throttle, what, key, whose)
     if not over:
         return None
     response = jsonify({"error": over[0]})

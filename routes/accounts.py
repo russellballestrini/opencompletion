@@ -1,5 +1,7 @@
 """Sign in by email code, sign out & display-name changes (JSON API)."""
 
+import re
+
 from flask import Blueprint, jsonify, request, session
 
 import auth
@@ -12,24 +14,51 @@ bp = Blueprint("accounts", __name__)
 # Authentication endpoints
 # Sign-in codes per client. OPENCOMPLETION_OTP_LIMIT, "count/seconds".
 OTP_THROTTLE = Throttle("OPENCOMPLETION_OTP_LIMIT", default=(5, 600))
+# Codes per TARGET email, whoever asks: many addresses can't flood one inbox.
+OTP_EMAIL_THROTTLE = Throttle("OPENCOMPLETION_OTP_EMAIL_LIMIT", default=(3, 900))
+# Guesses per client, across emails (auth.verify_otp counts per email).
+OTP_VERIFY_THROTTLE = Throttle("OPENCOMPLETION_OTP_VERIFY_LIMIT", default=(20, 600))
+
+# ONE address, conservatively: no commas, spaces or angle brackets, which
+# smtplib would read as several recipients or a display name.
+EMAIL = re.compile(
+    r"[a-z0-9._%+-]{1,64}@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
+    r"(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+"
+)
+EMAIL_MAX = 254
+
+
+def json_body():
+    """This request's JSON object; {} for anything else (a list, text)."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
+
+
+def text(data, name):
+    """A field as stripped text; "" when missing or not a string."""
+    value = data.get(name)
+    return value.strip() if isinstance(value, str) else ""
 
 
 @bp.route("/auth/send-otp", methods=["POST"])
 def send_otp():
     """Send OTP to user's email"""
-    data = request.get_json(silent=True) or {}
-    email = data.get("email", "").strip().lower()
+    email = text(json_body(), "email").lower()
 
     if not email:
         return jsonify({"error": "Email is required"}), 400
 
-    # Basic email validation
-    if "@" not in email or "." not in email.split("@")[1]:
+    if len(email) > EMAIL_MAX or not EMAIL.fullmatch(email):
         return jsonify({"error": "Invalid email address"}), 400
 
     # Each code is an email we send: unlimited, anyone could have us flood
     # an inbox. Counted after validation, so a typo costs nothing.
     refused = too_many(OTP_THROTTLE, "sign-in codes")
+    if refused:
+        return refused
+    refused = too_many(
+        OTP_EMAIL_THROTTLE, "sign-in codes", key=email, whose="for that email"
+    )
     if refused:
         return refused
 
@@ -47,12 +76,16 @@ def send_otp():
 @bp.route("/auth/verify-otp", methods=["POST"])
 def verify_otp():
     """Verify OTP code and check if user exists"""
-    data = request.get_json(silent=True) or {}
-    email = data.get("email", "").strip().lower()
-    otp_code = data.get("otp_code", "").strip()
+    data = json_body()
+    email = text(data, "email").lower()
+    otp_code = text(data, "otp_code")
 
     if not email or not otp_code:
         return jsonify({"error": "Email and OTP code are required"}), 400
+
+    refused = too_many(OTP_VERIFY_THROTTLE, "sign-in tries")
+    if refused:
+        return refused
 
     # Verify OTP
     otp_token = auth.verify_otp(email, otp_code)
@@ -89,8 +122,7 @@ def verify_otp():
 @bp.route("/auth/claim-name", methods=["POST"])
 def claim_name():
     """Claim display name for new user (after OTP verification)"""
-    data = request.get_json(silent=True) or {}
-    display_name = data.get("display_name", "").strip()
+    display_name = text(json_body(), "display_name")
     email = session.get("pending_email")
 
     if not email:
@@ -100,8 +132,6 @@ def claim_name():
         return jsonify({"error": "Display name is required"}), 400
 
     # Validate display name (alphanumeric, underscores, hyphens only, 3-50 chars)
-    import re
-
     if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", display_name):
         return (
             jsonify(
@@ -162,8 +192,6 @@ def check_username():
         return jsonify({"available": False, "error": "Username is required"}), 400
 
     # Validate format
-    import re
-
     if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", username):
         return jsonify({"available": False, "error": "Invalid format"}), 400
 
@@ -178,15 +206,12 @@ def check_username():
 def update_username():
     """Update user's display name"""
     user = auth.get_current_user()
-    data = request.get_json(silent=True) or {}
-    new_username = data.get("new_username", "").strip()
+    new_username = text(json_body(), "new_username")
 
     if not new_username:
         return jsonify({"error": "Username is required"}), 400
 
     # Validate format
-    import re
-
     if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", new_username):
         return (
             jsonify(

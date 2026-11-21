@@ -108,6 +108,8 @@ os.environ["OPENCOMPLETION_WEB_CRAWL"] = "off"
 # tests/integration/test_message_limits.py sets each throttle's count.
 os.environ["OPENCOMPLETION_MESSAGE_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_OTP_LIMIT"] = "0"
+os.environ["OPENCOMPLETION_OTP_EMAIL_LIMIT"] = "0"
+os.environ["OPENCOMPLETION_OTP_VERIFY_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_ROOM_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_CODE_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_SPEECH_LIMIT"] = "0"
