@@ -23,6 +23,7 @@ with patch.dict(
     "sys.modules",
     {
         "gevent": MagicMock(),
+        "gevent.lock": MagicMock(),
         "flask_socketio": MagicMock(),
         "openai": MagicMock(),
         "models": MagicMock(),

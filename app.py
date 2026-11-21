@@ -2673,6 +2673,7 @@ class ReplyStream:
         # (message_id, words, sender, their tool context, readable mid-reply).
         # The names it was asked for by (MODEL_n or its id), to match them.
         self.steering, self.steerable = [], True
+        self.forwarded = set()  # message ids its running delegate was passed
         self.started_at = time.monotonic()  # for an aside (/btw)
         self.asked_as = {model_name}
 
@@ -2698,6 +2699,17 @@ class ReplyStream:
         for entry in taken:
             self.emit_steered(entry[0], "read")
         return turns
+
+    def forward_steering(self, deliver):
+        """Each readable message not yet passed to this reply's running
+        delegate goes to deliver(words) -> True once it has it (a delegate
+        runs for an hour; steer_turns reads only after its round). It
+        stays queued: the model still reads it after the round. Unreadable
+        ones never go: nobody steers another person's sandbox."""
+        for entry in list(self.steering):
+            if entry[4] and entry[0] not in self.forwarded and deliver(entry[1]):
+                self.forwarded.add(entry[0])
+                self.emit_steered(entry[0], "forwarded")
 
     def close_steering(self):
         """It takes no more: what it never read, (id, words, sender, context)."""
@@ -2758,6 +2770,7 @@ class ReplyStream:
                 oversee=lambda digest: oversee_delegate(
                     openai_client, model_name, digest
                 ),
+                notes=self.forward_steering,
             )
         self.tool_context = tool_context
         self.tool_schemas = tools.schemas(tool_context)

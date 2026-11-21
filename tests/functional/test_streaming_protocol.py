@@ -66,6 +66,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "openai": MagicMock(),
                 "models": MagicMock(),
@@ -170,6 +171,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "openai": MagicMock(),
                 "models": MagicMock(),
@@ -244,6 +246,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "openai": MagicMock(),
                 "models": MagicMock(),
@@ -356,6 +359,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "openai": MagicMock(),
                 "models": MagicMock(),
@@ -425,6 +429,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "openai": MagicMock(),
                 "models": MagicMock(),

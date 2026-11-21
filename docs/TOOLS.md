@@ -74,6 +74,18 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   `OPENCOMPLETION_SANDBOX_IDLE_S` it is **frozen**, never deleted, & the
   next call unfreezes it. A command counts as in use until its time limit,
   so a long one is never frozen under itself.
+- **One call at a time.** Replies from different models run at once in
+  a room & share its sandbox, so each chat has two locks in memory
+  (`_in_turn` in `tools/sandbox.py`; we are one process). The **turn**
+  lock is held for one shell, file write or share, & for a delegate's
+  start (making or waking the sandbox, arming its token, launching). The
+  **delegate** lock is held for a delegate's whole run: a sandbox has one
+  proxy token & one uncloseai-cli session, so a second delegate waits for
+  the first to end, while another reply's quick command still runs beside
+  a delegate that works for an hour. A call that waits says "Waiting for
+  its turn" on its line; Stop ends its wait; a call that fails or whose
+  reply dies gives its turn back. Without them two first calls each made
+  a service (one leaked) & a second delegate cut off the first's model.
 - **`sandbox_share_file`**: hands the person a file from that sandbox (a
   deck, a build, an image; a folder is zipped first), since nobody can
   browse a sandbox's disk. It is read as base64 on stdout,
@@ -133,6 +145,17 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   read at its next subturn); an older uncloseai-cli without it shows the
   note on the card as not delivered. An unreadable or failed review is a
   continue. The card shows the latest call under the task.
+
+  **People steer it too.** A message sent to a reply whose delegate is
+  running would wait for the round to end, an hour on. Each tick the run
+  asks its reply for such messages (`ToolContext.notes`,
+  `ReplyStream.forward_steering` in app.py) & passes each through the
+  same inbox, once; the page says "Passed to qwen's running delegate"
+  (`message_steered`, status `forwarded`). The chat's model still reads
+  it after the round. Only a message its sender could have steered the
+  reply with (they may call its tools themselves) is passed: a guest
+  never reaches someone's sandbox. One the inbox refused is offered again
+  next tick; an uncloseai-cli without the inbox is asked once.
 
   **One session per chat.** The first vitals carry uncloseai-cli's
   `session_id`; the sandbox keeps it (`sandbox.delegate_session_id`,
@@ -280,7 +303,7 @@ around a refusal. Each fetch runs in a native thread with its own event loop
   headless Chromium, every vendor a stubbed fetch
 - `tests/integration/test_sandbox_tools.py`: who gets which unsandbox
   tool, runs & artifacts, one sandbox per chat (made once, woken, frozen
-  when idle, never while busy), `delegate`'s token & the proxy (refused
+  when idle, never while busy, one call at a time), `delegate`'s token & the proxy (refused
   without a live token, pinned to its model, streams, limited); a fake
   unsandbox, so no test spends the account
 - `tests/unit/test_keyless_search.py`, `tests/unit/crawler/`: the vendored

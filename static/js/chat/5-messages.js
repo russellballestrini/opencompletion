@@ -912,6 +912,7 @@ socket.on("followup_suggestions", (data) => {
 // queued, read mid-reply, or being answered by the reply after it.
 const STEER_WORDS = {
     queued: (model) => `Sent to ${model}'s reply in progress`,
+    forwarded: (model) => `Passed to ${model}'s running delegate`,
     read: (model) => `${model} read this mid-reply`,
     answering: (model) => `${model} answers this next`,
 };
