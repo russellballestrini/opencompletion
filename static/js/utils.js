@@ -407,23 +407,32 @@ function askDialog({title, body, label, value, confirmLabel, danger}) {
     dialog.appendChild(form);
 
     return new Promise(resolve => {
-        cancel.addEventListener('click', () => dialog.close('cancel'));
+        // Answered at once, by whichever of these comes first: a dialog's
+        // own `close` event is a queued task, & how soon it runs is the
+        // browser's business (CI's Chrome never ran it in time, 2026-11-21).
+        let answered = false;
+        const answer = (yes) => {
+            if (answered) return;
+            answered = true;
+            const said = asksText ? (yes ? input.value : null) : yes;
+            if (dialog.open) dialog.close();
+            dialog.remove();
+            if (opener && opener !== document.body && opener.isConnected) opener.focus();
+            resolve(said);
+        };
+        cancel.addEventListener('click', () => answer(false));
         // Enter in the field, or the confirm button itself.
         form.addEventListener('submit', event => {
             event.preventDefault();
-            dialog.close('confirm');
+            answer(true);
         });
         // The dialog has no padding: a click on it itself is its backdrop.
         dialog.addEventListener('click', event => {
-            if (event.target === dialog) dialog.close('cancel');
+            if (event.target === dialog) answer(false);
         });
-        dialog.addEventListener('close', () => {
-            const yes = dialog.returnValue === 'confirm';
-            const answer = asksText ? (yes ? input.value : null) : yes;
-            dialog.remove();
-            if (opener && opener !== document.body && opener.isConnected) opener.focus();
-            resolve(answer);
-        });
+        // Escape: the browser cancels, then closes; either way it is a no.
+        dialog.addEventListener('cancel', () => queueMicrotask(() => answer(false)));
+        dialog.addEventListener('close', () => answer(false));
         document.body.appendChild(dialog);
         dialog.showModal();
         if (input) {
