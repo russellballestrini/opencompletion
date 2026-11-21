@@ -1,0 +1,13 @@
+{# A guest's name step (askGuestName in static/js/chat/3-room.js): asked in
+   our page, never a browser dialog. Shown by chat only to a guest whose
+   browser holds no name yet; /styleguide renders it too. #}
+<form id="name-step" class="card name-step" aria-labelledby="name-step-label" novalidate hidden>
+    <div class="form-group">
+        <label id="name-step-label" for="guest-name">What should we call you?</label>
+        <div class="name-step-row">
+            <input type="text" id="guest-name" class="form-input" placeholder="guest" maxlength="50" autocomplete="nickname" autocapitalize="none" spellcheck="false" aria-describedby="name-step-hint">
+            <button type="submit" class="btn">Join</button>
+        </div>
+        <p id="name-step-hint" class="form-hint">Others in a room see this name, kept in this browser only. <a href="/auth?next={{ request.path|urlencode }}">Sign in</a> to hold one name everywhere.</p>
+    </div>
+</form>
