@@ -99,9 +99,9 @@
                 openChat(data.room.name);
                 return;
             }
-            alert(data.error || 'Could not fork this chat.');
+            toast(data.error || 'Could not fork this chat.', {error: true});
         } catch (error) {
-            alert('Network error: nothing was forked. Please try again.');
+            toast('Network error: nothing was forked. Please try again.', {error: true});
         }
         if (button) button.disabled = false;
     }
@@ -139,16 +139,16 @@
             button.removeAttribute('aria-busy');
             button.textContent = label;
         }
-        alert(failure);
+        toast(failure, {error: true});
     }
 
-    function archiveRoom(roomId, button) {
-        if (!confirm('Archive this room? It leaves every room list & search, but nothing is deleted.')) return;
+    async function archiveRoom(roomId, button) {
+        if (!await askConfirm({title: 'Archive this room?', body: 'It leaves every room list & search, but nothing is deleted.', confirmLabel: 'Archive'})) return;
         return leaveRoom(roomId, button, `/api/rooms/${roomId}/archive`, 'POST', 'Archiving', 'Archived', 'Failed to archive room');
     }
 
-    function deleteRoom(roomId, button) {
-        if (!confirm('Delete this room & every message in it? This cannot be undone.')) return;
+    async function deleteRoom(roomId, button) {
+        if (!await askConfirm({title: 'Delete this room?', body: 'Every message in it is deleted too. This cannot be undone.', confirmLabel: 'Delete', danger: true})) return;
         return leaveRoom(roomId, button, `/api/rooms/${roomId}/delete`, 'DELETE', 'Deleting', 'Deleted', 'Failed to delete room');
     }
 </script>

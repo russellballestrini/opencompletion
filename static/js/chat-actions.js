@@ -147,7 +147,7 @@ const CHAT_ACTIONS = [
         label: 'Rename',
         show: room => room.canRetitle,
         run: async room => {
-            const title = prompt('Rename this chat', room.title || room.name);
+            const title = await askText({title: 'Rename this chat', label: 'Title', value: room.title || room.name, confirmLabel: 'Rename'});
             if (title === null || !title.trim()) return;
             const data = await roomAction(`/api/rooms/${room.id}/title`, 'POST', {title, name: room.name});
             showRoomTitle(room, data.title);
@@ -166,7 +166,7 @@ const CHAT_ACTIONS = [
         label: 'Archive',
         show: room => room.canRemove,
         run: async room => {
-            if (!confirm('Archive this chat? It leaves every list & search, but nothing is deleted.')) return;
+            if (!await askConfirm({title: 'Archive this chat?', body: 'It leaves every list & search, but nothing is deleted.', confirmLabel: 'Archive'})) return;
             await removeRoom(room, `/api/rooms/${room.id}/archive`, 'POST', 'Archiving', 'Archived');
         },
     },
@@ -175,7 +175,7 @@ const CHAT_ACTIONS = [
         danger: true,
         show: room => room.canRemove,
         run: async room => {
-            if (!confirm('Delete this chat & every message in it? This cannot be undone.')) return;
+            if (!await askConfirm({title: 'Delete this chat?', body: 'Every message in it is deleted too. This cannot be undone.', confirmLabel: 'Delete', danger: true})) return;
             await removeRoom(room, `/api/rooms/${room.id}/delete`, 'DELETE', 'Deleting', 'Deleted');
         },
     },
@@ -221,7 +221,7 @@ function openChatActions(button) {
             try {
                 await action.run(room);
             } catch (error) {
-                alert(error instanceof TypeError ? 'Network error. Please try again.' : error.message);
+                toast(error instanceof TypeError ? 'Network error. Please try again.' : error.message, {error: true});
             } finally {
                 button.disabled = false;
                 // Disabling blurred it; give a keyboard its place back.

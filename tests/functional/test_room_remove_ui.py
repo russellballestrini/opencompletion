@@ -22,11 +22,14 @@ def client(test_app):
     return test_app.test_client()
 
 
-# Our server answers each delete only when the probe says so; `alerts`
-# records what a failure tells the person.
+# Our server answers each delete only when the probe says so; `said()`
+# is what a failure tells the person (a toast). `agree()` answers our
+# in-page confirm, whose close event lands a task later.
 SERVER_STUB = r"""
-    const answers = [], alerts = [];
-    window.alert = (text) => alerts.push(text);
+    const answers = [];
+    // (An offline chat page's activity chooser says it could not load, too.)
+    const said = () => [...document.querySelectorAll('.toast.is-error[role="alert"] .toast-text')].map(t => t.textContent).filter(t => t !== 'Failed to fetch activities').join();
+    const asked = async (n) => { for (let i = 0; i < 100 && answers.length < n; i++) await wait(10); };
     window.fetch = (url, options) => {
         if (/\/api\/rooms\/\d+\/(delete|archive)$/.test(String(url))) {
             return new Promise(resolve => answers.push(ok => resolve(new Response(
@@ -37,6 +40,13 @@ SERVER_STUB = r"""
     };
     const wait = (ms) => new Promise(r => setTimeout(r, ms || 20));
     const status = () => (document.getElementById('room-action-status') || {}).textContent;
+    const agree = async (label) => {
+        const yes = document.querySelector('dialog.ask-dialog[open] [data-ask="confirm"]');
+        if (!yes || yes.textContent !== label || !yes.classList.contains('btn-danger')) throw new Error('no ' + label + ' confirm in our page');
+        yes.click();
+        for (let i = 0; i < 100 && document.querySelector('dialog.ask-dialog'); i++) await wait(5);
+        await wait(0);
+    };
 """
 
 LIST_PROBE = (
@@ -53,13 +63,22 @@ window.addEventListener('load', async () => {
     const card = document.querySelector('.room-card-wrap[data-room-name="adas-room"]');
     const row = document.querySelector('#your-chats li[data-room-name="adas-room"]');
     check(card && row, 'adas-room has a card & a sidebar row');
-    const remove = (from) => {
+    const remove = async (from) => {
         from.querySelector('[data-chat-actions]').click();
         [...document.querySelectorAll('.chat-actions-menu button')].find(b => b.textContent === 'Delete').click();
+        await agree('Delete');
     };
 
+    // Asked first, in our page; Cancel deletes nothing.
+    card.querySelector('[data-chat-actions]').click();
+    [...document.querySelectorAll('.chat-actions-menu button')].find(b => b.textContent === 'Delete').click();
+    check(!rows().some(r => r.classList.contains('room-removing')), 'nothing happens before an answer');
+    document.querySelector('dialog.ask-dialog[open] [data-ask="cancel"]').click();
+    await wait();
+    check(!document.querySelector('dialog.ask-dialog') && answers.length === 0 && !rows().some(r => r.classList.contains('room-removing')), 'Cancel deletes nothing');
+
     // The click shows at once: every place showing the chat is busy.
-    remove(card);
+    await remove(card);
     check(rows().every(r => r.classList.contains('room-removing') && r.inert && r.getAttribute('aria-busy') === 'true'), 'card & row marked deleting at once');
     check(status() === 'Deleting “adas-room”…', 'status says it: ' + status());
     check(getComputedStyle(card, '::after').animationName === 'ttsSpin', 'the card spins');
@@ -72,11 +91,11 @@ window.addEventListener('load', async () => {
     answers[0](false);
     await wait();
     check(rows().length === 2 && rows().every(r => !r.classList.contains('room-removing') && !r.inert && !r.hasAttribute('aria-busy')), 'rows restored');
-    check(alerts.join() === 'Our server said no', 'error shown: ' + alerts.join());
+    check(said() === 'Our server said no', 'error shown: ' + said());
     check(status() === '', 'status cleared');
 
     // Again from the sidebar, & it works: the rows fold away.
-    remove(row);
+    await remove(row);
     await wait();
     answers[1](true);
     await wait();
@@ -119,6 +138,7 @@ window.addEventListener('load', async () => {
     const card = document.querySelector('.room-card-wrap[data-room-name="adas-room"]');
     card.querySelector('[data-chat-actions]').click();
     [...document.querySelectorAll('.chat-actions-menu button')].find(b => b.textContent === 'Delete').click();
+    await agree('Delete');
     check(card.classList.contains('room-removing'), 'still marked busy');
     check(getComputedStyle(card, '::after').animationName === 'none', 'no spin');
     await wait();
@@ -162,6 +182,8 @@ window.addEventListener('load', async () => {
 
     // Inside the chat: the button spins & says so, the page dims.
     del.click();
+    check(!del.disabled && !document.body.classList.contains('room-leaving-page'), 'nothing happens before an answer');
+    await agree('Delete');
     check(del.getAttribute('aria-busy') === 'true' && del.disabled && del.textContent === 'Deleting…', 'Delete is busy: ' + del.textContent);
     check(archive.disabled, 'Archive waits too');
     check(document.body.classList.contains('room-leaving-page'), 'our page dims');
@@ -174,11 +196,12 @@ window.addEventListener('load', async () => {
     await wait();
     check(!del.disabled && !archive.disabled && !del.hasAttribute('aria-busy') && del.textContent === 'Delete', 'buttons restored');
     check(!document.body.classList.contains('room-leaving-page') && !row.classList.contains('room-removing'), 'page & row restored');
-    check(alerts.join() === 'Our server said no', 'error shown: ' + alerts.join());
+    check(said() === 'Our server said no', 'error shown: ' + said());
     check(left === null, 'still here');
 
     del.click();
-    await wait();
+    await agree('Delete');
+    await asked(2);
     answers[1](true);
     await wait();
     check(left === '/', 'home opens: ' + left);

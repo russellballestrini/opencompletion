@@ -55,7 +55,7 @@ async function signOut() {
         forgetRecentChats();
         window.location.href = '/';
     } catch (error) {
-        alert('Sign out failed. Please try again.');
+        toast('Sign out failed. Please try again.', {error: true});
     }
 }
 

@@ -341,3 +341,158 @@ function loadVoices(select) {
             select.hidden = true;
         });
 }
+
+// Asking & telling in our page, never by a browser's own confirm,
+// prompt or alert dialogs: those block the page, can't be styled & look
+// foreign on a phone.
+//
+// One modal, on a native <dialog> (showModal: focus stays inside, Escape
+// closes, a backdrop). Cancel, Escape & a tap on the backdrop all mean no.
+// Focus returns to whatever held it when we were asked.
+let askCount = 0;
+
+function askDialog({title, body, label, value, confirmLabel, danger}) {
+    const asksText = label !== undefined;
+    const opener = document.activeElement;
+    const id = `ask-${++askCount}`;
+    const dialog = document.createElement('dialog');
+    dialog.className = 'ask-dialog';
+    dialog.setAttribute('aria-labelledby', `${id}-title`);
+    const form = document.createElement('form');
+    form.className = 'ask-form';
+    form.method = 'dialog';
+    const heading = document.createElement('h2');
+    heading.className = 'ask-title';
+    heading.id = `${id}-title`;
+    heading.textContent = title;
+    form.appendChild(heading);
+    if (body) {
+        const words = document.createElement('p');
+        words.className = 'ask-body';
+        words.id = `${id}-body`;
+        words.textContent = body;
+        dialog.setAttribute('aria-describedby', words.id);
+        form.appendChild(words);
+    }
+    let input = null;
+    if (asksText) {
+        const group = document.createElement('div');
+        group.className = 'form-group';
+        const fieldLabel = document.createElement('label');
+        fieldLabel.htmlFor = `${id}-input`;
+        fieldLabel.textContent = label;
+        input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-input';
+        input.id = `${id}-input`;
+        input.autocomplete = 'off';
+        input.value = value || '';
+        group.append(fieldLabel, input);
+        form.appendChild(group);
+    }
+    const actions = document.createElement('div');
+    actions.className = 'ask-actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'btn btn-secondary';
+    cancel.dataset.ask = 'cancel';
+    cancel.textContent = 'Cancel';
+    const confirm = document.createElement('button');
+    confirm.type = 'submit';
+    confirm.className = danger ? 'btn btn-danger' : 'btn';
+    confirm.dataset.ask = 'confirm';
+    confirm.textContent = confirmLabel || 'OK';
+    actions.append(cancel, confirm);
+    form.appendChild(actions);
+    dialog.appendChild(form);
+
+    return new Promise(resolve => {
+        // Answered at once, by whichever of these comes first: a dialog's
+        // own `close` event is a queued task, & how soon it runs is the
+        // browser's business (CI's Chrome never ran it in time, 2026-11-21).
+        let answered = false;
+        const answer = (yes) => {
+            if (answered) return;
+            answered = true;
+            const said = asksText ? (yes ? input.value : null) : yes;
+            if (dialog.open) dialog.close();
+            dialog.remove();
+            if (opener && opener !== document.body && opener.isConnected) opener.focus();
+            resolve(said);
+        };
+        cancel.addEventListener('click', () => answer(false));
+        // Enter in the field, or the confirm button itself.
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            answer(true);
+        });
+        // The dialog has no padding: a click on it itself is its backdrop.
+        dialog.addEventListener('click', event => {
+            if (event.target === dialog) answer(false);
+        });
+        // Escape: the browser cancels, then closes; either way it is a no.
+        dialog.addEventListener('cancel', () => queueMicrotask(() => answer(false)));
+        dialog.addEventListener('close', () => answer(false));
+        document.body.appendChild(dialog);
+        dialog.showModal();
+        if (input) {
+            input.focus();
+            input.select();
+        } else {
+            // Something that can't be undone starts on Cancel, so a stray
+            // Enter never deletes.
+            (danger ? cancel : confirm).focus();
+        }
+    });
+}
+
+/**
+ * Ask yes or no. Resolves true only when the person confirms.
+ * @param {object} options - title, body, confirmLabel, danger (red, & focus starts on Cancel)
+ * @returns {Promise<boolean>}
+ */
+function askConfirm({title, body, confirmLabel, danger} = {}) {
+    return askDialog({title, body, confirmLabel, danger});
+}
+
+/**
+ * Ask for one line of text. Resolves what was typed, or null when cancelled.
+ * @param {object} options - title, label, value (what the field starts with), confirmLabel
+ * @returns {Promise<string|null>}
+ */
+function askText({title, label, value, confirmLabel} = {}) {
+    return askDialog({title, label: label || title, value, confirmLabel: confirmLabel || 'Save'});
+}
+
+/**
+ * Say something without stopping anyone: a quiet line atop our page that
+ * leaves by itself (errors stay longer & are announced at once).
+ * @param {string} message
+ * @param {object} options - error: true for a failure
+ * @returns {HTMLElement} the toast
+ */
+function toast(message, {error = false} = {}) {
+    let stack = document.getElementById('toasts');
+    if (!stack) {
+        stack = document.createElement('div');
+        stack.id = 'toasts';
+        stack.className = 'toasts';
+        document.body.appendChild(stack);
+    }
+    const line = document.createElement('div');
+    line.className = error ? 'toast is-error' : 'toast';
+    line.setAttribute('role', error ? 'alert' : 'status');
+    const words = document.createElement('span');
+    words.className = 'toast-text';
+    words.textContent = message;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'toast-close';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.textContent = '×';
+    close.addEventListener('click', () => line.remove());
+    line.append(words, close);
+    stack.appendChild(line);
+    setTimeout(() => line.remove(), error ? 8000 : 5000);
+    return line;
+}

@@ -24,7 +24,7 @@ Rules:
 
 - Every page extends `layout.html` (chat via `base.html`) & links `style.css` once. **(tested)**
 - Templates hold no `<style>` blocks & no raw colours in `style=""`. **(tested)**
-- Shared behaviour lives in `static/js/`: `site.js` (theme, sign out), `auth.js` (sign in), `utils.js` (`slugify`), `chat/*.js` (chat, in load order). Static scripts hold no template syntax & parse under `node --check`. **(tested)**
+- Shared behaviour lives in `static/js/`: `site.js` (theme, sign out), `auth.js` (sign in), `utils.js` (`slugify`, `askConfirm`, `askText`, `toast`), `chat/*.js` (chat, in load order). Static scripts hold no template syntax & parse under `node --check`. **(tested)**
 - Third-party browser libraries are vendored in `static/vendor/`, never loaded from a CDN.
 
 ## Tokens
@@ -69,6 +69,20 @@ style.css): show & hide with the attribute, never a display rule.
   sits above every field; placeholders show format, never the label.
   `.choice-group` for radios. `.alert-success` / `.alert-error` report
   results; `.error-message` sits under a field.
+- **Asks** `askConfirm({title, body, confirmLabel, danger})` (a promise of
+  true or false) & `askText({title, label, value, confirmLabel})` (what
+  was typed, or null), both in `utils.js`: one modal `.ask-dialog` on a
+  native `<dialog>` (focus stays inside, a backdrop), never a browser's own
+  confirm or prompt. Its title asks, its body says what happens, its
+  confirm `.btn` names the act ("Delete", never "OK"); `danger` makes it a
+  `.btn-danger` & starts focus on Cancel, so a stray Enter deletes
+  nothing. Enter in a text ask confirms. Cancel, Escape & a tap on its
+  backdrop all mean no, & focus returns to whatever opened it. **(tested)**
+- **Toasts** `toast(message, {error})` in `utils.js`: a quiet `.toast` line
+  atop our page (`#toasts`, one stack) for what a browser's alert did. It
+  is `role="status"` & leaves after 5s; an error is `.is-error`,
+  `role="alert"` & stays 8s; each has a Dismiss ×. Never the only copy of
+  something a person must act on. **(tested)**
 - **Name step** `.name-step` (`_name_step.html`, `askGuestName` in
   `3-room.js`): a guest whose browser holds no name is asked in our page,
   never by a browser dialog. A `.card` in our composer's place (which is
