@@ -120,22 +120,22 @@ test: test-unit test-integration test-functional validate-yaml
 .PHONY: test-unit
 test-unit: venv
 	@echo "🔬 Running unit tests..."
-	venv/bin/python -m pytest tests/unit/
+	venv/bin/python -m pytest tests/unit/ --durations=25
 
 .PHONY: test-integration
 test-integration: venv
 	@echo "🔗 Running integration tests..."
-	venv/bin/python -m pytest tests/integration/
+	venv/bin/python -m pytest tests/integration/ --durations=25
 
 .PHONY: test-functional
 test-functional: venv
 	@echo "⚡ Running functional tests..."
-	venv/bin/python -m pytest tests/functional/
+	venv/bin/python -m pytest tests/functional/ --durations=25
 
 .PHONY: test-ui
 test-ui: venv
 	@echo "📱 Running page contract tests..."
-	venv/bin/python -m pytest tests/functional/test_ui_contract.py tests/functional/test_home.py tests/functional/test_auth_ui_regressions.py tests/functional/test_tools_ui.py tests/functional/test_notices_ui.py tests/functional/test_edit_ui.py tests/functional/test_versions_ui.py tests/functional/test_verify_ui.py tests/functional/test_composer_ui.py tests/functional/test_activities_ui.py tests/functional/test_undo_delete_ui.py tests/functional/test_room_remove_ui.py tests/functional/test_stop_ui.py tests/functional/test_walk_ui.py tests/functional/test_live_reply_ui.py tests/functional/test_activity_choices_ui.py
+	venv/bin/python -m pytest tests/functional/test_ui_contract.py tests/functional/test_home.py tests/functional/test_auth_ui_regressions.py tests/functional/test_tools_ui.py tests/functional/test_notices_ui.py tests/functional/test_edit_ui.py tests/functional/test_versions_ui.py tests/functional/test_verify_ui.py tests/functional/test_composer_ui.py tests/functional/test_activities_ui.py tests/functional/test_undo_delete_ui.py tests/functional/test_room_remove_ui.py tests/functional/test_stop_ui.py tests/functional/test_walk_ui.py tests/functional/test_live_reply_ui.py tests/functional/test_activity_choices_ui.py --durations=25
 
 .PHONY: test-validator
 test-validator: venv
@@ -225,7 +225,7 @@ coverage: venv
 # below, so a little untested code doesn't fail CI. Raise the number as
 # tests land, never lower it.
 coverage-check: venv
-	venv/bin/python -m pytest tests/ -q --cov --cov-config=.coveragerc --cov-report=term --cov-fail-under=82
+	venv/bin/python -m pytest tests/ -q --durations=25 --cov --cov-config=.coveragerc --cov-report=term --cov-fail-under=82
 
 cc: venv
 	$(PYTHON) quality_report.py $(QUALITY_SOURCES) --output $(REPORT_DIR)/cc
