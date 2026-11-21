@@ -267,9 +267,10 @@ def speech_voices():
 
 # Speech costs us per character, with our key: limited per address, only
 # the fields a speech request needs go upstream, & one request's text is
-# capped (OpenAI's own cap for /audio/speech).
+# capped: chat's Play sends a whole reply at once (4-tts.js), so the cap
+# is a long reply's size, not OpenAI's 4096 for /audio/speech.
 SPEECH_THROTTLE = Throttle("OPENCOMPLETION_SPEECH_LIMIT", default=(60, 600))
-SPEECH_INPUT_MAX = 4096
+SPEECH_INPUT_MAX = 60000
 # `sse` is our own service's switch for per-sentence timestamps (chat's
 # sentence glow asks for it).
 SPEECH_FIELDS = ("model", "input", "voice", "response_format", "speed", "sse")
