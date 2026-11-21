@@ -838,7 +838,11 @@ window.addEventListener('load', async () => {
         renameField.value = 'Garden plans';
         document.querySelector('dialog.ask-dialog [data-ask="confirm"]').click();
     }
-    await new Promise(r => setTimeout(r, 40));
+    // Until the rename shows (the ask resolves, then its request does): a
+    // fixed wait was too short with several frames in one launch.
+    for (let i = 0; i < 100 && !card.querySelector('.room-card-slug'); i++) {
+        await new Promise(r => setTimeout(r, 20));
+    }
     check(calls.some(([url, method]) => url.endsWith('/title') && method === 'POST'), 'rename posts its title');
     check(row.querySelector('.chat-list-name').textContent === 'Garden plans', 'sidebar row renamed');
     check(card.querySelector('.room-card-name').textContent === 'Garden plans', 'room card renamed');
