@@ -1,5 +1,5 @@
 [flake8]
-exclude = .git,__pycache__,venv,env,reports,migrations
+exclude = .git,__pycache__,venv,env,reports,migrations,.claude
 max-line-length = 127
 # Vendored files stay byte for byte what upstream ships (pyproject.toml's
 # black excludes name the same ones), so their unused names are upstream's
