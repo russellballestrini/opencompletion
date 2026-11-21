@@ -10,7 +10,7 @@ classifier, follow-ups & web tools off, and model calls are patched.
 make venv    # create venv/ & install app + test dependencies
 make test    # unit, integration, functional & YAML validation
 make lint    # black --check & flake8
-make ci      # lint + test, exactly what GitHub Actions runs
+make ci      # lint + test: what GitHub Actions checks, one stage after another
 ```
 
 ## Layout
@@ -43,7 +43,7 @@ tests/
 | `make validate-yaml` | our validator over every `research/*.yaml` |
 | `make activity-walk` | every activity played with dice, no model |
 | `make coverage` | coverage reports in `reports/` (`make test-cov` is the same) |
-| `make coverage-check` | fails below our coverage floor (CI runs this) |
+| `make coverage-check` | fails below our coverage floor (CI measures it in parallel parts, then `make coverage-combine`) |
 
 One file or one test:
 

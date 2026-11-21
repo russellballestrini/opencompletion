@@ -69,12 +69,12 @@ git remote -v
 - `make test` - Unit, integration, functional tests & YAML validation (no network)
 - `make test-ui` - Page contract & mobile layouts in headless Chromium
 - `make lint` - black --check & flake8 (syntax, undefined & unused names)
-- `make ci` - lint + test, exactly what GitHub Actions runs
+- `make ci` - lint + test: what GitHub Actions checks, one stage after another (there each stage is its own parallel job, `functional` in two halves: `make test-functional-a-m` & `-n-z`)
 - `make backfill-titles` - Title every untitled room holding a conversation (network: a chat model)
 - `make backfill-blobs` - Move base64 images kept inside messages (old DALL-E & vision replies) into our blob store (no network)
 - `make chain-check` - Verify every room's hash chain, deleted rooms' included (`app.py --chain-check`, needs vars.sh): the line rule & links, checkpoints, & live messages against their chained digests; fails on any break
 - `make harvest` - Our tool calls' repair evidence (`app.py --harvest [DIR]`, `harvest.py`, needs vars.sh, no network): reads every reply's `tool_trail` (raw arguments) & every room chain's `tool` events (status, error & repair marks via `tools.loop.repair_marks`, never arguments; deleted rooms included) into `instance/harvest/repair/{repaired,unparsed,errors}.jsonl` (owner-only, rewritten each run), one row a call (errors from chains, matched to trails by result sha256; repairs from trails, a deleted room's from its chain with `raw: null`), & reports what repairs save, which unparsed calls today's `toolcall_repair` now reads & the shapes of the rest; the lanes match uncloseai-cli's repair lane
-- `make coverage-check` - Fail below our 82% coverage floor (CI job `coverage`; `.coveragerc` counts tools/, activity_engine, blob_store, chain, fade, classifier & the game modules too); raise it as tests land, never lower it
+- `make coverage-check` - Fail below our 82% coverage floor (CI measures it in four parallel parts, `make coverage-unit`, `-integration`, `-functional-a-m` & `-functional-n-z`, then job `coverage` adds them up with `make coverage-combine`: same tests, same floor; `.coveragerc` counts tools/, activity_engine, blob_store, chain, fade, classifier & the game modules too); raise it as tests land, never lower it
 
 ### Network Infrastructure
 
@@ -100,7 +100,7 @@ git remote -v
 - Startup prints, per endpoint, how many models it listed (never their ids: an endpoint may list hundreds) & `Loaded models: <count> (<first five ids>, & N more)` (`loaded_models_line`), then: speech voices, the transcription model, the classifier, then `startup_summary()` (tools & who gets them, chat sampling & budgets, brand, public url, database & its migration); counts & names only, never a key, an email or a database password
 - `gevent_asyncio.py`: `wake_executor_jobs()`, called beside `monkey.patch_all()` (app.py, `tests/unit/test_tools.py`). Under gevent's patch, CPython 3.13.12+, 3.14.3+ & 3.15 never wake an event loop when an executor job ends, so a loop's second `asyncio.to_thread` / `run_in_executor` hung (our crawler's tests on CI; gevent 26.9.0 has no fix). `tests/unit/test_gevent_asyncio.py` proves the fix & that this Python still needs it: when its last test fails, the module can go
 - `SECRET_KEY` signs session cookies; unset, `auth.load_secret_key` keeps a random one in `instance/secret_key` (never a built-in default)
-- CI tests CPython 3.11, 3.12, 3.13, 3.14 & 3.15 (every release still receiving fixes)
+- CI on `main` tests CPython 3.11, 3.12, 3.13, 3.14 & 3.15 (every release still receiving fixes); feature branches & pull requests run every test on 3.12 alone (what our dev venv runs). Lint & coverage run on 3.12; job `all-green` is one status for a whole run
 
 ### Frontend Structure
 - **Read `docs/STYLEGUIDE.md` before touching a template or style.css**; `/styleguide` renders every component
