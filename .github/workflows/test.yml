@@ -42,8 +42,17 @@ jobs:
     - name: Lint (black, flake8)
       run: make lint
 
+    # Here too: on a feature branch the integration job, which also
+    # runs it, is skipped.
+    - name: Activity YAML validation
+      run: make validate-yaml
+
   unit:
     runs-on: ubuntu-latest
+    # main only: a feature branch runs every test once, on 3.12, inside
+    # coverage-part (the same tests, measured), plus lint. No test job
+    # twice & no image built for a branch.
+    if: github.ref == 'refs/heads/main'
     # A job takes ~3 minutes; a hang once ran 6 hours (2026-11-09).
     timeout-minutes: 20
     strategy:
@@ -75,6 +84,10 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
+    # main only: a feature branch runs every test once, on 3.12, inside
+    # coverage-part (the same tests, measured), plus lint. No test job
+    # twice & no image built for a branch.
+    if: github.ref == 'refs/heads/main'
     # A job takes ~3 minutes; a hang once ran 6 hours (2026-11-09).
     timeout-minutes: 20
     strategy:
@@ -107,6 +120,10 @@ jobs:
   # is in exactly one. Rebalance there if one half grows much slower.
   functional:
     runs-on: ubuntu-latest
+    # main only: a feature branch runs every test once, on 3.12, inside
+    # coverage-part (the same tests, measured), plus lint. No test job
+    # twice & no image built for a branch.
+    if: github.ref == 'refs/heads/main'
     # A job takes ~3 minutes; a hang once ran 6 hours (2026-11-09).
     timeout-minutes: 20
     strategy:
@@ -211,6 +228,10 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    # main only: a feature branch runs every test once, on 3.12, inside
+    # coverage-part (the same tests, measured), plus lint. No test job
+    # twice & no image built for a branch.
+    if: github.ref == 'refs/heads/main'
     # A job takes ~3 minutes; a hang once ran 6 hours (2026-11-09).
     timeout-minutes: 20
     steps:
@@ -249,4 +270,7 @@ jobs:
         RESULTS: ${{ join(needs.*.result, ' ') }}
       run: |
         echo "$RESULTS"
-        for result in $RESULTS; do test "$result" = success || exit 1; done
+        # skipped: a main-only job on a feature branch.
+        for result in $RESULTS; do
+          test "$result" = success || test "$result" = skipped || exit 1
+        done

@@ -1394,23 +1394,24 @@ def spends_a_model_call(room, models):
     return any(model not in (None, "None") for model in models)
 
 
-def refused_over(throttle, what):
+def refused_over(throttle, what, a_message=False):
     """Count one action for this socket's client. Over its limit, tell
     that socket alone how long to wait (a socket event has no response to
-    carry a 429) & answer True: our caller does nothing more."""
+    carry a 429) & answer True: our caller does nothing more. a_message:
+    what was refused is the words just sent, so our page puts them back
+    in its box (`refused`, composer.js giveBack)."""
     over = over_limit(throttle, what)
     if not over:
         return False
-    emit(
-        "chat_message",
-        {"id": notice_id(), "content": f"_{over[0]}_"},
-        room=request.sid,
-    )
+    notice = {"id": notice_id(), "content": f"_{over[0]}_"}
+    if a_message:
+        notice["refused"] = True
+    emit("chat_message", notice, room=request.sid)
     return True
 
 
 def message_refused():
-    return refused_over(MESSAGE_THROTTLE, "messages to models")
+    return refused_over(MESSAGE_THROTTLE, "messages to models", a_message=True)
 
 
 def new_room_refused():
@@ -1425,7 +1426,7 @@ def over_a_message_limit(room, message, model, is_aside):
     if is_aside or message.startswith(MODEL_COMMANDS):
         return message_refused()
     if in_an_activity(room) and not command:
-        return refused_over(ACTIVITY_THROTTLE, "activity answers")
+        return refused_over(ACTIVITY_THROTTLE, "activity answers", a_message=True)
     return spends_a_model_call(room, [model]) and message_refused()
 
 
