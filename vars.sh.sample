@@ -109,7 +109,7 @@ export MODEL_API_KEY_1="your-api-key"
 #export OPENCOMPLETION_UPLOAD_MAX_MB=7
 #export OPENCOMPLETION_UPLOAD_LIMIT=30/600    # uploads per address per seconds
 #export OPENCOMPLETION_FORK_LIMIT=10/600      # forks per address per seconds; 0 = off
-#export OPENCOMPLETION_MESSAGE_LIMIT=60/600   # messages a model answers (replies, /btw, activity answers) per address per seconds; 0 = off
+#export OPENCOMPLETION_MESSAGE_LIMIT=60/600   # messages a model answers (replies, /btw; never activity answers) per address per seconds; 0 = off
 #export OPENCOMPLETION_OTP_LIMIT=5/600        # sign-in code emails per address per seconds; 0 = off
 #export OPENCOMPLETION_ROOM_LIMIT=30/600      # new rooms per address per seconds; 0 = off
 #export OPENCOMPLETION_CODE_LIMIT=30/600      # code runs (the play button) per address per seconds; 0 = off

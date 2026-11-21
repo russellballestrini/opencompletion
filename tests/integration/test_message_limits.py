@@ -127,7 +127,10 @@ def test_an_aside_counts(test_app, app_module, monkeypatch):
     assert "Too many messages to models" in heard[0]["content"]
 
 
-def test_an_answer_to_a_running_activity_counts(test_app, app_module, monkeypatch):
+def test_answers_to_a_running_activity_are_never_limited(
+    test_app, app_module, monkeypatch
+):
+    """A class plays one activity from a single address."""
     from models import ActivityState, db
 
     limit(monkeypatch, app_module.MESSAGE_THROTTLE, 1)
@@ -143,10 +146,9 @@ def test_an_answer_to_a_running_activity_counts(test_app, app_module, monkeypatc
     )
     db.session.commit()
     ada = socket_for(test_app, app_module)
-    send(ada, "my answer")
-    heard = send(ada, "another answer")
-    assert stored() == ["my answer"]
-    assert "Too many messages to models" in heard[0]["content"]
+    for answer in ("my answer", "another answer", "a third"):
+        send(ada, answer, model="qwen")  # even with a model picked
+    assert stored() == ["my answer", "another answer", "a third"]
 
 
 def test_addresses_are_counted_apart_by_what_our_proxy_appended(

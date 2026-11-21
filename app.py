@@ -1355,12 +1355,13 @@ MESSAGE_THROTTLE = Throttle("OPENCOMPLETION_MESSAGE_LIMIT", default=(60, 600))
 
 
 def spends_a_model_call(room, models):
-    """True when a message to `room` is answered by a model: one is picked,
-    or the room's activity grades every answer. People talking to people
-    (model "None") cost us nothing & are never limited."""
-    if any(model not in (None, "None") for model in models):
-        return True
-    return ActivityState.query.filter_by(room_id=room.id).first() is not None
+    """True when a message to `room` is one our limit counts: a model is
+    picked to answer it. People talking to people (model "None") are never
+    limited, & neither is an answer to a room's running activity: a class
+    plays one from a single address, & every learner there answers."""
+    if ActivityState.query.filter_by(room_id=room.id).first() is not None:
+        return False
+    return any(model not in (None, "None") for model in models)
 
 
 def refused_over(throttle, what):
