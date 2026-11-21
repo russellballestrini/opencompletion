@@ -149,3 +149,77 @@ def test_guesses_without_a_live_code_are_not_remembered(client):
             json={"email": f"nobody{i}@example.test", "otp_code": "123456"},
         )
     assert auth._otp_failures == {}
+
+
+@pytest.mark.parametrize(
+    "path", ["/auth/send-otp", "/auth/verify-otp", "/auth/claim-name"]
+)
+@pytest.mark.parametrize(
+    "body", [["a@b.org"], {"email": 7, "otp_code": 1, "display_name": ["x"]}]
+)
+def test_wrong_shapes_get_400_not_500(client, path, body):
+    assert client.post(path, json=body).status_code == 400
+
+
+@pytest.mark.parametrize(
+    "email",
+    [
+        "a@x.com,b@y.org",
+        "a@x.com b@y.org",
+        "Ada <a@x.com>",
+        "a@x",
+        "a@@x.com",
+        "a@x..com",
+        "a" * 250 + "@x.com",
+    ],
+)
+def test_a_code_goes_to_one_plain_address_only(client, email):
+    with patch("auth.send_otp_email", return_value="email") as sent:
+        response = client.post("/auth/send-otp", json={"email": email})
+    assert response.status_code == 400
+    assert not sent.called
+
+
+def limit(monkeypatch, throttle, count, seconds=600):
+    throttle.reset()
+    monkeypatch.setattr(throttle, "count", count)
+    monkeypatch.setattr(throttle, "seconds", seconds)
+
+
+def test_codes_are_limited_per_target_email(test_app, monkeypatch):
+    from routes import accounts
+
+    limit(monkeypatch, accounts.OTP_EMAIL_THROTTLE, 2, 900)
+
+    def ask(email, address):
+        return test_app.test_client().post(
+            "/auth/send-otp",
+            json={"email": email},
+            headers={"X-Forwarded-For": address},
+        )
+
+    with patch("auth.send_otp_email", return_value="email") as sent:
+        # Each ask from another address: only the inbox is counted.
+        assert ask("ada@example.org", "203.0.113.1").status_code == 200
+        assert ask("Ada@Example.org", "203.0.113.2").status_code == 200
+        refused = ask("ada@example.org", "203.0.113.3")
+        assert ask("bob@example.org", "203.0.113.3").status_code == 200
+    assert refused.status_code == 429
+    assert int(refused.headers["Retry-After"]) > 0
+    assert "for that email" in refused.get_json()["error"]
+    assert sent.call_count == 3
+
+
+def test_guesses_are_limited_per_address(client, monkeypatch):
+    from routes import accounts
+
+    limit(monkeypatch, accounts.OTP_VERIFY_THROTTLE, 2)
+    for n in range(2):
+        guess = {"email": f"nobody{n}@example.org", "otp_code": "000000"}
+        assert client.post("/auth/verify-otp", json=guess).status_code == 400
+    code = request_code(client, "ada@example.org")
+    refused = client.post(
+        "/auth/verify-otp", json={"email": "ada@example.org", "otp_code": code}
+    )
+    assert refused.status_code == 429
+    assert int(refused.headers["Retry-After"]) > 0

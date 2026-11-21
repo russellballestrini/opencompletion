@@ -14,6 +14,27 @@ from throttle import Throttle, too_many
 
 bp = Blueprint("code", __name__)
 
+# The most code (or stderr) one request may hand a model of ours.
+MODEL_INPUT_MAX = 60000
+
+
+def model_input(*names):
+    """(fields, None) for this request's JSON object with each of `names`
+    as text within MODEL_INPUT_MAX, else (None, a 400)."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return None, (jsonify({"error": "A JSON object is required"}), 400)
+    for name in names:
+        value = data.get(name, "")
+        if not isinstance(value, str) or len(value) > MODEL_INPUT_MAX:
+            return None, (
+                jsonify(
+                    {"error": f"{name} must be text of {MODEL_INPUT_MAX} characters"}
+                ),
+                400,
+            )
+    return data, None
+
 
 @bp.route("/api/generate-artifact-name", methods=["POST"])
 def generate_artifact_name():
@@ -27,13 +48,20 @@ def generate_artifact_name():
     if not enabled:
         return jsonify({"filename": "compiled_binary"})
 
+    data, refused = model_input("code", "language")
+    if refused:
+        return refused
     try:
-        data = request.get_json()
         code = data.get("code", "")
-        language = data.get("language", "")
+        language = data.get("language", "")[:40]
 
         if not code:
             return jsonify({"filename": "compiled_binary"})
+
+        # A model call of ours: counted with code runs.
+        refused = too_many(CODE_THROTTLE, "code runs")
+        if refused:
+            return refused
 
         # Use MODEL_1 (Hermes) to generate filename
         client, model = DEPS["get_openai_client_and_model"]("MODEL_1")
@@ -277,16 +305,25 @@ def fix_code():
     Accepts code, language, stderr, and attempt number.
     Returns fixed code block or error message.
     """
+    data, refused = model_input("code", "stderr", "language")
+    if refused:
+        return refused
     try:
-        data = request.get_json()
         code = data.get("code", "")
-        language = data.get("language", "")
+        language = data.get("language", "")[:40]
         stderr = data.get("stderr", "")
         exit_code = data.get("exit_code", 1)
+        if not isinstance(exit_code, int):
+            exit_code = 1
         attempt = data.get("attempt", 1)
 
         if not code or not language:
             return jsonify({"error": "Code and language are required"}), 400
+
+        # A model call of ours: counted with code runs.
+        refused = too_many(CODE_THROTTLE, "code runs")
+        if refused:
+            return refused
 
         # Try MODEL_3 (Qwen Coder) first for better code fixing, fall back to MODEL_1 (Hermes)
         try:
@@ -351,5 +388,6 @@ Fix the code (output ONLY the corrected code, no explanations):"""
         return jsonify({"success": True, "fixed_code": fixed_code, "attempt": attempt})
 
     except Exception as e:
+        # Our log keeps why; a model server's error may name its address.
         print(f"Error fixing code: {e}")
-        return jsonify({"error": f"Failed to fix code: {str(e)}"}), 500
+        return jsonify({"error": "Failed to fix code"}), 500
