@@ -220,6 +220,89 @@ const poll = setInterval(() => {{
 </script></body></html>"""
 
 
+# One launch can hold a frame per width, but frames of one file share its
+# localStorage & sessionStorage, & our pages write there as they load
+# (recentChats, guestUsername, drafts). So in a batch each frame gets a
+# store of its own, in memory, put in before any page script: every frame
+# starts as it would alone & never reads another's writes (no `storage`
+# events either). Our pages only call getItem, setItem & removeItem.
+FRAME_STORAGE = """<script>
+(() => {
+    const store = () => {
+        const kept = new Map();
+        return {
+            getItem: key => kept.has(String(key)) ? kept.get(String(key)) : null,
+            setItem: (key, value) => { kept.set(String(key), String(value)); },
+            removeItem: key => { kept.delete(String(key)); },
+            clear: () => { kept.clear(); },
+            key: index => [...kept.keys()][index] ?? null,
+            get length() { return kept.size; }
+        };
+    };
+    for (const name of ['localStorage', 'sessionStorage']) {
+        const own = store();
+        Object.defineProperty(window, name, {configurable: true, get: () => own});
+    }
+})();
+</script>"""
+
+
+def framed_each(html, widths, height):
+    """`html` in one iframe per width, each as `framed` makes it. Every
+    frame's verdict lands in an <output> of its own, named by its width."""
+    source = json.dumps(html).replace("</", "<\\/")
+    frames = "".join(
+        f'<iframe data-width="{width}" style="width:{width}px;height:{height}px;'
+        f'border:0;display:block"></iframe><output id="result-{width}"></output>'
+        for width in widths
+    )
+    return f"""<!DOCTYPE html><html><body style="margin:0">{frames}
+<script>
+const source = {source};
+for (const frame of document.querySelectorAll('iframe')) {{
+    frame.srcdoc = source;
+    const result = document.getElementById('result-' + frame.dataset.width);
+    const poll = setInterval(() => {{
+        const body = frame.contentDocument && frame.contentDocument.body;
+        if (body && body.dataset.probe) {{
+            result.dataset.probe = body.dataset.probe;
+            result.dataset.viewport = frame.contentWindow.innerWidth;
+            if (body.dataset.checks) result.dataset.checks = body.dataset.checks;
+            clearInterval(poll);
+        }}
+    }}, 20);
+}}
+</script></body></html>"""
+
+
+def _probe_page(html, probe, guest_name, more_stubs=""):
+    stubs = more_stubs + DIALOG_STUBS
+    if guest_name is not None:
+        stubs += GUEST_NAME % json.dumps(guest_name)
+    html = offline_page(html).replace("<head>", "<head>" + stubs, 1)
+    return html.replace("</body>", probe + "</body>")
+
+
+def _dump_dom(page, profile, width, height, extra_flags=(), frames=1):
+    command = [
+        require_browser(),
+        *CHROME_FLAGS,
+        *extra_flags,
+        f"--window-size={max(width, 1280) + 40},{height + 40}",
+        f"--user-data-dir={profile}",
+        "--virtual-time-budget=3000",
+        # Real milliseconds, & every frame parses our whole page.
+        f"--timeout={10000 * frames}",
+        "--dump-dom",
+        page.as_uri(),
+    ]
+    result = subprocess.run(
+        command, capture_output=True, text=True, timeout=60 * frames, env=_CHROME_ENV
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout
+
+
 def run_probe(
     html, probe, tmp_path, width, height=900, extra_flags=(), guest_name="guest"
 ):
@@ -227,29 +310,61 @@ def run_probe(
     the dumped DOM, whose <body> carries the probe's data-probe verdict.
     Our page is opened by a guest this browser already knows as
     `guest_name`; None is a guest's first visit."""
-    browser = require_browser()
+    require_browser()
     page = tmp_path / f"page-{width}.html"
-    stubs = DIALOG_STUBS
-    if guest_name is not None:
-        stubs += GUEST_NAME % json.dumps(guest_name)
-    html = offline_page(html).replace("<head>", "<head>" + stubs, 1)
-    html = html.replace("</body>", probe + "</body>")
-    page.write_text(framed(html, width, height))
-    command = [
-        browser,
-        *CHROME_FLAGS,
-        *extra_flags,
-        f"--window-size={max(width, 1280) + 40},{height + 40}",
-        f"--user-data-dir={tmp_path / f'browser-{width}'}",
-        "--virtual-time-budget=3000",
-        "--timeout=10000",
-        "--dump-dom",
-        page.as_uri(),
-    ]
-    result = subprocess.run(
-        command, capture_output=True, text=True, timeout=60, env=_CHROME_ENV
-    )
-    assert result.returncode == 0, result.stderr
+    page.write_text(framed(_probe_page(html, probe, guest_name), width, height))
+    out = _dump_dom(page, tmp_path / f"browser-{width}", width, height, extra_flags)
     # The page really was laid out at `width`, not a wider fallback.
-    assert f'data-viewport="{width}"' in result.stdout, result.stdout[-500:]
-    return result.stdout
+    assert f'data-viewport="{width}"' in out, out[-500:]
+    return out
+
+
+def run_probes(
+    html, probe, tmp_path, widths, height=900, extra_flags=(), guest_name="guest"
+):
+    """`run_probe` at every width in ONE launch (a launch costs seconds
+    whether it holds one frame or four): {width: that frame's <output>,
+    carrying its own data-probe verdict}. Each frame keeps a store of its
+    own (FRAME_STORAGE), so it sees what it would see alone. A probe that
+    needs what only one frame of a window can have (keyboard focus, real
+    stored state across a reload) stays on `run_probe`."""
+    require_browser()
+    name = "-".join(str(width) for width in widths)
+    page = tmp_path / f"page-{name}.html"
+    framed_html = _probe_page(html, probe, guest_name, FRAME_STORAGE)
+    page.write_text(framed_each(framed_html, widths, height))
+    out = _dump_dom(
+        page,
+        tmp_path / f"browser-{name}",
+        max(widths),
+        height,
+        extra_flags,
+        len(widths),
+    )
+    results = {}
+    for width in widths:
+        found = re.search(rf'<output id="result-{width}".*?</output>', out, re.S)
+        assert found, out[-500:]
+        # Each frame really was laid out at its width, not a wider fallback.
+        assert f'data-viewport="{width}"' in found.group(0), found.group(0)[-500:]
+        results[width] = found.group(0)
+    return results
+
+
+class ProbeBatch:
+    """One launch per page for a test parametrized by width: its first
+    width loads every width at once (`run_probes`) & each later one reads
+    its own frame's verdict, so a failure still names its width."""
+
+    def __init__(self, tmp_path_factory):
+        self._tmp = tmp_path_factory
+        self._results = {}
+
+    def at(self, key, widths, width, make_html, probe, **options):
+        """Our verdict at `width` for the page `make_html()` renders, loaded
+        once per `key` for all of `widths`."""
+        if key not in self._results:
+            self._results[key] = run_probes(
+                make_html(), probe, self._tmp.mktemp("probes"), widths, **options
+            )
+        return self._results[key][width]

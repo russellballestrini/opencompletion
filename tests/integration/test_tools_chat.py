@@ -72,24 +72,6 @@ class Model:
         return iter(script)
 
 
-@pytest.fixture
-def harness(test_app, monkeypatch):
-    import app as app_module
-
-    model = Model()
-    client = SimpleNamespace(chat=SimpleNamespace(completions=model))
-    monkeypatch.setattr(
-        app_module, "get_openai_client_and_model", lambda name: (client, name)
-    )
-    emitted = []
-    monkeypatch.setattr(
-        app_module.socketio, "emit", lambda *a, **k: emitted.append((a, k))
-    )
-    monkeypatch.setattr(app_module.socketio, "sleep", lambda s: None)
-    monkeypatch.setattr(app_module, "title_untitled_room", lambda name: None)
-    return SimpleNamespace(app=app_module, model=model, emitted=emitted)
-
-
 def reply_of(model_name):
     from models import Message
 

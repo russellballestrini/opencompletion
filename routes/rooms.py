@@ -64,6 +64,10 @@ def browse_rooms():
     # Search lives here too (fox, 2026-11-01): ?q= searches every message
     # of the rooms you may open (search_messages), shown above the list.
     query = request.args.get("q", "").strip()[:200]
+    if query:
+        refused = too_many(SEARCH_THROTTLE, "searches")
+        if refused:
+            return refused
     found = search_messages(query, user) if query else []
     return render_template(
         "browse.html",
@@ -452,6 +456,7 @@ def fork_from_version(message_id, version):
     if (
         not source_room
         or message.superseded_by_id is not None
+        or message.deleted_at is not None
         or room_access_denied(source_room, auth.get_current_user())
     ):
         return jsonify({"error": "Message not found"}), 404
@@ -817,8 +822,11 @@ def search_page():
     """Search moved into our Rooms page (?q=); old links still work. One
     hit still goes straight into that room, keeping model & voice."""
     user = auth.get_current_user()
-    keywords = request.args.get("keywords", "").strip()
+    keywords = request.args.get("keywords", "").strip()[:200]
     if keywords:
+        refused = too_many(SEARCH_THROTTLE, "searches")
+        if refused:
+            return refused
         results = search_messages(keywords, user)
         if len(results) == 1:
             redirect_params = {
@@ -833,6 +841,14 @@ def search_page():
     return redirect(url_for("rooms.browse_rooms"))
 
 
+# A search scans every message we keep: limited per address, a word
+# under 3 characters (it matches nearly everything) finds no messages, &
+# only the newest matches are read & ranked. OPENCOMPLETION_SEARCH_LIMIT.
+SEARCH_THROTTLE = Throttle("OPENCOMPLETION_SEARCH_LIMIT", default=(60, 600))
+SEARCH_WORD_MIN = 3
+SEARCH_MATCH_LIMIT = 200
+
+
 def search_messages(keywords, user=None):
     """Rank rooms by keyword hits in their messages.
 
@@ -845,7 +861,7 @@ def search_messages(keywords, user=None):
         # Keep word characters only & cap the length; the query is
         # parameterized either way, this just bounds the LIKE patterns.
         sanitized_keyword = "".join(c for c in keyword if c.isalnum() or c in "-_")[:50]
-        if sanitized_keyword:
+        if len(sanitized_keyword) >= SEARCH_WORD_MIN:
             sanitized_keywords.append(sanitized_keyword)
 
     if not sanitized_keywords:
@@ -876,6 +892,8 @@ def search_messages(keywords, user=None):
                 ]
             )
         )
+        .order_by(Message.id.desc())
+        .limit(SEARCH_MATCH_LIMIT)
         .all()
     )
 

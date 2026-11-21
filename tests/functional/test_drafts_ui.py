@@ -55,6 +55,57 @@ window.addEventListener('load', () => {
 """
 
 
+REFUSED_PROBE = r"""
+<script>
+window.addEventListener('load', () => {
+    const problems = [];
+    const check = (ok, name) => { if (!ok) problems.push(name); };
+    const box = document.getElementById('message');
+    const draft = () => localStorage.getItem('draft:room:lobby');
+    const type = (words) => { box.value = words; box.dispatchEvent(new Event('input')); };
+    const notice = (extra) => testSocket.deliver('chat_message', Object.assign({id: 'notice-' + Math.random(), content: '_Slow down._'}, extra));
+    const realNow = Date.now;
+
+    // A send our server refuses: its words come back, a draft again.
+    type('a long careful question');
+    sendMessage();
+    check(box.value === '' && draft() === null, 'sending clears our box');
+    notice({refused: true});
+    check(box.value === 'a long careful question', 'a refused message goes back into our box');
+    check(draft() === 'a long careful question', 'and is kept as this room\'s draft');
+
+    // An ordinary notice gives nothing back.
+    sendMessage();
+    notice({});
+    check(box.value === '' && draft() === null, 'a notice that refuses nothing leaves our box alone');
+    // ...and that send is given back once, never twice.
+    notice({refused: true});
+    check(box.value === 'a long careful question', 'the refusal itself may come second');
+    type('');
+    notice({refused: true});
+    check(box.value === '', 'one send is given back once');
+
+    // Words typed since the send are never overwritten.
+    type('first thought');
+    sendMessage();
+    type('second thought');
+    notice({refused: true});
+    check(box.value === 'second thought', 'words typed meanwhile stay');
+
+    // A refusal long after a send gives nothing back.
+    type('old words');
+    sendMessage();
+    Date.now = () => realNow() + 60000;
+    notice({refused: true});
+    Date.now = realNow;
+    check(box.value === '', 'an old send is not given back');
+
+    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
+});
+</script>
+"""
+
+
 HOME_DRAFT_PROBE = r"""
 <script>
 window.addEventListener('load', () => {
@@ -84,6 +135,12 @@ window.addEventListener('load', () => {
 def test_a_rooms_draft_outlives_a_refresh_and_stays_its_own(client, tmp_path):
     html = client.get("/chat/lobby").get_data(as_text=True)
     out = run_probe(html, CHAT_DRAFT_PROBE, tmp_path, 1280)
+    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
+
+
+def test_a_refused_message_goes_back_into_our_box(client, tmp_path):
+    html = client.get("/chat/lobby").get_data(as_text=True)
+    out = run_probe(html, REFUSED_PROBE, tmp_path, 1280)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 

@@ -27,9 +27,15 @@ function attachmentMarkdown(file) {
 // a refresh, in localStorage under its own key (home: draft:home, a room:
 // draft:room:<name>), so one place's draft never shows in another. Saved
 // as you type & as the page goes; draft.clear() when it's sent.
+// A send our server refuses (a notice carrying `refused`, e.g. over
+// OPENCOMPLETION_MESSAGE_LIMIT) arrives after our box was cleared, so the
+// text just sent is remembered for DRAFT_GIVE_BACK_MS & draft.giveBack()
+// puts it back, a draft again, unless something new was typed meanwhile.
+const DRAFT_GIVE_BACK_MS = 10000;
 function keepDraft(textarea, place) {
     const key = 'draft:' + place;
     let sent = null;  // the text just sent: leaving now must not keep it
+    let lastSent = null;  // {text, at}: what giveBack() may put back
     const save = () => {
         try {
             if (textarea.value.trim() && textarea.value !== sent) localStorage.setItem(key, textarea.value);
@@ -48,7 +54,18 @@ function keepDraft(textarea, place) {
     return {
         clear() {
             sent = textarea.value;
+            lastSent = {text: sent, at: Date.now()};
             try { localStorage.removeItem(key); } catch (e) {}
+        },
+        // True when the text just sent went back into an empty box.
+        giveBack() {
+            const last = lastSent;
+            lastSent = null;
+            if (!last || !last.text.trim() || Date.now() - last.at > DRAFT_GIVE_BACK_MS) return false;
+            if (textarea.value.trim()) return false;
+            textarea.value = last.text;
+            textarea.dispatchEvent(new Event('input'));  // sizes the box & keeps it as our draft
+            return true;
         },
     };
 }

@@ -35,9 +35,10 @@ export MODEL_API_KEY_1="your-api-key"
 #export OPENCOMPLETION_STREAM_RETRIES=2       # a broken stream carries on this many times; 0 = off
 #export OPENCOMPLETION_FOLLOWUPS=on           # follow-up suggestions under a reply; off = none
 
-# AWS Bedrock's Claude models (ids holding anthropic.claude) need no line
-# here: boto3 finds credentials & region the usual AWS way (environment,
-# ~/.aws, `app.py --profile <name>`; AWS_REGION, else us-west-2).
+
+# AWS Bedrock's Claude models (bedrock.py): credentials & region come from
+# our AWS environment or `app.py --profile`; only ids named here are asked.
+#export OPENCOMPLETION_BEDROCK_MODELS="us.anthropic.claude-haiku-5-5"
 
 # ── Image models ──────────────────────────────────────────────────────────
 # A model whose id matches draws our message instead of answering it.
@@ -113,10 +114,15 @@ export MODEL_API_KEY_1="your-api-key"
 #export OPENCOMPLETION_UPLOAD_MAX_MB=7
 #export OPENCOMPLETION_UPLOAD_LIMIT=30/600    # uploads per address per seconds
 #export OPENCOMPLETION_FORK_LIMIT=10/600      # forks per address per seconds; 0 = off
-#export OPENCOMPLETION_MESSAGE_LIMIT=60/600   # messages a model answers (replies, /btw; never activity answers) per address per seconds; 0 = off
+#export OPENCOMPLETION_MESSAGE_LIMIT=60/600   # messages a model answers (replies, /btw, /title new, /activity info) per address per seconds; 0 = off
+#export OPENCOMPLETION_ACTIVITY_LIMIT=300/600 # answers to a running activity per address per seconds (a class shares one address); 0 = off
 #export OPENCOMPLETION_OTP_LIMIT=5/600        # sign-in code emails per address per seconds; 0 = off
+#export OPENCOMPLETION_OTP_EMAIL_LIMIT=3/900  # sign-in code emails per target email per seconds, whoever asks; 0 = off
+#export OPENCOMPLETION_OTP_VERIFY_LIMIT=20/600 # sign-in code tries (/auth/verify-otp) per address per seconds; 0 = off
 #export OPENCOMPLETION_ROOM_LIMIT=30/600      # new rooms per address per seconds; 0 = off
-#export OPENCOMPLETION_CODE_LIMIT=30/600      # code runs (the play button) per address per seconds; 0 = off
+#export OPENCOMPLETION_CODE_LIMIT=30/600      # code runs (the play button; fix-code & artifact names too) per address per seconds; 0 = off
+#export OPENCOMPLETION_SPEECH_LIMIT=60/600    # read-aloud requests (/speech/audio) per address per seconds; 0 = off
+#export OPENCOMPLETION_SEARCH_LIMIT=60/600    # message searches (/browse?q=) per address per seconds; 0 = off
 #export OPENCOMPLETION_DELETED_RETENTION_HOURS=24   # how long a deleted message can be restored
 
 # ── Room chains ───────────────────────────────────────────────────────────

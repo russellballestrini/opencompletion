@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from browser import run_probe  # tests/functional/browser.py
+from browser import ProbeBatch, run_probe  # tests/functional/browser.py
 
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = ROOT / "templates"
@@ -36,6 +36,12 @@ def client(test_app):
     # /activities lists research/*.yaml, every activity we ship, so its
     # layout & copy are checked on our real gallery, not an empty one.
     return test_app.test_client()
+
+
+@pytest.fixture(scope="module")
+def batch(tmp_path_factory):
+    """One Chromium launch per page for a test parametrized by width."""
+    return ProbeBatch(tmp_path_factory)
 
 
 def make_user(email, name):
@@ -338,15 +344,18 @@ window.addEventListener('load', () => {
 
 
 @pytest.mark.parametrize("width", [375, 1280])
-def test_a_search_shows_two_headed_lists_and_no_room_twice(client, tmp_path, width):
+def test_a_search_shows_two_headed_lists_and_no_room_twice(client, batch, width):
     """A walk of our app, 2026-11-10: a search's rooms were followed by our whole list
     again, unheaded, so every match showed twice."""
-    make_room("lobby", message="a muppet said hi")
-    make_room("both-muppet", message="muppet muppet")
-    make_room("muppet-show", message="curtain up")
-    make_room("garden", message="tomatoes")
-    html = client.get("/browse?show=public&q=muppet").get_data(as_text=True)
-    out = run_probe(html, ROOMS_SEARCH_PROBE, tmp_path, width)
+
+    def page():
+        make_room("lobby", message="a muppet said hi")
+        make_room("both-muppet", message="muppet muppet")
+        make_room("muppet-show", message="curtain up")
+        make_room("garden", message="tomatoes")
+        return client.get("/browse?show=public&q=muppet").get_data(as_text=True)
+
+    out = batch.at("search", [375, 1280], width, page, ROOMS_SEARCH_PROBE)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
@@ -456,11 +465,13 @@ window.addEventListener('load', () => {
 
 @pytest.mark.parametrize("width", WIDTHS)
 @pytest.mark.parametrize("path", PAGES + ["/styleguide"])
-def test_pages_fit_every_screen(client, tmp_path, path, width):
-    make_room("a-public-room-with-a-rather-long-name-to-wrap", message="zzz")
-    make_room("another-room", message="zzz")
-    html = client.get(path).get_data(as_text=True)
-    out = run_probe(html, LAYOUT_PROBE, tmp_path, width)
+def test_pages_fit_every_screen(client, batch, path, width):
+    def page():
+        make_room("a-public-room-with-a-rather-long-name-to-wrap", message="zzz")
+        make_room("another-room", message="zzz")
+        return client.get(path).get_data(as_text=True)
+
+    out = batch.at(("fit", path), WIDTHS, width, page, LAYOUT_PROBE)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
@@ -510,10 +521,12 @@ window.addEventListener('load', () => {
 
 
 @pytest.mark.parametrize("width", WIDTHS)
-def test_chat_works_on_every_screen(client, tmp_path, width):
-    make_room("lobby", message="hello")
-    html = client.get("/chat/lobby").get_data(as_text=True)
-    out = run_probe(html, CHAT_PROBE, tmp_path, width)
+def test_chat_works_on_every_screen(client, batch, width):
+    def page():
+        make_room("lobby", message="hello")
+        return client.get("/chat/lobby").get_data(as_text=True)
+
+    out = batch.at("chat", WIDTHS, width, page, CHAT_PROBE)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
@@ -542,13 +555,17 @@ window.addEventListener('load', () => {
 
 
 @pytest.mark.parametrize("width", [375, 1280])
-def test_user_list_headings_hide_while_their_lists_are_empty(client, tmp_path, width):
+def test_user_list_headings_hide_while_their_lists_are_empty(client, batch, width):
     """A walk of our app, 2026-11-10: room controls showed INACTIVE USERS over nobody."""
-    make_room("lobby")
-    html = client.get("/chat/lobby").get_data(as_text=True)
-    assert '<div id="inactive-users-list" hidden>' in html
-    assert '<div id="active-users-list" hidden>' in html
-    out = run_probe(html, USER_LISTS_PROBE, tmp_path, width)
+
+    def page():
+        make_room("lobby")
+        html = client.get("/chat/lobby").get_data(as_text=True)
+        assert '<div id="inactive-users-list" hidden>' in html
+        assert '<div id="active-users-list" hidden>' in html
+        return html
+
+    out = batch.at("user lists", [375, 1280], width, page, USER_LISTS_PROBE)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
@@ -766,9 +783,9 @@ window.addEventListener('load', () => {
 
 
 @pytest.mark.parametrize("width", WIDTHS)
-def test_sidebar_menu_on_every_page(client, tmp_path, width):
-    html = client.get("/browse").get_data(as_text=True)
-    out = run_probe(html, MENU_PROBE, tmp_path, width)
+def test_sidebar_menu_on_every_page(client, batch, width):
+    page = lambda: client.get("/browse").get_data(as_text=True)  # noqa: E731
+    out = batch.at("menu", WIDTHS, width, page, MENU_PROBE)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
@@ -838,14 +855,16 @@ window.addEventListener('load', async () => {
 
 
 @pytest.mark.parametrize("width", [320, 1280])
-def test_chat_actions_menu(client, tmp_path, width):
-    ada = make_user("ada@example.test", "ada")
-    make_room("lobby", message="hi")
-    make_room("adas-room", owner=ada)
-    with client.session_transaction() as session:
-        session["user_id"] = ada.id
-    html = client.get("/browse").get_data(as_text=True)
-    out = run_probe(html, CHAT_ACTIONS_PROBE, tmp_path, width)
+def test_chat_actions_menu(client, batch, width):
+    def page():
+        ada = make_user("ada@example.test", "ada")
+        make_room("lobby", message="hi")
+        make_room("adas-room", owner=ada)
+        with client.session_transaction() as session:
+            session["user_id"] = ada.id
+        return client.get("/browse").get_data(as_text=True)
+
+    out = batch.at("chat actions", [320, 1280], width, page, CHAT_ACTIONS_PROBE)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
@@ -919,10 +938,12 @@ window.addEventListener('load', () => {
 
 
 @pytest.mark.parametrize("width", [320, 1280])
-def test_edit_resend_followups_and_scroll_down(client, tmp_path, width):
-    make_room("lobby")
-    html = client.get("/chat/lobby").get_data(as_text=True)
-    out = run_probe(html, RESEND_PROBE, tmp_path, width)
+def test_edit_resend_followups_and_scroll_down(client, batch, width):
+    def page():
+        make_room("lobby")
+        return client.get("/chat/lobby").get_data(as_text=True)
+
+    out = batch.at("resend", [320, 1280], width, page, RESEND_PROBE)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
@@ -947,9 +968,9 @@ window.addEventListener('load', () => {
 
 
 @pytest.mark.parametrize("width", [375, 1280])
-def test_sign_in_card_is_centred_beside_our_sidebar(client, tmp_path, width):
-    html = client.get("/auth").get_data(as_text=True)
-    out = run_probe(html, SIGN_IN_CENTRED_PROBE, tmp_path, width)
+def test_sign_in_card_is_centred_beside_our_sidebar(client, batch, width):
+    page = lambda: client.get("/auth").get_data(as_text=True)  # noqa: E731
+    out = batch.at("sign in", [375, 1280], width, page, SIGN_IN_CENTRED_PROBE)
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 

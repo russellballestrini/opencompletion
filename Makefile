@@ -2,7 +2,8 @@
 #
 # Every target runs through venv/bin/python so a bare `make test` on a fresh
 # checkout, a developer shell & GitHub Actions all run our same tools. CI
-# (.github/workflows/test.yml) calls these targets and nothing else.
+# (.github/workflows/test.yml) calls these targets and nothing else; it runs
+# as parallel jobs what `make ci` & `make coverage-check` run in sequence.
 
 .PHONY: help
 help:
@@ -19,6 +20,8 @@ help:
 	@echo "  test-unit            - tests/unit/"
 	@echo "  test-integration     - tests/integration/"
 	@echo "  test-functional      - tests/functional/ (pages, auth, streaming, games)"
+	@echo "  test-functional-a-m  - Half of tests/functional/ (CI runs both halves side by side)"
+	@echo "  test-functional-n-z  - Its other half"
 	@echo "  test-ui              - Page contract: shared shell, mobile, honest copy"
 	@echo "  test-validator       - YAML validator tests"
 	@echo "  test-yaml-loading    - YAML loading/parsing tests"
@@ -32,12 +35,13 @@ help:
 	@echo "Lint & CI:"
 	@echo "  lint                 - black --check & flake8 (syntax, undefined & unused names)"
 	@echo "  format               - black the tree"
-	@echo "  ci                   - lint + test, exactly what GitHub Actions runs"
+	@echo "  ci                   - lint + test: what GitHub Actions checks, one stage after another"
 	@echo ""
 	@echo "Quality reports (in reports/):"
 	@echo "  quality              - Coverage, cyclomatic complexity & CRAP"
 	@echo "  coverage             - Terminal, HTML, JSON & XML coverage"
-	@echo "  coverage-check       - Fail below our 82% coverage floor (CI runs this)"
+	@echo "  coverage-check       - Fail below our 82% coverage floor (CI: coverage-unit, -integration,"
+	@echo "                         -functional-a-m, -functional-n-z side by side, then coverage-combine)"
 	@echo "  cc                   - Function complexity, ranked text & JSON"
 	@echo "  crap                 - Fresh coverage plus ranked CRAP risk"
 	@echo "  Override PYTHON, REPORT_DIR, TEST_PATHS or COVERAGE_MIN as needed"
@@ -132,10 +136,24 @@ test-functional: venv
 	@echo "⚡ Running functional tests..."
 	venv/bin/python -m pytest tests/functional/ --durations=25
 
+# CI splits our slowest stage in two so its halves run side by side
+# (.github/workflows/test.yml). Shell globs, so every tests/functional/test_*.py
+# lands in exactly one half & a new file needs no list kept: a-m here,
+# everything else below.
+.PHONY: test-functional-a-m
+test-functional-a-m: venv
+	@echo "⚡ Running functional tests, files a-m..."
+	venv/bin/python -m pytest tests/functional/test_[a-m]*.py --durations=25
+
+.PHONY: test-functional-n-z
+test-functional-n-z: venv
+	@echo "⚡ Running functional tests, files n-z..."
+	venv/bin/python -m pytest tests/functional/test_[!a-m]*.py --durations=25
+
 .PHONY: test-ui
 test-ui: venv
 	@echo "📱 Running page contract tests..."
-	venv/bin/python -m pytest tests/functional/test_ui_contract.py tests/functional/test_home.py tests/functional/test_auth_ui_regressions.py tests/functional/test_tools_ui.py tests/functional/test_notices_ui.py tests/functional/test_edit_ui.py tests/functional/test_versions_ui.py tests/functional/test_verify_ui.py tests/functional/test_composer_ui.py tests/functional/test_activities_ui.py tests/functional/test_undo_delete_ui.py tests/functional/test_room_remove_ui.py tests/functional/test_stop_ui.py tests/functional/test_walk_ui.py tests/functional/test_live_reply_ui.py tests/functional/test_activity_choices_ui.py tests/functional/test_name_step_ui.py --durations=25
+	venv/bin/python -m pytest tests/functional/test_ui_contract.py tests/functional/test_home.py tests/functional/test_auth_ui_regressions.py tests/functional/test_tools_ui.py tests/functional/test_notices_ui.py tests/functional/test_edit_ui.py tests/functional/test_versions_ui.py tests/functional/test_verify_ui.py tests/functional/test_composer_ui.py tests/functional/test_activities_ui.py tests/functional/test_undo_delete_ui.py tests/functional/test_room_remove_ui.py tests/functional/test_stop_ui.py tests/functional/test_walk_ui.py tests/functional/test_live_reply_ui.py tests/functional/test_activity_choices_ui.py tests/functional/test_name_step_ui.py tests/functional/test_steer_aside_ui.py --durations=25
 
 .PHONY: test-validator
 test-validator: venv
@@ -208,7 +226,7 @@ QUALITY_SOURCES := activity.py activity_engine.py activity_gallery.py activity_g
 TEST_PATHS ?= tests/
 COVERAGE_MIN ?= 0
 
-.PHONY: quality-setup test-cov coverage cc crap quality
+.PHONY: quality-setup test-cov coverage coverage-check coverage-unit coverage-integration coverage-functional-a-m coverage-functional-n-z coverage-combine cc crap quality
 quality-setup: venv
 
 test-cov: coverage
@@ -226,6 +244,34 @@ coverage: venv
 # tests land, never lower it.
 coverage-check: venv
 	venv/bin/python -m pytest tests/ -q --durations=25 --cov --cov-config=.coveragerc --cov-report=term --cov-fail-under=82
+
+# CI measures that same floor in four parts run side by side, each leaving
+# its data in reports/coverage-parts/, then coverage-combine adds them up &
+# applies our floor: same tests, same .coveragerc, same 82%. --precision=2
+# because `coverage report` rounds before it compares (81.5 would pass as 82).
+coverage-unit: venv
+	@mkdir -p reports/coverage-parts
+	COVERAGE_FILE=reports/coverage-parts/.coverage.unit venv/bin/python -m pytest tests/unit/ -q --durations=25 --cov --cov-config=.coveragerc --cov-report=
+
+coverage-integration: venv
+	@mkdir -p reports/coverage-parts
+	COVERAGE_FILE=reports/coverage-parts/.coverage.integration venv/bin/python -m pytest tests/integration/ -q --durations=25 --cov --cov-config=.coveragerc --cov-report=
+
+coverage-functional-a-m: venv
+	@mkdir -p reports/coverage-parts
+	COVERAGE_FILE=reports/coverage-parts/.coverage.functional-a-m venv/bin/python -m pytest tests/functional/test_[a-m]*.py -q --durations=25 --cov --cov-config=.coveragerc --cov-report=
+
+coverage-functional-n-z: venv
+	@mkdir -p reports/coverage-parts
+	COVERAGE_FILE=reports/coverage-parts/.coverage.functional-n-z venv/bin/python -m pytest tests/functional/test_[!a-m]*.py -q --durations=25 --cov --cov-config=.coveragerc --cov-report=
+
+coverage-combine: venv
+	test -f reports/coverage-parts/.coverage.unit
+	test -f reports/coverage-parts/.coverage.integration
+	test -f reports/coverage-parts/.coverage.functional-a-m
+	test -f reports/coverage-parts/.coverage.functional-n-z
+	COVERAGE_FILE=reports/.coverage venv/bin/python -m coverage combine --keep --rcfile=.coveragerc reports/coverage-parts
+	COVERAGE_FILE=reports/.coverage venv/bin/python -m coverage report --rcfile=.coveragerc --precision=2 --fail-under=82
 
 cc: venv
 	$(PYTHON) quality_report.py $(QUALITY_SOURCES) --output $(REPORT_DIR)/cc

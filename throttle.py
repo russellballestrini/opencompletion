@@ -17,6 +17,7 @@ gevent process, so a limit here is the limit.
 import os
 import threading
 import time
+import ipaddress
 from collections import OrderedDict, deque
 
 from flask import jsonify, request
@@ -38,8 +39,21 @@ def client_ip():
         if part.strip()
     ]
     if hops and len(chain) >= hops:
-        return chain[-hops]
-    return request.remote_addr or "unknown"
+        return one_client(chain[-hops])
+    return one_client(request.remote_addr or "unknown")
+
+
+def one_client(address):
+    """An address as we count it: an IPv6 client is its /64, since one
+    connection is handed a whole /64 & could send from a new address in it
+    each time. Anything else, or unreadable, as given."""
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        return address
+    if ip.version == 6 and not ip.ipv4_mapped:
+        return str(ipaddress.ip_network(f"{ip}/64", strict=False))
+    return address
 
 
 def parse_limit(text, default):
@@ -89,27 +103,29 @@ class Throttle:
             self._hits.clear()
 
 
-def over_limit(throttle, what):
+def over_limit(throttle, what, key=None, whose="from your address"):
     """Count one of `what` ("new rooms", "code runs") for this request's
     client. None when it is allowed, else (what to tell them, seconds to
     wait). Works in a Socket.IO handler too: flask-socketio hands it the
-    request its socket connected with, proxy headers included."""
-    retry_after = throttle.hit(client_ip())
+    request its socket connected with, proxy headers included. `key`
+    counts by something else than the address (an email a code goes to),
+    with `whose` saying so."""
+    retry_after = throttle.hit(client_ip() if key is None else key)
     if not retry_after:
         return None
     minutes = -(-retry_after // 60)
     return (
-        f"Too many {what} from your address: {throttle.count} per "
+        f"Too many {what} {whose}: {throttle.count} per "
         f"{throttle.seconds // 60} minutes. Try again in {minutes} minute"
         f"{'' if minutes == 1 else 's'}.",
         retry_after,
     )
 
 
-def too_many(throttle, what):
+def too_many(throttle, what, key=None, whose="from your address"):
     """over_limit() as an HTTP answer: None when allowed, else a 429 with
     Retry-After."""
-    over = over_limit(throttle, what)
+    over = over_limit(throttle, what, key, whose)
     if not over:
         return None
     response = jsonify({"error": over[0]})

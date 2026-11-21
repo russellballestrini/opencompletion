@@ -127,14 +127,9 @@ def test_an_aside_counts(test_app, app_module, monkeypatch):
     assert "Too many messages to models" in heard[0]["content"]
 
 
-def test_answers_to_a_running_activity_are_never_limited(
-    test_app, app_module, monkeypatch
-):
-    """A class plays one activity from a single address."""
+def activity_in(room):
     from models import ActivityState, db
 
-    limit(monkeypatch, app_module.MESSAGE_THROTTLE, 1)
-    room = make_room("lobby")
     db.session.add(
         ActivityState(
             room_id=room.id,
@@ -145,10 +140,32 @@ def test_answers_to_a_running_activity_are_never_limited(
         )
     )
     db.session.commit()
+
+
+def test_activity_answers_have_a_looser_limit_of_their_own(
+    test_app, app_module, monkeypatch
+):
+    """A class plays one activity from a single address, so its answers
+    never spend the message limit; a loop of them still ends."""
+    limit(monkeypatch, app_module.MESSAGE_THROTTLE, 1)
+    limit(monkeypatch, app_module.ACTIVITY_THROTTLE, 3)
+    activity_in(make_room("lobby"))
     ada = socket_for(test_app, app_module)
     for answer in ("my answer", "another answer", "a third"):
         send(ada, answer, model="qwen")  # even with a model picked
+    heard = send(ada, "a fourth")
     assert stored() == ["my answer", "another answer", "a third"]
+    assert "Too many activity answers" in heard[0]["content"]
+
+
+def test_commands_that_ask_a_model_count_as_messages(test_app, app_module, monkeypatch):
+    limit(monkeypatch, app_module.MESSAGE_THROTTLE, 1)
+    make_room("lobby")
+    ada = socket_for(test_app, app_module)
+    with patch.object(app_module.gevent, "spawn"):
+        send(ada, "/title new")
+        heard = send(ada, "/title new")
+    assert "Too many messages to models" in heard[0]["content"]
 
 
 def test_addresses_are_counted_apart_by_what_our_proxy_appended(

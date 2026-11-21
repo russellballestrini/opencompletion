@@ -240,6 +240,8 @@ class Message(db.Model):
         return cls.query.filter(
             cls.room_id == branch[0].room_id,
             cls.id < revision_id,
+            # A deleted message is gone from every copy, as visible() has it.
+            cls.deleted_at.is_(None),
             db.or_(
                 cls.superseded_by_id.is_(None),
                 cls.superseded_by_id >= revision_id,
