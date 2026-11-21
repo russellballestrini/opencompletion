@@ -83,6 +83,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "boto3": MagicMock(),
                 "openai": MagicMock(),
@@ -189,6 +190,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "boto3": MagicMock(),
                 "openai": MagicMock(),
@@ -272,6 +274,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "boto3": MagicMock(),
                 "openai": MagicMock(),
@@ -363,6 +366,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "boto3": MagicMock(),
                 "openai": MagicMock(),
@@ -448,6 +452,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "boto3": MagicMock(),
                 "openai": MagicMock(),
@@ -562,6 +567,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "boto3": MagicMock(),
                 "openai": MagicMock(),
@@ -633,6 +639,7 @@ class StreamingProtocolTest(unittest.TestCase):
             "sys.modules",
             {
                 "gevent": MagicMock(),
+                "gevent.lock": MagicMock(),
                 "flask_socketio": self.mock_socketio,
                 "boto3": MagicMock(),
                 "openai": MagicMock(),
