@@ -27,7 +27,9 @@ def client(test_app):
 # in-page confirm, whose close event lands a task later.
 SERVER_STUB = r"""
     const answers = [];
-    const said = () => [...document.querySelectorAll('.toast.is-error[role="alert"] .toast-text')].map(t => t.textContent).join();
+    // (An offline chat page's activity chooser says it could not load, too.)
+    const said = () => [...document.querySelectorAll('.toast.is-error[role="alert"] .toast-text')].map(t => t.textContent).filter(t => t !== 'Failed to fetch activities').join();
+    const asked = async (n) => { for (let i = 0; i < 100 && answers.length < n; i++) await wait(10); };
     window.fetch = (url, options) => {
         if (/\/api\/rooms\/\d+\/(delete|archive)$/.test(String(url))) {
             return new Promise(resolve => answers.push(ok => resolve(new Response(
@@ -42,6 +44,7 @@ SERVER_STUB = r"""
         const yes = document.querySelector('dialog.ask-dialog[open] [data-ask="confirm"]');
         if (!yes || yes.textContent !== label || !yes.classList.contains('btn-danger')) throw new Error('no ' + label + ' confirm in our page');
         yes.click();
+        for (let i = 0; i < 100 && document.querySelector('dialog.ask-dialog'); i++) await wait(5);
         await wait(0);
     };
 """
@@ -198,7 +201,7 @@ window.addEventListener('load', async () => {
 
     del.click();
     await agree('Delete');
-    await wait();
+    await asked(2);
     answers[1](true);
     await wait();
     check(left === '/', 'home opens: ' + left);

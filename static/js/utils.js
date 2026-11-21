@@ -439,7 +439,7 @@ function askDialog({title, body, label, value, confirmLabel, danger}) {
 
 /**
  * Ask yes or no. Resolves true only when the person confirms.
- * @param {{title: string, body?: string, confirmLabel?: string, danger?: boolean}} options
+ * @param {object} options - title, body, confirmLabel, danger (red, & focus starts on Cancel)
  * @returns {Promise<boolean>}
  */
 function askConfirm({title, body, confirmLabel, danger} = {}) {
@@ -448,7 +448,7 @@ function askConfirm({title, body, confirmLabel, danger} = {}) {
 
 /**
  * Ask for one line of text. Resolves what was typed, or null when cancelled.
- * @param {{title: string, label?: string, value?: string, confirmLabel?: string}} options
+ * @param {object} options - title, label, value (what the field starts with), confirmLabel
  * @returns {Promise<string|null>}
  */
 function askText({title, label, value, confirmLabel} = {}) {
@@ -459,7 +459,7 @@ function askText({title, label, value, confirmLabel} = {}) {
  * Say something without stopping anyone: a quiet line atop our page that
  * leaves by itself (errors stay longer & are announced at once).
  * @param {string} message
- * @param {{error?: boolean}} options
+ * @param {object} options - error: true for a failure
  * @returns {HTMLElement} the toast
  */
 function toast(message, {error = false} = {}) {

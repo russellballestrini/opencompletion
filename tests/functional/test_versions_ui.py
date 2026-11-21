@@ -99,7 +99,7 @@ window.addEventListener('load', async () => {
     const opened = [];
     let refuse = true;
     new MutationObserver(() => document.querySelectorAll('.toast.is-error .toast-text').forEach(line => {
-        if (!line.dataset.seen) { line.dataset.seen = '1'; said.push(line.textContent); }
+        if (!line.dataset.seen && line.textContent !== 'Failed to fetch activities') { line.dataset.seen = '1'; said.push(line.textContent); }
     })).observe(document.documentElement, {childList: true, subtree: true});
     window.openChat = (name) => opened.push(name);
     window.fetch = (url, options) => {

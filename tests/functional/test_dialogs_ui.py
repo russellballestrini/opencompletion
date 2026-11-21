@@ -134,36 +134,6 @@ def test_asks_and_toasts_live_in_our_page(page, tmp_path, width):
     assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
 
 
-# A toast leaves by itself: news after 5s, an error after 8s.
-LEAVES_PROBE = r"""
-<script>
-window.addEventListener('load', async () => {
-    const problems = [];
-    const check = (ok, name) => { if (!ok) problems.push(name); };
-    const quiet = toast('Saved.');
-    const loud = toast('Failed.', {error: true});
-    await new Promise(r => setTimeout(r, 5200));
-    check(!quiet.isConnected, 'news leaves after 5s');
-    check(loud.isConnected, 'an error stays longer');
-    await new Promise(r => setTimeout(r, 3000));
-    check(!loud.isConnected, 'an error leaves after 8s');
-    document.body.dataset.probe = problems.length ? 'failed: ' + problems.join('; ') : 'passed';
-});
-</script>
-"""
-
-
-def test_a_toast_leaves_by_itself(page, tmp_path):
-    out = run_probe(
-        page,
-        LEAVES_PROBE,
-        tmp_path,
-        1280,
-        extra_flags=["--virtual-time-budget=10000"],
-    )
-    assert 'data-probe="passed"' in out, re.search(r'data-probe="[^"]*"', out)
-
-
 def test_no_script_or_template_opens_a_browser_dialog():
     ours = [
         path

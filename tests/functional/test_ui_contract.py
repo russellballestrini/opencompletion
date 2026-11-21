@@ -635,7 +635,7 @@ window.addEventListener('load', () => {
     const forkCalls = [];
     let forkAlert = null;
     const forkSaid = setInterval(() => {
-        const line = document.querySelector('.toast.is-error .toast-text');
+        const line = [...document.querySelectorAll('.toast.is-error .toast-text')].find(t => t.textContent !== 'Failed to fetch activities');
         if (line) { forkAlert = line.textContent; clearInterval(forkSaid); }
     }, 20);
     const fetchBeforeFork = window.fetch;
