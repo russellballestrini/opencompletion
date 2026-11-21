@@ -10,7 +10,7 @@ import auth
 import un
 from activity_utils import create_completion_skip_thinking, strip_reasoning
 from routes import DEPS
-from throttle import Throttle, too_many
+from throttle import CODE_THROTTLE, too_many
 
 bp = Blueprint("code", __name__)
 
@@ -188,7 +188,6 @@ def owns_job(job_id):
 
 # unsandbox API proxy endpoints - keeps API keys server-side
 # Code runs per client. OPENCOMPLETION_CODE_LIMIT, "count/seconds".
-CODE_THROTTLE = Throttle("OPENCOMPLETION_CODE_LIMIT", default=(30, 600))
 
 
 @bp.route("/api/code/execute", methods=["POST"])

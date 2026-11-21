@@ -18,6 +18,7 @@ import time
 import base64
 import os
 import re
+from collections import OrderedDict
 
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -134,6 +135,14 @@ import auth
 # instance/secret_key (auth.load_secret_key); never a published default.
 app.config["SECRET_KEY"] = auth.load_secret_key(app.instance_path)
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+# Our session cookie travels over HTTPS only once we are served there:
+# OPENCOMPLETION_PUBLIC_URL says so (https://...), or
+# OPENCOMPLETION_COOKIE_SECURE=on/off says it outright. Plain http (a dev
+# server on localhost) keeps working with neither set.
+app.config["SESSION_COOKIE_SECURE"] = auth.cookie_secure()
+# No request body past this is read (a 413): uploads have their own, lower
+# limit (OPENCOMPLETION_UPLOAD_MAX_MB), & nothing else we take comes near it.
+app.config["MAX_CONTENT_LENGTH"] = max(32 * 1024 * 1024, 2 * max_upload_bytes())
 from activity_utils import create_completion_skip_thinking, notice_id, strip_reasoning
 
 # Build a list of endpoints dynamically.
@@ -360,8 +369,23 @@ def get_client_for_model(model_name: str):
         return MODEL_CLIENT_MAP[model_name][0]
 
 
+class Recent(OrderedDict):
+    """A cache that keeps its `limit` newest entries, so a server that runs
+    for weeks never holds every image it ever fetched."""
+
+    def __init__(self, limit):
+        super().__init__()
+        self.limit = limit
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        self.move_to_end(key)
+        while len(self) > self.limit:
+            self.popitem(last=False)
+
+
 # Cache for fetched external images (URL -> base64 data URL)
-_external_image_cache = {}
+_external_image_cache = Recent(32)
 
 # CORS proxy for ethical fetching (respects robots.txt)
 CORS_PROXY_URL = "https://cors-proxy.uncloseai.com/api/fetch"
@@ -434,9 +458,10 @@ def fetch_external_image_as_base64(image_url: str) -> str | None:
     try:
         # The address is one parameter's value, as 2-vision.js sends it
         # (encodeURIComponent): unencoded, its own `&` & `#` cut it short.
-        with httpx.Client(timeout=15.0) as client:
-            response = client.get(CORS_PROXY_URL, params={"uri_target": image_url})
-
+        limit = max_upload_bytes()
+        with httpx.Client(timeout=15.0) as client, client.stream(
+            "GET", CORS_PROXY_URL, params={"uri_target": image_url}
+        ) as response:
             if response.status_code == 403:
                 print(f"Image blocked by robots.txt: {image_url}")
                 return None
@@ -449,8 +474,17 @@ def fetch_external_image_as_base64(image_url: str) -> str | None:
                 print(f"Not an image: {image_url} ({content_type})")
                 return None
 
+            # Read no further than our upload limit: an address may serve
+            # gigabytes, & every byte would sit in our memory.
+            body = bytearray()
+            for piece in response.iter_bytes():
+                body += piece
+                if len(body) > limit:
+                    print(f"Image past our upload limit: {image_url}")
+                    return None
+
             # Convert to base64
-            b64_data = base64.b64encode(response.content).decode("utf-8")
+            b64_data = base64.b64encode(bytes(body)).decode("utf-8")
             media_type = content_type.split(";")[0]  # Remove charset if present
             data_url = f"data:{media_type};base64,{b64_data}"
 
@@ -817,7 +851,7 @@ activity.init_activity_module(
 import routes  # noqa: E402
 from repetition_guard import RepetitionGuard  # noqa: E402
 from routes.pages import safe_next_url  # noqa: E402,F401
-from throttle import Throttle, over_limit  # noqa: E402
+from throttle import Throttle, over_limit, too_many  # noqa: E402
 from routes.rooms import (  # noqa: E402,F401
     ROOM_THROTTLE,
     emit_room_list_update,
@@ -910,23 +944,34 @@ def get_vision_status():
     )
 
 
+VISION_THROTTLE = Throttle("OPENCOMPLETION_VISION_LIMIT", default=(60, 600))
+DESCRIBE_PROMPT = "Describe this image in one brief sentence for use as alt text."
+DESCRIBE_IMAGE = re.compile(r"data:image/[\w.+-]+;base64,[A-Za-z0-9+/=\s]+\Z")
+
+
 @app.route("/vision/describe", methods=["POST"])
 def describe_image():
-    """Generate alt text description for an image using vision model."""
+    """Alt text for an image, from a vision model. Each call spends a model
+    ask, so it is limited per address; the image is its bytes (a base64
+    data URL, what 2-vision.js sends), never an address for our model's
+    server to go & fetch; the prompt is ours."""
+    refused = too_many(VISION_THROTTLE, "image descriptions")
+    if refused:
+        return refused
 
-    data = request.get_json()
-    if not data or "image" not in data:
+    data = request.get_json(silent=True)
+    image_url = data.get("image") if isinstance(data, dict) else None
+    if not isinstance(image_url, str) or not DESCRIBE_IMAGE.match(image_url):
         return jsonify({"error": "Missing 'image' field (base64 data URL)"}), 400
+    if len(image_url) > max_upload_bytes() * 4 // 3 + 100:
+        return jsonify({"error": "That image is too large"}), 413
 
-    image_url = data["image"]  # Expected format: data:image/jpeg;base64,...
-    prompt = data.get(
-        "prompt", "Describe this image in one brief sentence for use as alt text."
-    )
+    prompt = DESCRIBE_PROMPT
     vision_models = [m for m in MODEL_CLIENT_MAP.keys() if is_vision_model(m)]
-    model_name = data.get("model", vision_models[0] if vision_models else None)
+    model_name = data.get("model") or (vision_models[0] if vision_models else None)
 
-    if not model_name or not is_vision_model(model_name):
-        return jsonify({"error": f"Model {model_name} is not a vision model"}), 400
+    if not isinstance(model_name, str) or model_name not in vision_models:
+        return jsonify({"error": "Not a vision model"}), 400
 
     try:
         client = get_client_for_model(model_name)
@@ -948,7 +993,13 @@ def describe_image():
         description = strip_reasoning(response.choices[0].message.content.strip())
         return jsonify({"description": description, "model": model_name})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"[Vision] describe failed on {model_name}: {e}")
+        return jsonify({"error": "Could not describe that image"}), 502
+
+
+@app.errorhandler(413)
+def body_too_large(error):
+    return jsonify({"error": "That request is too large"}), 413
 
 
 def missing_page(heading, detail, status):
@@ -2025,7 +2076,10 @@ def handle_update_message(data):
     new_content = data["content"]
     message, room = message_in_room(message_id, data.get("room_name"))
     room_name = room.name if room else None
-    if message:
+    # A row an Edit & resend hid belongs to an earlier version: read only.
+    if message and message.superseded_by_id is not None:
+        return
+    if message and isinstance(new_content, str):
         # Update the message content
         message.content = new_content
         message.count_tokens(fresh=True)
@@ -2188,7 +2242,7 @@ def handle_get_activity_status(data):
 
 
 # Thinking is counted in characters as it streams; ~4 per token.
-CHARS_PER_TOKEN = 4
+THINKING_CHARS_PER_TOKEN = 4
 
 
 # What a reply whose stream broke is told when it is asked to carry on.
@@ -2966,7 +3020,7 @@ class ReplyStream:
             self.tool_calls = SimpleNamespace(calls=resume.get("calls") or [])
         else:
             self.looped, self.cut_at_limit, over_budget = self.consume(
-                self.chunks, budget * CHARS_PER_TOKEN
+                self.chunks, budget * THINKING_CHARS_PER_TOKEN
             )
         self.cap = self.create_kwargs.get("max_tokens")
         if over_budget:

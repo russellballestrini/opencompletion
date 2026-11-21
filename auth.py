@@ -154,6 +154,10 @@ If you didn't request this code, you can safely ignore this email.
             except Exception as smtp_error:
                 print(f"[ERROR] Failed to send OTP via {smtp_host}: {smtp_error}")
 
+        if not otp_console_allowed():
+            print("[ERROR] Sign-in code not sent: no mail server took it")
+            return None
+
         # Fall back to console output
         print(f"\n{'='*60}")
         print(f"[DEVELOPMENT] OTP Email - localhost:25 unavailable")
@@ -165,6 +169,35 @@ If you didn't request this code, you can safely ignore this email.
         print(f"{'='*60}\n")
         # Truthy so the development workflow still signs in.
         return "console"
+
+
+def served_over_https():
+    """Whether OPENCOMPLETION_PUBLIC_URL says people reach us over HTTPS:
+    our mark of a real deployment, as opposed to a dev server."""
+    return os.environ.get("OPENCOMPLETION_PUBLIC_URL", "").startswith("https://")
+
+
+def _switch(name, default):
+    value = os.environ.get(name, "").strip().lower()
+    if value in ("on", "1", "true", "yes"):
+        return True
+    if value in ("off", "0", "false", "no"):
+        return False
+    return default
+
+
+def cookie_secure():
+    """Session cookies marked Secure: OPENCOMPLETION_COOKIE_SECURE (on/off),
+    else whenever we are served over HTTPS."""
+    return _switch("OPENCOMPLETION_COOKIE_SECURE", served_over_https())
+
+
+def otp_console_allowed():
+    """A sign-in code we could not email may be printed to our log instead:
+    OPENCOMPLETION_OTP_CONSOLE (on/off), else only on a dev server. On a
+    real deployment anyone could have codes for any address written into
+    our log, & the page told them so."""
+    return _switch("OPENCOMPLETION_OTP_CONSOLE", not served_over_https())
 
 
 def create_otp_token(email):

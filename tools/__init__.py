@@ -187,6 +187,9 @@ class ToolContext:
 
     sid: Optional[str] = None
     email: Optional[str] = None
+    # The address that asked (throttle.client_ip), for limits a tool call
+    # counts against; None on a reply resumed after a restart.
+    address: Optional[str] = None
     room_id: Optional[int] = None
     model: Optional[str] = None
     # Set by chat_gpt & run_round for long tools (delegate): stopped() is
@@ -221,8 +224,31 @@ class ToolContext:
         return policy.server_egress_allowed(self.email)
 
 
+def _too_many_runs(context):
+    """A model's run_code counts as a person's Run does (routes/code.py),
+    against whoever asked for this reply: else one message bought a
+    hundred runs. A run being collected after a restart was counted when
+    it began."""
+    if not context.address or (context.resume_run or {}).get("job_id"):
+        return None
+    from throttle import CODE_THROTTLE, over_limit
+
+    over = over_limit(CODE_THROTTLE, "code runs", key=context.address)
+    return over[0] if over else None
+
+
 def context(sid, user=None):
-    return ToolContext(sid=sid, email=getattr(user, "email", None))
+    """Who asked: built inside their request (a socket event), which is
+    where their address comes from; outside one there is none to count."""
+    from flask import has_request_context
+
+    from throttle import client_ip
+
+    return ToolContext(
+        sid=sid,
+        email=getattr(user, "email", None),
+        address=client_ip() if has_request_context() else None,
+    )
 
 
 def offered(context):
@@ -317,6 +343,9 @@ def run(context, name, arguments):
             from tools import sandbox
 
             if name == "run_code":
+                refused = _too_many_runs(context)
+                if refused:
+                    return {"error": refused}
                 return sandbox.run_code(
                     context,
                     arguments.get("language"),

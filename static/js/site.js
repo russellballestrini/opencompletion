@@ -48,11 +48,25 @@ document.addEventListener('keydown', event => {
     if (event.key === 'Escape') closeDrawer();
 });
 
+// Unsent drafts (composer.js: draft:home, draft:room:<name>) belong to
+// whoever typed them: they go at sign out, so the next person at this
+// browser never reads them.
+function forgetDrafts() {
+    try {
+        Object.keys(localStorage)
+            .filter(key => key.startsWith('draft:'))
+            .forEach(key => localStorage.removeItem(key));
+    } catch (error) {
+        // Storage is blocked: nothing was kept.
+    }
+}
+
 async function signOut() {
     try {
         const response = await fetch('/auth/logout', {method: 'POST'});
         if (!response.ok) throw new Error(response.statusText);
         forgetRecentChats();
+        forgetDrafts();
         window.location.href = '/';
     } catch (error) {
         toast('Sign out failed. Please try again.', {error: true});

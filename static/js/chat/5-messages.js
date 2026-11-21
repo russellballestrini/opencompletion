@@ -1068,8 +1068,13 @@ socket.on("message_updated", (data) => {
 
         // Update the message content; its tool lines stay, above the edit
         // (the text they sat between has changed).
+        // Whose it is stays atop it: inside its content, unless a live
+        // reply keeps its name in a header of its own.
         const toolLists = [...messageContentContainer.querySelectorAll(":scope > .message-tools")];
-        messageContentContainer.innerHTML = renderMarkdown(data.content);
+        const labelled = data.username && !messageWrapper.querySelector(".message-header");
+        messageContentContainer.innerHTML = renderMarkdown(
+            labelled ? `${senderLabel(data.username)}\n\n${data.content}` : data.content
+        );
         toolLists.reverse().forEach((list) => messageContentContainer.prepend(list));
 
         // Update the raw markdown stored in the data attribute
@@ -1078,6 +1083,8 @@ socket.on("message_updated", (data) => {
         // Apply syntax highlighting and other functionalities to code blocks within the message
         // Don't truncate edited messages - only truncate on page load (previous_messages)
         messageContentContainer.querySelectorAll("pre code").forEach((block) => {
+            // A kept tool line's code is dressed already.
+            if (block.closest(".message-tools")) return;
             hljs.highlightElement(block);
             addLineNumbers(block);
             addCopyButtonToCodeBlock(block, false);
