@@ -120,6 +120,7 @@ export MODEL_API_KEY_1="your-api-key"
 #export OPENCOMPLETION_OTP_EMAIL_LIMIT=3/900  # sign-in code emails per target email per seconds, whoever asks; 0 = off
 #export OPENCOMPLETION_OTP_VERIFY_LIMIT=20/600 # sign-in code tries (/auth/verify-otp) per address per seconds; 0 = off
 #export OPENCOMPLETION_VISION_LIMIT=60/600    # image descriptions (/vision/describe) per address per seconds; 0 = off
+#export OPENCOMPLETION_TITLE_LIMIT=20/600     # Refresh title (a model call) per address per seconds; 0 = off
 #export OPENCOMPLETION_COOKIE_SECURE=         # on/off; unset = on when OPENCOMPLETION_PUBLIC_URL is https
 #export OPENCOMPLETION_OTP_CONSOLE=           # on/off: print a sign-in code no mail server took; unset = off when OPENCOMPLETION_PUBLIC_URL is https
 #export OPENCOMPLETION_ROOM_LIMIT=30/600      # new rooms per address per seconds; 0 = off

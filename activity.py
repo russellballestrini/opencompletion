@@ -354,6 +354,21 @@ def handle_activity_response(room_name, user_response, username, model="MODEL_0"
             )
 
 
+def keep_inline_images(content, room_id, username):
+    """`content` with its base64 images moved to our blob store; as it was
+    when there are none or saving fails (the plot still shows)."""
+    if "base64," not in (content or ""):
+        return content
+    try:
+        from blob_store import inline_images_to_attachments
+
+        return inline_images_to_attachments(content, room_id, username)[0]
+    except Exception:
+        traceback.print_exc()
+        db.session.rollback()
+        return content
+
+
 class RoomIO(activity_engine.ActivityIO):
     """Our activity engine in a chat room: messages stored in our database &
     emitted to the room, state kept in ActivityState. Every call goes
@@ -365,6 +380,10 @@ class RoomIO(activity_engine.ActivityIO):
         self.room_name = room_name
 
     def say(self, content, username="System", shown_as=None):
+        # A game's plot arrives as a base64 <img>: its bytes go to our blob
+        # store as the room's attachment & the message holds its link, so a
+        # Battleship game no longer keeps megabytes of images in its rows.
+        content = keep_inline_images(content, self.room.id, username)
         new_message = Message(username=username, content=content, room_id=self.room.id)
         db.session.add(new_message)
         db.session.commit()

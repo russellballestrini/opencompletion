@@ -86,7 +86,7 @@ let currentQueuedMessageId = null; // messageId of the queued audio currently pl
 let audioCache = {}; // Cache to store audio blobs
 
 // Auto-play TTS state
-let autoPlayTTS = localStorage.getItem('autoPlayTTS') === 'true' || false;
+let autoPlayTTS = storedValue('autoPlayTTS') === 'true' || false;
 let ttsQueue = [];
 let isPlayingTTS = false;
 
@@ -95,9 +95,9 @@ let isPlayingTTS = false;
 // chain-of-thought entirely — saving tokens, not just hiding output. As a
 // fallback, any reasoning_content that still arrives is dropped client-side
 // (see message_chunk handler). Toggle persists to localStorage.
-let enableThinking = localStorage.getItem('enableThinking') !== 'false';
+let enableThinking = storedValue('enableThinking') !== 'false';
 // A soft chime when replies finish after a wait (on by default).
-let doneChime = localStorage.getItem('doneChime') !== 'false';
+let doneChime = storedValue('doneChime') !== 'false';
 
 // Vision model state for auto alt-text
 let visionAvailable = false;

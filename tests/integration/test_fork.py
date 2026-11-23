@@ -181,3 +181,26 @@ def test_history_marks_model_replies(test_app, monkeypatch):
         e["args"][0] for e in socket.get_received() if e["name"] == "previous_messages"
     ]
     assert [m["from_model"] for m in history] == [False, True, False, True]
+
+
+def test_a_body_that_is_not_an_object_forks_as_empty(test_app):
+    from models import Room
+
+    room, ids = make_room("muppets", lines=CONVERSATION)
+    for body in (["private"], "private", 7):
+        response = client_for(test_app).post(f"/api/messages/{ids[1]}/fork", json=body)
+        assert response.status_code == 200, response.json
+        fork = Room.query.filter_by(name=response.json["room"]["name"]).one()
+        assert not fork.is_private
+
+
+def test_only_a_real_true_makes_a_private_fork(test_app):
+    from models import Room
+
+    me = make_user("ada@example.org", "ada")
+    room, ids = make_room("muppets", lines=CONVERSATION)
+    response = client_for(test_app, me).post(
+        f"/api/messages/{ids[1]}/fork", json={"private": "false"}
+    )
+    fork = Room.query.filter_by(name=response.json["room"]["name"]).one()
+    assert not fork.is_private

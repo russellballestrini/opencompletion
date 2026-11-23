@@ -79,6 +79,7 @@ venv/.installed: requirements-pip.lock requirements-test.lock
 	test -d venv || python3 -m venv venv
 	venv/bin/pip install --require-hashes -r requirements-pip.lock
 	venv/bin/pip install --require-hashes -r requirements-test.lock
+	venv/bin/python venv_prune.py requirements-pip.lock requirements-test.lock
 	touch venv/.installed
 
 PY_MIN ?= 3.11

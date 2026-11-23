@@ -700,7 +700,7 @@ function updateThinkingDisplay() {
 // Toggle thinking mode. On by default; persisted in localStorage.
 function toggleThinking() {
     enableThinking = !enableThinking;
-    localStorage.setItem('enableThinking', enableThinking.toString());
+    storeValue('enableThinking', enableThinking.toString());
     updateThinkingDisplay();
 }
 
@@ -710,7 +710,7 @@ function updateDoneChimeDisplay() {
 
 function toggleDoneChime() {
     doneChime = !doneChime;
-    localStorage.setItem('doneChime', doneChime.toString());
+    storeValue('doneChime', doneChime.toString());
     updateDoneChimeDisplay();
     if (doneChime) playDoneChime();  // a sample, & unlocks audio on this click
 }
@@ -754,7 +754,7 @@ function toggleAutoPlayTTS() {
     console.log("Auto-play TTS toggled to:", autoPlayTTS);
     
     // Save to localStorage
-    localStorage.setItem('autoPlayTTS', autoPlayTTS.toString());
+    storeValue('autoPlayTTS', autoPlayTTS.toString());
     
     // If turning off, clear the queue and stop current audio
     if (!autoPlayTTS) {

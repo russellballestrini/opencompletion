@@ -48,8 +48,8 @@ function syncDropdownsAndQueryString() {
     voiceSelectDesktop.value = currentVoice;
 
     // Save to localStorage for persistence
-    localStorage.setItem('selectedModel', currentModel);
-    localStorage.setItem('selectedVoice', currentVoice);
+    storeValue('selectedModel', currentModel);
+    storeValue('selectedVoice', currentVoice);
 }
 
 // Our composer grew & took height from the messages: at our newest message
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             modelSelectDesktop.appendChild(option);
         });
         // Restore from localStorage (check if value exists in options)
-        const storedModel = localStorage.getItem('selectedModel') || "None";
+        const storedModel = storedValue('selectedModel') || "None";
         const validOptions = Array.from(modelSelectDesktop.options).map(o => o.value);
         const modelToSelect = validOptions.includes(storedModel) ? storedModel : "None";
         modelSelectDesktop.value = modelToSelect;
@@ -111,13 +111,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const cacheExpirationKey = 'modelListExpiration';
     const cacheDuration = 60 * 1000; // 1 minute in milliseconds
 
-    const cachedData = localStorage.getItem(cacheKey);
-    const cachedExpiration = localStorage.getItem(cacheExpirationKey);
+    const cachedData = storedValue(cacheKey);
+    const cachedExpiration = storedValue(cacheExpirationKey);
 
+    let cachedModels = null;
     if (cachedData && cachedExpiration && Date.now() < parseInt(cachedExpiration)) {
-        // Use cached data if it exists and hasn't expired
-        const models = JSON.parse(cachedData);
-        populateModelDropdown(models);
+        try { cachedModels = JSON.parse(cachedData); } catch (e) {}
+    }
+    if (Array.isArray(cachedModels)) {
+        // A list fetched in the last minute (unreadable: fetched again)
+        populateModelDropdown(cachedModels);
     } else {
         // Fetch from backend and update cache. Until it answers the picker
         // says it is loading (utils.js modelsLoading) & Send waits for it.
@@ -128,8 +131,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 const models = data.models;
                 populateModelDropdown(models);
                 // Store in localStorage with expiration
-                localStorage.setItem(cacheKey, JSON.stringify(models));
-                localStorage.setItem(cacheExpirationKey, Date.now() + cacheDuration);
+                storeValue(cacheKey, JSON.stringify(models));
+                storeValue(cacheExpirationKey, Date.now() + cacheDuration);
             })
             .catch(error => {
                 // No list: people only, & the picker says so.
