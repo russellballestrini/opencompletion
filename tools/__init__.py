@@ -10,7 +10,8 @@ Each is opt-out from vars.sh (tools/policy.py):
                  tools/crawler/). Server only, so egress users only.
     run_code     one-off code on unsandbox, no network (tools/sandbox.py):
                  anyone allowed to run code.
-    sandbox_shell, sandbox_write_file, sandbox_share_file, delegate
+    sandbox_shell, sandbox_write_file, sandbox_share_file,
+    sandbox_put_attachment, delegate
                  this chat's own unsandbox sandbox & the uncloseai-cli in
                  it (tools/sandbox.py, routes/sandbox_proxy.py): egress
                  users only.
@@ -150,6 +151,33 @@ SANDBOX_SHARE_FILE = {
     },
 }
 
+SANDBOX_PUT_ATTACHMENT = {
+    "type": "function",
+    "function": {
+        "name": "sandbox_put_attachment",
+        "description": (
+            "Copy one of this chat's files (a person's upload, or one you "
+            "shared before) into this chat's sandbox, byte for byte: how a "
+            "file gets back after its sandbox was remade. Use it before a "
+            "delegate needs the file."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "attachment": {
+                    "type": "string",
+                    "description": "its link, e.g. /attachments/<id>/data.csv",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "where it goes; default /root/work/<name>",
+                },
+            },
+            "required": ["attachment"],
+        },
+    },
+}
+
 DELEGATE = {
     "type": "function",
     "function": {
@@ -175,6 +203,7 @@ SCHEMAS = {
     "sandbox_shell": SANDBOX_SHELL,
     "sandbox_write_file": SANDBOX_WRITE_FILE,
     "sandbox_share_file": SANDBOX_SHARE_FILE,
+    "sandbox_put_attachment": SANDBOX_PUT_ATTACHMENT,
     "delegate": DELEGATE,
 }
 
@@ -268,7 +297,7 @@ def offered(context):
         tools["run_code"] = "unsandbox"
     if policy.sandbox_enabled() and context.server_egress:
         tools["sandbox_shell"] = tools["sandbox_write_file"] = "sandbox"
-        tools["sandbox_share_file"] = "sandbox"
+        tools["sandbox_share_file"] = tools["sandbox_put_attachment"] = "sandbox"
         if policy.delegate_enabled() and context.model:
             tools["delegate"] = "sandbox"
     return tools
@@ -305,7 +334,7 @@ def label_for(name, arguments):
         # the whole task stays in the line's fold.
         first = str(arguments["task"]).strip().splitlines()[0]
         return first if len(first) <= 80 else first[:79].rstrip() + "…"
-    for key in ("query", "url", "command", "path"):
+    for key in ("query", "url", "command", "attachment", "path"):
         if arguments.get(key):
             return str(arguments[key]).splitlines()[0][:200]
     return name
@@ -360,6 +389,10 @@ def run(context, name, arguments):
                 )
             if name == "sandbox_share_file":
                 return sandbox.share_file(context, arguments.get("path"))
+            if name == "sandbox_put_attachment":
+                return sandbox.put_attachment(
+                    context, arguments.get("attachment"), arguments.get("path")
+                )
             if name == "delegate":
                 return sandbox.delegate(context, arguments.get("task"))
     except Exception as e:  # noqa: BLE001 — the model reads why

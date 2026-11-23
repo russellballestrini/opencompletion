@@ -279,6 +279,10 @@ REPAIR_HINTS = {
         None,
         {"file_path": "path", "filepath": "path", "file": "path"},
     ),
+    "sandbox_put_attachment": (
+        None,
+        {"link": "attachment", "url": "attachment", "file": "attachment"},
+    ),
     "delegate": ("task", {"prompt": "task", "instructions": "task"}),
 }
 
@@ -568,6 +572,7 @@ def _arguments_of(entry):
         "sandbox_shell": {"command": code or label},
         "sandbox_write_file": {"path": label, "content": code},
         "sandbox_share_file": {"path": label},
+        "sandbox_put_attachment": {"attachment": label},
         "run_code": {"language": detail.get("language") or label, "code": code},
         "delegate": {"task": code or label},
     }.get(entry["tool"], {})

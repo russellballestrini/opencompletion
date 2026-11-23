@@ -176,6 +176,7 @@ const TOOL_VERBS = {
     sandbox_shell: ["Running", "Ran"],
     sandbox_write_file: ["Writing", "Wrote"],
     sandbox_share_file: ["Sharing", "Shared"],
+    sandbox_put_attachment: ["Copying into the sandbox", "Copied into the sandbox"],
     delegate: ["uncloseai-cli is working", "uncloseai-cli worked"],
 };
 

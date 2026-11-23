@@ -18,7 +18,7 @@ guest's tools never run on it.
 | `web_search` | **in their own browser**, from their address | on our server |
 | `web_fetch` | not offered | on our server |
 | `run_code` | on unsandbox, once, **no network** | on unsandbox, once, no network |
-| `sandbox_shell`, `sandbox_write_file`, `sandbox_share_file` | not offered | this chat's own unsandbox sandbox, with network |
+| `sandbox_shell`, `sandbox_write_file`, `sandbox_share_file`, `sandbox_put_attachment` | not offered | this chat's own unsandbox sandbox, with network |
 | `delegate` (uncloseai-cli) | not offered | in that sandbox |
 
 An egress user is a signed-in email on
@@ -86,6 +86,18 @@ unsandbox's own egress (its DigitalOcean host in California), never ours.
   its turn" on its line; Stop ends its wait; a call that fails or whose
   reply dies gives its turn back. Without them two first calls each made
   a service (one leaked) & a second delegate cut off the first's model.
+- **`sandbox_put_attachment`**: the way back in. One of this chat's files
+  (a person's upload, or one a sandbox or `run_code` made & shared) is
+  written into its sandbox byte for byte, default `/root/work/<name>`: a
+  file outlives its sandbox in our blob store, so after a sandbox is
+  reaped (or remade) the chat model puts back what a delegate needs.
+  Named by its `/attachments/<id>/<name>` link (a URL, markdown or the
+  bare id do too), & only a file of THIS chat (a fork's copies are its
+  own). Written in `PUT_CHUNK_BYTES` (64 KiB: a command is one argument
+  & Linux caps one at 128 KiB) to `<path>.part`, checked against its
+  sha256, then moved into place. Sharing never overwrites: a file shared
+  again under the same name is a new attachment with its own link (its
+  bytes stored once per sha256, so an unchanged file costs a row).
 - **`sandbox_share_file`**: hands the person a file from that sandbox (a
   deck, a build, an image; a folder is zipped first), since nobody can
   browse a sandbox's disk. It is read as base64 on stdout,
