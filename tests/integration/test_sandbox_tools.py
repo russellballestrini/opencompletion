@@ -886,8 +886,7 @@ def test_an_egress_users_note_names_delegate_for_multi_step_work(unsandbox, room
     note = tools.guidance(fox_in(room))["content"]
     assert (
         "run_code, sandbox_shell, sandbox_write_file, sandbox_share_file, "
-        "sandbox_put_attachment, delegate"
-        in note
+        "sandbox_put_attachment, delegate" in note
     )
     # Which sandbox tool for what: delegate the multi-step work, the shell
     # for a quick look, both in one sandbox.
