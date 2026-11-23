@@ -2,6 +2,7 @@
 downloads, and our one rule for who may open a private room."""
 
 import json
+from urllib.parse import quote
 import time
 import re
 import secrets
@@ -220,6 +221,18 @@ def emit_room_list_update(room, room_data):
 # New rooms per client, however they are made (here, or a socket joining
 # a name nobody has: app.py). OPENCOMPLETION_ROOM_LIMIT, "count/seconds".
 ROOM_THROTTLE = Throttle("OPENCOMPLETION_ROOM_LIMIT", default=(30, 600))
+# Refresh title asks a model each time: per address, like a message.
+TITLE_THROTTLE = Throttle("OPENCOMPLETION_TITLE_LIMIT", default=(20, 600))
+
+
+def download_as(room, suffix):
+    """A download's Content-Disposition for `room`: an old room's name may
+    hold anything (quotes, spaces, letters past ASCII; only new names are
+    slugs), so the plain filename keeps safe characters only & the exact
+    name goes in filename* (RFC 6266), which a header can't be broken by."""
+    name = f"{room.name}{suffix}"
+    plain = re.sub(r"[^A-Za-z0-9._-]", "_", name)
+    return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"
 
 
 @bp.route("/api/rooms/create", methods=["POST"])
@@ -230,7 +243,8 @@ def create_room_api():
     if not isinstance(data, dict) or not isinstance(data.get("name", ""), str):
         return jsonify({"error": "Room name is required"}), 400
     room_name = data.get("name", "").strip()
-    is_private = data.get("is_private", False)
+    # Only a real true makes a solo chat: "false" (a string) is truthy.
+    is_private = data.get("is_private") is True
 
     if not room_name:
         return jsonify({"error": "Room name is required"}), 400
@@ -309,8 +323,10 @@ def fork_conversation(source_room, up_to=None, rows=None, **origin):
     version: fork_from_version) & `origin` says so in the fork's chain
     event. JSON response."""
     user = auth.get_current_user()
-    data = request.get_json(silent=True) or {}
-    make_private = bool(data.get("private", False))
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        data = {}
+    make_private = data.get("private") is True
 
     if room_access_denied(source_room, user):
         return jsonify({"error": "Cannot fork someone else's solo chat"}), 403
@@ -548,6 +564,9 @@ def retitle_room(room_id):
     if data.get("name") and data.get("name") != room.name:
         return jsonify({"error": "Room not found"}), 404
     if data.get("generate"):
+        refused = too_many(TITLE_THROTTLE, "title refreshes")
+        if refused:
+            return refused
         title = DEPS["retitle_room"](room)
         if not title:
             return jsonify({"error": "No model could title this chat right now"}), 502
@@ -668,9 +687,7 @@ def room_chain(room_id):
         return jsonify({"error": "Room not found"}), 404
     lines = "".join(e.line + "\n" for e in chain.events(chain.chain_of(room)))
     response = Response(lines, status=200, mimetype="application/jsonl")
-    response.headers["Content-Disposition"] = (
-        f'attachment; filename="{room.name}.chain.jsonl"'
-    )
+    response.headers["Content-Disposition"] = download_as(room, ".chain.jsonl")
     return response
 
 
@@ -742,7 +759,7 @@ def download_chat_history():
         status=200,
         mimetype="application/json",
     )
-    response.headers["Content-Disposition"] = f"attachment; filename={room.name}.json"
+    response.headers["Content-Disposition"] = download_as(room, ".json")
     return response
 
 
@@ -813,7 +830,7 @@ def download_chat_history_md():
             f"`/api/rooms/{room.id}/chain.jsonl`.\n"
         )
     response = Response(response=markdown_content, status=200, mimetype="text/markdown")
-    response.headers["Content-Disposition"] = f'attachment; filename="{room.name}.md"'
+    response.headers["Content-Disposition"] = download_as(room, ".md")
     return response
 
 

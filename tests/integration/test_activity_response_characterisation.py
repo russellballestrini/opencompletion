@@ -1050,9 +1050,14 @@ def test_processing_script_plot_image_is_posted_as_the_user(engine):
         )
     )
     engine.respond("x", "correct", username="carol")
-    img = '<img alt="Plot Image" src="data:image/png;base64,QUJD">'
-    assert engine.said_by("carol") == [img]
-    assert ("carol", img) in engine.stored()
+    # Its bytes go to our blob store; the message holds the link.
+    from models import Attachment
+
+    (kept,) = Attachment.query.filter_by(room_id=engine.room.id).all()
+    link = f"![Plot Image](/attachments/{kept.public_id}/image.png)"
+    assert engine.said_by("carol") == [link]
+    assert ("carol", link) in engine.stored()
+    assert "base64" not in str(engine.stored())
     # plot_image is popped before the result is kept.
     assert engine.state().dict_metadata == {}
 

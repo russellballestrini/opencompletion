@@ -116,6 +116,7 @@ os.environ["OPENCOMPLETION_CODE_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_SPEECH_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_SEARCH_LIMIT"] = "0"
 os.environ["OPENCOMPLETION_VISION_LIMIT"] = "0"
+os.environ["OPENCOMPLETION_TITLE_LIMIT"] = "0"
 
 
 @pytest.fixture(scope="session", autouse=True)

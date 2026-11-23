@@ -1,3 +1,15 @@
+// Our browser storage, read & written without throwing: a browser with
+// site data blocked (or a private window) throws on localStorage itself,
+// & one throw at a chat script's top stopped chat outright. A read that
+// cannot answer is null, a write that cannot land is dropped.
+function storedValue(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+}
+
+function storeValue(key, value) {
+    try { localStorage.setItem(key, value); } catch (e) {}
+}
+
 /**
  * Utility functions for the OpenCompletion application
  */
