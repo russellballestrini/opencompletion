@@ -41,8 +41,8 @@ import gevent
 from gevent.lock import BoundedSemaphore
 
 import un
-from blob_store import attachment_json, max_bytes, save_attachment
-from models import Message, Sandbox, db
+from blob_store import attachment_json, max_bytes, read_attachment, save_attachment
+from models import Attachment, Message, Sandbox, db
 from tools import oversight, policy
 
 OUTPUT_CHARS = 8000
@@ -780,6 +780,79 @@ def _share_file(context, path):
         "artifacts": [attachment_json(attachment)],
         "note": "paste its markdown into your reply to give the person the file",
     }
+
+
+# A file goes into a sandbox as base64 inside its command, this many bytes
+# a command: a command travels as one argument, & Linux refuses any one
+# argument past 128 KiB (MAX_ARG_STRLEN), so 64 KiB (~87 KiB of base64)
+# leaves room for the rest of the line.
+PUT_CHUNK_BYTES = 64 * 1024
+PUBLIC_ID = re.compile(r"\b([0-9a-f]{32})\b")
+
+
+def attachment_of_chat(room_id, link):
+    """This chat's attachment that `link` names: its /attachments/<id>/<name>
+    path, a full URL or a markdown link holding one, or its bare id. Only a
+    file of this chat: a model never copies another chat's files."""
+    found = PUBLIC_ID.search(str(link or ""))
+    if not found or room_id is None:
+        return None
+    return Attachment.query.filter_by(public_id=found.group(1), room_id=room_id).first()
+
+
+def put_attachment(context, attachment, path=None):
+    return _in_turn(context, lambda: _put_attachment(context, attachment, path))
+
+
+def _put_attachment(context, link, path):
+    """One of this chat's files (an upload, or what a sandbox or run_code
+    made & shared) written into its sandbox: the way back in for a file
+    whose sandbox was destroyed (reaped, or remade) since our blob store
+    keeps it while the chat lives. Written in chunks beside its path,
+    checked against its sha256, then moved into place."""
+    if context.room_id is None:
+        return {"error": "no chat to take a file from"}
+    attachment = attachment_of_chat(context.room_id, link)
+    if attachment is None:
+        return {
+            "error": "no file of this chat at that link; pass an "
+            "/attachments/<id>/<name> link this chat holds"
+        }
+    data = read_attachment(attachment)
+    if data is None:
+        return {"error": f"{attachment.filename}'s bytes are gone from our store"}
+    path = str(path or "").strip() or f"/root/work/{attachment.filename}"
+    quoted = shlex.quote(path)
+    part = shlex.quote(path + ".part")
+    sandbox = ready(context)
+    timeout = policy.sandbox_timeout()
+    begun = _execute(sandbox, f'mkdir -p "$(dirname {quoted})" && : > {part}', timeout)
+    if begun.get("exit_code") not in (0, None):
+        return _finished(begun) | {"error": f"could not write {path}"}
+    for start in range(0, len(data), PUT_CHUNK_BYTES):
+        piece = base64.b64encode(data[start : start + PUT_CHUNK_BYTES]).decode()
+        wrote = _execute(sandbox, f"printf %s {piece} | base64 -d >> {part}", timeout)
+        if wrote.get("exit_code") not in (0, None):
+            _execute(sandbox, f"rm -f {part}", timeout)
+            return {"error": f"writing {path} stopped at byte {start}"}
+    placed = _execute(
+        sandbox,
+        f'test "$(sha256sum {part} | cut -d" " -f1)" = {attachment.sha256} '
+        f"&& mv -f {part} {quoted} && echo __PLACED__ || "
+        f"{{ rm -f {part}; echo __MISMATCH__; }}",
+        timeout,
+    )
+    if "__PLACED__" not in str(placed.get("stdout") or ""):
+        return {"error": f"{path} did not arrive whole; put it again"}
+    return _with_fresh_note(
+        sandbox,
+        {
+            "path": path,
+            "bytes": len(data),
+            "sha256": attachment.sha256,
+            "from": attachment.url,
+        },
+    )
 
 
 # A markdown link or image whose target is a path in a sandbox, not a URL:

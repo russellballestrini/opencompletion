@@ -885,7 +885,8 @@ def test_shell_and_write_file_lines_show_their_command_and_file(unsandbox, room)
 def test_an_egress_users_note_names_delegate_for_multi_step_work(unsandbox, room):
     note = tools.guidance(fox_in(room))["content"]
     assert (
-        "run_code, sandbox_shell, sandbox_write_file, sandbox_share_file, delegate"
+        "run_code, sandbox_shell, sandbox_write_file, sandbox_share_file, "
+        "sandbox_put_attachment, delegate"
         in note
     )
     # Which sandbox tool for what: delegate the multi-step work, the shell
@@ -2666,3 +2667,120 @@ def test_a_guest_never_steers_someones_running_delegate(
     assert steer_commands(unsandbox) == []
     assert statuses == ["queued", "answering"]
     assert "use pytest" not in json.dumps(chat.asks[1]["messages"])
+
+
+# -- handing a chat's file to its sandbox ------------------------------------
+
+
+def a_chat_file(room, data, name="data.bin", username="ada"):
+    from blob_store import save_attachment
+
+    return save_attachment(room.id, data, name, "application/octet-stream", username)
+
+
+def test_a_chats_file_goes_into_its_sandbox_byte_for_byte(
+    sandbox_disk, room, monkeypatch
+):
+    monkeypatch.setattr(tool_sandbox, "PUT_CHUNK_BYTES", 1000)  # several writes
+    data = bytes(range(256)) * 20  # every byte value
+    upload = a_chat_file(room, data)
+    target = sandbox_disk / "in" / "data.bin"
+    result = tools.run(
+        fox_in(room),
+        "sandbox_put_attachment",
+        {"attachment": f"![data]({upload.url})", "path": str(target)},
+    )
+    assert result["path"] == str(target) and result["bytes"] == len(data)
+    assert result["sha256"] == upload.sha256 and result["from"] == upload.url
+    assert target.read_bytes() == data
+    assert not (sandbox_disk / "in" / "data.bin.part").exists()
+
+
+def test_a_file_shared_from_a_reaped_sandbox_returns_to_the_new_one(
+    sandbox_disk, room, unsandbox
+):
+    """Sandbox A makes & shares a file; A is reaped; the chat's new sandbox
+    B gets the file back from our blob store."""
+    from models import Sandbox
+
+    made = sandbox_disk / "report.pdf"
+    made.write_bytes(b"%PDF-1.7 the report")
+    shared = tools.run(fox_in(room), "sandbox_share_file", {"path": str(made)})
+    link = shared["artifacts"][0]["url"]
+    first = Sandbox.query.filter_by(room_id=room.id).one()
+    first_service = first.service_id
+    assert tool_sandbox.destroy(first, "unused for 14 days")
+    made.unlink()  # its disk went with it
+
+    back = tools.run(
+        fox_in(room),
+        "sandbox_put_attachment",
+        {"attachment": link, "path": str(made)},
+    )
+    assert "error" not in back, back
+    assert made.read_bytes() == b"%PDF-1.7 the report"
+    remade = Sandbox.query.filter_by(room_id=room.id).one()
+    assert remade.state != "destroyed" and remade.service_id != first_service
+
+
+def test_a_fork_copies_files_its_sandbox_can_take(sandbox_disk, room):
+    from blob_store import copy_attachments
+    from models import Attachment, Room, db
+
+    upload = a_chat_file(room, b"col\n1\n", name="data.csv")
+    fork = Room(name="lab-fork")
+    db.session.add(fork)
+    db.session.commit()
+    # what a fork does to each message: its links point at copies
+    relinked = copy_attachments(f"![d]({upload.url})", room.id, fork.id, {})
+    db.session.commit()
+    copy = Attachment.query.filter_by(room_id=fork.id).one()
+    assert copy.url in relinked and copy.sha256 == upload.sha256
+    target = sandbox_disk / "data.csv"
+    result = tools.run(
+        fox_in(fork),
+        "sandbox_put_attachment",
+        {"attachment": copy.url, "path": str(target)},
+    )
+    assert "error" not in result, result
+    assert target.read_bytes() == b"col\n1\n"
+
+
+def test_another_chats_file_is_never_put(sandbox_disk, room, unsandbox):
+    from models import Room, db
+
+    other = Room(name="elsewhere")
+    db.session.add(other)
+    db.session.commit()
+    theirs = a_chat_file(other, b"secret")
+    for link in (theirs.url, theirs.public_id, "/attachments/nope/x", "", None):
+        result = tools.run(fox_in(room), "sandbox_put_attachment", {"attachment": link})
+        assert "no file of this chat" in result["error"]
+    assert not list(sandbox_disk.iterdir())
+    assert unsandbox.commands() == []  # no sandbox was even asked
+
+
+def test_a_put_path_never_runs_as_shell(sandbox_disk, room):
+    upload = a_chat_file(room, b"hello")
+    odd = sandbox_disk / "it's $(touch pwned) a;b.txt"
+    result = tools.run(
+        fox_in(room),
+        "sandbox_put_attachment",
+        {"attachment": upload.url, "path": str(odd)},
+    )
+    assert result["bytes"] == 5 and odd.read_bytes() == b"hello"
+    assert not (sandbox_disk / "pwned").exists()
+    assert not (sandbox_disk.parent / "pwned").exists()
+
+
+def test_put_is_offered_beside_share_to_egress_users_only(unsandbox, room):
+    assert tools.offered(fox_in(room))["sandbox_put_attachment"] == "sandbox"
+    guest = tools.ToolContext(sid="s", room_id=room.id, model="qwen")
+    assert "sandbox_put_attachment" not in tools.offered(guest)
+    assert (
+        tools.label_for(
+            "sandbox_put_attachment",
+            {"attachment": "/attachments/a/b.csv", "path": "/x"},
+        )
+        == "/attachments/a/b.csv"
+    )
