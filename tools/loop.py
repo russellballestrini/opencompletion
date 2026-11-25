@@ -339,6 +339,11 @@ CUT_OFF = (
 )
 
 
+def _cut_off_text(cut_off):
+    limit = f" ({cut_off:,} tokens)" if cut_off is not True else ""
+    return CUT_OFF.format(limit=limit)
+
+
 def run_round(
     context, calls, content, notify=lambda event: None, resume=None, cut_off=None
 ):
@@ -388,9 +393,7 @@ def run_round(
         elif arguments is None:
             result = {
                 "error": (
-                    CUT_OFF.format(
-                        limit=f" ({cut_off:,} tokens)" if cut_off is not True else ""
-                    )
+                    _cut_off_text(cut_off)
                     if cut_off
                     else "arguments were not a JSON object"
                 )
@@ -468,6 +471,13 @@ def run_round(
                     ),
                 )
             result = run(call_context, call["name"], arguments)
+            if cut_off and index == len(calls) - 1 and result.get("error"):
+                # The ask stopped at its limit while writing this, its last
+                # call: what arrived may be missing what was cut (an empty
+                # `code`), so say how it ended as well as what failed.
+                result = dict(
+                    result, error=f"{result['error']} ({_cut_off_text(cut_off)})"
+                )
             if summarized and log:
                 # A closing summary replaces the last one, written mid-run
                 # ("...it is now collecting...") & never kept: the finished

@@ -605,3 +605,21 @@ def test_a_tool_not_offered_says_so_before_its_arguments(monkeypatch):
     assert json.loads(messages[-1]["content"])["error"] == (
         "sandbox_write_file is not available here"
     )
+
+
+def test_the_last_call_of_a_cut_ask_says_it_was_cut(monkeypatch):
+    """fox, 2026-11-25: run_code with a language & no code, 15 times."""
+    from tools import ToolContext, loop
+
+    monkeypatch.setattr("tools.offered", lambda context: {"run_code": "unsandbox"})
+    monkeypatch.setattr(
+        "tools.run", lambda context, name, arguments: {"error": "code arrived empty"}
+    )
+    calls = [{"id": "c1", "name": "run_code", "arguments": '{"language": "python"}'}]
+    messages = loop.run_round(
+        ToolContext(), calls, "", lambda event: None, cut_off=24576
+    )
+    error = json.loads(messages[-1]["content"])["error"]
+    assert error.startswith("code arrived empty (this call was cut off")
+    messages = loop.run_round(ToolContext(), calls, "", lambda event: None)
+    assert json.loads(messages[-1]["content"])["error"] == "code arrived empty"

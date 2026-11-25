@@ -164,6 +164,13 @@ def run_code(context, language, code, os_name="linux"):
         )
     language = str(language or "").strip().lower()
     if not language or not str(code or "").strip():
+        if language:
+            # fox, 2026-11-25: 15 calls in a row with a language & no code
+            return {
+                "error": "code arrived empty: send the program itself in "
+                "`code`. A very long one may be cut off before it ends; "
+                "keep it shorter."
+            }
         return {"error": "language & code required"}
     if os_name not in ("linux", "freebsd"):
         return {"error": "os is linux or freebsd"}
