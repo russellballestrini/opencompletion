@@ -87,7 +87,7 @@ def harness(test_app, monkeypatch):
     monkeypatch.setattr(tools, "schemas", lambda context: [tools.SCHEMAS["web_search"]])
     during_round = []
 
-    def run_round(context, calls, content, notify=None, resume=None):
+    def run_round(context, calls, content, notify=None, resume=None, cut_off=None):
         notify({"tool": "web_search", "label": "x", "status": "running"})
         for send in during_round:
             send()

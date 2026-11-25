@@ -574,3 +574,34 @@ def test_fetches_resolve_names_through_the_systems_own_lookups(monkeypatch):
 
     found = asyncio.run(go())
     assert found and all(r["port"] == 80 for r in found)
+
+
+def test_a_call_cut_off_at_the_token_limit_is_told_so(monkeypatch):
+    """fox, 2026-11-25: a whole page as one run_code argument, cut off at
+    our cap, read back as "arguments were not a JSON object"."""
+    from tools import loop
+
+    monkeypatch.setattr("tools.offered", lambda context: {"run_code": "unsandbox"})
+    cut = '{"language": "python", "code": "html = r\'\'\'<!DOCTYPE html>\\n<html'
+    calls = [{"id": "c1", "name": "run_code", "arguments": cut}]
+    events = []
+    messages = loop.run_round(None, calls, "", events.append, cut_off=24576)
+    error = json.loads(messages[-1]["content"])["error"]
+    assert "cut off" in error and "24,576 tokens" in error and "in parts" in error
+    assert events[-1]["repaired_from"].startswith('{"language"')
+
+    messages = loop.run_round(None, calls, "", events.append)
+    assert json.loads(messages[-1]["content"])["error"] == (
+        "arguments were not a JSON object"
+    )
+
+
+def test_a_tool_not_offered_says_so_before_its_arguments(monkeypatch):
+    from tools import loop
+
+    monkeypatch.setattr("tools.offered", lambda context: {})
+    calls = [{"id": "c1", "name": "sandbox_write_file", "arguments": '{"path": "'}]
+    messages = loop.run_round(None, calls, "", lambda event: None, cut_off=24576)
+    assert json.loads(messages[-1]["content"])["error"] == (
+        "sandbox_write_file is not available here"
+    )

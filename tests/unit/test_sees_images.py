@@ -113,5 +113,6 @@ def test_qwen3_point_releases_see_by_name(ask):
     asked, _ = ask
     assert app_module.is_vision_model("turboderp/Qwen3.8-27B-exl3")
     assert app_module.is_vision_model("Qwen/Qwen3.5-35B-A3B")
+    assert app_module.is_vision_model("Qwen/Qwen4-32B")
     assert not app_module.is_vision_model("Qwen/Qwen3-8B")
     assert asked == []

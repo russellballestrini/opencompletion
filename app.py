@@ -279,8 +279,8 @@ def is_vision_model(model_name: str) -> bool:
     vision_indicators = ["-vl", "vl:", "vision", "gpt-4o", "gpt-4-turbo"]
     if any(indicator in model_lower for indicator in vision_indicators):
         return True
-    # Qwen3's point releases (3.5 on: Qwen3.8-27B) are multimodal by name.
-    if re.search(r"qwen3\.\d", model_lower):
+    # Qwen3's point releases (3.5 on: Qwen3.8-27B) & Qwen4 are multimodal.
+    if re.search(r"qwen3\.\d|qwen4", model_lower):
         return True
     return SEES_IMAGES.get(model_name, (False, 0))[0]
 
@@ -3201,6 +3201,7 @@ class ReplyStream:
                     self.buffer[self.round_start :],
                     self.notify_tool,
                     resume=resume_round,
+                    cut_off=self.cut_off_limit(),
                 )
             resume_round = None
             self.clear_checkpoint()  # the round ended: nothing left to pick up
@@ -3211,6 +3212,13 @@ class ReplyStream:
             self.with_tools = self.with_tools + self.steer_turns()
             if not self._ask_after_tools(self.with_tools, self.rounds):
                 break
+
+    def cut_off_limit(self):
+        """The token limit the last ask stopped at (its max_tokens), when it
+        did, for calls it was cut off writing (tools.loop.CUT_OFF)."""
+        if not self.cut_at_limit:
+            return None
+        return self.sent.get("max_tokens") or self.cap or True
 
     def correct_dead_links(self):
         """A reply linking files that do not exist (a sandbox path with no
