@@ -704,6 +704,17 @@ function toggleThinking() {
     updateThinkingDisplay();
 }
 
+function updateBareDisplay() {
+    setToggle("bare-btn", bareReplies, "Full replies (tools)", "Bare replies");
+}
+
+// Bare replies: no tools, system prompt or follow-ups. Off by default.
+function toggleBare() {
+    bareReplies = !bareReplies;
+    storeValue('bareReplies', bareReplies.toString());
+    updateBareDisplay();
+}
+
 function updateDoneChimeDisplay() {
     setToggle("done-chime-btn", doneChime, "Mute the done chime", "Chime when a reply is done");
 }

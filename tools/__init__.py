@@ -219,6 +219,8 @@ class ToolContext:
     # The address that asked (throttle.client_ip), for limits a tool call
     # counts against; None on a reply resumed after a restart.
     address: Optional[str] = None
+    # Asked for a bare reply (chat's Bare toggle): no tools at all.
+    bare: bool = False
     room_id: Optional[int] = None
     model: Optional[str] = None
     # Set by chat_gpt & run_round for long tools (delegate): stopped() is
@@ -266,9 +268,10 @@ def _too_many_runs(context):
     return over[0] if over else None
 
 
-def context(sid, user=None):
+def context(sid, user=None, bare=False):
     """Who asked: built inside their request (a socket event), which is
-    where their address comes from; outside one there is none to count."""
+    where their address comes from; outside one there is none to count.
+    `bare`: they asked for a reply from the conversation alone."""
     from flask import has_request_context
 
     from throttle import client_ip
@@ -277,13 +280,14 @@ def context(sid, user=None):
         sid=sid,
         email=getattr(user, "email", None),
         address=client_ip() if has_request_context() else None,
+        bare=bare,
     )
 
 
 def offered(context):
     """{tool name: "server" | "browser"}: what a reply to `context` may
     call, & where each runs."""
-    if context is None:
+    if context is None or context.bare:
         return {}
     tools = {}
     if policy.web_search_enabled():

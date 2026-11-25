@@ -78,3 +78,49 @@ def test_a_4k_window_keeps_half_for_the_conversation(windows):
     assert asked["messages"] == messages  # 8k answer room no longer fades it all
     prompt = fade.tokens(asked["messages"], None, 3.0)
     assert prompt + asked["max_tokens"] <= 4096
+
+
+def test_asking_bare_offers_nothing_whoever_asks(windows, monkeypatch):
+    from tools import ToolContext, offered
+
+    monkeypatch.setenv("OPENCOMPLETION_WEB_SEARCH", "on")
+    asker = ToolContext(sid="s1", email="ada@example.com")
+    assert offered(asker)  # a browser search at least
+    assert offered(ToolContext(sid="s1", email="ada@example.com", bare=True)) == {}
+
+
+def test_chat_s_bare_toggle_makes_a_large_model_reply_bare(windows):
+    from tools import ToolContext
+
+    history = [{"role": "user", "content": "hi"}]
+    reply = app_module.ReplyStream(
+        "ada", "lobby", "qwen", 1, (1, "", []), None, False, None, list(history)
+    )
+    reply.prepare(ToolContext(sid="s1", bare=True), None)
+    assert reply.bare and not reply.tool_schemas
+    assert reply.chat_history == history
+
+
+def test_a_socket_message_carries_bare_into_its_tool_context(test_app, monkeypatch):
+    import tools
+
+    seen = []
+    real = tools.context
+    monkeypatch.setattr(
+        tools, "context", lambda *a, **k: seen.append(k.get("bare")) or real(*a, **k)
+    )
+    monkeypatch.setattr(app_module, "dispatch_message", lambda *a, **k: None)
+    client = app_module.socketio.test_client(test_app)
+    client.emit("join", {"username": "ada", "room_name": "bare-room"})
+    for bare in (True, "yes", None):
+        client.emit(
+            "chat_message",
+            {
+                "username": "ada",
+                "message": "hello",
+                "model": "qwen",
+                "room_name": "bare-room",
+                "bare": bare,
+            },
+        )
+    assert seen == [True, False, False]  # only a real true asks bare

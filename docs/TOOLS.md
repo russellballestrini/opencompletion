@@ -21,7 +21,10 @@ guest's tools never run on it.
 | `sandbox_shell`, `sandbox_write_file`, `sandbox_share_file`, `sandbox_put_attachment` | not offered | this chat's own unsandbox sandbox, with network |
 | `delegate` (uncloseai-cli) | not offered | in that sandbox |
 
-A **bare** model is offered nothing, whoever asks: a small model (andrea,
+A **bare** reply is offered nothing, whoever asks: a person turns it on with
+chat's **Bare replies** toggle (`bare: true` on their message,
+`ToolContext.bare`, for which `offered` is empty), or our server does for a
+small model: a small model (andrea,
 4k tokens) spent its window on our schemas & answered with a list of our
 tools. `app.bare_model`: its id matches `OPENCOMPLETION_BARE_MODELS` (a
 regex) or its context is at most `OPENCOMPLETION_BARE_CONTEXT` tokens

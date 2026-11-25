@@ -1544,7 +1544,7 @@ def handle_message(data):
         message,
         [model],
         data.get("enable_thinking", True),
-        tool_context=tools.context(request.sid, user),
+        tool_context=tools.context(request.sid, user, bare=data.get("bare") is True),
         message_id=new_message.id,
         is_owner=auth.may_remove(room, user),
     )
@@ -2221,7 +2221,7 @@ def handle_edit_and_resend(data):
         content,
         models,
         data.get("enable_thinking", True),
-        tool_context=tools.context(request.sid, user),
+        tool_context=tools.context(request.sid, user, bare=data.get("bare") is True),
         is_owner=auth.may_remove(room, user),
     )
 
@@ -2765,8 +2765,9 @@ class ReplyStream:
                 notes=self.forward_steering,
             )
         self.tool_context = tool_context
-        # A bare model (bare_model) reads the conversation alone.
-        self.bare = bare_model(model_name)
+        # A bare reply (chat's Bare toggle, or bare_model) reads the
+        # conversation alone.
+        self.bare = bool(tool_context and tool_context.bare) or bare_model(model_name)
         self.tool_schemas = [] if self.bare else tools.schemas(tool_context)
         if self.tool_schemas:
             self._offer_tools(resume)

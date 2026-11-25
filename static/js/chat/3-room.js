@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     // Initialize thinking button state from localStorage
     updateThinkingDisplay();
+    updateBareDisplay();
     updateDoneChimeDisplay();
 
     // Check for vision model availability (enables image hover descriptions)
@@ -237,7 +238,8 @@ socket.on("joined", () => {
         "message": pending.message,
         "model": pending.model || "None",
         "room_name": room_name,
-        "enable_thinking": enableThinking
+        "enable_thinking": enableThinking,
+        "bare": bareReplies
     });
 });
 
@@ -412,7 +414,8 @@ async function sendMessage() {
             "message": messageToSend,
             "model": model,  // Pass model as a separate attribute
             "room_name": room_name,
-            "enable_thinking": enableThinking  // false => ask model to skip chain-of-thought
+            "enable_thinking": enableThinking,  // false => ask model to skip chain-of-thought
+            "bare": bareReplies  // true => the conversation alone, no tools
         });
         chatDraft.clear();
         messageTextarea.value = "";
