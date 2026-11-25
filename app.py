@@ -279,6 +279,9 @@ def is_vision_model(model_name: str) -> bool:
     vision_indicators = ["-vl", "vl:", "vision", "gpt-4o", "gpt-4-turbo"]
     if any(indicator in model_lower for indicator in vision_indicators):
         return True
+    # Qwen3's point releases (3.5 on: Qwen3.8-27B) are multimodal by name.
+    if re.search(r"qwen3\.\d", model_lower):
+        return True
     return SEES_IMAGES.get(model_name, (False, 0))[0]
 
 

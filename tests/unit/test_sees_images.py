@@ -41,14 +41,14 @@ def test_the_red_square_is_a_real_png():
 
 def test_a_model_that_names_red_sees_and_is_asked_once(ask):
     asked, answers = ask
-    answers["turboderp/Qwen3.8-27B-exl3"] = "<think>hm</think>Red."
-    assert app_module.sees_images("turboderp/Qwen3.8-27B-exl3")
-    assert app_module.sees_images("turboderp/Qwen3.8-27B-exl3")
+    answers["plain-name"] = "<think>hm</think>Red."
+    assert app_module.sees_images("plain-name")
+    assert app_module.sees_images("plain-name")
     assert len(asked) == 1
     part = asked[0]["messages"][0]["content"][1]
     assert part["image_url"]["url"] == app_module.RED_SQUARE
     # & from then on it is a vision model everywhere (describe, history)
-    assert app_module.is_vision_model("turboderp/Qwen3.8-27B-exl3")
+    assert app_module.is_vision_model("plain-name")
 
 
 def test_a_wrong_colour_or_a_refusal_is_its_answer(ask):
@@ -107,3 +107,11 @@ def test_a_room_with_an_image_hands_it_to_a_model_that_sees(test_app, ask):
     answers["plain-name-2"] = "blue"
     _, text_only = app_module.reply_history("sees-room", "plain-name-2")
     assert not any(isinstance(turn["content"], list) for turn in text_only)
+
+
+def test_qwen3_point_releases_see_by_name(ask):
+    asked, _ = ask
+    assert app_module.is_vision_model("turboderp/Qwen3.8-27B-exl3")
+    assert app_module.is_vision_model("Qwen/Qwen3.5-35B-A3B")
+    assert not app_module.is_vision_model("Qwen/Qwen3-8B")
+    assert asked == []
