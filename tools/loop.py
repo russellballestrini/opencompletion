@@ -332,10 +332,29 @@ def out_of_rounds(rounds):
     return {"role": "user", "content": OUT_OF_ROUNDS.format(rounds=rounds)}
 
 
-def run_round(context, calls, content, notify=lambda event: None, resume=None):
+CUT_OFF = (
+    "this call was cut off before its arguments ended: the reply reached "
+    "its token limit{limit} while writing them. Send it again smaller: a "
+    "long file in parts (one call a part, each appending to the last)."
+)
+
+
+def _cut_off_text(cut_off):
+    limit = f" ({cut_off:,} tokens)" if cut_off is not True else ""
+    return CUT_OFF.format(limit=limit)
+
+
+def run_round(
+    context, calls, content, notify=lambda event: None, resume=None, cut_off=None
+):
     """Run each call (tools.run) & return the messages for the next ask.
     notify gets {"tool", "label", "where": browser|server|None, "status":
     running|done|error, ...} as each call starts & ends, for the room.
+
+    cut_off (the token limit, when the ask that wrote these calls stopped
+    at it) tells a call whose arguments can't be read that they were cut
+    short, & how to send it, instead of only that they were no JSON
+    object (fox, 2026-11-25: a whole HTML page as one run_code argument).
 
     resume (a checkpoint saved before a restart: call_index, done, run)
     picks the round up at the call that was running, with the results the
@@ -368,8 +387,17 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
         if shown:
             running["detail"] = shown
         notify(running)
-        if arguments is None:
-            result = {"error": "arguments were not a JSON object"}
+        if where is None:
+            # Not offered: say that, whatever its arguments were.
+            result = {"error": f"{call['name']} is not available here"}
+        elif arguments is None:
+            result = {
+                "error": (
+                    _cut_off_text(cut_off)
+                    if cut_off
+                    else "arguments were not a JSON object"
+                )
+            }
         else:
             # A long call reports how it is getting on as its running line:
             # a log, new lines pushed under the old, the whole log each time
@@ -443,6 +471,13 @@ def run_round(context, calls, content, notify=lambda event: None, resume=None):
                     ),
                 )
             result = run(call_context, call["name"], arguments)
+            if cut_off and index == len(calls) - 1 and result.get("error"):
+                # The ask stopped at its limit while writing this, its last
+                # call: what arrived may be missing what was cut (an empty
+                # `code`), so say how it ended as well as what failed.
+                result = dict(
+                    result, error=f"{result['error']} ({_cut_off_text(cut_off)})"
+                )
             if summarized and log:
                 # A closing summary replaces the last one, written mid-run
                 # ("...it is now collecting...") & never kept: the finished

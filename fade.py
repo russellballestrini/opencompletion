@@ -6,7 +6,12 @@ Kept whole: the system messages, the room's first prompt & the current turn
 until the prompt leaves room for an answer:
 
 1. its tool results become one-line stubs naming the call, so the model knows
-   what it had & can call it again;
+   what it had & can call it again; then, still short, its replies' tool
+   rounds go whole (calls & stubs), each reply's words carrying one line
+   counting what it called, so a reply's own words are the middle's last
+   thing to shrink (fox, 2026-11-25: a reply's 280 searches outlived its
+   8k stat sheet, which shrank to 400 characters & the next reply had
+   forgotten it);
 2. its replies & messages shrink to their opening;
 3. its oldest turns go, a line on the next kept message saying how many;
 4. the current turn's older tool rounds become stubs too (its newest stays).
@@ -64,6 +69,54 @@ def _stub_result(messages, i, named):
     return len(text) - len(marker)
 
 
+FADED_ROUNDS = "[faded: this reply's {n:,} tool calls ({names})]\n\n"
+
+
+def _drop_round(messages, i):
+    """Remove the tool round at i (an assistant's calls & the results right
+    after it); the next words of that reply (before the next person) carry
+    what was dropped, as `_faded` counts. Returns the messages removed."""
+    ids = {c.get("id") for c in messages[i].get("tool_calls") or []}
+    names = [
+        (c.get("function") or {}).get("name", "tool")
+        for c in messages[i].get("tool_calls") or []
+    ]
+    j = i + 1
+    while (
+        j < len(messages)
+        and messages[j].get("role") == "tool"
+        and messages[j].get("tool_call_id") in ids
+    ):
+        j += 1
+    words = str(messages[i].get("content") or "")
+    del messages[i:j]
+    k = i
+    while k < len(messages) and messages[k].get("role") != "user":
+        target = messages[k]
+        if target.get("role") == "assistant" and not target.get("tool_calls"):
+            counts = target.setdefault("_faded", {})
+            for name in names:
+                counts[name] = counts.get(name, 0) + 1
+            if words.strip():  # words said beside the calls stay, before
+                target["content"] = words + "\n\n" + str(target.get("content") or "")
+            break
+        k += 1
+    return j - i
+
+
+def _note_dropped_rounds(messages):
+    for m in messages:
+        counts = m.pop("_faded", None)
+        if counts and isinstance(m.get("content"), str):
+            names = ", ".join(
+                f"{name} ×{n}" if n > 1 else name
+                for name, n in sorted(counts.items(), key=lambda kv: -kv[1])
+            )
+            m["content"] = (
+                FADED_ROUNDS.format(n=sum(counts.values()), names=names) + m["content"]
+            )
+
+
 def _shrink_text(messages, i):
     content = messages[i].get("content")
     if not isinstance(content, str) or len(content) <= OPENING_CHARS + len(FADED_TEXT):
@@ -101,6 +154,19 @@ def fit(messages, tools, budget, chars_per_token):
             return messages, steps
         if messages[i].get("role") == "tool" and _stub_result(messages, i, named):
             steps = max(steps, 1)
+    # 1b. middle tool rounds go whole, oldest first, before any words shrink
+    i = head
+    while over() and i < current:
+        if i != first_prompt and messages[i].get("tool_calls"):
+            removed = _drop_round(messages, i)
+            current -= removed
+            if first_prompt is not None and first_prompt > i:
+                first_prompt -= removed
+            steps = max(steps, 1)
+            continue
+        i += 1
+    _note_dropped_rounds(messages)
+    middle = [i for i in range(head, current) if i != first_prompt]
     # 2. middle replies & messages to their opening, oldest first
     for i in middle:
         if not over():

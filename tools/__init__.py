@@ -186,7 +186,7 @@ DELEGATE = {
             "Hand a multi-step coding task, setup included, to "
             "uncloseai-cli, an agent that works in this chat's sandbox "
             "until done: for work too big for one run_code program. Say "
-            "what done means. Files it makes stay there until you share them."
+            "what done means. Files it makes stay there; it can't share them, you do."
         ),
         "parameters": {
             "type": "object",

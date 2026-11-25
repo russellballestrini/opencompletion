@@ -277,7 +277,89 @@ def is_vision_model(model_name: str) -> bool:
         return False
     model_lower = model_name.lower()
     vision_indicators = ["-vl", "vl:", "vision", "gpt-4o", "gpt-4-turbo"]
-    return any(indicator in model_lower for indicator in vision_indicators)
+    if any(indicator in model_lower for indicator in vision_indicators):
+        return True
+    # Qwen3's point releases (3.5 on: Qwen3.8-27B) & Qwen4 are multimodal.
+    if re.search(r"qwen3\.\d|qwen4", model_lower):
+        return True
+    return SEES_IMAGES.get(model_name, (False, 0))[0]
+
+
+def _red_square_png(side=64):
+    """A solid red PNG, side x side: what sees_images shows a model."""
+    import struct
+    import zlib
+
+    def chunk(kind, data):
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
+
+    rows = b"".join(b"\x00" + b"\xff\x00\x00" * side for _ in range(side))
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", side, side, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(rows))
+        + chunk(b"IEND", b"")
+    )
+
+
+RED_SQUARE = "data:image/png;base64," + base64.b64encode(_red_square_png()).decode()
+# What sees_images learned: model id -> (sees, when asked). A model's name
+# rarely says it is multimodal (turboderp/Qwen3.8-27B-exl3 is), & no
+# listing we read says so either.
+SEES_IMAGES = {}
+SEES_IMAGES_RETRY_S = 600
+
+
+def sees_images(model_name):
+    """Whether model_name reads images, asked of the model once: a red
+    square & "what colour is it?"; an answer naming red means it saw it.
+    Remembered for the process (a failure that was not the model's answer,
+    a timeout or 5xx, is asked again after SEES_IMAGES_RETRY_S). Asked
+    only when a reply's room holds an image & the name did not already say
+    so (reply_history), so a text room never spends the ask.
+    OPENCOMPLETION_VISION_PROBE=off never asks."""
+    if not model_name or os.environ.get("OPENCOMPLETION_VISION_PROBE") == "off":
+        return False
+    known = SEES_IMAGES.get(model_name)
+    if known and (
+        known[0] or known[1] == 0 or time.time() - known[1] < SEES_IMAGES_RETRY_S
+    ):
+        return known[0]
+    client, resolved = get_openai_client_and_model(model_name)
+    if client is None or resolved != model_name:
+        return False
+    try:
+        response = create_completion_skip_thinking(
+            client,
+            model=model_name,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "What colour is this square? One word.",
+                        },
+                        {"type": "image_url", "image_url": {"url": RED_SQUARE}},
+                    ],
+                }
+            ],
+            max_tokens=16,
+            timeout=30,
+        )
+        said = strip_reasoning(response.choices[0].message.content or "")
+        sees = "red" in said.lower()
+        SEES_IMAGES[model_name] = (sees, 0)  # its answer: never asked again
+    except openai.BadRequestError:
+        sees = False  # it refused an image part: its answer too
+        SEES_IMAGES[model_name] = (False, 0)
+    except Exception as e:  # noqa: BLE001 - asked again later
+        print(f"[WARN] {model_name}: could not ask whether it reads images: {e}")
+        SEES_IMAGES[model_name] = (False, time.time())
+        return False
+    print(f"[INFO] {model_name} {'reads' if sees else 'does not read'} images")
+    return sees
 
 
 # Each model's context length & how many prompt characters a token held,
@@ -2484,6 +2566,10 @@ def reply_history(room_name, model_name, resume=None):
             # The reply being resumed is not history: it is being written.
             visible = visible.filter(Message.id != resume["message_id"])
         last_messages = visible.order_by(Message.id.desc()).limit(limit).all()
+        # A model whose name says nothing is asked once whether it reads
+        # images, & only when this room holds one (sees_images).
+        if not vision_enabled and newest_image_id(last_messages, room_id):
+            vision_enabled = sees_images(model_name)
 
         chat_history = []
 
@@ -2605,6 +2691,8 @@ class ReplyStream:
         self.tool_context = None
         self.tool_schemas = None
         self.bare = False  # set by prepare (bare_model)
+        self.finish_reason = None  # how the last ask's stream ended
+        self.lost_call_asked = False  # lost_call asked again already
         self.offered = []
         self.offered_where = {}  # tool name -> where it runs, for steering
         self.tool_calls = None
@@ -2920,7 +3008,10 @@ class ReplyStream:
                         return None, False, False
                     if not chunk.choices:
                         continue
-                    if getattr(chunk.choices[0], "finish_reason", None) == "length":
+                    finish = getattr(chunk.choices[0], "finish_reason", None)
+                    if finish:
+                        self.finish_reason = finish
+                    if finish == "length":
                         cut = True
                     delta = chunk.choices[0].delta
                     # Qwen3.x / Deepseek-R1 / o1: thinking streams via
@@ -3115,6 +3206,7 @@ class ReplyStream:
                     self.buffer[self.round_start :],
                     self.notify_tool,
                     resume=resume_round,
+                    cut_off=self.cut_off_limit(),
                 )
             resume_round = None
             self.clear_checkpoint()  # the round ended: nothing left to pick up
@@ -3125,6 +3217,18 @@ class ReplyStream:
             self.with_tools = self.with_tools + self.steer_turns()
             if not self._ask_after_tools(self.with_tools, self.rounds):
                 break
+            if self.lost_call() and not self._ask_after_tools(
+                self.with_tools + [{"role": "user", "content": LOST_CALL}],
+                self.rounds,
+            ):
+                break
+
+    def cut_off_limit(self):
+        """The token limit the last ask stopped at (its max_tokens), when it
+        did, for calls it was cut off writing (tools.loop.CUT_OFF)."""
+        if not self.cut_at_limit:
+            return None
+        return self.sent.get("max_tokens") or self.cap or True
 
     def correct_dead_links(self):
         """A reply linking files that do not exist (a sandbox path with no
@@ -3160,6 +3264,20 @@ class ReplyStream:
                 except Exception as e:  # noqa: BLE001 — unknown is not missing
                     print(f"[WARN] could not check sandbox links: {e}")
         return dead
+
+    def lost_call(self):
+        """The ask ended to call a tool (finish_reason tool_calls) but no
+        call came through: the server's tool parser lost it, & the reply
+        would end on words announcing a step (fox, 2026-11-25: "Let me grab
+        the last few I'm missing" & nothing after). Once a reply; True asks
+        again with LOST_CALL."""
+        if self.finish_reason != "tool_calls" or self.lost_call_asked:
+            return False
+        if self.tool_calls is None or self.tool_calls.calls:
+            return False
+        self.lost_call_asked = True
+        print(f"[WARN] {self.model_name}: a tool call was lost; asking again")
+        return True
 
     def _ask_after_tools(self, with_tools, rounds, keep_tools=False):
         """Stream the ask after a round of tools: False when it would not
@@ -3500,6 +3618,9 @@ DELEGATE_SUMMARY_PROMPT = (
     "files written, errors). No preamble, no markdown, no speculation."
 )
 
+
+# The ask after one whose tool call never came through (ReplyStream.lost_call)
+LOST_CALL = "(Your tool call did not come through. Make it again, or answer.)"
 
 OVERSEER_PROMPT = (
     "You handed a coding task to an agent & are checking on it. Answer in "

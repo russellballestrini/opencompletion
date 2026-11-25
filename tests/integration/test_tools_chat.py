@@ -730,3 +730,39 @@ def test_stream_retries_off_keeps_what_came_and_says_why(harness, monkeypatch):
 
     assert len(harness.model.asks) == 1
     assert reply_of("qwen").content.startswith("The capital \n\n_The stream from")
+
+
+def ended(reason):
+    delta = SimpleNamespace(
+        reasoning_content=None, reasoning=None, content=None, tool_calls=None
+    )
+    return SimpleNamespace(choices=[SimpleNamespace(delta=delta, finish_reason=reason)])
+
+
+def test_a_tool_call_lost_after_a_round_is_asked_for_again(harness, monkeypatch):
+    """fox, 2026-11-25: a reply ended on "Let me grab the last few I'm
+    missing" with no call: the ask ended to call a tool & none came."""
+    monkeypatch.setattr(tools, "run", lambda context, name, arguments: {"results": []})
+    harness.model.scripts = [
+        search_call("rust recipes"),
+        [chunk(content="Let me grab the last few."), ended("tool_calls")],
+        [chunk(content="Here are the recipes."), ended("stop")],
+    ]
+    harness.app.chat_gpt(
+        "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext(sid="s")
+    )
+    assert len(harness.model.asks) == 3
+    assert harness.model.asks[2]["messages"][-1]["content"] == harness.app.LOST_CALL
+    assert reply_of("qwen").content.endswith("Here are the recipes.")
+
+
+def test_an_answer_that_ends_with_stop_is_never_asked_again(harness, monkeypatch):
+    monkeypatch.setattr(tools, "run", lambda context, name, arguments: {"results": []})
+    harness.model.scripts = [
+        search_call("rust recipes"),
+        [chunk(content="Done."), ended("stop")],
+    ]
+    harness.app.chat_gpt(
+        "ada", "muppets", model_name="qwen", tool_context=tools.ToolContext(sid="s")
+    )
+    assert len(harness.model.asks) == 2

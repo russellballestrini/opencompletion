@@ -141,3 +141,35 @@ def test_every_ask_is_faded_to_leave_its_answer_room(monkeypatch):
     assert prompt + 8192 <= 65536  # an answer has its 8k at least
     assert prompt + asked["max_tokens"] <= 65536
     assert record["faded"] >= 1 and record["max_tokens"] == asked["max_tokens"]
+
+
+def test_a_replys_many_rounds_go_before_its_words_shrink():
+    """fox, 2026-11-25: 280 searches outlived the 8k stat sheet they made,
+    which shrank to its opening; the next ask had forgotten the sheet."""
+    sheet = "| Weapon | Damage | RPM |\n" + "| AK | 50 | 450 |\n" * 450
+    messages = [
+        {"role": "user", "content": "weapon stats please"},
+    ]
+    for n in range(60):
+        messages.append(
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [call(f"s{n}", "web_search", query=f"rust gun {n}")],
+            }
+        )
+        messages.append({"role": "tool", "tool_call_id": f"s{n}", "content": PAGE})
+    messages.append({"role": "assistant", "content": sheet})
+    messages.append({"role": "user", "content": "convert this info to html"})
+    kept = [messages[0], {"role": "assistant", "content": sheet}, messages[-1]]
+    out, step = fade.fit(messages, None, fade.tokens(kept, None, 3.0) + 300, 3.0)
+    assert step == 1
+    rounds = [m for m in out if m.get("tool_calls")]
+    words = out[-2]["content"]
+    assert len(rounds) < 60 and words.endswith(sheet)  # the sheet is whole
+    gone = 60 - len(rounds)
+    assert words.startswith(
+        f"[faded: this reply's {gone} tool calls (web_search ×{gone})]"
+    )
+    assert not any("_faded" in m for m in out)
+    assert paired(out) and out[-1]["content"] == "convert this info to html"

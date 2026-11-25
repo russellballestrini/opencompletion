@@ -98,6 +98,9 @@ os.environ["OPENCOMPLETION_CLASSIFIER"] = "off"
 # them (tests/unit/test_followups.py) turn them on.
 os.environ["OPENCOMPLETION_FOLLOWUPS"] = "off"
 os.environ["OPENCOMPLETION_DELEGATE_SUMMARIES"] = "off"
+# Asking a model whether it reads images is one more completion; tests
+# that want it (tests/unit/test_sees_images.py) turn it on.
+os.environ["OPENCOMPLETION_VISION_PROBE"] = "off"
 # Tools (web search & fetch) are on by default; offered to a test's fake
 # model they would change every create call & could reach a real vendor.
 # tests/unit/test_tools.py & tests/integration/test_tools_chat.py turn them on.
