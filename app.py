@@ -2456,18 +2456,11 @@ def bare_model(model_name):
     tool guidance & no follow-up asks. A small model (andrea, 4k tokens)
     offered every tool spent its window on their schemas & answered "hello
     i am looking for food" with a list of our tools (fox, 2026-11-25).
-    Bare when its id matches OPENCOMPLETION_BARE_MODELS (a regex; unset =
-    none) or its learned context is at most OPENCOMPLETION_BARE_CONTEXT
-    tokens (8192; 0 = never by size)."""
+    Bare when its learned context is at most OPENCOMPLETION_BARE_CONTEXT
+    tokens (8192; 0 = never by size); a person asks for it with chat's Bare
+    replies toggle (ToolContext.bare) whatever the model."""
     if not model_name:
         return False
-    pattern = os.environ.get("OPENCOMPLETION_BARE_MODELS", "").strip()
-    if pattern:
-        try:
-            if re.search(pattern, model_name):
-                return True
-        except re.error:
-            print("[WARN] OPENCOMPLETION_BARE_MODELS is not a valid regex")
     limit = _env_int("OPENCOMPLETION_BARE_CONTEXT", DEFAULT_BARE_CONTEXT)
     learned = CONTEXT_WINDOWS.get(model_name)
     return bool(limit and learned and learned[0] <= limit)

@@ -31,8 +31,7 @@ export MODEL_API_KEY_1="your-api-key"
 #export OPENCOMPLETION_ANSWER_TOKENS=8192     # that answer's cap
 #export OPENCOMPLETION_ANSWER_ROOM=8192       # context kept free for the answer; 0 = off
 #export OPENCOMPLETION_HISTORY_LIMIT=200      # messages a reply reads (20 while a model's window is unknown)
-#export OPENCOMPLETION_BARE_MODELS=           # regex: model ids answering bare (the conversation alone: no tools, guidance or follow-ups); unset = none
-#export OPENCOMPLETION_BARE_CONTEXT=8192      # a model whose context is at most this many tokens answers bare too; 0 = never by size
+#export OPENCOMPLETION_BARE_CONTEXT=8192      # a model whose context is at most this many tokens answers bare (no tools, guidance or follow-ups); 0 = never by size
 #export OPENCOMPLETION_REPEAT_LIMIT=8         # hang up on a reply looping; 0 = off
 #export OPENCOMPLETION_STREAM_RETRIES=2       # a broken stream carries on this many times; 0 = off
 #export OPENCOMPLETION_FOLLOWUPS=on           # follow-up suggestions under a reply; off = none

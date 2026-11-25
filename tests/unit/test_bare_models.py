@@ -11,7 +11,6 @@ import fade
 
 @pytest.fixture
 def windows(monkeypatch):
-    monkeypatch.delenv("OPENCOMPLETION_BARE_MODELS", raising=False)
     monkeypatch.delenv("OPENCOMPLETION_BARE_CONTEXT", raising=False)
     learned = {"andrea-v10-460m-4k": (4096, 3.0), "qwen": (65536, 3.0)}
     monkeypatch.setattr(app_module, "CONTEXT_WINDOWS", learned)
@@ -25,13 +24,9 @@ def test_a_small_window_is_bare_a_large_one_is_not(windows):
     assert not app_module.bare_model(None)
 
 
-def test_bare_by_name_and_by_size_turned_off(windows, monkeypatch):
-    monkeypatch.setenv("OPENCOMPLETION_BARE_MODELS", "^unknown")
-    assert app_module.bare_model("unknown")
+def test_bare_by_size_turned_off(windows, monkeypatch):
     monkeypatch.setenv("OPENCOMPLETION_BARE_CONTEXT", "0")
     assert not app_module.bare_model("andrea-v10-460m-4k")
-    monkeypatch.setenv("OPENCOMPLETION_BARE_MODELS", "(")  # not a regex
-    assert not app_module.bare_model("unknown")
 
 
 def test_a_bare_reply_offers_no_tools_and_no_guidance(windows, monkeypatch):

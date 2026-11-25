@@ -24,11 +24,10 @@ guest's tools never run on it.
 A **bare** reply is offered nothing, whoever asks: a person turns it on with
 chat's **Bare replies** toggle (`bare: true` on their message,
 `ToolContext.bare`, for which `offered` is empty), or our server does for a
-small model: a small model (andrea,
+model whose learned context is at most `OPENCOMPLETION_BARE_CONTEXT`
+tokens (8192; 0 = never by size; `app.bare_model`). A small model (andrea,
 4k tokens) spent its window on our schemas & answered with a list of our
-tools. `app.bare_model`: its id matches `OPENCOMPLETION_BARE_MODELS` (a
-regex) or its context is at most `OPENCOMPLETION_BARE_CONTEXT` tokens
-(8192; 0 = never by size). It reads the conversation alone: no schemas, no
+tools. It reads the conversation alone: no schemas, no
 guidance, no follow-up asks.
 
 An egress user is a signed-in email on
