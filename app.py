@@ -2691,6 +2691,8 @@ class ReplyStream:
         self.tool_context = None
         self.tool_schemas = None
         self.bare = False  # set by prepare (bare_model)
+        self.finish_reason = None  # how the last ask's stream ended
+        self.lost_call_asked = False  # lost_call asked again already
         self.offered = []
         self.offered_where = {}  # tool name -> where it runs, for steering
         self.tool_calls = None
@@ -3006,7 +3008,10 @@ class ReplyStream:
                         return None, False, False
                     if not chunk.choices:
                         continue
-                    if getattr(chunk.choices[0], "finish_reason", None) == "length":
+                    finish = getattr(chunk.choices[0], "finish_reason", None)
+                    if finish:
+                        self.finish_reason = finish
+                    if finish == "length":
                         cut = True
                     delta = chunk.choices[0].delta
                     # Qwen3.x / Deepseek-R1 / o1: thinking streams via
@@ -3212,6 +3217,11 @@ class ReplyStream:
             self.with_tools = self.with_tools + self.steer_turns()
             if not self._ask_after_tools(self.with_tools, self.rounds):
                 break
+            if self.lost_call() and not self._ask_after_tools(
+                self.with_tools + [{"role": "user", "content": LOST_CALL}],
+                self.rounds,
+            ):
+                break
 
     def cut_off_limit(self):
         """The token limit the last ask stopped at (its max_tokens), when it
@@ -3254,6 +3264,20 @@ class ReplyStream:
                 except Exception as e:  # noqa: BLE001 — unknown is not missing
                     print(f"[WARN] could not check sandbox links: {e}")
         return dead
+
+    def lost_call(self):
+        """The ask ended to call a tool (finish_reason tool_calls) but no
+        call came through: the server's tool parser lost it, & the reply
+        would end on words announcing a step (fox, 2026-11-25: "Let me grab
+        the last few I'm missing" & nothing after). Once a reply; True asks
+        again with LOST_CALL."""
+        if self.finish_reason != "tool_calls" or self.lost_call_asked:
+            return False
+        if self.tool_calls is None or self.tool_calls.calls:
+            return False
+        self.lost_call_asked = True
+        print(f"[WARN] {self.model_name}: a tool call was lost; asking again")
+        return True
 
     def _ask_after_tools(self, with_tools, rounds, keep_tools=False):
         """Stream the ask after a round of tools: False when it would not
@@ -3594,6 +3618,9 @@ DELEGATE_SUMMARY_PROMPT = (
     "files written, errors). No preamble, no markdown, no speculation."
 )
 
+
+# The ask after one whose tool call never came through (ReplyStream.lost_call)
+LOST_CALL = "(Your tool call did not come through. Make it again, or answer.)"
 
 OVERSEER_PROMPT = (
     "You handed a coding task to an agent & are checking on it. Answer in "
