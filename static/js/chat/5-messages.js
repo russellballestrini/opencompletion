@@ -69,6 +69,32 @@ function markSender(wrapper, name, fromModel) {
     wrapper.classList.toggle("is-mine", !fromModel && name === username);
 }
 
+// When a message was written (created_at, Unix seconds), quiet under it:
+// the time today, the date too on another day, the full date on hover. A
+// message with no time (written before we kept one) shows none.
+function stampTime(wrapper, seconds) {
+    if (!seconds) return;
+    const when = new Date(seconds * 1000);
+    if (isNaN(when)) return;
+    let stamp = wrapper.querySelector(":scope > .message-time");
+    if (!stamp) {
+        stamp = document.createElement("time");
+        stamp.className = "message-time";
+        wrapper.appendChild(stamp);
+    }
+    stamp.dateTime = when.toISOString();
+    stamp.title = when.toLocaleString();
+    const now = new Date();
+    const clock = { hour: "numeric", minute: "2-digit" };
+    if (when.toDateString() === now.toDateString()) {
+        stamp.textContent = when.toLocaleTimeString([], clock);
+    } else {
+        const day = { month: "short", day: "numeric", ...clock };
+        if (when.getFullYear() !== now.getFullYear()) day.year = "numeric";
+        stamp.textContent = when.toLocaleString([], day);
+    }
+}
+
 // Fork, on a model's reply: hover (or focus) says what it makes; a click
 // calls forkFromMessage() in base.html & opens the new chat.
 function addForkButton(buttonContainer, messageId) {
@@ -222,6 +248,7 @@ socket.on("chat_message", (data) => {
 
     messageWrapper.appendChild(newMessage);
     if (stored) addVersionPager(messageWrapper, data.id, data.versions);
+    if (stored) stampTime(messageWrapper, data.created_at || Date.now() / 1000);
 
     // A reply that failed arrives whole under the id it was streaming as:
     // it takes that reply's place, never a second element with its id.
@@ -410,6 +437,7 @@ function drawStoredMessage(data) {
     }
     messageWrapper.appendChild(newMessage);
     addVersionPager(messageWrapper, data.id, data.versions);
+    stampTime(messageWrapper, data.created_at);
     return messageWrapper;
 }
 
@@ -598,6 +626,7 @@ function streamingWrapper(id) {
         messageWrapper.className = "message-wrapper is-model";
         messageWrapper.id = "message-" + id;
         document.getElementById("chat").appendChild(messageWrapper);
+        stampTime(messageWrapper, Date.now() / 1000);  // its end says when exactly
     }
     messageWrapper.dataset.streaming = "1";
     return messageWrapper;
@@ -807,6 +836,7 @@ function finishReply(messageWrapper, content, stream) {
         if (messageWrapper.sharedLinks) applyMessageLinks(messageWrapper, messageWrapper.sharedLinks);
     }
     replyHeader(messageWrapper, data.model_name);
+    stampTime(messageWrapper, data.created_at);
     let details = messageWrapper.querySelector(".message-thinking");
     if (enableThinking && typeof data.thinking === "string" && data.thinking) {
         if (!details) {
