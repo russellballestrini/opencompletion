@@ -1544,7 +1544,7 @@ def handle_message(data):
         message,
         [model],
         data.get("enable_thinking", True),
-        tool_context=tools.context(request.sid, user),
+        tool_context=tools.context(request.sid, user, bare=data.get("bare") is True),
         message_id=new_message.id,
         is_owner=auth.may_remove(room, user),
     )
@@ -2221,7 +2221,7 @@ def handle_edit_and_resend(data):
         content,
         models,
         data.get("enable_thinking", True),
-        tool_context=tools.context(request.sid, user),
+        tool_context=tools.context(request.sid, user, bare=data.get("bare") is True),
         is_owner=auth.may_remove(room, user),
     )
 
@@ -2337,6 +2337,9 @@ def fade_to_fit(kwargs):
     window, per_token = learned
     if kwargs.get("max_tokens"):
         room = min(room, kwargs["max_tokens"])
+    # A window smaller than twice our answer room (a 4k model, 8k room)
+    # would fade everything away: keep half of it for the conversation.
+    room = min(room, window // 2)
     budget = window - room - CONTEXT_MARGIN
     faded, step = fade.fit(kwargs["messages"], kwargs.get("tools"), budget, per_token)
     if step:
@@ -2443,6 +2446,24 @@ def history_limit(model_name):
     if CONTEXT_WINDOWS.get(model_name):
         return max(1, _env_int("OPENCOMPLETION_HISTORY_LIMIT", DEFAULT_HISTORY_LIMIT))
     return UNFITTED_HISTORY_LIMIT
+
+
+DEFAULT_BARE_CONTEXT = 8192
+
+
+def bare_model(model_name):
+    """Whether model_name answers bare: the conversation alone, no tools, no
+    tool guidance & no follow-up asks. A small model (andrea, 4k tokens)
+    offered every tool spent its window on their schemas & answered "hello
+    i am looking for food" with a list of our tools (fox, 2026-11-25).
+    Bare when its learned context is at most OPENCOMPLETION_BARE_CONTEXT
+    tokens (8192; 0 = never by size); a person asks for it with chat's Bare
+    replies toggle (ToolContext.bare) whatever the model."""
+    if not model_name:
+        return False
+    limit = _env_int("OPENCOMPLETION_BARE_CONTEXT", DEFAULT_BARE_CONTEXT)
+    learned = CONTEXT_WINDOWS.get(model_name)
+    return bool(limit and learned and learned[0] <= limit)
 
 
 def reply_history(room_name, model_name, resume=None):
@@ -2583,6 +2604,7 @@ class ReplyStream:
         self.round_info = {}
         self.tool_context = None
         self.tool_schemas = None
+        self.bare = False  # set by prepare (bare_model)
         self.offered = []
         self.offered_where = {}  # tool name -> where it runs, for steering
         self.tool_calls = None
@@ -2736,7 +2758,10 @@ class ReplyStream:
                 notes=self.forward_steering,
             )
         self.tool_context = tool_context
-        self.tool_schemas = tools.schemas(tool_context)
+        # A bare reply (chat's Bare toggle, or bare_model) reads the
+        # conversation alone.
+        self.bare = bool(tool_context and tool_context.bare) or bare_model(model_name)
+        self.tool_schemas = [] if self.bare else tools.schemas(tool_context)
         if self.tool_schemas:
             self._offer_tools(resume)
         # The calls the model streams in its current ask, when it may call any.
@@ -3325,7 +3350,7 @@ class ReplyStream:
                 if room is not None:
                     emit_room_stats(room)
         # A reply with no OpenAI client (chat_claude) has nobody to ask.
-        asks = self.openai_client is not None
+        asks = self.openai_client is not None and not self.bare
         if asks and followups_enabled() and buffer.strip() and not self.notice:
             if room_name not in stop_requests:
                 gevent.spawn(

@@ -1175,7 +1175,8 @@ function resendEditedMessage(messageId, textarea, messageContentContainer) {
         "content": content,
         "room_name": room_name,
         "model": document.getElementById("model-select").value,
-        "enable_thinking": enableThinking
+        "enable_thinking": enableThinking,
+        "bare": bareReplies
     });
     // The editor stays open: messages_hidden takes it away once the server
     // resends, & a refusal (edit_resend_refused) leaves the draft to retry.

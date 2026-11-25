@@ -96,6 +96,9 @@ let isPlayingTTS = false;
 // fallback, any reasoning_content that still arrives is dropped client-side
 // (see message_chunk handler). Toggle persists to localStorage.
 let enableThinking = storedValue('enableThinking') !== 'false';
+// Bare replies (off by default): sent as bare=true, the model reads the
+// conversation alone, no tools, system prompt or follow-ups (small models).
+let bareReplies = storedValue('bareReplies') === 'true';
 // A soft chime when replies finish after a wait (on by default).
 let doneChime = storedValue('doneChime') !== 'false';
 

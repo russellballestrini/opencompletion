@@ -21,6 +21,15 @@ guest's tools never run on it.
 | `sandbox_shell`, `sandbox_write_file`, `sandbox_share_file`, `sandbox_put_attachment` | not offered | this chat's own unsandbox sandbox, with network |
 | `delegate` (uncloseai-cli) | not offered | in that sandbox |
 
+A **bare** reply is offered nothing, whoever asks: a person turns it on with
+chat's **Bare replies** toggle (`bare: true` on their message,
+`ToolContext.bare`, for which `offered` is empty), or our server does for a
+model whose learned context is at most `OPENCOMPLETION_BARE_CONTEXT`
+tokens (8192; 0 = never by size; `app.bare_model`). A small model (andrea,
+4k tokens) spent its window on our schemas & answered with a list of our
+tools. It reads the conversation alone: no schemas, no
+guidance, no follow-up asks.
+
 An egress user is a signed-in email on
 `OPENCOMPLETION_SERVER_EGRESS_USERS` (default: nobody). Fetching a page has
 no browser path: a browser can't read another site's page (CORS), so
