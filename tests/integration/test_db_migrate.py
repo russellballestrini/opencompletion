@@ -271,7 +271,7 @@ def old_head_with_a_deleted_chat(database):
 
 
 # What migrations newer than 2026111201 add, appended to their tables.
-ADDED_SINCE = {"room": ("creator_key",)}
+ADDED_SINCE = {"room": ("creator_key",), "message": ("created_at",)}
 ADDED_INDEXES = ("ix_room_creator_key",)
 
 
@@ -288,7 +288,7 @@ def test_an_upgrade_seeds_ids_past_every_one_the_chain_ever_saw(tmp_path):
     assert up(database).startswith("Database migrations: 2026111001 -> ")
     assert autoincrement(database) == {t: True for t in NEVER_REUSED}
 
-    # Every row, index & foreign key kept; only the id columns' DDL moved.
+    # Migrations after it only add (room.creator_key, 2026111701; message.created_at, 2026112501): set aside.
     # Migrations after it only add (room.creator_key, 2026111701): set aside.
     indexes, keys, cols = schema(database)
     added = len(ADDED_SINCE["room"])
@@ -303,6 +303,7 @@ def test_an_upgrade_seeds_ids_past_every_one_the_chain_ever_saw(tmp_path):
             for t in NEVER_REUSED + ("room_event",)
         }
         after["room"] = [r[:-added] for r in after["room"]]
+        after["message"] = [r[: -len(ADDED_SINCE["message"])] for r in after["message"]]
         assert rows == after
         seqs = dict(con.execute("SELECT name, seq FROM sqlite_sequence"))
         assert con.execute("pragma integrity_check").fetchone() == ("ok",)
@@ -367,3 +368,9 @@ def test_a_rebuild_that_would_lose_something_changes_nothing(tmp_path):
     with sqlite3.connect(database) as con:
         names = {r[0] for r in con.execute("SELECT name FROM sqlite_master")}
     assert "noted" in names and not any(n.startswith("_alembic_tmp") for n in names)
+
+
+def test_a_new_database_has_message_times(head, tmp_path):
+    database = tmp_path / "chat.db"
+    up(database)
+    assert "created_at" in columns(database, "message")

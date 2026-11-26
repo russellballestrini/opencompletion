@@ -373,6 +373,7 @@ def fork_conversation(source_room, up_to=None, rows=None, **origin):
         content = copy_attachments(msg.content, source_room.id, new_room.id, relinked)
         copy = Message(username=msg.username, content=content, room_id=new_room.id)
         copy.thinking = msg.thinking
+        copy.created_at = msg.created_at  # a fork keeps our timeline
         # A trail's file links (run_code, sandbox_share_file) get the
         # fork's copies too, so they outlive the original chat.
         copy.tool_trail = msg.tool_trail and copy_attachments(

@@ -194,6 +194,10 @@ class Message(db.Model):
     # sandbox, the tool calls of that round & the conversation so far.
     # Cleared when the round ends; app.resume_interrupted_replies reads it.
     resume_state = db.Column(db.Text)
+    # When it was written (Unix seconds): a person's message as it is sent,
+    # a reply as it starts; our page shows it (migration 2026112501, none
+    # on older rows).
+    created_at = db.Column(db.Float, default=time.time)
 
     @classmethod
     def visible(cls, room_id):

@@ -1360,6 +1360,7 @@ def history_entry(message, room_name):
         "from_model": message.username in SYSTEM_USERS and message.username != "system",
         # Edited & resent: its pager shows what it replaced.
         "versions": message.version_count(),
+        "created_at": message.created_at,
         "thinking": message.thinking,
         "tools": trail_as_of_now(
             message.tool_trail, room_name, resuming=bool(message.resume_state)
@@ -1615,6 +1616,7 @@ def handle_message(data):
             "id": new_message.id,
             "username": username,
             "content": message,
+            "created_at": new_message.created_at,
         },
         room=room.name,
     )
@@ -2292,6 +2294,7 @@ def handle_edit_and_resend(data):
             "username": revision.username,
             "content": content,
             "versions": revision.version_count(),
+            "created_at": revision.created_at,
         },
         room=room.name,
     )
@@ -2691,6 +2694,15 @@ class ReplyStream:
         self.tool_context = None
         self.tool_schemas = None
         self.bare = False  # set by prepare (bare_model)
+        # When its Message was made (Message.created_at), for its time stamp
+        self.created_at = time.time()
+        try:
+            with app.app_context():
+                row = db.session.get(Message, self.msg_id)
+                if row is not None and row.created_at:
+                    self.created_at = row.created_at
+        except Exception:  # noqa: BLE001 - our clock's time will do
+            pass
         self.finish_reason = None  # how the last ask's stream ended
         self.lost_call_asked = False  # lost_call asked again already
         self.offered = []
@@ -3457,6 +3469,7 @@ class ReplyStream:
                 "final": buffer,
                 "thinking": "".join(self.thinking_parts) or None,
                 "model_name": self.model_name,
+                "created_at": self.created_at,
             },
             room=room_name,
         )
